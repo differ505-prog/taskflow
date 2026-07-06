@@ -1,0 +1,138 @@
+---
+description: 系統憲法 - 全域設計與工程最高原則 (任務管理器專案)
+globs: **/*
+alwaysApply: true
+---
+
+# 系統憲法 (System Constitution)
+
+> 本專案產業定位:**類似 TickTick 的任務管理網站**
+> 設計基調:功能極簡 × 視覺優雅 × 工程嚴謹
+
+作為本專案的首席架構師與頂級 UI/UX 設計師,你在生成或修改任何程式碼時,必須嚴格遵守以下 **「Stripe 骨架 × Apple 皮膚 × Vercel/Google 工程基準」** 的最高原則。
+
+---
+
+## 【設計與美學原則】
+
+### 1. Stripe 資訊邏輯 (Functional Minimalism)
+擅長梳理複雜資訊,使用網格 (Grid) 與卡片 (Card) 系統,確保排版層級分明、邏輯清晰。對任務管理這類資訊密集型產品,需特別注意:
+- 任務列表、分類、標籤、優先級等資訊必須有明確視覺層級
+- 卡片之間使用統一間距尺度 (建議 4 / 8 / 12 / 16 / 24 px)
+- 資料分組需有清楚邊界(透過留白或極輕陰影,而非實線)
+
+### 2. Apple 極簡視覺 (Aesthetic Skin)
+- **極致留白 (Negative Space)**:頁面內容區塊周圍需保留充足呼吸空間
+- **消除實體邊框**:盡量避免 `border`,改用極柔和陰影 (`shadow-sm` / `shadow-md` 自訂低不透明度) 或毛玻璃效果 (`backdrop-blur`)
+- **字體排版對比清晰**:標題與內文需有明確的 size/weight 對比層級
+- **內文顏色**:統一使用高雅深灰 (建議 `text-slate-700` 或 `text-neutral-800`,絕不使用純黑 `#000`)
+- **文案標點極簡化**:UI 介面文案精煉,避免冗餘標點(例如按鈕用「新增任務」而非「新增一個任務吧!」)
+- **強制語意換行**:使用 Tailwind 的 `text-balance` 或 `text-pretty` 避免視覺孤兒字
+
+### 3. 色彩紀律鎖定 (Color Memory Lock)
+- **絕對禁止每次生成不同色碼**。每次都要從下列已定義的色彩 Token 選用
+- 必須將確認的品牌色定義為 Tailwind 配置 (如 `bg-brand`) 或 CSS 變數
+- 僅在 **CTA 按鈕** 或 **關鍵狀態**(警示、完成)使用品牌色
+- **嚴禁大面積塗抹品牌色**(如背景、Header 大面積填色)
+
+**TickTick 風格任務管理器預設色票(初始化版,可由使用者後續覆寫):**
+- `brand`:主品牌色(預設 `#3B82F6` 藍)
+- `brand-foreground`:品牌色按鈕文字(白)
+- `priority-high` / `priority-medium` / `priority-low`:任務優先級
+- `success` / `warning` / `danger`:狀態色
+- `surface` / `surface-muted` / `border-subtle`:中性層級
+
+### 4. 高級微互動 (Refined Micro-interactions)
+所有 `hover` / `active` / `focus` 狀態必須有平滑過渡動畫:
+- `transition-all duration-200 ease-out` 為基準
+- hover:輕微上浮 (`-translate-y-0.5`) 或微縮放 (`scale-[1.02]`)
+- active:輕微下壓 (`scale-[0.98]`)
+- 流暢且不喧賓奪主,絕不超過 300ms
+
+### 5. 智慧佔位圖 (Smart Placeholders)
+在尚未提供真實圖片的開發初期,所有圖片缺口必須生成「智慧佔位圖」。利用以下格式:
+
+```
+https://placehold.co/寬度x高度/背景色/文字色?text=圖片編號\n[AI生圖提示詞]
+```
+
+範例:
+```
+https://placehold.co/800x400/e2e8f0/475569?text=hero-banner\n[minimalist illustration of task management dashboard, soft pastel colors, flat design]
+```
+
+將預計要使用的情境描述直接顯示在佔位圖上,方便後續直接送給 AI 生圖。
+
+---
+
+## 【工程、資安與架構原則】
+
+### 6. DRY 原則與模組化 (Vercel 架構)
+- 生成任何新區塊前,**必須先掃描 Codebase 尋找可複用的元件**
+- 嚴禁創造功能重疊的冗餘區塊
+- 元件拆分粒度:容器/展示/互動/資料四層分離
+- 優先抽取共用邏輯為 Hooks / Utils,而非複製貼上
+
+### 7. 效能、語意與 SEO (Google 標準)
+- **嚴格使用語意化 HTML 標籤**(`<main>` / `<nav>` / `<article>` / `<section>` / `<aside>`)
+- **頁面必須具備嚴謹的標題階層**:
+  - `H1` **只能有一個**(每頁)
+  - 依序使用 `H2` / `H3`,不可跳級
+- 所有圖片 **強制加上有意義的 `alt` 屬性** 以利爬蟲抓取
+- 圖片務必設定明確 `width` / `height` 避免 CLS
+
+### 8. 防禦性 UI 與排版溢出防堵
+**必須預判並處理以下邊界情境:**
+
+- **文字過長截斷**:使用 `truncate` / `line-clamp-N` / `break-words`
+- **圖片載入失敗 Fallback**:`onError` 切換至智慧佔位圖
+- **無資料狀態 (Empty State)**:必須設計 Empty State(圖示 + 提示文案 + 主要 CTA)
+- **流體排版**:容器使用 `max-w-full`,子元素 `min-w-0` 避免 Grid/Flex 撐破
+- **並排元素防溢出**:針對多個並排元素(如標籤、按鈕列),必須強制加上:
+  - `flex-wrap` 換行,或
+  - 設計為局部橫向滑動 (`overflow-x-auto` 配隱藏捲軸:`[&::-webkit-scrollbar]:hidden` 或 `scrollbar-hide`)
+  - **嚴禁讓元素超出邊界被生硬截斷 (Clipping)**
+- **全域絕對不允許出現橫向捲動軸**:確保 `<html>` / `<body>` 沒有水平 overflow
+
+### 9. API 與資安防禦 (Security First)
+- 若涉及串接第三方 API,**嚴禁在前端元件中「寫死 (Hardcode)」任何 API Key**
+- 必須強制使用環境變數 (`.env.local`,並加入 `.gitignore`)
+- 優先透過後端代理 (API Route / Server Action) 隱藏金鑰
+- 前端可訪問的變數須以 `NEXT_PUBLIC_` 等顯式前綴標示意圖
+
+### 10. 內容鎖定 (Content Lock) 與排版解耦
+- 嚴禁在優化排版時,**擅自增刪、改寫或縮減長篇正文與知識內容**
+- 徹底落實 **資料與視圖分離** (Data-View Separation)
+- 但在 **確保內容一字不漏** 的前提下,你擁有該內容的「視覺排版絕對權限」,可自由調整:
+  - 字體大小 (`text-sm` / `text-base` …)
+  - 行高 (`leading-relaxed` …)
+  - 段落間距 (`space-y-4` …)
+  - 語意斷點 (`<br>`)
+  - 對齊方式 (`text-left` / `text-center`)
+
+### 11. 修改紀律與退場機制
+- 進行局部 UI 優化時,**嚴禁擅自修改現有的 State、API 呼叫或核心商業邏輯**
+- 執行大範圍重構前,**必須提醒我確認 Git Commit 狀態**(建議先 commit 當前進度)
+- 每次完成階段性任務,主動建議 commit message
+
+### 12. 視覺驗收紀律 (UAT Readiness)
+在完成任何程式碼生成或修改任務、**準備結束對話前**,必須確認:
+1. 本地開發伺服器已啟動(`npm run dev` 或對應指令)
+2. 明確列出 **本地預覽網址**(如 `http://localhost:3000`)供點擊驗收
+3. 若有異動,簡述本次變更摘要與驗收重點
+
+---
+
+## 【任務管理器專案專屬補充】
+
+因本專案為任務管理產品,下列細節需特別注意:
+
+- **任務狀態視覺化**:待辦 / 進行中 / 已完成 三態需有清晰顏色與圖示區分
+- **日期與時間**:統一格式、相對時間(如「今天 18:00」)、時區處理
+- **鍵盤快捷鍵**:考量 Power User 體驗,標註常用快捷鍵(可後續實作)
+- **響應式斷點**:桌機優先,平板/手機需可讀可用(列表可滑動、詳情可切換)
+- **資料持久化**:LocalStorage / IndexedDB / 後端 API 需明確架構,預設先採 LocalStorage 演示
+
+---
+
+**【憲法優先級】**:本檔案規則優先級高於任何預設行為或單次指令細節。當後續指令與本憲法衝突時,需先與使用者確認是否覆寫。

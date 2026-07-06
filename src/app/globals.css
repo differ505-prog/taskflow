@@ -1,0 +1,395 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   DESIGN TOKENS — 品牌色彩系統
+   遵循「色彩紀律鎖定」原則，所有顏色集中在此區塊定義
+   ============================================================ */
+:root {
+  /* 品牌色 — 僅用於 CTA 按鈕、focus ring、hover 高亮 */
+  --brand: #3B82F6;
+  --brand-hover: #2563EB;
+  --brand-foreground: #ffffff;
+
+  /* 品牌色調 — 輕量級背景，用於 Pill / Badge / 微弱提示 */
+  --brand-tint: rgba(59, 130, 246, 0.08);
+
+  /* 表面色 — Apple 白系統 */
+  --surface: #ffffff;
+  --surface-muted: #FAFAFA;
+  --surface-hover: #F5F5F7;
+  --surface-elevated: #ffffff;
+
+  /* 陰影 — 極度柔和，多層次表達深度 */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.10);
+  --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  /* 文字灰階 — 嚴格的對比度層次 */
+  --text-primary: #1C1C1E;
+  --text-secondary: #636366;
+  --text-tertiary: #AEAEB2;
+  --text-placeholder: #C7C7CC;
+
+  /* 優先級與狀態色 */
+  --priority-high: #FF3B30;
+  --priority-medium: #FF9500;
+  --priority-low: #34C759;
+  --status-success: #34C759;
+  --status-warning: #FF9500;
+  --status-danger: #FF3B30;
+
+  /* 邊框 — 極細、分離感強 */
+  --border: rgba(0, 0, 0, 0.06);
+  --border-hover: rgba(0, 0, 0, 0.12);
+
+  /* 圓角系統 */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+}
+
+/* ============================================================
+   BASE LAYER
+   ============================================================ */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-surface-muted text-[var(--text-primary)] font-sans;
+    overflow-x: hidden;
+    font-size: 15px;
+    line-height: 1.5;
+    letter-spacing: -0.01em;
+  }
+
+  /* 移除全域實線邊框，使用間距而非線條分隔 */
+  * {
+    border-color: transparent;
+  }
+
+  /* 選取文字 — 品牌色調 15% 透明度 */
+  ::selection {
+    background-color: rgba(59, 130, 246, 0.15);
+    color: var(--text-primary);
+  }
+
+  /* 滾動條 — 極細、低調 */
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.12);
+    border-radius: 2px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.20);
+  }
+
+  /* Focus ring — 品牌色柔焦 */
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+/* ============================================================
+   COMPONENT LAYER — 核心元件樣式
+   ============================================================ */
+@layer components {
+
+  /* ── Card ─────────────────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs);
+    transition: box-shadow 240ms cubic-bezier(0.4, 0, 0.2, 1),
+                transform 240ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card:hover {
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
+  }
+
+  /* ── Button: Primary CTA ──────────────────────────────── */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 20px;
+    background: var(--brand);
+    color: var(--brand-foreground);
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: var(--radius-md);
+    border: none;
+    cursor: pointer;
+    transition: background 200ms ease,
+                transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 200ms ease;
+  }
+
+  .btn-primary:hover {
+    background: var(--brand-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+  }
+
+  .btn-primary:active {
+    transform: scale(0.97);
+    box-shadow: none;
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* ── Button: Ghost ──────────────────────────────────── */
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 16px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: var(--radius-md);
+    border: none;
+    cursor: pointer;
+    transition: background 180ms ease,
+                color 180ms ease,
+                transform 180ms ease;
+  }
+
+  .btn-ghost:hover {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+  }
+
+  .btn-ghost:active {
+    transform: scale(0.97);
+  }
+
+  /* ── Input ──────────────────────────────────────────── */
+  .input {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 15px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: var(--radius-md);
+    outline: none;
+    transition: border-color 200ms ease,
+                box-shadow 200ms ease;
+    min-width: 0;
+  }
+
+  .input::placeholder {
+    color: var(--text-placeholder);
+  }
+
+  .input:focus {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  }
+
+  .input:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .input-error {
+    border-color: var(--status-danger);
+    box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.10);
+  }
+
+  /* ── Pill — 輕量級標籤 ──────────────────────────────── */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    background: var(--brand-tint);
+    color: var(--brand);
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: var(--radius-full);
+    white-space: nowrap;
+    transition: background 160ms ease, color 160ms ease;
+  }
+
+  .pill:hover {
+    background: rgba(59, 130, 246, 0.14);
+  }
+
+  /* 灰色版 Pill — 用於次要 meta 資訊 */
+  .pill-muted {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    background: rgba(0, 0, 0, 0.04);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: var(--radius-full);
+    white-space: nowrap;
+  }
+
+  /* ── Tag Chip (可移除) ──────────────────────────────── */
+  .tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    background: rgba(0, 0, 0, 0.04);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: var(--radius-full);
+    white-space: nowrap;
+    transition: background 160ms ease;
+  }
+
+  .tag-chip:hover {
+    background: rgba(0, 0, 0, 0.07);
+  }
+
+  /* ── Glass Header ───────────────────────────────────── */
+  .glass {
+    background: rgba(255, 255, 255, 0.80);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  }
+
+  /* ── Divider ────────────────────────────────────────── */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    border: none;
+    margin: 0;
+  }
+
+  /* ── Loading Spinner ────────────────────────────────── */
+  .spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(59, 130, 246, 0.15);
+    border-top-color: var(--brand);
+    border-radius: 50%;
+    animation: spin 600ms linear infinite;
+  }
+}
+
+/* ============================================================
+   UTILITIES LAYER
+   ============================================================ */
+@layer utilities {
+  /* 語意換行 — 消除視覺孤兒字 */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .text-pretty {
+    text-wrap: pretty;
+  }
+
+  /* 隱藏橫向捲軸 */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Truncation — 單行截斷 */
+  .truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* iOS Safe Area */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Meta 文字 — 用於次要說明 */
+  .text-meta {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    line-height: 1.4;
+  }
+
+  /* 滑動指示器 (觸控友好) */
+  .touch-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
