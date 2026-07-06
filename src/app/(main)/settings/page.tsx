@@ -2,9 +2,14 @@
 
 import { useState } from "react";
 import { Settings as SettingsIcon, Trash2, Download, Moon, Bell, Shield, Info, type LucideIcon } from "lucide-react";
-import { getTasks, saveTasks } from "@/lib/storage";
+import { getTasks } from "@/lib/storage";
 
 export default function SettingsPage() {
+  type SettingsItem =
+    | { icon: LucideIcon; label: string; description: string; type: "info"; value: string; onClick?: never }
+    | { icon: LucideIcon; label: string; description: string; type: "action"; value?: string; onClick: () => void }
+    | { icon: LucideIcon; label: string; description: string; type: "danger"; value?: string; onClick: () => void };
+
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleClearAllData = () => {
@@ -57,14 +62,14 @@ export default function SettingsPage() {
           description: "JSON 格式下載",
           type: "action",
           onClick: handleExportData,
-        }: { icon: LucideIcon; label: string; description: string; type: "action"; value?: string; onClick: () => void },
+        } satisfies SettingsItem as SettingsItem,
         {
           icon: Trash2,
           label: "清除所有資料",
           description: "不可逆，資料將被永久刪除",
           type: "danger",
           onClick: () => setShowConfirm(true),
-        }: { icon: LucideIcon; label: string; description: string; type: "danger"; value?: string; onClick: () => void },
+        } satisfies SettingsItem as SettingsItem,
       ],
     },
     {
@@ -119,7 +124,7 @@ export default function SettingsPage() {
                   <li key={item.label} className={!isLast ? "border-b" : ""} style={{ borderColor: "var(--border)" }}>
                     {item.type === "danger" ? (
                       <button
-                        onClick={item.onClick}
+                        onClick={() => (item as { onClick?: () => void }).onClick?.()}
                         className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-[var(--surface-hover)] transition-colors duration-150"
                         aria-label={item.label}
                       >
@@ -136,7 +141,7 @@ export default function SettingsPage() {
                       </button>
                     ) : item.type === "action" ? (
                       <button
-                        onClick={item.onClick}
+                        onClick={() => (item as { onClick?: () => void }).onClick?.()}
                         className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-[var(--surface-hover)] transition-colors duration-150"
                         aria-label={item.label}
                       >
