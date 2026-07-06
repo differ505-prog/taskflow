@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { StatsClient } from "@/components/StatsClient";
+import StatsClient from "@/components/StatsClient";
 
 export const metadata: Metadata = {
   title: "統計",

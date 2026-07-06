@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Settings as SettingsIcon, Trash2, Download, Moon, Bell, Shield, Info } from "lucide-react";
+import { Settings as SettingsIcon, Trash2, Download, Moon, Bell, Shield, Info, type LucideIcon } from "lucide-react";
 import { getTasks, saveTasks } from "@/lib/storage";
 
 export default function SettingsPage() {
@@ -57,14 +57,14 @@ export default function SettingsPage() {
           description: "JSON 格式下載",
           type: "action",
           onClick: handleExportData,
-        },
+        }: { icon: LucideIcon; label: string; description: string; type: "action"; value?: string; onClick: () => void },
         {
           icon: Trash2,
           label: "清除所有資料",
           description: "不可逆，資料將被永久刪除",
           type: "danger",
           onClick: () => setShowConfirm(true),
-        },
+        }: { icon: LucideIcon; label: string; description: string; type: "danger"; value?: string; onClick: () => void },
       ],
     },
     {
