@@ -556,8 +556,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ownerName: data.ownerName,
     });
 
+    // Ensure required list fields are never undefined (SharedListMeta doesn't store icon/color)
+    const listWithDefaults: TaskList = {
+      ...data.list,
+      ownerId,
+      icon: data.list.icon || "📋",
+      color: data.list.color || "#3B82F6",
+    };
+
     const sharedData: SharedListData = {
-      list: { ...data.list, ownerId },
+      list: listWithDefaults,
       tasks: data.tasks,
       ownerName: data.ownerName,
     };
@@ -577,8 +585,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           console.log("[SharedList] Received Firestore update for", sharedListId, snapshot?.tasks?.length, "tasks");
           if (snapshot) {
             const snapshotOwnerId = snapshot.ownerId || snapshot.list.ownerId;
+            const snapshotListWithDefaults: TaskList = {
+              ...snapshot.list,
+              ownerId: snapshotOwnerId,
+              icon: snapshot.list.icon || "📋",
+              color: snapshot.list.color || "#3B82F6",
+            };
             const updatedData: SharedListData = {
-              list: { ...snapshot.list, ownerId: snapshotOwnerId },
+              list: snapshotListWithDefaults,
               tasks: snapshot.tasks,
               ownerName: snapshot.ownerName,
             };
@@ -759,8 +773,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         sharedListId,
         (snapshot) => {
           if (snapshot) {
+            const snapshotOwnerId = snapshot.ownerId || snapshot.list.ownerId;
+            // Ensure required fields are never undefined
+            const snapshotListWithDefaults: TaskList = {
+              ...snapshot.list,
+              ownerId: snapshotOwnerId,
+              icon: snapshot.list.icon || "📋",
+              color: snapshot.list.color || "#3B82F6",
+            };
             const updatedData: SharedListData = {
-              list: { ...snapshot.list, ownerId: snapshot.ownerId || snapshot.list.ownerId },
+              list: snapshotListWithDefaults,
               tasks: snapshot.tasks,
               ownerName: snapshot.ownerName,
             };
