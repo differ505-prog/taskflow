@@ -248,6 +248,20 @@ export async function createSharedList(
   return sharedListId;
 }
 
+// Deep-filter: remove undefined values from objects before writing to Firestore
+// Firestore does NOT accept undefined - it must be null or omitted
+function stripUndefined<T extends object>(obj: T): Partial<T> {
+  const result: Partial<T> = {};
+  for (const key of Object.keys(obj) as (keyof T)[]) {
+    const value = obj[key];
+    if (value !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (result as any)[key] = value;
+    }
+  }
+  return result;
+}
+
 export async function updateSharedSnapshot(
   sharedListId: string,
   list: TaskList,
@@ -256,14 +270,44 @@ export async function updateSharedSnapshot(
   ownerName?: string
 ): Promise<void> {
   const db = await getFirebaseDB();
-  // Ensure ownerId is never undefined (TaskList.ownerId is optional, but SharedListSnapshot requires it)
   const safeOwnerId = ownerId ?? "";
   if (!safeOwnerId) {
     console.warn("[Firestore] updateSharedSnapshot called with empty ownerId, sharedListId:", sharedListId);
   }
+
+  // Strip undefined from list (critical - Firestore rejects undefined)
+  const safeList = {
+    ...stripUndefined(list),
+    sharedId: sharedListId,
+    ownerId: safeOwnerId,
+  };
+
+  // Strip undefined from all tasks (deep-clean)
+  const safeTasks = tasks.map((t) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const obj = t as any;
+    const cleaned: Record<string, unknown> = {};
+    for (const key of Object.keys(obj)) {
+      const val = obj[key];
+      if (val !== undefined) {
+        cleaned[key] = val;
+      }
+    }
+    return cleaned;
+  });
+
+  console.log("[Firestore] updateSharedSnapshot:", {
+    sharedListId,
+    ownerId: safeOwnerId,
+    listKeys: Object.keys(safeList),
+    listUndefinedKeys: Object.keys(list).filter(k => (list as Record<string, unknown>)[k] === undefined),
+    taskCount: safeTasks.length,
+    hasUndefinedTasks: tasks.some(t => Object.values(t).some(v => v === undefined)),
+  });
+
   const snapshotData: SharedListSnapshot = {
-    list: { ...list, sharedId: sharedListId, ownerId: safeOwnerId },
-    tasks,
+    list: safeList,
+    tasks: safeTasks as Task[],
     ownerId: safeOwnerId,
     ownerName,
     updatedAt: Timestamp.now().toDate().toISOString(),
