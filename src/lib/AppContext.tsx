@@ -966,7 +966,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     console.log("[SharedList] Writing new task to Firestore, ownerId:", ownerId);
 
     // Write to Firestore with error handling
-    updateSharedSnapshot(
+    const result = updateSharedSnapshot(
       sharedListId,
       updatedData.list,
       updatedTasks,
@@ -979,7 +979,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         lastSyncedHashRef.current[sharedListId] = hash;
         console.log("[SharedList] Task saved to Firestore, hash updated to:", hash.substring(0, 30));
       }
-    ).catch((error) => {
+    );
+    console.log("[SharedList] updateSharedSnapshot returned:", result, "type:", typeof result);
+    if (result && typeof result.then === "function") {
+      result.catch((error) => {
         console.error("[SharedList] Failed to save task to Firestore:", error);
         // If Firestore write fails, remove the task from local state
         const revertedTasks = data.tasks;
@@ -987,6 +990,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         saveSharedList(sharedListId, revertedData);
         setSharedLists(getSharedLists());
       });
+    } else {
+      console.error("[SharedList] CRITICAL: updateSharedSnapshot returned non-promise!", result);
+    }
 
     return id;
   }, [sharedLists, user, ensureSharedListData]);

@@ -315,9 +315,20 @@ export async function updateSharedSnapshot(
   };
 
   await setDoc(doc(db, "sharedListSnapshots", sharedListId), snapshotData);
+  console.log("[Firestore] setDoc complete for", sharedListId);
 
   // Notify caller after write completes so refs stay in sync
-  onWriteComplete?.(tasks);
+  if (onWriteComplete) {
+    console.log("[Firestore] calling onWriteComplete with", tasks.length, "tasks");
+    try {
+      onWriteComplete(tasks);
+      console.log("[Firestore] onWriteComplete completed");
+    } catch (cbError) {
+      console.error("[Firestore] onWriteComplete threw:", cbError);
+    }
+  } else {
+    console.log("[Firestore] updateSharedSnapshot no callback provided");
+  }
 }
 
 export async function getSharedSnapshot(sharedListId: string): Promise<SharedListSnapshot | null> {
