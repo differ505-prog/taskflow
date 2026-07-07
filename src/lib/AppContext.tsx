@@ -34,6 +34,8 @@ import {
   saveSharedList,
   getSharedLists,
   removeSharedList,
+  saveOwnedSharedListIds,
+  getOwnedSharedListIds,
 } from "./storage";
 import {
   createSharedList,
@@ -142,7 +144,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // ── Shared List State ─────────────────────────────────────
   const [sharedLists, setSharedLists] = useState<Record<string, SharedListData>>({});
   // Track which shared lists the current user owns (for sync updates)
-  const [ownedSharedListIds, setOwnedSharedListIds] = useState<string[]>([]);
+  const [ownedSharedListIds, _setOwnedSharedListIds] = useState<string[]>([]);
+  // Wrap setter to persist ownedSharedListIds to localStorage
+  const ownedSharedListIdsRef = useRef<string[]>([]);
+  const setOwnedSharedListIds = useCallback((updater: string[] | ((prev: string[]) => string[])) => {
+    _setOwnedSharedListIds((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      ownedSharedListIdsRef.current = next;
+      saveOwnedSharedListIds(next);
+      return next;
+    });
+  }, []);
   // Track shared list IDs that the current user has accepted (recipients)
   const [acceptedSharedListIds, setAcceptedSharedListIds] = useState<string[]>([]);
   // Refs to store unsubscribe functions for Firestore listeners
@@ -162,6 +174,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTasks(getTasks());
     setHabits(getHabits());
     setTodayFocusMinutes(getTodayFocusMinutes());
+    // Restore ownedSharedListIds from localStorage (critical for Firestore subscription on reload)
+    const storedOwnedIds = getOwnedSharedListIds();
+    if (storedOwnedIds.length > 0) {
+      _setOwnedSharedListIds(storedOwnedIds);
+      ownedSharedListIdsRef.current = storedOwnedIds;
+    }
     const storedSharedLists = getSharedLists();
     setSharedLists(storedSharedLists);
 

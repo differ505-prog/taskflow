@@ -6,6 +6,7 @@ const HABITS_KEY = "taskflow_habits";
 const POMODORO_KEY = "taskflow_pomodoro";
 const TAGS_KEY = "taskflow_tags";
 const SHARED_LISTS_KEY = "taskflow_shared_lists"; // { [sharedId]: { list, tasks } }
+const OWNED_SHARED_LIST_IDS_KEY = "taskflow_owned_shared_ids"; // string[] of owned shared list IDs
 
 // ─── Generic helpers ────────────────────────────────────────────
 function read<T>(key: string, fallback: T): T {
@@ -399,6 +400,26 @@ export function generateShareToken(): string {
 export function encodeSharePayload(list: TaskList, tasks: Task[]): string {
   const payload = { l: list, t: tasks };
   return btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+}
+
+export function getOwnedSharedListIds(): string[] {
+  return read<string[]>(OWNED_SHARED_LIST_IDS_KEY, []);
+}
+
+export function saveOwnedSharedListIds(ids: string[]): void {
+  write(OWNED_SHARED_LIST_IDS_KEY, ids);
+}
+
+export function addOwnedSharedListId(id: string): void {
+  const ids = getOwnedSharedListIds();
+  if (!ids.includes(id)) {
+    saveOwnedSharedListIds([...ids, id]);
+  }
+}
+
+export function removeOwnedSharedListId(id: string): void {
+  const ids = getOwnedSharedListIds();
+  saveOwnedSharedListIds(ids.filter((i) => i !== id));
 }
 
 export function decodeSharePayload(encoded: string): SharedListData | null {
