@@ -137,6 +137,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [sharedLists, setSharedLists] = useState<Record<string, SharedListData>>({});
   // Track which shared lists the current user owns (for sync updates)
   const [ownedSharedListIds, setOwnedSharedListIds] = useState<string[]>([]);
+  // Track shared list IDs that the current user has accepted (recipients)
+  const [acceptedSharedListIds, setAcceptedSharedListIds] = useState<string[]>([]);
   // Refs to store unsubscribe functions for Firestore listeners
   const sharedListUnsubscribeRefs = useRef<Record<string, () => void>>({});
 
@@ -147,13 +149,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTasks(getTasks());
     setHabits(getHabits());
     setTodayFocusMinutes(getTodayFocusMinutes());
-    setSharedLists(getSharedLists());
+    const storedSharedLists = getSharedLists();
+    setSharedLists(storedSharedLists);
 
     if (typeof Notification !== "undefined") {
       setNotificationPermission(Notification.permission);
     }
     setIsLoaded(true);
   }, [reloadKey]);
+
+  // ── Restore accepted shared list IDs from storage after load ─
+  useEffect(() => {
+    if (!isLoaded) return;
+    const storedSharedLists = getSharedLists();
+    const acceptedIds = Object.keys(storedSharedLists).filter(
+      (id) => !ownedSharedListIds.includes(id)
+    );
+    setAcceptedSharedListIds(acceptedIds);
+  }, [isLoaded, reloadKey]);
 
   const setCurrentView = useCallback((v: AppView, listId?: string) => {
     setCurrentViewState(v);
@@ -497,8 +510,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
     saveSharedList(sharedListId, sharedData);
     setSharedLists(getSharedLists());
+    setAcceptedSharedListIds((prev) =>
+      prev.includes(sharedListId) ? prev : [...prev, sharedListId]
+    );
 
-    // Subscribe to real-time updates
+    // Subscribe to real-time updates immediately
     subscribeToSharedSnapshot(
       sharedListId,
       (snapshot) => {
@@ -516,6 +532,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // Shared list was deleted by owner
         removeSharedList(sharedListId);
         setSharedLists(getSharedLists());
+        setAcceptedSharedListIds((prev) => prev.filter((id) => id !== sharedListId));
         if (sharedListUnsubscribeRefs.current[sharedListId]) {
           delete sharedListUnsubscribeRefs.current[sharedListId];
         }
@@ -528,6 +545,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const removeAcceptedSharedList = useCallback((sharedListId: string): void => {
     removeSharedList(sharedListId);
     setSharedLists(getSharedLists());
+    setAcceptedSharedListIds((prev) => prev.filter((id) => id !== sharedListId));
 
     // Unsubscribe from updates
     if (sharedListUnsubscribeRefs.current[sharedListId]) {
@@ -597,6 +615,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
     };
   }, [user, ownedSharedListIds, lists]);
+
+  // ── Subscribe to accepted shared lists (recipient side) ─────
+  useEffect(() => {
+    if (!user || acceptedSharedListIds.length === 0) return;
+
+    const promises: Promise<void>[] = [];
+    acceptedSharedListIds.forEach((sharedListId) => {
+      if (sharedListUnsubscribeRefs.current[sharedListId]) return; // Already subscribed
+
+      const promise = subscribeToSharedSnapshot(
+        sharedListId,
+        (snapshot) => {
+          if (snapshot) {
+            const updatedData: SharedListData = {
+              list: snapshot.list,
+              tasks: snapshot.tasks,
+              ownerName: snapshot.ownerName,
+            };
+            saveSharedList(sharedListId, updatedData);
+            setSharedLists(getSharedLists());
+          }
+        },
+        () => {
+          // Shared list was deleted by owner
+          removeSharedList(sharedListId);
+          setSharedLists(getSharedLists());
+          setAcceptedSharedListIds((prev) => prev.filter((id) => id !== sharedListId));
+          if (sharedListUnsubscribeRefs.current[sharedListId]) {
+            delete sharedListUnsubscribeRefs.current[sharedListId];
+          }
+        }
+      ).then((unsubscribe) => {
+        sharedListUnsubscribeRefs.current[sharedListId] = unsubscribe;
+      }).catch(() => {});
+      promises.push(promise);
+    });
+
+    return () => {
+      // Cleanup: unsubscribe from lists no longer accepted
+      Object.keys(sharedListUnsubscribeRefs.current).forEach((id) => {
+        if (!ownedSharedListIds.includes(id) && !acceptedSharedListIds.includes(id)) {
+          sharedListUnsubscribeRefs.current[id]();
+          delete sharedListUnsubscribeRefs.current[id];
+        }
+      });
+    };
+  }, [user, acceptedSharedListIds]);
 
   // ── Sync owned shared lists when they are updated ───────────
   useEffect(() => {
