@@ -442,8 +442,8 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                   <div>
                     <p className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>艾森豪矩陣</p>
                     <p className="text-[12px] mt-0.5 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                      區分「重要」與「緊急」，用高 / 中 / 低三級優先級減少決策疲勞。
-                      任務依優先級自動排序，確保你永遠先做最有價值的事。
+                      四象限決策框架：Ⅰ重要×緊急→立即做；Ⅱ重要×不緊急→計劃做；
+                      Ⅲ不重要×緊急→委派做；Ⅳ不重要×不緊急→刪除。把精力投入最有價值的事，而非被緊急事務追著跑。
                     </p>
                   </div>
                 </div>
