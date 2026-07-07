@@ -546,7 +546,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const acceptSharedList = useCallback(async (sharedListId: string, data: SharedListSnapshot): Promise<void> => {
     const sharedData: SharedListData = {
-      list: data.list,
+      list: { ...data.list, ownerId: data.ownerId || data.list.ownerId },
       tasks: data.tasks,
       ownerName: data.ownerName,
     };
@@ -562,7 +562,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       (snapshot) => {
         if (snapshot) {
           const updatedData: SharedListData = {
-            list: snapshot.list,
+            list: { ...snapshot.list, ownerId: snapshot.ownerId || snapshot.list.ownerId },
             tasks: snapshot.tasks,
             ownerName: snapshot.ownerName,
           };
@@ -647,7 +647,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setSharedLists((prev) => {
             const existing = prev[sharedId];
             const updatedData: SharedListData = {
-              list: snapshot.list,
+              list: { ...snapshot.list, ownerId: snapshot.ownerId || snapshot.list.ownerId },
               tasks: snapshot.tasks,
               ownerName: snapshot.ownerName ?? existing?.ownerName,
             };
@@ -657,7 +657,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           // Save to localStorage for persistence across page refreshes
           const existing = sharedLists[sharedId];
           const updatedData: SharedListData = {
-            list: snapshot.list,
+            list: { ...snapshot.list, ownerId: snapshot.ownerId || snapshot.list.ownerId },
             tasks: snapshot.tasks,
             ownerName: snapshot.ownerName ?? existing?.ownerName,
           };
@@ -668,6 +668,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             (t) => t.createdBy && t.createdBy !== user.uid
           );
           remoteSharedTasksRef.current[sharedId] = remoteTasks;
+
+          // Merge remote tasks into local tasks state so Owner can see them in UI
+          if (remoteTasks.length > 0) {
+            setTasks((prev) => {
+              let changed = false;
+              const prevMap = new Map(prev.map(t => [t.id, t]));
+              
+              const merged = prev.map(pt => {
+                const rt = remoteTasks.find(r => r.id === pt.id);
+                if (rt && rt.updatedAt > pt.updatedAt) {
+                  changed = true;
+                  return rt;
+                }
+                return pt;
+              });
+              
+              const newRemoteTasks = remoteTasks.filter(t => !prevMap.has(t.id));
+              if (newRemoteTasks.length > 0) {
+                changed = true;
+                merged.push(...newRemoteTasks);
+              }
+              
+              return changed ? merged : prev;
+            });
+          }
 
           // Update the hash so we know what's on the server
           const hash = JSON.stringify(snapshot.tasks.map(t => `${t.id}:${t.updatedAt}`).sort());
@@ -719,7 +744,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         (snapshot) => {
           if (snapshot) {
             const updatedData: SharedListData = {
-              list: snapshot.list,
+              list: { ...snapshot.list, ownerId: snapshot.ownerId || snapshot.list.ownerId },
               tasks: snapshot.tasks,
               ownerName: snapshot.ownerName,
             };
@@ -826,6 +851,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [addTask, currentListId]);
 
   // ── Shared List Task Operations ──────────────────────────
+  // Helper: ensure sharedLists[sharedListId] is populated (fetch from Firestore if needed)
+  const ensureSharedListData = useCallback(async (sharedListId: string): Promise<SharedListData | null> => {
+    const existing = sharedLists[sharedListId];
+    if (existing) return existing;
+    // sharedLists hasn't been populated yet (subscription may not have fired).
+    // Fetch the current snapshot from Firestore to get authoritative data.
+    const snapshot = await getSharedSnapshot(sharedListId);
+    if (!snapshot) return null;
+    const data: SharedListData = { list: snapshot.list, tasks: snapshot.tasks, ownerName: snapshot.ownerName };
+    saveSharedList(sharedListId, data);
+    setSharedLists(getSharedLists());
+    return data;
+  }, [sharedLists]);
+
   const quickAddToShared = useCallback((sharedListId: string, input: string): string | null => {
     if (!input.trim()) return null;
     const parsed = parseNaturalLanguage(input);
@@ -852,29 +891,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     const data = sharedLists[sharedListId];
-    if (!data) return null;
+    if (!data) {
+      // sharedLists not yet populated — kick off async fetch-and-add.
+      // Optimistically add task to Firestore snapshot directly to avoid losing it.
+      ensureSharedListData(sharedListId).then((fetchedData) => {
+        if (!fetchedData) return;
+        const updatedTasks = [task, ...fetchedData.tasks];
+        const updatedData: SharedListData = { ...fetchedData, tasks: updatedTasks };
+        saveSharedList(sharedListId, updatedData);
+        setSharedLists(getSharedLists());
+        updateSharedSnapshot(sharedListId, updatedData.list, updatedTasks, fetchedData.list.ownerId ?? "", fetchedData.ownerName).catch(console.error);
+      });
+      return id; // Return id so UI doesn't show error
+    }
+
     const updatedTasks = [task, ...data.tasks];
+    const updatedData: SharedListData = { ...data, tasks: updatedTasks };
 
-    const updatedData: SharedListData = {
-      ...data,
-      tasks: updatedTasks,
-    };
-
-    // Update local storage
     saveSharedList(sharedListId, updatedData);
     setSharedLists(getSharedLists());
 
     const ownerId = data.list.ownerId ?? "";
-    updateSharedSnapshot(
-      sharedListId,
-      updatedData.list,
-      updatedTasks,
-      ownerId,
-      data.ownerName
-    ).catch(console.error);
+    updateSharedSnapshot(sharedListId, updatedData.list, updatedTasks, ownerId, data.ownerName).catch(console.error);
 
     return id;
-  }, [sharedLists, user]);
+  }, [sharedLists, user, ensureSharedListData]);
 
   const updateSharedTask = useCallback((sharedListId: string, taskId: string, updates: Partial<Task>) => {
     const data = sharedLists[sharedListId];
