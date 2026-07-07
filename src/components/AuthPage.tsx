@@ -85,7 +85,7 @@ export function AuthPage({ onGuestMode }: AuthPageProps) {
             </svg>
           </div>
           <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
-            TaskFlow
+            VibeList
           </h1>
           <p className="text-sm mt-1" style={{ color: "var(--text-tertiary)" }}>
             你的任務管理夥伴

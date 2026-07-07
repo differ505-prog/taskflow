@@ -78,7 +78,7 @@ export default function SettingsPage() {
         {
           icon: Info,
           label: "版本",
-          description: "TaskFlow v1.0.0",
+          description: "VibeList v1.0.0",
           type: "info",
           value: "最新",
         },

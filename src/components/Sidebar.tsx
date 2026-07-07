@@ -65,7 +65,7 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
             <path d="M3 8L6.5 11.5L13 4.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </div>
-        <span className="text-[16px] font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>TaskFlow</span>
+        <span className="text-[16px] font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>VibeList</span>
       </div>
 
       {/* Scrollable nav area */}

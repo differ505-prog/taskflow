@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "隱私權政策",
-  description: "TaskFlow 隱私權政策 - 我們如何處理您的資料",
+  description: "VibeList 隱私權政策 - 我們如何處理您的資料",
 };
 
 export default function PrivacyPage() {
@@ -21,7 +21,7 @@ export default function PrivacyPage() {
         <div className="card p-8 space-y-8" style={{ color: "var(--text-secondary)" }}>
 
           <Section title="1. 我們收集什麼資料？">
-            <p>TaskFlow 的設計理念是「隱私優先」。以下是可能收集的資料：</p>
+            <p>VibeList 的設計理念是「隱私優先」。以下是可能收集的資料：</p>
             <ul className="list-disc list-inside mt-2 space-y-1 text-[14px]">
               <li><strong>任務資料</strong>：任務標題、描述、優先級、截止日期、子任務、標籤等，由您主動輸入。</li>
               <li><strong>習慣追蹤資料</strong>：習慣名稱、打卡記錄、連續天數等。</li>
@@ -75,14 +75,14 @@ export default function PrivacyPage() {
             <ul className="list-disc list-inside mt-2 space-y-1 text-[14px]">
               <li>您的資料保留在您瀏覽器中，直到您主動刪除。</li>
               <li>您可以隨時透過「設定 → 清除所有資料」刪除所有本地資料。</li>
-              <li>刪除瀏覽器資料（清除快取）也會刪除 TaskFlow 儲存的所有資料。</li>
+              <li>刪除瀏覽器資料（清除快取）也會刪除 VibeList 儲存的所有資料。</li>
               <li>我們沒有伺服器端資料庫，因此也沒有其他需要刪除的資料別處。</li>
             </ul>
           </Section>
 
           <Section title="7. 兒童隱私">
             <p>
-              TaskFlow 不會刻意收集 13 歲以下兒童的個人資料。
+              VibeList 不會刻意收集 13 歲以下兒童的個人資料。
               如果您認為您的孩子向我們提供了個人資料，請聯絡我們，我們會將其刪除。
             </p>
           </Section>
@@ -137,7 +137,7 @@ export default function PrivacyPage() {
           <Section title="11. 政策變更">
             <p>
               我們可能不時更新本隱私權政策。任何重大變更都會在此頁面上公告。
-              繼續使用 TaskFlow 即表示您接受更新後的政策。
+              繼續使用 VibeList 即表示您接受更新後的政策。
             </p>
           </Section>
 

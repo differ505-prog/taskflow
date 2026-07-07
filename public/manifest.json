@@ -1,6 +1,6 @@
 {
-  "name": "TaskFlow 任務管理",
-  "short_name": "TaskFlow",
+  "name": "VibeList 任務管理",
+  "short_name": "VibeList",
   "description": "優雅的個人任務管理工具，支援循環任務、子任務、番茄鐘、習慣追蹤",
   "start_url": "/",
   "display": "standalone",

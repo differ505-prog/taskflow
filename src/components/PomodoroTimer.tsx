@@ -70,7 +70,7 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
       });
       // Notify
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-        new Notification("TaskFlow 番茄鐘", {
+        new Notification("VibeList 番茄鐘", {
           body: `專注時間結束！休息一下吧 🌿`,
           icon: "/favicon.svg",
         });

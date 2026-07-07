@@ -358,7 +358,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
             <div className="flex items-center gap-3 p-4 rounded-xl" style={{ background: "var(--surface-muted)" }}>
               <Info className="w-5 h-5 flex-shrink-0" style={{ color: "var(--text-tertiary)" }} />
               <div>
-                <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>TaskFlow v0.2.0</p>
+                <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>VibeList v0.2.0</p>
                 <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>本地端儲存 · 隱私優先</p>
               </div>
             </div>

@@ -50,7 +50,7 @@ export function ConsentBanner() {
               尊重您的隱私
             </h3>
             <p className="text-[13px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-              TaskFlow 使用瀏覽器本地儲存來保存您的資料。我們使用 cookies 來改善使用體驗，並在您允許的情況下發送任務到期提醒。
+              VibeList 使用瀏覽器本地儲存來保存您的資料。我們使用 cookies 來改善使用體驗，並在您允許的情況下發送任務到期提醒。
               詳見{" "}
               <a href="/privacy" className="underline" style={{ color: "var(--brand)" }}>
                 隱私權政策

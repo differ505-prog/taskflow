@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "服務條款",
-  description: "TaskFlow 服務條款與使用協議",
+  description: "VibeList 服務條款與使用協議",
 };
 
 export default function TermsPage() {
@@ -20,7 +20,7 @@ export default function TermsPage() {
 
         <div className="card p-8 space-y-8" style={{ color: "var(--text-secondary)" }}>
           <Section title="1. 服務說明">
-            TaskFlow 是一款基於瀏覽器的任務管理工具（「服務」）。
+            VibeList 是一款基於瀏覽器的任務管理工具（「服務」）。
             服務由經營者（以下簡稱「我們」）提供。我們保留隨時修改或終止服務的權利，
             並會透過網站公告或應用程式內通知提前告知。
           </Section>
@@ -30,7 +30,7 @@ export default function TermsPage() {
           </Section>
 
           <Section title="3. 資料儲存">
-            TaskFlow 預設使用瀏覽器本地儲存（localStorage）儲存您的資料。
+            VibeList 預設使用瀏覽器本地儲存（localStorage）儲存您的資料。
             我們不保證資料的永久保存，您有責任定期匯出資料備份。
             若因瀏覽器清除資料、裝置故障或其他原因導致資料遺失，我們不承擔責任。
           </Section>
@@ -56,7 +56,7 @@ export default function TermsPage() {
           </Section>
 
           <Section title="7. 智慧財產權">
-            TaskFlow 的名稱、標誌、設計及所有相關內容均為我們的財產，受智慧財產權法律保護。
+            VibeList 的名稱、標誌、設計及所有相關內容均為我們的財產，受智慧財產權法律保護。
             未经授权，不得複製、修改或散佈。
           </Section>
 
