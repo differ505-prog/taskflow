@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Task, Priority, TaskStatus, Recurrence } from "@/lib/types";
+import { Task, Priority, TaskStatus, Recurrence, Attachment } from "@/lib/types";
 import { PRIORITY_CONFIG } from "@/lib/types";
 import { useApp } from "@/lib/AppContext";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Plus, Repeat, Calendar, Mic, MicOff } from "lucide-react";
+import { ProtectedUploadButton } from "./ProtectedUploadButton";
 
 interface TaskFormProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface TaskFormProps {
   onSubmit: (data: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order">) => void;
   initialData?: Task | null;
   currentListId?: string;
+  onDeleteAttachment?: (attachment: Attachment) => void;
 }
 
 const RECURRENCE_OPTIONS = [
@@ -28,7 +30,7 @@ const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
 
 const SELECT_ARROW = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23999' strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E";
 
-export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId }: TaskFormProps) {
+export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId, onDeleteAttachment }: TaskFormProps) {
   const { lists } = useApp();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -47,6 +49,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
   const [subTaskInputs, setSubTaskInputs] = useState<string[]>([]);
   const [newSubTask, setNewSubTask] = useState("");
   const [isRecording, setIsRecording] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const titleRef = useRef<HTMLInputElement>(null);
 
   // ─── Voice Input (Web Speech API) ──────────────────────────
@@ -105,6 +108,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
       setSubTaskInputs([]); setNewSubTask("");
       setRecurrenceType("none"); setRecurrenceInterval(1);
       setRecurrenceDaysOfWeek([]); setRecurrenceEndDate("");
+      setAttachments([]);
     }
     setErrors({});
     const t = setTimeout(() => titleRef.current?.focus(), 120);
@@ -156,6 +160,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
       tags,
       subTasks,
       recurrence,
+      attachments,
     });
     onClose();
   };
@@ -241,6 +246,23 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                   className="input resize-none"
                   style={{ minHeight: 80 }}
                   maxLength={1000}
+                />
+              </div>
+
+              {/* Attachments - Role Protected */}
+              <div>
+                <label className="block mb-2 text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                  附件
+                </label>
+                <ProtectedUploadButton
+                  existingAttachments={attachments}
+                  onRemoveAttachment={(attachment) => {
+                    setAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
+                  }}
+                  onFilesUploaded={(newAttachments) => {
+                    setAttachments((prev) => [...prev, ...newAttachments]);
+                  }}
+                  buttonText="添加附件"
                 />
               </div>
 

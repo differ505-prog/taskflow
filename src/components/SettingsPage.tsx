@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useApp } from "@/lib/AppContext";
+import { useAuth, getBetaUsers, addBetaUser, removeBetaUser } from "@/lib/AuthContext";
 import {
   clearAllData, exportAllData, downloadCSV, downloadJSON,
   exportTasksToCSV, exportHabitsToCSV, importData,
@@ -10,10 +11,11 @@ import { motion } from "framer-motion";
 import {
   Moon, Sun, Bell, Download, Upload, Trash2, Info,
   ChevronRight, X, CheckCircle2, AlertCircle, FileText,
-  CalendarDays, Copy,
+  CalendarDays, Copy, Shield, UserPlus, UserMinus, Crown, Sparkles,
 } from "lucide-react";
 import { getTasks } from "@/lib/storage";
 import { downloadICal } from "@/lib/ical";
+import { ROLE_CONFIGS, UserRole } from "@/lib/types";
 
 interface SettingsPageProps {
   isOpen: boolean;
@@ -22,6 +24,7 @@ interface SettingsPageProps {
 
 export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
   const { notificationPermission, requestNotificationPermission, tasks, habits, lists, addTask, addHabit, addList } = useApp();
+  const { user, role, roleConfig, isAdmin } = useAuth();
   const [theme, setTheme] = useState<"light" | "dark" | "system">("light");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
@@ -29,6 +32,44 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [importStats, setImportStats] = useState<{ tasks: number; habits: number; lists: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Role Management ────────────────────────────────────────
+  const [betaUsers, setBetaUsers] = useState<string[]>([]);
+  const [newBetaEmail, setNewBetaEmail] = useState("");
+  const [betaMsg, setBetaMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setBetaUsers(getBetaUsers());
+    }
+  }, [isOpen]);
+
+  const handleAddBetaUser = () => {
+    const email = newBetaEmail.trim().toLowerCase();
+    if (!email) return;
+    if (!email.includes("@")) {
+      setBetaMsg("請輸入有效的 Email");
+      setTimeout(() => setBetaMsg(null), 3000);
+      return;
+    }
+    if (getBetaUsers().map((e) => e.toLowerCase()).includes(email)) {
+      setBetaMsg("此用戶已在列表中");
+      setTimeout(() => setBetaMsg(null), 3000);
+      return;
+    }
+    addBetaUser(email);
+    setBetaUsers(getBetaUsers());
+    setNewBetaEmail("");
+    setBetaMsg(`已添加 ${email} 為早期測試者`);
+    setTimeout(() => setBetaMsg(null), 3000);
+  };
+
+  const handleRemoveBetaUser = (email: string) => {
+    removeBetaUser(email);
+    setBetaUsers(getBetaUsers());
+    setBetaMsg(`已移除 ${email}`);
+    setTimeout(() => setBetaMsg(null), 3000);
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem("taskflow_theme") as "light" | "dark" | "system" | null;
@@ -202,6 +243,211 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                 </button>
               ))}
             </div>
+          </section>
+
+          {/* User Role */}
+          <section>
+            <h3 className="text-[12px] font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-tertiary)" }}>
+              帳戶權限
+            </h3>
+
+            {/* Current Role Badge */}
+            <div
+              className="p-4 rounded-xl mb-3"
+              style={{
+                background: roleConfig.badgeBg,
+                border: `1px solid ${roleConfig.badgeColor}20`,
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{ background: roleConfig.badgeColor }}
+                >
+                  {role === "admin" ? (
+                    <Crown className="w-5 h-5 text-white" />
+                  ) : role === "beta" ? (
+                    <Sparkles className="w-5 h-5 text-white" />
+                  ) : (
+                    <Shield className="w-5 h-5 text-white" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-[15px] font-semibold" style={{ color: roleConfig.badgeColor }}>
+                      {roleConfig.label}
+                    </p>
+                    {role !== "free" && (
+                      <span
+                        className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                        style={{
+                          background: roleConfig.badgeColor,
+                          color: "white",
+                        }}
+                      >
+                        {role === "admin" ? "創辦人" : "VIP"}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[12px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
+                    {roleConfig.description}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Permission Details */}
+            <div className="card p-4 space-y-3">
+              {/* Upload Permission */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>檔案上傳</p>
+                  <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>
+                    {role === "admin" ? "無限制" : role === "beta" ? "最大 5MB/單檔" : "暫未開放"}
+                  </p>
+                </div>
+                {roleConfig.canUpload ? (
+                  <span className="flex items-center gap-1 text-[12px]" style={{ color: "var(--status-success)" }}>
+                    <CheckCircle2 className="w-4 h-4" /> 已啟用
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+                    <AlertCircle className="w-4 h-4" /> 已停用
+                  </span>
+                )}
+              </div>
+
+              {/* Role Comparison */}
+              <div style={{ height: "1px", background: "var(--border)" }} />
+              <div className="space-y-2">
+                <p className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>角色說明</p>
+                {(["admin", "beta", "free"] as UserRole[]).map((r) => {
+                  const cfg = ROLE_CONFIGS[r];
+                  const isCurrent = r === role;
+                  return (
+                    <div
+                      key={r}
+                      className="flex items-center gap-2 p-2 rounded-lg transition-colors"
+                      style={{
+                        background: isCurrent ? cfg.badgeBg : "transparent",
+                      }}
+                    >
+                      <div
+                        className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
+                        style={{ background: cfg.badgeColor }}
+                      >
+                        {r === "admin" ? (
+                          <Crown className="w-3.5 h-3.5 text-white" />
+                        ) : r === "beta" ? (
+                          <Sparkles className="w-3.5 h-3.5 text-white" />
+                        ) : (
+                          <Shield className="w-3.5 h-3.5 text-white" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-medium truncate" style={{ color: isCurrent ? cfg.badgeColor : "var(--text-primary)" }}>
+                          {cfg.label}
+                          {isCurrent && "（目前）"}
+                        </p>
+                        <p className="text-[11px] truncate" style={{ color: "var(--text-tertiary)" }}>
+                          {cfg.description}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Beta User Management (Admin Only) */}
+            {isAdmin && (
+              <div className="mt-4">
+                <div
+                  className="p-4 rounded-xl"
+                  style={{ background: "var(--surface-muted)", border: "1px solid var(--border)" }}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <UserPlus className="w-4 h-4" style={{ color: "var(--brand)" }} />
+                    <p className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>
+                      早期測試者管理
+                    </p>
+                    <span
+                      className="text-[10px] font-medium px-2 py-0.5 rounded-full ml-1"
+                      style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+                    >
+                      創辦人專區
+                    </span>
+                  </div>
+                  <p className="text-[12px] mb-3" style={{ color: "var(--text-tertiary)" }}>
+                    手動開通早期測試者資格，賦予上傳功能（5MB/單檔限制）
+                  </p>
+
+                  {/* Add Beta User */}
+                  <div className="flex gap-2 mb-3">
+                    <input
+                      type="email"
+                      value={newBetaEmail}
+                      onChange={(e) => setNewBetaEmail(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleAddBetaUser()}
+                      placeholder="輸入用戶 Email"
+                      className="input flex-1 text-[13px]"
+                      style={{ padding: "10px 12px" }}
+                    />
+                    <button
+                      onClick={handleAddBetaUser}
+                      className="btn-primary px-4 flex-shrink-0"
+                    >
+                      添加
+                    </button>
+                  </div>
+
+                  {/* Beta Users List */}
+                  {betaUsers.length > 0 ? (
+                    <div className="space-y-2">
+                      {betaUsers.map((email) => (
+                        <div
+                          key={email}
+                          className="flex items-center justify-between p-2.5 rounded-lg"
+                          style={{ background: "var(--surface-elevated)" }}
+                        >
+                          <span className="text-[13px] truncate flex-1" style={{ color: "var(--text-primary)" }}>
+                            {email}
+                          </span>
+                          <button
+                            onClick={() => handleRemoveBetaUser(email)}
+                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors flex-shrink-0 ml-2"
+                            style={{ color: "var(--status-danger)" }}
+                            aria-label={`移除 ${email}`}
+                          >
+                            <UserMinus className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[12px] text-center py-3" style={{ color: "var(--text-tertiary)" }}>
+                      尚無早期測試者
+                    </p>
+                  )}
+
+                  {betaMsg && (
+                    <p
+                      className="text-[12px] mt-3 px-3 py-2 rounded-lg"
+                      style={{
+                        background: betaMsg.includes("無效") || betaMsg.includes("已在")
+                          ? "rgba(255,149,0,0.08)"
+                          : "rgba(52,199,89,0.08)",
+                        color: betaMsg.includes("無效") || betaMsg.includes("已在")
+                          ? "var(--status-warning)"
+                          : "var(--status-success)",
+                      }}
+                    >
+                      {betaMsg}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </section>
 
           {/* Notifications */}

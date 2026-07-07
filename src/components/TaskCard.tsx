@@ -7,10 +7,11 @@ import { format, isToday, isTomorrow, isPast, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { AnimatePresence, motion } from "framer-motion";
 import { haptic } from "@/lib/haptics";
+import { getFileIcon, formatFileSize } from "@/lib/storageUpload";
 import {
   CheckCircle2, Circle, ChevronDown, Clock, Tag as TagIcon,
   Trash2, Edit3, Archive, Repeat, Plus, Trash,
-  AlertCircle, Timer, ChevronRight, ListChecks,
+  AlertCircle, Timer, ChevronRight, ListChecks, Paperclip,
 } from "lucide-react";
 
 interface TaskCardProps {
@@ -119,6 +120,7 @@ export function TaskCard({
   const subTasks = task.subTasks || [];
   const completedSubTasks = subTasks.filter((s) => s.status === "done").length;
   const subTaskProgress = subTasks.length > 0 ? completedSubTasks / subTasks.length : 0;
+  const attachmentCount = task.attachments?.length || 0;
 
   const handleToggleStatus = useCallback(() => {
     haptic("success");
@@ -259,6 +261,12 @@ export function TaskCard({
                   {completedSubTasks}/{subTasks.length}
                 </span>
               )}
+              {attachmentCount > 0 && (
+                <span className="pill-muted text-[11px] py-0.5">
+                  <Paperclip className="w-3 h-3" />
+                  {attachmentCount}
+                </span>
+              )}
               {hasDescription && (
                 <button
                   onClick={handleExpand}
@@ -345,6 +353,53 @@ export function TaskCard({
                       <div className="flex flex-wrap gap-1.5">
                         {task.tags.map((tag) => (
                           <span key={tag} className="pill-muted">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Attachments */}
+                  {task.attachments && task.attachments.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                          附件 ({task.attachments.length})
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {task.attachments.map((attachment) => (
+                          <a
+                            key={attachment.id}
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group relative aspect-square rounded-xl overflow-hidden border transition-all hover:border-brand"
+                            style={{ borderColor: "var(--border)" }}
+                            title={attachment.name}
+                          >
+                            {attachment.type === "image" ? (
+                              <img
+                                src={attachment.url}
+                                alt={attachment.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = "none";
+                                }}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex flex-col items-center justify-center p-2"
+                                style={{ background: "var(--surface-muted)" }}>
+                                <span className="text-3xl mb-1">{getFileIcon(attachment.mimeType)}</span>
+                                <span className="text-[10px] text-center truncate w-full" style={{ color: "var(--text-tertiary)" }}>
+                                  {attachment.name}
+                                </span>
+                              </div>
+                            )}
+                            {/* Hover overlay */}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <span className="text-white text-[11px] font-medium">預覽</span>
+                            </div>
+                          </a>
                         ))}
                       </div>
                     </div>

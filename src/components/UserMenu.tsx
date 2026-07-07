@@ -3,10 +3,10 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
-import { LogOut, User, Settings, ChevronDown, Loader2 } from "lucide-react";
+import { LogOut, User, Settings, ChevronDown, Loader2, Crown, Sparkles, Shield } from "lucide-react";
 
 export function UserMenu() {
-  const { user, signOut, loading } = useAuth();
+  const { user, signOut, loading, role, roleConfig } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -30,6 +30,9 @@ export function UserMenu() {
     setOpen(false);
     await signOut();
   };
+
+  const RoleIcon = role === "admin" ? Crown : role === "beta" ? Sparkles : Shield;
+  const roleIconColor = roleConfig.badgeColor;
 
   return (
     <div className="relative" ref={ref}>
@@ -58,11 +61,12 @@ export function UserMenu() {
           <p className="text-[13px] font-medium leading-tight" style={{ color: "var(--text-primary)" }}>
             {user.displayName || "使用者"}
           </p>
-          {user.email && (
-            <p className="text-[11px] leading-tight truncate max-w-[140px]" style={{ color: "var(--text-tertiary)" }}>
-              {user.email}
+          <div className="flex items-center gap-1.5">
+            <RoleIcon className="w-3 h-3" style={{ color: roleIconColor }} />
+            <p className="text-[11px] leading-tight truncate max-w-[120px]" style={{ color: roleIconColor }}>
+              {roleConfig.label}
             </p>
-          )}
+          </div>
         </div>
         <ChevronDown
           className="w-3.5 h-3.5 hidden sm:block transition-transform duration-200"
@@ -77,7 +81,7 @@ export function UserMenu() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -4 }}
             transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
-            className="absolute right-0 top-full mt-2 w-56 rounded-2xl overflow-hidden z-50"
+            className="absolute right-0 top-full mt-2 w-64 rounded-2xl overflow-hidden z-50"
             style={{ background: "var(--surface-elevated)", boxShadow: "var(--shadow-lg)", border: "1px solid var(--border)" }}
           >
             {/* User info header */}
@@ -93,13 +97,26 @@ export function UserMenu() {
                     {initials}
                   </div>
                 )}
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-[14px] font-semibold truncate" style={{ color: "var(--text-primary)" }}>
                     {user.displayName || "使用者"}
                   </p>
                   <p className="text-[12px] truncate" style={{ color: "var(--text-tertiary)" }}>
                     {user.email}
                   </p>
+                  {/* Role Badge */}
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <RoleIcon className="w-3.5 h-3.5" style={{ color: roleIconColor }} />
+                    <span
+                      className="text-[11px] font-medium px-2 py-0.5 rounded-full"
+                      style={{
+                        background: roleConfig.badgeBg,
+                        color: roleIconColor,
+                      }}
+                    >
+                      {roleConfig.label}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

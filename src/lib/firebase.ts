@@ -4,6 +4,7 @@
 import { initializeApp, getApps, FirebaseApp } from "firebase/app";
 import { getAuth, Auth } from "firebase/auth";
 import { getFirestore, Firestore, enableIndexedDbPersistence, enableMultiTabIndexedDbPersistence, connectFirestoreEmulator } from "firebase/firestore";
+import { getStorage, FirebaseStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 
 // ─── Firebase 設定 ───────────────────────────────────────────
 const firebaseConfig = {
@@ -20,6 +21,7 @@ const firebaseConfig = {
 let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
+let storage: FirebaseStorage;
 
 function getFirebaseApp(): FirebaseApp {
   if (!app) {
@@ -39,6 +41,13 @@ export function getFirebaseAuth(): Auth {
     }
   }
   return auth;
+}
+
+export function getFirebaseStorage(): FirebaseStorage {
+  if (!storage) {
+    storage = getStorage(getFirebaseApp());
+  }
+  return storage;
 }
 
 // Eagerly initialize Firestore DB in the background so it's ready before the first async call

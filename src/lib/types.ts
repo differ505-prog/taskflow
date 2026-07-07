@@ -1,6 +1,68 @@
 export type Priority = "high" | "medium" | "low";
 export type TaskStatus = "todo" | "in-progress" | "done";
 
+// ─── Attachments ────────────────────────────────────────────────
+export interface Attachment {
+  id: string;
+  name: string;
+  url: string;
+  type: "image" | "file";
+  size: number; // bytes
+  mimeType: string;
+  uploadedAt: string;
+  storagePath?: string; // Firebase Storage path for deletion
+}
+
+export type Priority = "high" | "medium" | "low";
+export type TaskStatus = "todo" | "in-progress" | "done";
+
+// ─── User Roles & Permissions ───────────────────────────────────
+export type UserRole = "admin" | "beta" | "free";
+
+export interface RoleConfig {
+  label: string;
+  description: string;
+  canUpload: boolean;
+  maxFileSizeMB: number;
+  badgeColor: string;
+  badgeBg: string;
+}
+
+export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
+  admin: {
+    label: "創辦人",
+    description: "無限上傳，無容量限制",
+    canUpload: true,
+    maxFileSizeMB: Infinity,
+    badgeColor: "#3B82F6",
+    badgeBg: "rgba(59, 130, 246, 0.12)",
+  },
+  beta: {
+    label: "早期測試者",
+    description: "可上傳，最大 5MB/單檔",
+    canUpload: true,
+    maxFileSizeMB: 5,
+    badgeColor: "#8B5CF6",
+    badgeBg: "rgba(139, 92, 246, 0.12)",
+  },
+  free: {
+    label: "免費用戶",
+    description: "上傳功能暫未開放",
+    canUpload: false,
+    maxFileSizeMB: 0,
+    badgeColor: "#6B7280",
+    badgeBg: "rgba(107, 114, 128, 0.1)",
+  },
+};
+
+// 管理員邮箱列表（可由環境變數覆寫）
+const ADMIN_EMAILS_ENV = process.env.NEXT_PUBLIC_ADMIN_EMAILS || "";
+const ADMIN_EMAILS_DEFAULT = ["your-admin@email.com"]; // 替換為實際管理員郵箱
+export const ADMIN_EMAILS: string[] = [
+  ...ADMIN_EMAILS_DEFAULT.filter((e) => !ADMIN_EMAILS_ENV.includes(e)),
+  ...ADMIN_EMAILS_ENV.split(",").map((e) => e.trim()).filter(Boolean),
+];
+
 export type RecurrencePattern =
   | "daily"
   | "weekly"
@@ -44,6 +106,7 @@ export interface Task {
   focusMinutes: number; // total Pomodoro minutes logged
   order: number; // sort order within view
   createdBy?: string; // uid of the user who created this task (for shared lists)
+  attachments?: Attachment[]; // 上傳的附件
 }
 
 export interface TaskFilter {

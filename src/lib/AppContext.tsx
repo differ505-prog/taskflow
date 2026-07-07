@@ -37,6 +37,7 @@ import {
   saveOwnedSharedListIds,
   getOwnedSharedListIds,
 } from "./storage";
+import { deleteFile } from "./storageUpload";
 import {
   createSharedList,
   updateSharedSnapshot,
@@ -78,7 +79,7 @@ interface AppContextValue {
   // ── 任務 CRUD ──────────────────────────────────────────
   addTask: (data: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order">) => string;
   updateTask: (id: string, updates: Partial<Task>) => void;
-  deleteTask: (id: string) => void;
+  deleteTask: (id: string) => Promise<void>;
   toggleTaskStatus: (id: string) => void;
   archiveTask: (id: string) => void;
   unarchiveTask: (id: string) => void;
@@ -331,7 +332,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     saveTasks(updated);
   }, [tasks]);
 
-  const deleteTask = useCallback((id: string) => {
+  const deleteTask = useCallback(async (id: string) => {
+    // 刪除任務時，一併清理 Firebase Storage 中的附件
+    const task = tasks.find((t) => t.id === id);
+    if (task?.attachments && task.attachments.length > 0) {
+      // 異步刪除附件，不阻塞任務刪除
+      for (const attachment of task.attachments) {
+        if (attachment.storagePath) {
+          deleteFile(attachment.storagePath).catch((err) => {
+            console.warn("[AppContext] Failed to delete attachment:", err);
+          });
+        }
+      }
+    }
     const updated = tasks.filter((t) => t.id !== id);
     setTasks(updated);
     saveTasks(updated);
