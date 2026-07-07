@@ -866,7 +866,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // Use sharedLists[id].tasks as the owner's authoritative task list
       const ownerTasks = sharedLists[list.sharedId]?.tasks || [];
       // Remote tasks contributed by recipients (filter out owner's own tasks)
-      const remoteTasks = (ownerTasks || []).filter(
+      const remoteTasks = ownerTasks.filter(
         (t) => t.createdBy && t.createdBy !== user.uid
       );
       // Owner tasks = all in sharedLists minus the remote-only ones
@@ -880,9 +880,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ...remoteTasks.filter((t) => !localTaskIds.has(t.id)),
       ];
 
+      console.log("[SyncEffect] running for", list.sharedId, "mergedTasks count:", mergedTasks.length, "hash check:", lastSyncedHashRef.current[list.sharedId] ? "has prev hash" : "no prev hash");
+
       // Check if anything actually changed to prevent infinite loops
       const newHash = JSON.stringify(mergedTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
-      if (lastSyncedHashRef.current[list.sharedId] === newHash) return;
+      if (lastSyncedHashRef.current[list.sharedId] === newHash) {
+        console.log("[SyncEffect] skipping write, hash match");
+        return;
+      }
+
+      console.log("[SyncEffect] writing to Firestore, mergedTasks:", mergedTasks.length, "newHash:", newHash.substring(0, 30));
 
       const ownerName = user.displayName || user.email || undefined;
 
