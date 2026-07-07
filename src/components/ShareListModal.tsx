@@ -155,11 +155,13 @@ export function ShareListModal({ isOpen, onClose, listToShare, listTasks, incomi
 
   // Handle sharing a list
   const handleShareList = useCallback(async () => {
+    console.log("[handleShareList] user:", user, "listToShare:", listToShare);
     if (!listToShare || !user) return;
     setShareError(null);
     setIsSharing(true);
     try {
       const sharedListId = await shareList(listToShare.id);
+      console.log("[handleShareList] sharedListId returned:", sharedListId);
       if (sharedListId) {
         setShareUrl(`${window.location.origin}?share=${sharedListId}`);
         setHasShared(true);
@@ -172,7 +174,7 @@ export function ShareListModal({ isOpen, onClose, listToShare, listTasks, incomi
     } finally {
       setIsSharing(false);
     }
-  }, [listToShare, user, shareList]);
+  }, [listToShare, user]);
 
   // Handle unsharing a list
   const handleUnshare = useCallback(async () => {
@@ -180,15 +182,14 @@ export function ShareListModal({ isOpen, onClose, listToShare, listTasks, incomi
     await unshareList(listToShare.sharedId);
     setShareUrl(null);
     setHasShared(false);
-  }, [listToShare, unshareList]);
+  }, [listToShare]);
 
   // Handle accepting incoming shared list
   const handleAcceptIncoming = useCallback(() => {
     if (!incomingShare?.snapshot) return;
-
     acceptSharedList(incomingShare.sharedListId, incomingShare.snapshot);
     setIncomingShare(null);
-  }, [incomingShare, acceptSharedList]);
+  }, [incomingShare]);
 
   const handleDeclineIncoming = useCallback(() => {
     setIncomingShare(null);
@@ -197,7 +198,7 @@ export function ShareListModal({ isOpen, onClose, listToShare, listTasks, incomi
   const handleRemoveShared = useCallback((sharedId: string) => {
     removeAcceptedSharedList(sharedId);
     setSharedListsState(getSharedLists());
-  }, [removeAcceptedSharedList]);
+  }, []);
 
   // If we have a list to share, check if it's already shared
   useEffect(() => {
