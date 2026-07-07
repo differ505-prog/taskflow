@@ -664,27 +664,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const isFirstSnapshot = !snapshotReadyRef.current[sharedId];
           snapshotReadyRef.current[sharedId] = true;
 
-          // Update sharedLists so owner sees the merged snapshot in UI
-          // On first snapshot: initialize sharedLists[sharedId]
-          // On subsequent: overwrite with the latest merged snapshot from Firestore
-          setSharedLists((prev) => {
-            const existing = prev[sharedId];
-            const updatedData: SharedListData = {
-              list: { ...snapshot.list, ownerId: snapshot.ownerId || snapshot.list.ownerId },
-              tasks: snapshot.tasks,
-              ownerName: snapshot.ownerName ?? existing?.ownerName,
-            };
-            return { ...prev, [sharedId]: updatedData };
-          });
+          // Use snapshot.ownerId as source of truth (always set by createSharedList)
+          const snapshotOwnerId = snapshot.ownerId || snapshot.list.ownerId;
 
-          // Save to localStorage for persistence across page refreshes
-          const existing = sharedLists[sharedId];
+          // Update sharedLists state — use snapshot.ownerId directly
           const updatedData: SharedListData = {
-            list: { ...snapshot.list, ownerId: snapshot.ownerId || snapshot.list.ownerId },
+            list: { ...snapshot.list, ownerId: snapshotOwnerId },
             tasks: snapshot.tasks,
-            ownerName: snapshot.ownerName ?? existing?.ownerName,
+            ownerName: snapshot.ownerName,
           };
+          setSharedLists((prev) => ({ ...prev, [sharedId]: updatedData }));
+
+          // Save to localStorage — use snapshot data directly (not closure sharedLists)
           saveSharedList(sharedId, updatedData);
+          console.log("[SharedList] Owner subscription fired, saved", snapshot.tasks.length, "tasks, ownerId:", snapshotOwnerId);
 
           // Capture remote (recipient) tasks for the sync effect's merge logic
           const remoteTasks = snapshot.tasks.filter(

@@ -276,7 +276,12 @@ export async function getSharedSnapshot(sharedListId: string): Promise<SharedLis
   const db = await getFirebaseDB();
   const snap = await getDoc(doc(db, "sharedListSnapshots", sharedListId));
   if (!snap.exists()) return null;
-  return snap.data() as SharedListSnapshot;
+  const data = snap.data();
+  console.log("[Firestore] getSharedSnapshot raw data for", sharedListId, {
+    ownerId: data.ownerId,
+    listOwnerId: data.list?.ownerId,
+  });
+  return data as SharedListSnapshot;
 }
 
 export async function subscribeToSharedSnapshot(
@@ -291,7 +296,13 @@ export async function subscribeToSharedSnapshot(
       onUpdate(null);
       return;
     }
-    onUpdate(snap.data() as SharedListSnapshot);
+    const data = snap.data();
+    console.log("[Firestore] subscribeToSharedSnapshot raw data for", sharedListId, {
+      ownerId: data.ownerId,
+      listOwnerId: data.list?.ownerId,
+      hasOwnerId: "ownerId" in data,
+    });
+    onUpdate(data as SharedListSnapshot);
   }, (error) => {
     // Handle permission denied or other errors
     if (error.code === "permission-denied" || error.code === "not-found") {
