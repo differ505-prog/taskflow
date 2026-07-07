@@ -828,6 +828,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         (snapshot) => {
           if (snapshot) {
             const snapshotOwnerId = snapshot.ownerId || snapshot.list.ownerId;
+            console.log("[Recipient] Subscription fired for", sharedListId, "with", snapshot.tasks.length, "tasks, user.uid:", user?.uid?.substring(0, 6));
             // Ensure required fields are never undefined
             const snapshotListWithDefaults: TaskList = {
               ...snapshot.list,
@@ -850,6 +851,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               console.log("[SharedList] Recipient subscription, skipped localStorage write, has", snapshot.tasks.length, "tasks");
             }
             snapshotReadyRef.current[sharedListId] = true;
+            // CRITICAL: update sharedLists state so UI (which reads from sharedLists[id].tasks)
+            // reflects the latest snapshot. Without this, recipient only sees the initial 2 tasks.
+            setSharedLists((prev) => ({ ...prev, [sharedListId]: updatedData }));
             // Sync snapshot tasks into local tasks state so recipient sees them
             setTasks((prev) => {
               const prevMap = new Map(prev.map(t => [t.id, t]));
