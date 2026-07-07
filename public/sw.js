@@ -1,58 +1,63 @@
-/// <reference lib="webworker" />
+/* eslint-disable no-restricted-globals */
+var CACHE_NAME = "taskflow-v1";
+var OFFLINE_URL = "/offline";
 
-const CACHE_NAME = "taskflow-v1";
-const OFFLINE_URL = "/offline";
-
-const PRECACHE_URLS = [
+var PRECACHE_URLS = [
   "/",
   "/offline",
 ];
 
-declare const self: ServiceWorkerGlobalScope;
-
 // ─── Install ────────────────────────────────────────────────
-self.addEventListener("install", (event) => {
+self.addEventListener("install", function(event) {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS)).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then(function(cache) {
+      return cache.addAll(PRECACHE_URLS);
+    }).then(function() {
+      return self.skipWaiting();
+    })
   );
 });
 
 // ─── Activate ───────────────────────────────────────────────
-self.addEventListener("activate", (event) => {
+self.addEventListener("activate", function(event) {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
-      )
-    ).then(() => self.clients.claim())
+    caches.keys().then(function(keys) {
+      return Promise.all(
+        keys.filter(function(k) { return k !== CACHE_NAME; }).map(function(k) { return caches.delete(k); })
+      );
+    }).then(function() {
+      return self.clients.claim();
+    })
   );
 });
 
 // ─── Fetch (Stale-While-Revalidate) ────────────────────────
-self.addEventListener("fetch", (event) => {
-  const { request } = event;
+self.addEventListener("fetch", function(event) {
+  var request = event.request;
   if (request.method !== "GET") return;
   if (!request.url.startsWith("http")) return;
 
   event.respondWith(
-    caches.open(CACHE_NAME).then((cache) =>
-      cache.match(request).then((cached) => {
-        const fetched = fetch(request)
-          .then((response) => {
+    caches.open(CACHE_NAME).then(function(cache) {
+      return cache.match(request).then(function(cached) {
+        var fetched = fetch(request)
+          .then(function(response) {
             if (response.ok) cache.put(request, response.clone());
             return response;
           })
-          .catch(() => cached || new Response("Offline", { status: 503 }));
+          .catch(function() {
+            return cached || new Response("Offline", { status: 503 });
+          });
         return cached || fetched;
-      })
-    )
+      });
+    })
   );
 });
 
 // ─── Push Notifications ─────────────────────────────────────
-self.addEventListener("push", (event) => {
+self.addEventListener("push", function(event) {
   if (!event.data) return;
-  const data = event.data.json() as { title?: string; body?: string; url?: string };
+  var data = event.data.json();
 
   event.waitUntil(
     self.registration.showNotification(data.title || "TaskFlow", {
@@ -65,40 +70,37 @@ self.addEventListener("push", (event) => {
   );
 });
 
-self.addEventListener("notificationclick", (event) => {
+self.addEventListener("notificationclick", function(event) {
   event.notification.close();
-  const url = event.notification.data?.url || "/";
-  event.waitUntil(self.clients.matchAll({ type: "window" }).then((clients) => {
-    for (const client of clients) {
-      if (client.url === url && "focus" in client) return client.focus();
+  var url = event.notification.data && event.notification.data.url || "/";
+  event.waitUntil(self.clients.matchAll({ type: "window" }).then(function(clients) {
+    for (var i = 0; i < clients.length; i++) {
+      if (clients[i].url === url && "focus" in clients[i]) return clients[i].focus();
     }
     return self.clients.openWindow(url);
   }));
 });
 
 // ─── Background Sync ────────────────────────────────────────
-self.addEventListener("sync", (event) => {
+self.addEventListener("sync", function(event) {
   if (event.tag === "sync-tasks") {
     event.waitUntil(syncTasks());
   }
 });
 
-async function syncTasks(): Promise<void> {
-  // Offline queue logic: read pending operations from IndexedDB
-  // and retry them when network is back
-  try {
-    const clients = await self.clients.matchAll();
-    for (const client of clients) {
-      client.postMessage({ type: "SYNC_COMPLETE" });
+function syncTasks() {
+  return self.clients.matchAll().then(function(clients) {
+    for (var i = 0; i < clients.length; i++) {
+      clients[i].postMessage({ type: "SYNC_COMPLETE" });
     }
-  } catch {
+  }).catch(function() {
     // Background sync failed — will retry on next sync event
-  }
+  });
 }
 
-// ─── Message handler ───────────────────────────────────────
-self.addEventListener("message", (event) => {
-  if (event.data?.type === "SKIP_WAITING") {
+// ─── Message handler ────────────────────────────────────────
+self.addEventListener("message", function(event) {
+  if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
 });

@@ -660,6 +660,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     removeSharedList(sharedListId);
     setSharedLists(getSharedLists());
     setAcceptedSharedListIds((prev) => prev.filter((id) => id !== sharedListId));
+    // Also clean up ownedSharedListIds to prevent orphaned subscriptions
+    setOwnedSharedListIds((prev) => prev.filter((id) => id !== sharedListId));
 
     // Unsubscribe from updates
     if (sharedListUnsubscribeRefs.current[sharedListId]) {
