@@ -86,6 +86,7 @@ function AppLayoutInner() {
             onDeleteList={deleteList}
             onOpenPomodoro={() => setIsPomodoroOpen(true)}
             onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
+            onOpenShareModal={(list, listTasks) => setShareModalList({ list, tasks: listTasks })}
             userMenu={<UserMenu />}
           />
         );

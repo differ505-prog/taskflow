@@ -11,6 +11,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Search, X, LayoutGrid, List,
   Plus, Archive, Zap, ChevronRight, Timer,
+  Share2,
 } from "lucide-react";
 
 const VIEW_LABELS: Record<AppView, string> = {
@@ -81,10 +82,11 @@ interface AppShellProps {
   onDeleteList: (id: string) => void;
   onOpenPomodoro: () => void;
   onOpenMobileSidebar?: () => void;
+  onOpenShareModal?: (list: TaskList, tasks: Task[]) => void;
   userMenu?: React.ReactNode;
 }
 
-export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteList, onOpenPomodoro, onOpenMobileSidebar, userMenu }: AppShellProps) {
+export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteList, onOpenPomodoro, onOpenMobileSidebar, onOpenShareModal, userMenu }: AppShellProps) {
   const {
     tasks, currentView, currentListId, lists,
     searchQuery, setSearchQuery,
@@ -93,6 +95,8 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
     archiveTask, quickAdd, getFilteredTasks, viewCounts,
     getTagCounts,
   } = useApp();
+
+  const listTasks = currentListId ? tasks.filter(t => t.listId === currentListId) : [];
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -186,10 +190,23 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
               {currentListId && lists.find((l) => l.id === currentListId) && (
                 <span className="text-2xl">{lists.find((l) => l.id === currentListId)!.icon}</span>
               )}
-              <div>
+              <div className="flex items-center gap-2">
                 <h1 className="text-[17px] md:text-[18px] font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
                   {currentListName}
                 </h1>
+                {currentListId && onOpenShareModal && (
+                  <button
+                    onClick={() => {
+                      const list = lists.find(l => l.id === currentListId)!;
+                      onOpenShareModal(list, listTasks);
+                    }}
+                    className="p-1.5 rounded-lg hover:bg-black/5 transition-colors"
+                    style={{ color: "var(--text-tertiary)" }}
+                    title="分享此清單"
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </button>
+                )}
                 {currentView !== "inbox" && stats.today > 0 && (
                   <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>
                     {stats.today} 項今天到期
