@@ -64,23 +64,21 @@ export function FirebaseDataProvider({ children }: FirebaseDataProviderProps) {
     unsubs.current = [];
 
     // Firestore → localStorage
-    const unsubTasks = subscribeTasks(userId, (fsTasks) => {
+    subscribeTasks(userId, (fsTasks) => {
       saveTasks(fsTasks);
       forceReload();
-    });
-    const unsubLists = subscribeLists(userId, (fsLists) => {
+    }).then((unsub) => { unsubs.current.push(unsub); }).catch(() => {});
+    subscribeLists(userId, (fsLists) => {
       saveLists(fsLists);
       forceReload();
-    });
-    const unsubHabits = subscribeHabits(userId, (fsHabits) => {
+    }).then((unsub) => { unsubs.current.push(unsub); }).catch(() => {});
+    subscribeHabits(userId, (fsHabits) => {
       saveHabits(fsHabits);
       forceReload();
-    });
-    const unsubPomodoro = subscribePomodoro(userId, (fsSessions) => {
+    }).then((unsub) => { unsubs.current.push(unsub); }).catch(() => {});
+    subscribePomodoro(userId, (fsSessions) => {
       savePomodoroSessions(fsSessions);
-    });
-
-    unsubs.current = [unsubTasks, unsubLists, unsubHabits, unsubPomodoro];
+    }).then((unsub) => { unsubs.current.push(unsub); }).catch(() => {});
 
     return () => {
       unsubs.current.forEach((u) => u?.());

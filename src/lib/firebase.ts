@@ -3,7 +3,7 @@
  */
 import { initializeApp, getApps, FirebaseApp } from "firebase/app";
 import { getAuth, Auth } from "firebase/auth";
-import { getFirestore, Firestore } from "firebase/firestore";
+import { getFirestore, Firestore, enableIndexedDbPersistence, enableMultiTabIndexedDbPersistence, connectFirestoreEmulator } from "firebase/firestore";
 
 // ─── Firebase 設定 ───────────────────────────────────────────
 const firebaseConfig = {
@@ -36,9 +36,25 @@ export function getFirebaseAuth(): Auth {
   return auth;
 }
 
-export function getFirebaseDB(): Firestore {
+export async function getFirebaseDB(): Promise<Firestore> {
   if (!db) {
     db = getFirestore(getFirebaseApp());
+
+    // 啟用 IndexedDB 離線持久化（支援飛航模式）
+    try {
+      await enableMultiTabIndexedDbPersistence(db);
+    } catch (err: any) {
+      if (err.code === "failed-precondition") {
+        // 多分頁衝突，稍後重試
+      } else if (err.code === "unimplemented") {
+        // 瀏覽器不支援，退而求其次用單一分頁持久化
+        try {
+          await enableIndexedDbPersistence(db);
+        } catch {
+          // 完全不支援，就算了
+        }
+      }
+    }
   }
   return db;
 }

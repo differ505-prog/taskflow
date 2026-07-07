@@ -35,11 +35,11 @@ function docId(taskId: string) {
 }
 
 // ─── 任務 ────────────────────────────────────────────────────
-export function subscribeTasks(
+export async function subscribeTasks(
   userId: string,
   onUpdate: (tasks: Task[]) => void
-): Unsubscribe {
-  const db = getFirebaseDB();
+): Promise<Unsubscribe> {
+  const db = await getFirebaseDB();
   const q = query(collection(db, tasksCol(userId)), orderBy("order"));
   return onSnapshot(q, (snap) => {
     const tasks: Task[] = snap.docs.map((d) => ({ ...d.data(), id: d.id } as Task));
@@ -48,7 +48,7 @@ export function subscribeTasks(
 }
 
 export async function saveTask(userId: string, task: Task): Promise<void> {
-  const db = getFirebaseDB();
+  const db = await getFirebaseDB();
   await setDoc(doc(db, tasksCol(userId), task.id), {
     ...task,
     updatedAt: Timestamp.now().toDate().toISOString(),
@@ -56,12 +56,12 @@ export async function saveTask(userId: string, task: Task): Promise<void> {
 }
 
 export async function deleteTask(userId: string, taskId: string): Promise<void> {
-  const db = getFirebaseDB();
+  const db = await getFirebaseDB();
   await deleteDoc(doc(db, tasksCol(userId), taskId));
 }
 
 export async function batchSaveTasks(userId: string, tasks: Task[]): Promise<void> {
-  const db = getFirebaseDB();
+  const db = await getFirebaseDB();
   const batch = writeBatch(db);
   const now = Timestamp.now().toDate().toISOString();
   for (const task of tasks) {
@@ -71,11 +71,11 @@ export async function batchSaveTasks(userId: string, tasks: Task[]): Promise<voi
 }
 
 // ─── 清單 ────────────────────────────────────────────────────
-export function subscribeLists(
+export async function subscribeLists(
   userId: string,
   onUpdate: (lists: TaskList[]) => void
-): Unsubscribe {
-  const db = getFirebaseDB();
+): Promise<Unsubscribe> {
+  const db = await getFirebaseDB();
   const q = query(collection(db, listsCol(userId)), orderBy("createdAt"));
   return onSnapshot(q, (snap) => {
     const lists: TaskList[] = snap.docs.map((d) => ({ ...d.data(), id: d.id } as TaskList));
@@ -84,7 +84,7 @@ export function subscribeLists(
 }
 
 export async function saveList(userId: string, list: TaskList): Promise<void> {
-  const db = getFirebaseDB();
+  const db = await getFirebaseDB();
   await setDoc(doc(db, listsCol(userId), list.id), {
     ...list,
     updatedAt: Timestamp.now().toDate().toISOString(),
@@ -92,16 +92,16 @@ export async function saveList(userId: string, list: TaskList): Promise<void> {
 }
 
 export async function deleteList(userId: string, listId: string): Promise<void> {
-  const db = getFirebaseDB();
+  const db = await getFirebaseDB();
   await deleteDoc(doc(db, listsCol(userId), listId));
 }
 
 // ─── 習慣 ────────────────────────────────────────────────────
-export function subscribeHabits(
+export async function subscribeHabits(
   userId: string,
   onUpdate: (habits: Habit[]) => void
-): Unsubscribe {
-  const db = getFirebaseDB();
+): Promise<Unsubscribe> {
+  const db = await getFirebaseDB();
   const q = query(collection(db, habitsCol(userId)), orderBy("createdAt"));
   return onSnapshot(q, (snap) => {
     const habits: Habit[] = snap.docs.map((d) => ({ ...d.data(), id: d.id } as Habit));
@@ -110,7 +110,7 @@ export function subscribeHabits(
 }
 
 export async function saveHabit(userId: string, habit: Habit): Promise<void> {
-  const db = getFirebaseDB();
+  const db = await getFirebaseDB();
   await setDoc(doc(db, habitsCol(userId), habit.id), {
     ...habit,
     updatedAt: Timestamp.now().toDate().toISOString(),
@@ -118,16 +118,16 @@ export async function saveHabit(userId: string, habit: Habit): Promise<void> {
 }
 
 export async function deleteHabit(userId: string, habitId: string): Promise<void> {
-  const db = getFirebaseDB();
+  const db = await getFirebaseDB();
   await deleteDoc(doc(db, habitsCol(userId), habitId));
 }
 
 // ─── 番茄鐘 ─────────────────────────────────────────────────
-export function subscribePomodoro(
+export async function subscribePomodoro(
   userId: string,
   onUpdate: (sessions: PomodoroSession[]) => void
-): Unsubscribe {
-  const db = getFirebaseDB();
+): Promise<Unsubscribe> {
+  const db = await getFirebaseDB();
   const q = query(collection(db, pomodoroCol(userId)), orderBy("startTime", "desc"));
   return onSnapshot(q, (snap) => {
     const sessions: PomodoroSession[] = snap.docs.map((d) => ({ ...d.data(), id: d.id } as PomodoroSession));
@@ -139,16 +139,16 @@ export async function savePomodoroSession(
   userId: string,
   session: PomodoroSession
 ): Promise<void> {
-  const db = getFirebaseDB();
+  const db = await getFirebaseDB();
   await setDoc(doc(db, pomodoroCol(userId), session.id), session);
 }
 
 // ─── 標籤 ────────────────────────────────────────────────────
-export function subscribeTags(
+export async function subscribeTags(
   userId: string,
   onUpdate: (tags: Tag[]) => void
-): Unsubscribe {
-  const db = getFirebaseDB();
+): Promise<Unsubscribe> {
+  const db = await getFirebaseDB();
   const q = query(collection(db, tagsCol(userId)));
   return onSnapshot(q, (snap) => {
     const tags: Tag[] = snap.docs.map((d) => ({ ...d.data(), id: d.id } as Tag));
@@ -157,13 +157,13 @@ export function subscribeTags(
 }
 
 export async function saveTag(userId: string, tag: Tag): Promise<void> {
-  const db = getFirebaseDB();
+  const db = await getFirebaseDB();
   await setDoc(doc(db, tagsCol(userId), tag.id), tag);
 }
 
 // ─── 一次寫入所有預設清單（首次登入用）──────────────────────
 export async function seedDefaultLists(userId: string, defaults: Omit<TaskList, "id" | "createdAt" | "updatedAt">[]): Promise<void> {
-  const db = getFirebaseDB();
+  const db = await getFirebaseDB();
   const batch = writeBatch(db);
   const now = Timestamp.now().toDate().toISOString();
   for (const list of defaults) {
@@ -184,25 +184,26 @@ export async function importAllData(
     tags?: Tag[];
   }
 ): Promise<{ tasks: number; habits: number; lists: number }> {
-  const batch = writeBatch(getFirebaseDB());
+  const db = await getFirebaseDB();
+  const batch = writeBatch(db);
   const now = Timestamp.now().toDate().toISOString();
   let taskCount = 0, habitCount = 0, listCount = 0;
 
   if (data.lists?.length) {
     for (const list of data.lists) {
-      batch.set(doc(getFirebaseDB(), listsCol(userId), list.id), { ...list, updatedAt: now });
+      batch.set(doc(db, listsCol(userId), list.id), { ...list, updatedAt: now });
       listCount++;
     }
   }
   if (data.tasks?.length) {
     for (const task of data.tasks) {
-      batch.set(doc(getFirebaseDB(), tasksCol(userId), task.id), { ...task, updatedAt: now });
+      batch.set(doc(db, tasksCol(userId), task.id), { ...task, updatedAt: now });
       taskCount++;
     }
   }
   if (data.habits?.length) {
     for (const habit of data.habits) {
-      batch.set(doc(getFirebaseDB(), habitsCol(userId), habit.id), { ...habit, updatedAt: now });
+      batch.set(doc(db, habitsCol(userId), habit.id), { ...habit, updatedAt: now });
       habitCount++;
     }
   }
