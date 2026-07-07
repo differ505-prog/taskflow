@@ -256,10 +256,15 @@ export async function updateSharedSnapshot(
   ownerName?: string
 ): Promise<void> {
   const db = await getFirebaseDB();
+  // Ensure ownerId is never undefined (TaskList.ownerId is optional, but SharedListSnapshot requires it)
+  const safeOwnerId = ownerId ?? "";
+  if (!safeOwnerId) {
+    console.warn("[Firestore] updateSharedSnapshot called with empty ownerId, sharedListId:", sharedListId);
+  }
   const snapshotData: SharedListSnapshot = {
-    list: { ...list, sharedId: sharedListId, ownerId },
+    list: { ...list, sharedId: sharedListId, ownerId: safeOwnerId },
     tasks,
-    ownerId,
+    ownerId: safeOwnerId,
     ownerName,
     updatedAt: Timestamp.now().toDate().toISOString(),
   };

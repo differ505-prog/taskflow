@@ -545,8 +545,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [user, lists]);
 
   const acceptSharedList = useCallback(async (sharedListId: string, data: SharedListSnapshot): Promise<void> => {
+    // Ensure ownerId is always set
+    const ownerId = data.ownerId || data.list.ownerId;
+    console.log("[SharedList] acceptSharedList:", {
+      sharedListId,
+      "data.ownerId": data.ownerId,
+      "data.list.ownerId": data.list.ownerId,
+      resolvedOwnerId: ownerId,
+      taskCount: data.tasks?.length,
+      ownerName: data.ownerName,
+    });
+
     const sharedData: SharedListData = {
-      list: { ...data.list, ownerId: data.ownerId || data.list.ownerId },
+      list: { ...data.list, ownerId },
       tasks: data.tasks,
       ownerName: data.ownerName,
     };
@@ -565,8 +576,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         (snapshot) => {
           console.log("[SharedList] Received Firestore update for", sharedListId, snapshot?.tasks?.length, "tasks");
           if (snapshot) {
+            const snapshotOwnerId = snapshot.ownerId || snapshot.list.ownerId;
             const updatedData: SharedListData = {
-              list: { ...snapshot.list, ownerId: snapshot.ownerId || snapshot.list.ownerId },
+              list: { ...snapshot.list, ownerId: snapshotOwnerId },
               tasks: snapshot.tasks,
               ownerName: snapshot.ownerName,
             };
@@ -933,6 +945,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSharedLists(getSharedLists());
 
     const ownerId = data.list.ownerId ?? "";
+    if (!ownerId) {
+      console.error("[SharedList] CRITICAL: ownerId is empty!", {
+        sharedListId,
+        dataList: data.list,
+      });
+    }
     console.log("[SharedList] Writing new task to Firestore, ownerId:", ownerId);
     
     // Write to Firestore with error handling
