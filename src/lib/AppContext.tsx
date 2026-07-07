@@ -713,32 +713,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           saveSharedList(sharedId, updatedData);
           console.log("[SharedList] Owner subscription fired, saved", snapshot.tasks.length, "tasks, ownerId:", snapshotOwnerId);
 
+          // Always update sharedLists state to ensure UI stays in sync
+          setSharedLists((prev) => ({ ...prev, [sharedId]: updatedData }));
+
           // Capture remote (recipient) tasks for the sync effect's merge logic
           const remoteTasks = snapshot.tasks.filter(
             (t) => t.createdBy && t.createdBy !== user.uid
           );
           remoteSharedTasksRef.current[sharedId] = remoteTasks;
 
-          // Merge ALL snapshot tasks into local tasks state so Owner can see them in UI
+          // Sync all snapshot tasks into local tasks state so owner can see them
+          // (both owner-created and recipient-created tasks, deduplicated by id)
           setTasks((prev) => {
-            let changed = false;
             const prevMap = new Map(prev.map(t => [t.id, t]));
-            
-            const merged = prev.map(pt => {
-              const st = snapshot.tasks.find(t => t.id === pt.id);
-              if (st && st.updatedAt > pt.updatedAt) {
+            const merged = [...prev];
+            let changed = false;
+            for (const st of snapshot.tasks) {
+              const existing = prevMap.get(st.id);
+              if (!existing) {
+                merged.push(st);
                 changed = true;
-                return st;
+              } else if (st.updatedAt > existing.updatedAt) {
+                const idx = merged.findIndex(t => t.id === st.id);
+                if (idx >= 0) merged[idx] = st;
+                changed = true;
               }
-              return pt;
-            });
-            
-            const newSnapshotTasks = snapshot.tasks.filter(t => !prevMap.has(t.id));
-            if (newSnapshotTasks.length > 0) {
-              changed = true;
-              merged.push(...newSnapshotTasks);
             }
-            
             return changed ? merged : prev;
           });
 
