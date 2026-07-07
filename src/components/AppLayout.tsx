@@ -16,7 +16,7 @@ import { UserMenu } from "@/components/UserMenu";
 import { AuthGate } from "@/components/AuthGate";
 import { FirebaseDataProvider, SyncWriter } from "@/components/FirebaseDataProvider";
 import { ShareListModal } from "@/components/ShareListModal";
-import { TaskList } from "@/lib/types";
+import { TaskList, SharedListSnapshot } from "@/lib/types";
 
 // ─── Inner app (has access to useApp) ───────────────────────
 function AppLayoutInner() {
@@ -29,13 +29,15 @@ function AppLayoutInner() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [shareModalList, setShareModalList] = useState<{ list: TaskList; tasks: import("@/lib/types").Task[] } | null>(null);
   const [showSharedLists, setShowSharedLists] = useState(false);
+  const [incomingShareData, setIncomingShareData] = useState<{ sharedListId: string; snapshot: SharedListSnapshot } | null>(null);
 
   // Check for incoming share link on mount
   useEffect(() => {
     const checkShare = async () => {
       const result = await checkIncomingShareLink();
       if (result) {
-        // Incoming share will be handled by ShareListModal
+        setIncomingShareData(result);
+        setShowSharedLists(true); // auto-open the modal
       }
     };
     checkShare();
@@ -169,8 +171,9 @@ function AppLayoutInner() {
 
       <ShareListModal
         isOpen={showSharedLists}
-        onClose={() => setShowSharedLists(false)}
+        onClose={() => { setShowSharedLists(false); setIncomingShareData(null); }}
         listToShare={null}
+        incomingShareData={incomingShareData}
       />
     </div>
   );

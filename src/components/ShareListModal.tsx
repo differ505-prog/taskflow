@@ -19,6 +19,8 @@ interface ShareListModalProps {
   listToShare?: TaskList | null;
   /** Tasks belonging to listToShare */
   listTasks?: Task[];
+  /** Pre-populated incoming share data (passed in from AppLayout) */
+  incomingShareData?: { sharedListId: string; snapshot: SharedListSnapshot } | null;
 }
 
 function ShareLinkButton({ shareUrl, listName, isLoading }: { shareUrl: string; listName: string; isLoading?: boolean }) {
@@ -106,14 +108,21 @@ function SharedListItem({
   );
 }
 
-export function ShareListModal({ isOpen, onClose, listToShare, listTasks }: ShareListModalProps) {
+export function ShareListModal({ isOpen, onClose, listToShare, listTasks, incomingShareData }: ShareListModalProps) {
   const { user } = useAuth();
   const { sharedLists, shareList, unshareList, acceptSharedList, removeAcceptedSharedList } = useApp();
   const [sharedListsState, setSharedListsState] = useState<Record<string, SharedListData>>({});
-  const [incomingShare, setIncomingShare] = useState<{ sharedListId: string; snapshot: any } | null>(null);
+  const [incomingShare, setIncomingShare] = useState<{ sharedListId: string; snapshot: SharedListSnapshot } | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [hasShared, setHasShared] = useState(false);
+
+  // Sync incoming share data passed from AppLayout (overrides local URL check)
+  useEffect(() => {
+    if (incomingShareData) {
+      setIncomingShare(incomingShareData);
+    }
+  }, [incomingShareData]);
 
   // Load shared lists on open
   useEffect(() => {
