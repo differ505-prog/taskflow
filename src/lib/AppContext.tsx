@@ -965,10 +965,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           updatedTasks,
           ownerId,
           fetchedData.ownerName,
-          (writtenTasks) => {
-            snapshotTasksRef.current[sharedListId] = writtenTasks;
+          (sid, writtenTasks) => {
+            const updatedData = { ...fetchedData, tasks: writtenTasks };
+            saveSharedList(sid, updatedData);
+            setSharedLists((prev) => ({ ...prev, [sid]: updatedData }));
+            snapshotTasksRef.current[sid] = writtenTasks;
             const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
-            lastSyncedHashRef.current[sharedListId] = hash;
+            lastSyncedHashRef.current[sid] = hash;
             console.log("[SharedList] Task saved to Firestore, hash updated to:", hash.substring(0, 30));
           }
         ).catch((error) => console.error("[SharedList] Failed to save task to Firestore:", error));
@@ -1002,15 +1005,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updatedTasks,
       ownerId,
       data.ownerName,
-      (writtenTasks) => {
-        // Update refs after successful write so subscription doesn't overwrite
-        snapshotTasksRef.current[sharedListId] = writtenTasks;
+      (sid, writtenTasks) => {
+        // Update refs and React state after successful write so subscription doesn't overwrite
+        const updatedData = { ...data, tasks: writtenTasks };
+        saveSharedList(sid, updatedData);
+        setSharedLists((prev) => ({ ...prev, [sid]: updatedData }));
+        snapshotTasksRef.current[sid] = writtenTasks;
         const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
-        lastSyncedHashRef.current[sharedListId] = hash;
+        lastSyncedHashRef.current[sid] = hash;
         console.log("[SharedList] Task saved to Firestore, hash updated to:", hash.substring(0, 30));
         // Clear writing flag
-        isWritingRef.current[sharedListId] = false;
-        console.log("[SharedList] isWriting cleared for", sharedListId);
+        isWritingRef.current[sid] = false;
+        console.log("[SharedList] isWriting cleared for", sid);
       }
     );
     console.log("[SharedList] updateSharedSnapshot returned:", result, "type:", typeof result);
@@ -1052,11 +1058,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updatedTasks,
       ownerId,
       data.ownerName,
-      (writtenTasks) => {
-        snapshotTasksRef.current[sharedListId] = writtenTasks;
+      (sid, writtenTasks) => {
+        setSharedLists((prev) => ({ ...prev, [sid]: { ...prev[sid], tasks: writtenTasks } }));
+        saveSharedList(sid, { ...sharedLists[sid], tasks: writtenTasks });
+        snapshotTasksRef.current[sid] = writtenTasks;
         const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
-        lastSyncedHashRef.current[sharedListId] = hash;
-        isWritingRef.current[sharedListId] = false;
+        lastSyncedHashRef.current[sid] = hash;
+        isWritingRef.current[sid] = false;
       }
     ).catch((error) => {
       console.error("[SharedList] Failed to update task:", error);
@@ -1084,11 +1092,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updatedTasks,
       ownerId,
       data.ownerName,
-      (writtenTasks) => {
-        snapshotTasksRef.current[sharedListId] = writtenTasks;
+      (sid, writtenTasks) => {
+        setSharedLists((prev) => ({ ...prev, [sid]: { ...prev[sid], tasks: writtenTasks } }));
+        saveSharedList(sid, { ...sharedLists[sid], tasks: writtenTasks });
+        snapshotTasksRef.current[sid] = writtenTasks;
         const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
-        lastSyncedHashRef.current[sharedListId] = hash;
-        isWritingRef.current[sharedListId] = false;
+        lastSyncedHashRef.current[sid] = hash;
+        isWritingRef.current[sid] = false;
       }
     ).catch((error) => {
       console.error("[SharedList] Failed to delete task:", error);

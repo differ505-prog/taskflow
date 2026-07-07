@@ -268,7 +268,7 @@ export async function updateSharedSnapshot(
   tasks: Task[],
   ownerId: string,
   ownerName?: string,
-  onWriteComplete?: (tasks: Task[]) => void
+  onWriteComplete?: (sharedListId: string, tasks: Task[]) => void
 ): Promise<void> {
   const db = await getFirebaseDB();
   const safeOwnerId = ownerId ?? "";
@@ -321,7 +321,7 @@ export async function updateSharedSnapshot(
   if (onWriteComplete) {
     console.log("[Firestore] calling onWriteComplete with", tasks.length, "tasks");
     try {
-      onWriteComplete(tasks);
+    onWriteComplete(sharedListId, tasks);
       console.log("[Firestore] onWriteComplete completed");
     } catch (cbError) {
       console.error("[Firestore] onWriteComplete threw:", cbError);
