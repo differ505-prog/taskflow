@@ -708,79 +708,55 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           // Use snapshot.ownerId as source of truth (always set by createSharedList)
           const snapshotOwnerId = snapshot.ownerId || snapshot.list.ownerId;
 
-          const updatedData: SharedListData = {
-            list: { ...snapshot.list, ownerId: snapshotOwnerId },
-            tasks: snapshot.tasks,
-            ownerName: snapshot.ownerName,
-          };
+  // ── Subscription callback (runs whenever Firestore data changes) ──
+  // IMPORTANT: This callback MUST NEVER write to localStorage.
+  // Writing to localStorage is the exclusive responsibility of onWriteComplete callbacks
+  // (which have the authoritative written data). Subscription data may lag/be stale
+  // due to Firebase cache, multi-tab sync, and async SDK behavior.
+  // This callback only updates React state for UI responsiveness.
+  const onSnapshot = useCallback((sharedId: string, snapshot: FirestoreSnapshot | null) => {
+    if (!snapshot) return;
 
-          // Skip updating state if a write is in progress
-          // (Firebase SDK may re-emit stale cached data mid-write)
-          if (isWritingRef.current[sharedId]) {
-            console.log("[SharedList] Subscription skipped (write in progress), snapshot has", snapshot.tasks.length, "tasks");
-            // Still update snapshotTasksRef so we have latest data when write completes
-            snapshotTasksRef.current[sharedId] = snapshot.tasks;
-            return;
-          }
+    const isFirstSnapshot = !snapshotReadyRef.current[sharedId];
+    snapshotReadyRef.current[sharedId] = true;
 
-          // Skip if a write just completed and we're in the cooldown window
-          // (Firebase SDK fires async subscription AFTER setDoc resolves)
-          if (justWroteRef.current[sharedId]) {
-            justWroteRef.current[sharedId] = false;
-            console.log("[SharedList] Subscription skipped (just wrote), snapshot has", snapshot.tasks.length, "tasks");
-            snapshotTasksRef.current[sharedId] = snapshot.tasks;
-            return;
-          }
+    const snapshotOwnerId = snapshot.ownerId || snapshot.list.ownerId;
 
-          // Skip if snapshot hash doesn't match expected hash
-          // (stale data from Firebase cache after a write)
-          const snapshotHash = JSON.stringify(snapshot.tasks.map(t => `${t.id}:${t.updatedAt}`).sort());
-          const expectedHash = lastSyncedHashRef.current[sharedId];
-          if (expectedHash && snapshotHash !== expectedHash) {
-            console.log("[SharedList] Subscription skipped (hash mismatch), expected:", expectedHash.substring(0, 20), "got:", snapshotHash.substring(0, 20));
-            snapshotTasksRef.current[sharedId] = snapshot.tasks;
-            return;
-          }
+    const updatedData: SharedListData = {
+      list: { ...snapshot.list, ownerId: snapshotOwnerId },
+      tasks: snapshot.tasks,
+      ownerName: snapshot.ownerName,
+    };
 
-          // Update sharedLists state and localStorage
-          setSharedLists((prev) => ({ ...prev, [sharedId]: updatedData }));
-          saveSharedList(sharedId, updatedData);
-          console.log("[SharedList] Owner subscription fired, saved", snapshot.tasks.length, "tasks, ownerId:", snapshotOwnerId);
+    // Always update React state so UI stays in sync with Firestore
+    setSharedLists((prev) => ({ ...prev, [sharedId]: updatedData }));
 
-          // Capture remote (recipient) tasks for the sync effect's merge logic
-          const remoteTasks = snapshot.tasks.filter(
-            (t) => t.createdBy && t.createdBy !== user.uid
-          );
-          remoteSharedTasksRef.current[sharedId] = remoteTasks;
-          // Store latest snapshot tasks so sync effect can read without closure lag
-          snapshotTasksRef.current[sharedId] = snapshot.tasks;
+    // Capture remote tasks for the sync effect's merge logic
+    const remoteTasks = snapshot.tasks.filter(
+      (t) => t.createdBy && t.createdBy !== user.uid
+    );
+    remoteSharedTasksRef.current[sharedId] = remoteTasks;
+    snapshotTasksRef.current[sharedId] = snapshot.tasks;
 
-          // Sync all snapshot tasks into local tasks state so owner can see them
-          // (both owner-created and recipient-created tasks, deduplicated by id)
-          setTasks((prev) => {
-            const prevMap = new Map(prev.map(t => [t.id, t]));
-            const merged = [...prev];
-            let changed = false;
-            for (const st of snapshot.tasks) {
-              const existing = prevMap.get(st.id);
-              if (!existing) {
-                merged.push(st);
-                changed = true;
-              } else if (st.updatedAt > existing.updatedAt) {
-                const idx = merged.findIndex(t => t.id === st.id);
-                if (idx >= 0) merged[idx] = st;
-                changed = true;
-              }
-            }
-            return changed ? merged : prev;
-          });
+    // On initial load: establish the hash so we know what Firestore has
+    if (isFirstSnapshot) {
+      const hash = JSON.stringify(snapshot.tasks.map(t => `${t.id}:${t.updatedAt}`).sort());
+      lastSyncedHashRef.current[sharedId] = hash;
+      console.log("[SharedList] First subscription fired, saved", snapshot.tasks.length, "tasks, ownerId:", snapshotOwnerId, "hash:", hash.substring(0, 20));
+      // Also write to localStorage on initial load (this is the only time subscription writes localStorage)
+      saveSharedList(sharedId, updatedData);
+      console.log("[SharedList] Wrote initial data to localStorage from subscription");
+      return;
+    }
 
-          // Update the hash so we know what's on the server
-          const hash = JSON.stringify(snapshot.tasks.map(t => `${t.id}:${t.updatedAt}`).sort());
-          lastSyncedHashRef.current[sharedId] = hash;
-        },
+    // Skip further writes to localStorage from subscription (see comment at top)
+    console.log("[SharedList] Subscription fired, skipped localStorage write, has", snapshot.tasks.length, "tasks");
+  }, [user.uid]);
+
+      const promise = subscribeToSharedSnapshot(
+        sharedId,
+        (snapshot) => onSnapshot(sharedId, snapshot),
         () => {
-          // List was deleted externally
           setOwnedSharedListIds((prev) => prev.filter((id) => id !== sharedId));
           setSharedLists((prev) => {
             const next = { ...prev };
@@ -823,40 +799,54 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const promise = subscribeToSharedSnapshot(
         sharedListId,
         (snapshot) => {
-          if (snapshot) {
-            const snapshotOwnerId = snapshot.ownerId || snapshot.list.ownerId;
-            // Ensure required fields are never undefined
-            const snapshotListWithDefaults: TaskList = {
-              ...snapshot.list,
-              ownerId: snapshotOwnerId,
-              icon: snapshot.list.icon || "📋",
-              color: snapshot.list.color || "#3B82F6",
-            };
-            const updatedData: SharedListData = {
-              list: snapshotListWithDefaults,
-              tasks: snapshot.tasks,
-              ownerName: snapshot.ownerName,
-            };
-            saveSharedList(sharedListId, updatedData);
-            // Sync snapshot tasks into local tasks state so recipient sees them
-            setTasks((prev) => {
-              const prevMap = new Map(prev.map(t => [t.id, t]));
-              const merged = [...prev];
-              let changed = false;
-              for (const st of snapshot.tasks) {
-                const existing = prevMap.get(st.id);
-                if (!existing) {
-                  merged.push(st);
-                  changed = true;
-                } else if (st.updatedAt > existing.updatedAt) {
-                  const idx = merged.findIndex(t => t.id === st.id);
-                  if (idx >= 0) merged[idx] = st;
-                  changed = true;
-                }
+          if (!snapshot) return;
+
+          const isFirstSnapshot = !snapshotReadyRef.current[sharedListId];
+          snapshotReadyRef.current[sharedListId] = true;
+
+          const snapshotOwnerId = snapshot.ownerId || snapshot.list.ownerId;
+          const snapshotListWithDefaults: TaskList = {
+            ...snapshot.list,
+            ownerId: snapshotOwnerId,
+            icon: snapshot.list.icon || "📋",
+            color: snapshot.list.color || "#3B82F6",
+          };
+          const updatedData: SharedListData = {
+            list: snapshotListWithDefaults,
+            tasks: snapshot.tasks,
+            ownerName: snapshot.ownerName,
+          };
+
+          // Always update React state for UI responsiveness
+          setSharedLists((prev) => ({ ...prev, [sharedListId]: updatedData }));
+
+          // Sync tasks into local tasks state so recipient sees shared tasks
+          setTasks((prev) => {
+            const prevMap = new Map(prev.map(t => [t.id, t]));
+            const merged = [...prev];
+            let changed = false;
+            for (const st of snapshot.tasks) {
+              const existing = prevMap.get(st.id);
+              if (!existing) {
+                merged.push(st);
+                changed = true;
+              } else if (st.updatedAt > existing.updatedAt) {
+                const idx = merged.findIndex(t => t.id === st.id);
+                if (idx >= 0) merged[idx] = st;
+                changed = true;
               }
-              return changed ? merged : prev;
-            });
-            setSharedLists(getSharedLists());
+            }
+            return changed ? merged : prev;
+          });
+
+          // On initial load only: write to localStorage (establish baseline state)
+          if (isFirstSnapshot) {
+            saveSharedList(sharedListId, updatedData);
+            console.log("[SharedList] Recipient first subscription fired, saved", snapshot.tasks.length, "tasks");
+          } else {
+            // Subsequent updates come from owner's writes — do NOT write to localStorage here
+            // (owner writes to localStorage via onWriteComplete)
+            console.log("[SharedList] Recipient subscription fired, skipped localStorage write, has", snapshot.tasks.length, "tasks");
           }
         },
         () => {
