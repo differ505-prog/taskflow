@@ -38,6 +38,10 @@ interface AppContextValue {
   habits: Habit[];
   todayFocusMinutes: number;
 
+  // ── Firebase sync ────────────────────────────────────────
+  /** 強制從 localStorage 重新讀取（例如 Firebase 即時更新後） */
+  forceReload: () => void;
+
   // ── View ────────────────────────────────────────────────
   currentView: AppView;
   currentListId?: string;
@@ -103,6 +107,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [activeFilter, setActiveFilter] = useState<TaskFilter>({});
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "default">("default");
   const [isLoaded, setIsLoaded] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // ── Init ────────────────────────────────────────────────
   useEffect(() => {
@@ -116,7 +121,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setNotificationPermission(Notification.permission);
     }
     setIsLoaded(true);
-  }, []);
+  }, [reloadKey]);
 
   const setCurrentView = useCallback((v: AppView, listId?: string) => {
     setCurrentViewState(v);
@@ -457,6 +462,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     viewCounts,
     getListTaskCount,
     getTagCounts,
+    forceReload: () => setReloadKey((k) => k + 1),
   };
 
   if (!isLoaded) return null;

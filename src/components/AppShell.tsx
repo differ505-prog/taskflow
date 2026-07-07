@@ -81,9 +81,10 @@ interface AppShellProps {
   onDeleteList: (id: string) => void;
   onOpenPomodoro: () => void;
   onOpenMobileSidebar?: () => void;
+  userMenu?: React.ReactNode;
 }
 
-export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteList, onOpenPomodoro, onOpenMobileSidebar }: AppShellProps) {
+export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteList, onOpenPomodoro, onOpenMobileSidebar, userMenu }: AppShellProps) {
   const {
     tasks, currentView, currentListId, lists,
     searchQuery, setSearchQuery,
@@ -200,6 +201,7 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
 
             {/* Header actions — desktop only (mobile uses FAB) */}
             <div className="hidden md:flex items-center gap-2">
+              {userMenu}
               <button
                 onClick={onOpenPomodoro}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-150"

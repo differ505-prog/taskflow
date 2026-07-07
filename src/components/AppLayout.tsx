@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import { AppProvider, useApp } from "@/lib/AppContext";
 import { Sidebar, ListForm } from "@/components/Sidebar";
 import { AppShell } from "@/components/AppShell";
@@ -11,10 +12,15 @@ import StatsClient from "@/components/StatsClient";
 import { TagsPage } from "@/components/TagsPage";
 import { PomodoroTimer } from "@/components/PomodoroTimer";
 import { BottomNavigation } from "@/components/BottomNavigation";
+import { UserMenu } from "@/components/UserMenu";
+import { AuthGate } from "@/components/AuthGate";
+import { FirebaseDataProvider, SyncWriter } from "@/components/FirebaseDataProvider";
 import { TaskList } from "@/lib/types";
 
+// ─── Inner app (has access to useApp) ───────────────────────
 function AppLayoutInner() {
   const { currentView, addList, updateList, deleteList, setCurrentView, viewCounts } = useApp();
+  const { user } = useAuth();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isListFormOpen, setIsListFormOpen] = useState(false);
   const [isPomodoroOpen, setIsPomodoroOpen] = useState(false);
@@ -62,6 +68,7 @@ function AppLayoutInner() {
             onDeleteList={deleteList}
             onOpenPomodoro={() => setIsPomodoroOpen(true)}
             onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
+            userMenu={<UserMenu />}
           />
         );
     }
@@ -69,7 +76,7 @@ function AppLayoutInner() {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Desktop Sidebar — hidden on mobile */}
+      {/* Desktop Sidebar */}
       <div className="hidden md:flex flex-shrink-0">
         <Sidebar
           onOpenSettings={() => setIsSettingsOpen(true)}
@@ -81,7 +88,7 @@ function AppLayoutInner() {
         />
       </div>
 
-      {/* Main content area */}
+      {/* Main content */}
       <div className="flex-1 overflow-y-auto pb-[72px] md:pb-0">
         {renderView()}
       </div>
@@ -137,10 +144,30 @@ function AppLayoutInner() {
   );
 }
 
-export function AppLayout() {
+// ─── App with Firebase sync ────────────────────────────────
+function AppWithFirebase() {
+  const { user } = useAuth();
+
   return (
-    <AppProvider>
+    <FirebaseDataProvider>
+      {/* SyncWriter: writes localStorage changes → Firestore */}
+      {user && <SyncWriter userId={user.uid} />}
       <AppLayoutInner />
-    </AppProvider>
+    </FirebaseDataProvider>
+  );
+}
+
+// ─── Root layout ───────────────────────────────────────────
+export function AppLayout() {
+  const [guestModeEntered, setGuestModeEntered] = useState(false);
+
+  return (
+    <AuthProvider>
+      <AuthGate onGuestEnter={() => setGuestModeEntered(true)}>
+        <AppProvider>
+          <AppWithFirebase />
+        </AppProvider>
+      </AuthGate>
+    </AuthProvider>
   );
 }
