@@ -590,11 +590,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       color: data.list.color || "#3B82F6",
     };
 
-    const sharedData: SharedListData = {
-      list: listWithDefaults,
-      tasks: data.tasks,
-      ownerName: data.ownerName,
-    };
+    // Idempotent check: if already accepted, just update the existing entry
+    // (avoids creating duplicate entries when user clicks the share link again)
+    const existingData = sharedLists[sharedListId];
+    const sharedData: SharedListData = existingData
+      ? {
+          // Merge: keep existing list identity but update from snapshot
+          list: { ...existingData.list, ...listWithDefaults, ownerId },
+          tasks: data.tasks ?? existingData.tasks,
+          ownerName: data.ownerName ?? existingData.ownerName,
+        }
+      : { list: listWithDefaults, tasks: data.tasks, ownerName: data.ownerName };
+
+    console.log("[SharedList] acceptSharedList:", {
+      sharedListId,
+      isReAccept: !!existingData,
+      taskCount: sharedData.tasks?.length,
+      ownerName: sharedData.ownerName,
+    });
 
     // Save to localStorage first
     saveSharedList(sharedListId, sharedData);
