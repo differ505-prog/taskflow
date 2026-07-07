@@ -10,7 +10,10 @@ import { motion } from "framer-motion";
 import {
   Moon, Sun, Bell, Download, Upload, Trash2, Info,
   ChevronRight, X, CheckCircle2, AlertCircle, FileText,
+  CalendarDays, Copy,
 } from "lucide-react";
+import { getTasks } from "@/lib/storage";
+import { downloadICal } from "@/lib/ical";
 
 interface SettingsPageProps {
   isOpen: boolean;
@@ -353,6 +356,51 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
             </div>
           </section>
 
+          {/* Calendar Sync */}
+          <section>
+            <h3 className="text-[12px] font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-tertiary)" }}>
+              日曆同步
+            </h3>
+            <div className="card p-4 space-y-3">
+              <button
+                onClick={() => {
+                  const tasks = getTasks();
+                  downloadICal(tasks, "VibeList");
+                }}
+                className="w-full flex items-center gap-3 p-3 rounded-xl transition-all active:scale-98 hover:bg-[var(--surface-hover)]"
+                style={{ background: "var(--surface-muted)" }}
+              >
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "var(--brand-tint)" }}>
+                  <Download className="w-4 h-4" style={{ color: "var(--brand)" }} />
+                </div>
+                <div className="text-left flex-1 min-w-0">
+                  <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>下載 iCal 檔案</p>
+                  <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>匯入 Google Calendar 或 Apple Calendar</p>
+                </div>
+                <span className="text-[12px] font-medium flex-shrink-0" style={{ color: "var(--brand)" }}>執行</span>
+              </button>
+              <button
+                onClick={async () => {
+                  const tasks = getTasks();
+                  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(tasks))));
+                  const url = `${window.location.origin}/api/calendar/feed?tasks=${encoded}`;
+                  await navigator.clipboard.writeText(url);
+                }}
+                className="w-full flex items-center gap-3 p-3 rounded-xl transition-all active:scale-98 hover:bg-[var(--surface-hover)]"
+                style={{ background: "var(--surface-muted)" }}
+              >
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "var(--brand-tint)" }}>
+                  <Copy className="w-4 h-4" style={{ color: "var(--brand)" }} />
+                </div>
+                <div className="text-left flex-1 min-w-0">
+                  <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>複製 WebCal 訂閱連結</p>
+                  <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>在 Google Calendar 中訂閱，即時同步</p>
+                </div>
+                <span className="text-[12px] font-medium flex-shrink-0" style={{ color: "var(--brand)" }}>執行</span>
+              </button>
+            </div>
+          </section>
+
           {/* 理論基礎 */}
           <section>
             <h3 className="text-[12px] font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-tertiary)" }}>
@@ -371,7 +419,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                     <span className="text-[13px] font-bold" style={{ color: "var(--brand)" }}>E</span>
                   </div>
                   <div>
-                    <p className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>Eisenhower Matrix</p>
+                    <p className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>艾森豪矩陣</p>
                     <p className="text-[12px] mt-0.5 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
                       區分「重要」與「緊急」，用高 / 中 / 低三級優先級減少決策疲勞。
                       任務依優先級自動排序，確保你永遠先做最有價值的事。
@@ -392,7 +440,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                     <span className="text-[13px] font-bold" style={{ color: "var(--brand)" }}>G</span>
                   </div>
                   <div>
-                    <p className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>Getting Things Done</p>
+                    <p className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>GTD 搞定</p>
                     <p className="text-[12px] mt-0.5 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
                       收集箱用來清空大腦工作記憶，降低認知負載。
                       「今天」與「未來 7 天」視圖將龐大待辦清單化為可執行的下一步行動。
@@ -413,7 +461,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                     <span className="text-[13px] font-bold" style={{ color: "var(--status-warning)" }}>P</span>
                   </div>
                   <div>
-                    <p className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>番茄工作法 Pomodoro</p>
+                    <p className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>番茄工作法</p>
                     <p className="text-[12px] mt-0.5 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
                       25 分鐘高度專注工作區塊，配合短休息形成心流節奏。
                       內建計時器讓你不必切換工具，專注當下最重要的事。

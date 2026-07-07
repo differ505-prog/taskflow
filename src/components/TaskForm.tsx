@@ -261,7 +261,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                       style={{ background: "var(--surface-muted)", color: "var(--text-tertiary)" }}
                       title="艾森豪矩陣：區分重要與緊急，減少決策疲勞"
                     >
-                      Eisenhower Matrix
+                      艾森豪
                     </span>
                   </div>
                   <select value={priority} onChange={(e) => setPriority(e.target.value as Priority)} className="input cursor-pointer" style={selectStyle}>

@@ -11,9 +11,39 @@ export default function SettingsPage() {
     | { icon: LucideIcon; label: string; description: string; type: "action"; value?: string; onClick: () => void }
     | { icon: LucideIcon; label: string; description: string; type: "danger"; value?: string; onClick: () => void };
 
+  type SettingsGroup = {
+    title: string;
+    items: SettingsItem[];
+    isTheory?: boolean;
+  };
+
   const [showConfirm, setShowConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
   const [lastAction, setLastAction] = useState<string | null>(null);
+
+  const theoryCards = [
+    {
+      letter: "E",
+      name: "艾森豪矩陣",
+      color: "var(--brand)",
+      bg: "var(--brand-tint)",
+      text: "區分「重要」與「緊急」，用高 / 中 / 低三級優先級減少決策疲勞。任務依優先級自動排序，確保你永遠先做最有價值的事。",
+    },
+    {
+      letter: "G",
+      name: "GTD 搞定",
+      color: "var(--brand)",
+      bg: "var(--brand-tint)",
+      text: "收集箱用來清空大腦工作記憶，降低認知負載。「今天」與「未來 7 天」視圖將龐大待辦清單化為可執行的下一步行動。",
+    },
+    {
+      letter: "P",
+      name: "番茄工作法",
+      color: "var(--status-warning)",
+      bg: "rgba(255,149,0,0.1)",
+      text: "25 分鐘高度專注工作區塊，配合短休息形成心流節奏。內建計時器讓你不必切換工具，專注當下最重要的事。",
+    },
+  ];
 
   const handleClearAllData = () => {
     localStorage.removeItem("taskflow_tasks");
@@ -46,7 +76,7 @@ export default function SettingsPage() {
     setTimeout(() => { setCopied(false); setLastAction(null); }, 2000);
   };
 
-  const settingsGroups = [
+  const settingsGroups: SettingsGroup[] = [
     {
       title: "外觀",
       items: [
@@ -110,6 +140,11 @@ export default function SettingsPage() {
       ],
     },
     {
+      title: "理論基石",
+      items: [],
+      isTheory: true,
+    },
+    {
       title: "關於",
       items: [
         {
@@ -147,13 +182,46 @@ export default function SettingsPage() {
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {settingsGroups.map((group) => (
           <section key={group.title} aria-labelledby={`settings-${group.title}`}>
-            <h2
-              id={`settings-${group.title}`}
-              className="text-[12px] font-medium text-[var(--text-tertiary)] uppercase tracking-wide mb-3 px-1"
-            >
-              {group.title}
-            </h2>
-            <ul className="space-y-1 rounded-xl overflow-hidden" role="list" style={{ border: "1px solid var(--border)" }}>
+            {group.isTheory ? (
+              <>
+                <h2
+                  id={`settings-${group.title}`}
+                  className="text-[12px] font-medium text-[var(--text-tertiary)] uppercase tracking-wide mb-3 px-1"
+                >
+                  {group.title}
+                </h2>
+                <div className="space-y-3">
+                  {theoryCards.map((card) => (
+                    <div
+                      key={card.letter}
+                      className="p-4 rounded-xl"
+                      style={{ background: "var(--surface-elevated)", border: "1px solid var(--border)" }}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                          style={{ background: card.bg }}
+                        >
+                          <span className="text-[13px] font-bold" style={{ color: card.color }}>{card.letter}</span>
+                        </div>
+                        <div>
+                          <p className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>{card.name}</p>
+                          <p className="text-[12px] mt-0.5 leading-relaxed" style={{ color: "var(--text-secondary)" }}>{card.text}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <h2
+                  id={`settings-${group.title}`}
+                  className="text-[12px] font-medium text-[var(--text-tertiary)] uppercase tracking-wide mb-3 px-1"
+                >
+                  {group.title}
+                </h2>
+                <ul className="space-y-1 rounded-xl overflow-hidden" role="list" style={{ border: "1px solid var(--border)" }}>
               {group.items.map((item, idx) => {
                 const Icon = item.icon;
                 const isLast = idx === group.items.length - 1;
@@ -226,8 +294,7 @@ export default function SettingsPage() {
                   </li>
                 );
               })}
-            </ul>
-          </section>
+            </ul></></section>
         ))}
       </main>
 
