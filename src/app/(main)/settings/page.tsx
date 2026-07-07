@@ -234,23 +234,53 @@ export default function SettingsPage() {
                       {calCopied ? "已複製 ✓" : "複製連結"}
                     </span>
                   </button>
-                  <div className="p-4 rounded-xl space-y-2" style={{ background: "var(--surface-muted)", border: "1px solid var(--border)" }}>
+                  <div className="p-4 rounded-xl space-y-3" style={{ background: "var(--surface-muted)", border: "1px solid var(--border)" }}>
                     <p className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>使用方式</p>
-                    <ol className="space-y-1.5">
+                    <div className="space-y-3">
                       {[
-                        "點擊「複製連結」",
-                        "Google Calendar → 左側「加入其他日曆」→「從網址加入」",
-                        "貼上後確認訂閱即可",
-                        "日曆顯示目前所有任務，任務有變動時重新複製一次即可刷新",
+                        {
+                          label: "複製連結",
+                          text: "點擊上方「複製連結」按鈕",
+                        },
+                        {
+                          label: "打開 Google Calendar",
+                          text: "在新分頁打開 ",
+                          link: { href: "https://calendar.google.com", label: "Google Calendar" },
+                        },
+                        {
+                          label: "加入日曆",
+                          text: "左側「加入其他日曆」→「從網址加入日曆」",
+                        },
+                        {
+                          label: "完成訂閱",
+                          text: "貼上剛複製的連結，點確認。日曆會顯示目前所有任務",
+                        },
                       ].map((step, i) => (
-                        <li key={i} className="flex items-start gap-2 text-[12px]" style={{ color: "var(--text-tertiary)" }}>
-                          <span className="flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center mt-0.5 text-[10px] font-bold" style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>
+                        <div key={i} className="flex items-start gap-3">
+                          <div
+                            className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5 text-[10px] font-bold"
+                            style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+                          >
                             {i + 1}
-                          </span>
-                          {step}
-                        </li>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-[12px] font-medium" style={{ color: "var(--text-primary)" }}>{step.label}：</span>
+                            <span className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>{step.text}</span>
+                            {"link" in step && step.link && (
+                              <a
+                                href={step.link.href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[12px] underline underline-offset-2 ml-1"
+                                style={{ color: "var(--brand)" }}
+                              >
+                                {step.link.label} ↗
+                              </a>
+                            )}
+                          </div>
+                        </div>
                       ))}
-                    </ol>
+                    </div>
                   </div>
                 </div>
               </>
