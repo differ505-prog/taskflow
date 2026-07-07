@@ -28,14 +28,16 @@ interface SidebarProps {
   onOpenShareModal?: (list: TaskList, tasks: import("@/lib/types").Task[]) => void;
   onOpenSharedLists?: () => void;
   onOpenSharedList?: (sharedId: string) => void;
+  onLeaveSharedList?: (sharedId: string) => void;
 }
 
 const LIST_ICONS = ["📋", "💼", "🏠", "🏃", "📚", "💡", "🎯", "🌟", "💰", "🏥", "✈️", "🎨", "🍽️", "🛠️", "📱", "💻"];
 
-export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditList, onDeleteList, onOpenPomodoro, onOpenShareModal, onOpenSharedLists, onOpenSharedList }: SidebarProps) {
+export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditList, onDeleteList, onOpenPomodoro, onOpenShareModal, onOpenSharedLists, onOpenSharedList, onLeaveSharedList }: SidebarProps) {
   const { currentView, currentListId, currentSharedListId, setCurrentView, viewCounts, lists, sharedLists, getListTaskCount, tasks } = useApp();
   const [listsExpanded, setListsExpanded] = useState(true);
   const [showListMenu, setShowListMenu] = useState<string | null>(null);
+  const [showSharedListMenu, setShowSharedListMenu] = useState<string | null>(null);
 
   const mainNavItems: NavItem[] = [
     { view: "inbox", label: "收集箱", icon: <Inbox className="w-[18px] h-[18px]" />, count: viewCounts.inbox },
@@ -200,22 +202,43 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
             </div>
             {Object.values(sharedLists).map((data) => {
               const key = data.list.sharedId ?? data.list.id;
-              const isActive = currentSharedListId === key;
+              const isActiveShared = currentSharedListId === key;
               return (
-                <button
-                  key={key}
-                  onClick={() => onOpenSharedList?.(key)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-150"
-                  style={
-                    isActive
-                      ? { background: "var(--brand-tint)", color: "var(--brand)" }
-                      : { color: "var(--text-secondary)" }
-                  }
-                >
-                  <span className="text-base flex-shrink-0">{data.list.icon}</span>
-                  <span className="flex-1 text-left truncate">{data.list.name}</span>
-                  <span className="text-[11px]" style={{ opacity: 0.6 }}>{data.tasks.length}</span>
-                </button>
+                <div key={key} className="relative">
+                  <button
+                    onClick={() => onOpenSharedList?.(key)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setShowSharedListMenu(showSharedListMenu === key ? null : key);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-150"
+                    style={
+                      isActiveShared
+                        ? { background: "var(--brand-tint)", color: "var(--brand)" }
+                        : { color: "var(--text-secondary)" }
+                    }
+                  >
+                    <span className="text-base flex-shrink-0">{data.list.icon}</span>
+                    <span className="flex-1 text-left truncate">{data.list.name}</span>
+                    <span className="text-[11px]" style={{ opacity: 0.6 }}>{data.tasks.length}</span>
+                  </button>
+
+                  {/* Shared list context menu */}
+                  {showSharedListMenu === key && (
+                    <div
+                      className="absolute right-2 top-full z-50 mt-1 py-1 w-44 rounded-xl border"
+                      style={{ background: "var(--surface-elevated)", boxShadow: "var(--shadow-md)", borderColor: "var(--border)" }}
+                    >
+                      <button
+                        onClick={() => { onLeaveSharedList?.(key); setShowSharedListMenu(null); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                        style={{ color: "var(--status-danger)" }}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> 退出共用清單
+                      </button>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>

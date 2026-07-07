@@ -20,7 +20,7 @@ import { TaskList, SharedListSnapshot } from "@/lib/types";
 
 // ─── Inner app (has access to useApp) ───────────────────────
 function AppLayoutInner() {
-  const { currentView, addList, updateList, deleteList, setCurrentView, setCurrentSharedList, viewCounts, tasks, checkIncomingShareLink } = useApp();
+  const { currentView, currentSharedListId, addList, updateList, deleteList, setCurrentView, setCurrentSharedList, removeAcceptedSharedList, viewCounts, tasks, checkIncomingShareLink } = useApp();
   const { user } = useAuth();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isListFormOpen, setIsListFormOpen] = useState(false);
@@ -42,6 +42,14 @@ function AppLayoutInner() {
     };
     checkShare();
   }, [checkIncomingShareLink]);
+
+  const handleLeaveSharedList = (sharedId: string) => {
+    removeAcceptedSharedList(sharedId);
+    // If currently viewing the shared list being removed, navigate back to inbox
+    if (currentSharedListId === sharedId) {
+      setCurrentView("inbox");
+    }
+  };
 
   const handleOpenListForm = () => {
     setEditingList(null);
@@ -105,6 +113,7 @@ function AppLayoutInner() {
           onOpenShareModal={(list, listTasks) => setShareModalList({ list, tasks: listTasks })}
           onOpenSharedLists={() => setShowSharedLists(true)}
           onOpenSharedList={(sharedId) => { setCurrentSharedList(sharedId); }}
+          onLeaveSharedList={handleLeaveSharedList}
         />
       </div>
 
@@ -145,6 +154,7 @@ function AppLayoutInner() {
               onOpenShareModal={(list, listTasks) => { setIsMobileSidebarOpen(false); setShareModalList({ list, tasks: listTasks }); }}
               onOpenSharedLists={() => { setIsMobileSidebarOpen(false); setShowSharedLists(true); }}
               onOpenSharedList={(sharedId) => { setIsMobileSidebarOpen(false); setCurrentSharedList(sharedId); }}
+              onLeaveSharedList={(sharedId) => { setIsMobileSidebarOpen(false); handleLeaveSharedList(sharedId); }}
             />
           </div>
         </>

@@ -43,6 +43,7 @@ export interface Task {
   isArchived: boolean;
   focusMinutes: number; // total Pomodoro minutes logged
   order: number; // sort order within view
+  createdBy?: string; // uid of the user who created this task (for shared lists)
 }
 
 export interface TaskFilter {

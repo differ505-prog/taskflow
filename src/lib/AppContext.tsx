@@ -147,6 +147,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [acceptedSharedListIds, setAcceptedSharedListIds] = useState<string[]>([]);
   // Refs to store unsubscribe functions for Firestore listeners
   const sharedListUnsubscribeRefs = useRef<Record<string, () => void>>({});
+  // Track remote tasks from recipients (tasks with createdBy !== owner)
+  const remoteSharedTasksRef = useRef<Record<string, Task[]>>({});
+  // Track last-written snapshot hash to prevent infinite sync loops
+  const lastSyncedHashRef = useRef<Record<string, string>>({});
 
   // ── Init ────────────────────────────────────────────────
   useEffect(() => {
@@ -593,6 +597,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ── Subscribe to owned shared lists for sync updates ───────
+  // Owner subscribes to capture tasks written by recipients
   useEffect(() => {
     if (!user || ownedSharedListIds.length === 0) return;
 
@@ -606,12 +611,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       const promise = subscribeToSharedSnapshot(
         sharedId,
-        () => {
-          // Own snapshot updates are handled in the list update function
+        (snapshot) => {
+          if (!snapshot) return;
+          // Capture tasks created by other users (recipients)
+          const remoteTasks = snapshot.tasks.filter(
+            (t) => t.createdBy && t.createdBy !== user.uid
+          );
+          remoteSharedTasksRef.current[sharedId] = remoteTasks;
+          // Update the hash so we know what's on the server
+          const hash = JSON.stringify(snapshot.tasks.map(t => t.id).sort());
+          lastSyncedHashRef.current[sharedId] = hash;
         },
         () => {
           // List was deleted externally
           setOwnedSharedListIds((prev) => prev.filter((id) => id !== sharedId));
+          delete remoteSharedTasksRef.current[sharedId];
+          delete lastSyncedHashRef.current[sharedId];
         }
       ).then((unsubscribe) => {
         sharedListUnsubscribeRefs.current[sharedId] = unsubscribe;
@@ -625,6 +640,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (!ownedSharedListIds.includes(id)) {
           sharedListUnsubscribeRefs.current[id]();
           delete sharedListUnsubscribeRefs.current[id];
+          delete remoteSharedTasksRef.current[id];
+          delete lastSyncedHashRef.current[id];
         }
       });
     };
@@ -678,6 +695,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [user, acceptedSharedListIds]);
 
   // ── Sync owned shared lists when they are updated ───────────
+  // MERGE-BASED: Owner's local tasks + remote tasks from recipients
   useEffect(() => {
     if (!user) return;
 
@@ -685,11 +703,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     ownedLists.forEach(async (list) => {
       if (!list.sharedId) return;
-      const listTasks = tasks.filter((t) => t.listId === list.id);
+      // Owner's local tasks for this list (mark with createdBy)
+      const localTasks = tasks
+        .filter((t) => t.listId === list.id)
+        .map((t) => ({ ...t, createdBy: t.createdBy || user.uid }));
+      // Remote tasks contributed by recipients (from the subscription)
+      const remoteTasks = remoteSharedTasksRef.current[list.sharedId] || [];
+      // Merge: local tasks + remote tasks (deduplicate by id, local wins for same id)
+      const localTaskIds = new Set(localTasks.map((t) => t.id));
+      const mergedTasks = [
+        ...localTasks,
+        ...remoteTasks.filter((t) => !localTaskIds.has(t.id)),
+      ];
+
+      // Check if anything actually changed to prevent infinite loops
+      const newHash = JSON.stringify(mergedTasks.map(t => t.id).sort());
+      if (lastSyncedHashRef.current[list.sharedId] === newHash) return;
+
       const ownerName = user.displayName || user.email || undefined;
 
       try {
-        await updateSharedSnapshot(list.sharedId, list, listTasks, user.uid, ownerName);
+        await updateSharedSnapshot(list.sharedId, list, mergedTasks, user.uid, ownerName);
+        lastSyncedHashRef.current[list.sharedId] = newHash;
       } catch (error) {
         // Permission denied is expected if user doesn't own the list anymore
         if ((error as any)?.code !== "permission-denied") {
@@ -741,6 +776,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       focusMinutes: 0,
       isArchived: false,
       order: 0,
+      createdBy: user?.uid,
     };
 
     const data = sharedLists[sharedListId];
@@ -766,7 +802,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     ).catch(console.error);
 
     return id;
-  }, [sharedLists]);
+  }, [sharedLists, user]);
 
   const updateSharedTask = useCallback((sharedListId: string, taskId: string, updates: Partial<Task>) => {
     const data = sharedLists[sharedListId];
