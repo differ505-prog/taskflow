@@ -4,10 +4,8 @@
  */
 import {
   ref,
-  uploadBytes,
   getDownloadURL,
   deleteObject,
-  UploadResult,
 } from "firebase/storage";
 import { getFirebaseStorage } from "./firebase";
 import { getFirebaseAuth } from "./firebase";
@@ -46,7 +44,7 @@ export interface UploadProgress {
   totalBytes: number;
 }
 
-export interface UploadResult {
+export interface UploadFileResult {
   success: boolean;
   attachment?: Attachment;
   error?: string;
@@ -92,7 +90,7 @@ function generateStoragePath(uid: string, file: File): string {
 export async function uploadFile(
   file: File,
   onProgress?: (progress: UploadProgress) => void
-): Promise<UploadResult> {
+): Promise<UploadFileResult> {
   try {
     const auth = getFirebaseAuth();
     const user = auth.currentUser;
@@ -178,7 +176,7 @@ export async function uploadFile(
 export async function uploadFiles(
   files: File[],
   onProgress?: (fileIndex: number, progress: UploadProgress) => void,
-  onFileComplete?: (fileIndex: number, result: UploadResult) => void
+  onFileComplete?: (fileIndex: number, result: UploadFileResult) => void
 ): Promise<{ attachments: Attachment[]; errors: string[] }> {
   const attachments: Attachment[] = [];
   const errors: string[] = [];

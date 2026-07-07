@@ -13,9 +13,6 @@ export interface Attachment {
   storagePath?: string; // Firebase Storage path for deletion
 }
 
-export type Priority = "high" | "medium" | "low";
-export type TaskStatus = "todo" | "in-progress" | "done";
-
 // ─── User Roles & Permissions ───────────────────────────────────
 export type UserRole = "admin" | "beta" | "free";
 
