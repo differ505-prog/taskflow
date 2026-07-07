@@ -166,6 +166,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Track whether we've received the first snapshot for each shared list
   // (prevents writing before we know what's on the server)
   const snapshotReadyRef = useRef<Record<string, boolean>>({});
+  // Store latest snapshot tasks from subscription (bypasses React state closure)
+  const snapshotTasksRef = useRef<Record<string, Task[]>>({});
 
   // ── Init ────────────────────────────────────────────────
   useEffect(() => {
@@ -721,6 +723,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             (t) => t.createdBy && t.createdBy !== user.uid
           );
           remoteSharedTasksRef.current[sharedId] = remoteTasks;
+          // Store latest snapshot tasks so sync effect can read without closure lag
+          snapshotTasksRef.current[sharedId] = snapshot.tasks;
 
           // Sync all snapshot tasks into local tasks state so owner can see them
           // (both owner-created and recipient-created tasks, deduplicated by id)
@@ -863,24 +867,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     ownedLists.forEach(async (list) => {
       if (!list.sharedId) return;
       if (!snapshotReadyRef.current[list.sharedId]) return;
-      // Use sharedLists[id].tasks as the owner's authoritative task list
-      const ownerTasks = sharedLists[list.sharedId]?.tasks || [];
-      // Remote tasks contributed by recipients (filter out owner's own tasks)
-      const remoteTasks = ownerTasks.filter(
-        (t) => t.createdBy && t.createdBy !== user.uid
-      );
-      // Owner tasks = all in sharedLists minus the remote-only ones
-      const ownerOwnedTasks = ownerTasks.filter(
-        (t) => !t.createdBy || t.createdBy === user.uid
-      );
-      // Merge: owner tasks + remote tasks
-      const localTaskIds = new Set(ownerOwnedTasks.map((t) => t.id));
-      const mergedTasks = [
-        ...ownerOwnedTasks,
-        ...remoteTasks.filter((t) => !localTaskIds.has(t.id)),
-      ];
+      // Use snapshotTasksRef (set by subscription callback) for authoritative task list
+      // This avoids closure lag where React state hasn't updated yet
+      const ownerTasks = snapshotTasksRef.current[list.sharedId] || [];
+      console.log("[SyncEffect] running for", list.sharedId, "snapshotTasks count:", ownerTasks.length);
 
-      console.log("[SyncEffect] running for", list.sharedId, "mergedTasks count:", mergedTasks.length, "hash check:", lastSyncedHashRef.current[list.sharedId] ? "has prev hash" : "no prev hash");
+      // Owner tasks = all from snapshot
+      const localTaskIds = new Set(ownerTasks.map((t) => t.id));
+      const mergedTasks = [...ownerTasks];
 
       // Check if anything actually changed to prevent infinite loops
       const newHash = JSON.stringify(mergedTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
