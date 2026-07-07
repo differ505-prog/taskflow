@@ -731,15 +731,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           }
 
           // Compare against last-synced hash; if same as last write's hash, skip entirely.
-          // Also enforce monotonic task count guard: a snapshot with FEWER tasks than
-          // what we last wrote is necessarily stale (Firestore SDK re-emits old cache).
+          // Do NOT use task-count monotonic guard: legitimate deletes reduce the count and
+          // a stale Firestore cache re-emission during a write must not be permanently locked
+          // out by an incorrect count baseline.
           const snapshotHash = JSON.stringify(snapshot.tasks.map(t => `${t.id}:${t.updatedAt}`).sort());
-          const lastCount = lastSyncedTaskCountRef.current[sharedId] ?? 0;
-          if (
-            lastSyncedHashRef.current[sharedId] === snapshotHash ||
-            snapshot.tasks.length < lastCount
-          ) {
-            console.log("[SharedList] Subscription skipped (stale snapshot), has", snapshot.tasks.length, "tasks, last synced count:", lastCount);
+          if (lastSyncedHashRef.current[sharedId] === snapshotHash) {
+            console.log("[SharedList] Subscription skipped (same hash), has", snapshot.tasks.length, "tasks");
             return;
           }
           lastSyncedHashRef.current[sharedId] = snapshotHash;
@@ -978,6 +975,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         
         const ownerId = fetchedData.list.ownerId ?? "";
         console.log("[SharedList] Writing new task to Firestore, ownerId:", ownerId);
+        isWritingRef.current[sharedListId] = true;
+        const pendingHash = JSON.stringify(updatedTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
+        lastSyncedHashRef.current[sharedListId] = pendingHash;
+        lastSyncedTaskCountRef.current[sharedListId] = updatedTasks.length;
         updateSharedSnapshot(
           sharedListId,
           updatedData.list,
@@ -1017,6 +1018,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Mark writing in progress to prevent subscription from overwriting mid-write
     isWritingRef.current[sharedListId] = true;
     console.log("[SharedList] isWriting set to true for", sharedListId);
+    // Pre-set the hash so subscription skips stale snapshots that arrive while writing
+    const pendingHash = JSON.stringify(updatedTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
+    lastSyncedHashRef.current[sharedListId] = pendingHash;
+    lastSyncedTaskCountRef.current[sharedListId] = updatedTasks.length;
 
     // Write to Firestore with error handling
     const result = updateSharedSnapshot(
@@ -1073,6 +1078,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     const ownerId = data.list.ownerId ?? "";
     isWritingRef.current[sharedListId] = true;
+    // Pre-set the hash so subscription skips stale snapshots that arrive while writing
+    const pendingHash = JSON.stringify(updatedTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
+    lastSyncedHashRef.current[sharedListId] = pendingHash;
+    lastSyncedTaskCountRef.current[sharedListId] = updatedTasks.length;
     updateSharedSnapshot(
       sharedListId,
       updatedData.list,
@@ -1108,6 +1117,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     const ownerId = data.list.ownerId ?? "";
     isWritingRef.current[sharedListId] = true;
+    // Pre-set the hash so subscription skips stale snapshots that arrive while writing
+    const pendingHash = JSON.stringify(updatedTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
+    lastSyncedHashRef.current[sharedListId] = pendingHash;
+    lastSyncedTaskCountRef.current[sharedListId] = updatedTasks.length;
+    console.log("[SharedList] Pre-set hash for delete:", pendingHash.substring(0, 30));
     updateSharedSnapshot(
       sharedListId,
       updatedData.list,
@@ -1200,6 +1214,24 @@ export function useApp() {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error("useApp must be used within AppProvider");
   return ctx;
+}
+
+// ─── Debug helpers exposed to window for inspection ─────────────
+// In production you can call window.__debugSharedList(id) from devtools
+// to verify what Firestore currently has vs your local state.
+if (typeof window !== "undefined") {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (window as any).__debugSharedList = async (sharedListId: string) => {
+    const { getSharedSnapshot } = await import("./firestore");
+    const snap = await getSharedSnapshot(sharedListId);
+    console.log("[DEBUG] Firestore snapshot:", {
+      taskCount: snap?.tasks?.length,
+      taskTitles: snap?.tasks?.map((t) => t.title),
+      ownerId: snap?.ownerId,
+      updatedAt: snap?.updatedAt,
+    });
+    return snap;
+  };
 }
 
 // ─── Helpers ──────────────────────────────────────────────────
