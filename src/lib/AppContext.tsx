@@ -720,6 +720,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             return;
           }
 
+          // Skip if snapshot hash doesn't match expected hash
+          // (stale data from Firebase cache after a write)
+          const snapshotHash = JSON.stringify(snapshot.tasks.map(t => `${t.id}:${t.updatedAt}`).sort());
+          const expectedHash = lastSyncedHashRef.current[sharedId];
+          if (expectedHash && snapshotHash !== expectedHash) {
+            console.log("[SharedList] Subscription skipped (hash mismatch), expected:", expectedHash.substring(0, 20), "got:", snapshotHash.substring(0, 20));
+            snapshotTasksRef.current[sharedId] = snapshot.tasks;
+            return;
+          }
+
           // Update sharedLists state and localStorage
           setSharedLists((prev) => ({ ...prev, [sharedId]: updatedData }));
           saveSharedList(sharedId, updatedData);
@@ -984,7 +994,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ownerId,
       data.ownerName,
       (writtenTasks) => {
-        // Update refs after successful write so subscription doesn't overwrite
+        // Update localStorage immediately after Firestore write
+        // Use writtenTasks (the authoritative data we just wrote) not closure data
+        const freshData: SharedListData = {
+          list: updatedData.list,
+          tasks: writtenTasks,
+          ownerName: data.ownerName,
+        };
+        saveSharedList(sharedListId, freshData);
+        setSharedLists((prev) => ({ ...prev, [sharedListId]: freshData }));
+        console.log("[SharedList] Wrote", writtenTasks.length, "tasks to localStorage after Firestore write");
+
+        // Update refs
         snapshotTasksRef.current[sharedListId] = writtenTasks;
         const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
         lastSyncedHashRef.current[sharedListId] = hash;
@@ -1034,6 +1055,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ownerId,
       data.ownerName,
       (writtenTasks) => {
+        // Write to localStorage immediately after Firestore write (stale cache may follow)
+        const freshData: SharedListData = {
+          list: updatedData.list,
+          tasks: writtenTasks,
+          ownerName: data.ownerName,
+        };
+        saveSharedList(sharedListId, freshData);
+        setSharedLists((prev) => ({ ...prev, [sharedListId]: freshData }));
+
         snapshotTasksRef.current[sharedListId] = writtenTasks;
         const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
         lastSyncedHashRef.current[sharedListId] = hash;
@@ -1066,6 +1096,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ownerId,
       data.ownerName,
       (writtenTasks) => {
+        // Write to localStorage immediately after Firestore write (stale cache may follow)
+        const freshData: SharedListData = {
+          list: updatedData.list,
+          tasks: writtenTasks,
+          ownerName: data.ownerName,
+        };
+        saveSharedList(sharedListId, freshData);
+        setSharedLists((prev) => ({ ...prev, [sharedListId]: freshData }));
+
         snapshotTasksRef.current[sharedListId] = writtenTasks;
         const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
         lastSyncedHashRef.current[sharedListId] = hash;
