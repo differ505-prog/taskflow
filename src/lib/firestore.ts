@@ -306,7 +306,7 @@ export async function updateSharedSnapshot(
   });
 
   const snapshotData: SharedListSnapshot = {
-    list: safeList,
+    list: safeList as TaskList,
     tasks: safeTasks as Task[],
     ownerId: safeOwnerId,
     ownerName,
