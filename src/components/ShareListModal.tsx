@@ -155,13 +155,11 @@ export function ShareListModal({ isOpen, onClose, listToShare, listTasks, incomi
 
   // Handle sharing a list
   const handleShareList = useCallback(async () => {
-    console.log("[handleShareList] user:", user, "listToShare:", listToShare);
     if (!listToShare || !user) return;
     setShareError(null);
     setIsSharing(true);
     try {
       const sharedListId = await shareList(listToShare.id);
-      console.log("[handleShareList] sharedListId returned:", sharedListId);
       if (sharedListId) {
         setShareUrl(`${window.location.origin}?share=${sharedListId}`);
         setHasShared(true);

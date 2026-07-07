@@ -447,19 +447,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // ── Shared List Functions ───────────────────────────────────
   const shareList = useCallback(async (listId: string): Promise<string | null> => {
-    if (!user) {
-      console.error("[shareList] user is null/undefined. user:", user);
-      return null;
-    }
+    if (!user) return null;
     const list = lists.find((l) => l.id === listId);
-    if (!list) {
-      console.error("[shareList] list not found for id:", listId);
-      return null;
-    }
+    if (!list) return null;
 
     const listTasks = tasks.filter((t) => t.listId === listId);
     const ownerName = user.displayName || user.email || undefined;
-    console.log("[shareList] Creating shared list. user:", user.uid, "list:", list.name);
 
     try {
       const sharedListId = await createSharedList(list, listTasks, user.uid, ownerName);
