@@ -31,15 +31,25 @@ function getFirebaseApp(): FirebaseApp {
 
 export function getFirebaseAuth(): Auth {
   if (!auth) {
-    auth = getAuth(getFirebaseApp());
+    try {
+      auth = getAuth(getFirebaseApp());
+    } catch (error) {
+      console.error("[Firebase] Auth initialization error:", error);
+      throw error;
+    }
   }
   return auth;
 }
 
-export async function getFirebaseDB(): Promise<Firestore> {
-  if (!db) {
-    db = getFirestore(getFirebaseApp());
+// Eagerly initialize Firestore DB in the background so it's ready before the first async call
+let dbInitPromise: Promise<Firestore> | null = null;
 
+export async function getFirebaseDB(): Promise<Firestore> {
+  if (db) return db;
+  if (dbInitPromise) return dbInitPromise;
+
+  dbInitPromise = (async () => {
+    db = getFirestore(getFirebaseApp());
     // 啟用 IndexedDB 離線持久化（支援飛航模式）
     try {
       await enableMultiTabIndexedDbPersistence(db);
@@ -55,8 +65,10 @@ export async function getFirebaseDB(): Promise<Firestore> {
         }
       }
     }
-  }
-  return db;
+    return db;
+  })();
+
+  return dbInitPromise;
 }
 
 export { getFirebaseApp as initializeFirebase };

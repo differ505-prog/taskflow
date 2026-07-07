@@ -116,6 +116,7 @@ export function ShareListModal({ isOpen, onClose, listToShare, listTasks, incomi
   const [isSharing, setIsSharing] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [hasShared, setHasShared] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
 
   // Sync incoming share data passed from AppLayout (overrides local URL check)
   useEffect(() => {
@@ -155,14 +156,19 @@ export function ShareListModal({ isOpen, onClose, listToShare, listTasks, incomi
   // Handle sharing a list
   const handleShareList = useCallback(async () => {
     if (!listToShare || !user) return;
-
+    setShareError(null);
     setIsSharing(true);
     try {
       const sharedListId = await shareList(listToShare.id);
       if (sharedListId) {
         setShareUrl(`${window.location.origin}?share=${sharedListId}`);
         setHasShared(true);
+      } else {
+        setShareError("建立分享連結失敗，請確認已登入後再試。");
       }
+    } catch (error: any) {
+      console.error("Share error:", error);
+      setShareError("建立分享連結時發生錯誤：" + (error?.message || "未知錯誤"));
     } finally {
       setIsSharing(false);
     }
@@ -301,6 +307,11 @@ export function ShareListModal({ isOpen, onClose, listToShare, listTasks, incomi
                   </>
                 )}
               </button>
+            )}
+            {shareError && (
+              <p className="text-[12px] text-center" style={{ color: "var(--status-danger)" }}>
+                {shareError}
+              </p>
             )}
           </div>
         )}
