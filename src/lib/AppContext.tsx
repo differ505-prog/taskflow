@@ -934,7 +934,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ownerId,
       data.ownerName
     ).catch(console.error);
-  }, [sharedLists]);
+  }, [sharedLists, ensureSharedListData]);
 
   const deleteSharedTask = useCallback((sharedListId: string, taskId: string) => {
     const data = sharedLists[sharedListId];
@@ -951,7 +951,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ownerId,
       data.ownerName
     ).catch(console.error);
-  }, [sharedLists]);
+  }, [sharedLists, ensureSharedListData]);
 
   // ── Notifications ─────────────────────────────────────────
   const requestNotificationPermission = useCallback(async (): Promise<boolean> => {
