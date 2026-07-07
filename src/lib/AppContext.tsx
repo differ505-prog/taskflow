@@ -176,11 +176,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTodayFocusMinutes(getTodayFocusMinutes());
     // Restore ownedSharedListIds from localStorage (critical for Firestore subscription on reload)
     const storedOwnedIds = getOwnedSharedListIds();
+    console.log("[AppContext Init] storedOwnedIds from localStorage:", storedOwnedIds);
     if (storedOwnedIds.length > 0) {
       _setOwnedSharedListIds(storedOwnedIds);
       ownedSharedListIdsRef.current = storedOwnedIds;
     }
     const storedSharedLists = getSharedLists();
+    console.log("[AppContext Init] storedSharedLists keys:", Object.keys(storedSharedLists));
     setSharedLists(storedSharedLists);
 
     if (typeof Notification !== "undefined") {
