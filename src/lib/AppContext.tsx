@@ -181,6 +181,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setAcceptedSharedListIds(acceptedIds);
   }, [isLoaded, reloadKey]);
 
+  // ── Restore owned shared list IDs from lists after load ─────
+  // Without this, the Owner's Firestore subscription would never be
+  // established after a page reload, causing remote tasks to be lost.
+  useEffect(() => {
+    if (!isLoaded || !user) return;
+    const ownedIds = lists
+      .filter((l) => l.ownerId === user.uid && l.sharedId)
+      .map((l) => l.sharedId!);
+    if (ownedIds.length > 0) {
+      setOwnedSharedListIds((prev) => {
+        const newIds = ownedIds.filter((id) => !prev.includes(id));
+        return newIds.length > 0 ? [...prev, ...newIds] : prev;
+      });
+    }
+  }, [isLoaded, user, lists]);
+
   const setCurrentView = useCallback((v: AppView, listId?: string) => {
     setCurrentViewState(v);
     setCurrentListId(listId);
@@ -213,8 +229,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // all active tasks, no date filter
     } else if (currentView === "list" && currentListId) {
       result = result.filter((t) => t.listId === currentListId);
+    } else if (currentView === "inbox") {
+      // 收集箱 = 沒有歸屬到任何清單的任務
+      result = result.filter((t) => !t.listId);
     }
-    // inbox = all active tasks (no date filter)
 
     // Search
     if (searchQuery.trim()) {
@@ -259,8 +277,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const today = new Date().toISOString().split("T")[0];
     const weekEnd = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
     return {
-      inbox: active.length,
+      // 收集箱：沒有歸屬清單的任務
+      inbox: active.filter((t) => !t.listId).length,
+      // 今天：有截止日期等於今天的任務
       today: active.filter((t) => t.dueDate === today).length,
+      // 未來 7 天：截止日期在未來 7 天內的任務
       next7days: active.filter((t) => t.dueDate && t.dueDate >= today && t.dueDate <= weekEnd).length,
     };
   }, [tasks]);
@@ -622,7 +643,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           );
           remoteSharedTasksRef.current[sharedId] = remoteTasks;
           // Update the hash so we know what's on the server
-          const hash = JSON.stringify(snapshot.tasks.map(t => t.id).sort());
+          const hash = JSON.stringify(snapshot.tasks.map(t => `${t.id}:${t.updatedAt}`).sort());
           lastSyncedHashRef.current[sharedId] = hash;
           // Mark this shared list as ready (first snapshot received)
           snapshotReadyRef.current[sharedId] = true;
@@ -727,7 +748,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ];
 
       // Check if anything actually changed to prevent infinite loops
-      const newHash = JSON.stringify(mergedTasks.map(t => t.id).sort());
+      const newHash = JSON.stringify(mergedTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
       if (lastSyncedHashRef.current[list.sharedId] === newHash) return;
 
       const ownerName = user.displayName || user.email || undefined;
