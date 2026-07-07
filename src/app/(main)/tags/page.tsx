@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { Tags as TagsIcon, Plus, Trash2, Edit3, X } from "lucide-react";
+import { Tags as TagsIcon, Trash2, Edit3 } from "lucide-react";
 import { Task } from "@/lib/types";
 import { getTasks, saveTasks } from "@/lib/storage";
 import { motion } from "framer-motion";
@@ -15,7 +15,6 @@ interface TagEntry {
 export default function TagsPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [tagInput, setTagInput] = useState("");
   const [editingTag, setEditingTag] = useState<string | null>(null);
   const [editInput, setEditInput] = useState("");
 
@@ -36,29 +35,6 @@ export default function TagsPage() {
       .map(([name, tagTasks]) => ({ name, count: tagTasks.length, tasks: tagTasks }))
       .sort((a, b) => b.count - a.count);
   }, [tasks]);
-
-  const handleAddTag = () => {
-    const trimmed = tagInput.trim();
-    if (!trimmed) return;
-    const allTagNames = new Set(tagEntries.map((e) => e.name));
-    if (allTagNames.has(trimmed)) {
-      setTagInput("");
-      return;
-    }
-    const newTask: Task = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      title: trimmed,
-      priority: "medium",
-      status: "todo",
-      tags: [trimmed],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    const updated = [newTask, ...tasks];
-    setTasks(updated);
-    saveTasks(updated);
-    setTagInput("");
-  };
 
   const handleRemoveTag = (tagName: string) => {
     const updated = tasks.map((task) => ({
@@ -113,34 +89,6 @@ export default function TagsPage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-5">
-
-        {/* 新增標籤 */}
-        <section aria-labelledby="add-tag-heading">
-          <h2 id="add-tag-heading" className="sr-only">新增標籤</h2>
-          <div className="card px-5 py-4">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddTag()}
-                placeholder="標籤名稱"
-                className="input flex-1"
-                maxLength={50}
-                aria-label="新標籤名稱"
-              />
-              <button
-                onClick={handleAddTag}
-                className="btn-primary flex-shrink-0"
-                disabled={!tagInput.trim()}
-                aria-label="建立標籤"
-              >
-                <Plus className="w-4 h-4" aria-hidden="true" />
-                <span className="hidden sm:inline">建立</span>
-              </button>
-            </div>
-          </div>
-        </section>
 
         {/* 標籤列表 */}
         {tagEntries.length === 0 ? (
