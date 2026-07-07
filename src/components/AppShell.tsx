@@ -245,6 +245,7 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
                 <Timer className="w-4 h-4" />
                 <span>專注</span>
               </button>
+              {!currentSharedListId && (
               <button
                 onClick={() => setIsFormOpen(true)}
                 className="btn-primary"
@@ -253,10 +254,12 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
                 <Plus className="w-4 h-4" />
                 <span>新增</span>
               </button>
+              )}
             </div>
           </div>
 
-          {/* Quick Add Bar */}
+          {/* Quick Add Bar — hidden in shared list view */}
+          {!currentSharedListId && (
           <div className="mt-3 relative">
             <div className="relative flex items-center">
               <Zap className="absolute left-3.5 w-4 h-4 pointer-events-none" style={{ color: "var(--text-tertiary)" }} />
@@ -303,6 +306,8 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
                 <span>「每週三」建立重複任務</span>
               </motion.div>
             )}
+          </div>
+          )}
 
             {/* Shared list quick add */}
             {currentSharedListId && (
@@ -330,14 +335,13 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
                     onClick={handleSharedQuickAdd}
                     className="absolute right-2 p-1.5 rounded-lg transition-all"
                     style={{ background: "var(--brand)", color: "#fff" }}
-                    aria-label="新增任務"
+                    aria-label="送出快速新增"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
               </div>
             )}
-          </div>
         </div>
       </header>
 
@@ -540,7 +544,8 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
         initialData={editingTask}
       />
 
-      {/* FAB — Mobile only */}
+      {/* FAB — Mobile only, hidden in shared list view */}
+      {!currentSharedListId && (
       <button
         className="md:hidden fab"
         onClick={() => { setIsFormOpen(true); setEditingTask(null); }}
@@ -549,6 +554,7 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
       >
         <Plus className="w-6 h-6" strokeWidth={2.5} />
       </button>
+      )}
     </div>
   );
 }
