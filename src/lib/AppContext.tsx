@@ -724,10 +724,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           // (Firebase SDK may re-emit stale cached data mid-write)
           if (isWritingRef.current[sharedId]) {
             console.log("[SharedList] Subscription skipped (write in progress), snapshot has", snapshot.tasks.length, "tasks");
-            // Still update snapshotTasksRef so we have latest data when write completes
             snapshotTasksRef.current[sharedId] = snapshot.tasks;
             return;
           }
+
+          // Compare against last-synced hash; if same as last write's hash, skip entirely.
+          // This prevents a stale 2-task snapshot fired AFTER onWriteComplete from
+          // overwriting the 3-task state we just wrote.
+          const snapshotHash = JSON.stringify(snapshot.tasks.map(t => `${t.id}:${t.updatedAt}`).sort());
+          if (lastSyncedHashRef.current[sharedId] === snapshotHash) {
+            console.log("[SharedList] Subscription skipped (hash matches last write), snapshot has", snapshot.tasks.length, "tasks");
+            return;
+          }
+          lastSyncedHashRef.current[sharedId] = snapshotHash;
 
           // Update sharedLists state (React state only, no localStorage write)
           // localStorage is written exclusively by onWriteComplete callbacks to avoid
@@ -764,8 +773,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           });
 
           // Update the hash so we know what's on the server
-          const hash = JSON.stringify(snapshot.tasks.map(t => `${t.id}:${t.updatedAt}`).sort());
-          lastSyncedHashRef.current[sharedId] = hash;
+          // (also done above for stale-cache prevention)
         },
         () => {
           // List was deleted externally
