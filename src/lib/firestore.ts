@@ -300,7 +300,7 @@ export async function updateSharedSnapshot(
     sharedListId,
     ownerId: safeOwnerId,
     listKeys: Object.keys(safeList),
-    listUndefinedKeys: Object.keys(list).filter(k => (list as Record<string, unknown>)[k] === undefined),
+    listUndefinedKeys: Object.keys(list).filter(k => (list as unknown as Record<string, unknown>)[k] === undefined),
     taskCount: safeTasks.length,
     hasUndefinedTasks: tasks.some(t => Object.values(t).some(v => v === undefined)),
   });
