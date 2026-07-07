@@ -550,38 +550,49 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       tasks: data.tasks,
       ownerName: data.ownerName,
     };
+
+    // Save to localStorage first
     saveSharedList(sharedListId, sharedData);
     setSharedLists(getSharedLists());
     setAcceptedSharedListIds((prev) =>
       prev.includes(sharedListId) ? prev : [...prev, sharedListId]
     );
 
-    // Subscribe to real-time updates immediately
-    subscribeToSharedSnapshot(
-      sharedListId,
-      (snapshot) => {
-        if (snapshot) {
-          const updatedData: SharedListData = {
-            list: { ...snapshot.list, ownerId: snapshot.ownerId || snapshot.list.ownerId },
-            tasks: snapshot.tasks,
-            ownerName: snapshot.ownerName,
-          };
-          saveSharedList(sharedListId, updatedData);
+    // Subscribe to real-time updates and wait for connection
+    return new Promise<void>((resolve) => {
+      subscribeToSharedSnapshot(
+        sharedListId,
+        (snapshot) => {
+          console.log("[SharedList] Received Firestore update for", sharedListId, snapshot?.tasks?.length, "tasks");
+          if (snapshot) {
+            const updatedData: SharedListData = {
+              list: { ...snapshot.list, ownerId: snapshot.ownerId || snapshot.list.ownerId },
+              tasks: snapshot.tasks,
+              ownerName: snapshot.ownerName,
+            };
+            saveSharedList(sharedListId, updatedData);
+            setSharedLists(getSharedLists());
+          }
+        },
+        () => {
+          // Shared list was deleted by owner
+          console.log("[SharedList] Shared list deleted:", sharedListId);
+          removeSharedList(sharedListId);
           setSharedLists(getSharedLists());
+          setAcceptedSharedListIds((prev) => prev.filter((id) => id !== sharedListId));
+          if (sharedListUnsubscribeRefs.current[sharedListId]) {
+            delete sharedListUnsubscribeRefs.current[sharedListId];
+          }
         }
-      },
-      () => {
-        // Shared list was deleted by owner
-        removeSharedList(sharedListId);
-        setSharedLists(getSharedLists());
-        setAcceptedSharedListIds((prev) => prev.filter((id) => id !== sharedListId));
-        if (sharedListUnsubscribeRefs.current[sharedListId]) {
-          delete sharedListUnsubscribeRefs.current[sharedListId];
-        }
-      }
-    ).then((unsubscribe) => {
-      sharedListUnsubscribeRefs.current[sharedListId] = unsubscribe;
-    }).catch(() => {});
+      ).then((unsubscribe) => {
+        console.log("[SharedList] Subscribed to shared list:", sharedListId);
+        sharedListUnsubscribeRefs.current[sharedListId] = unsubscribe;
+        resolve(); // Signal that subscription is ready
+      }).catch((error) => {
+        console.error("[SharedList] Failed to subscribe:", error);
+        resolve(); // Still resolve to not block UI
+      });
+    });
   }, []);
 
   const removeAcceptedSharedList = useCallback((sharedListId: string): void => {
@@ -869,6 +880,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!input.trim()) return null;
     const parsed = parseNaturalLanguage(input);
     const id = generateId();
+    const now = new Date().toISOString();
     const task: Task = {
       id,
       title: parsed.title,
@@ -882,37 +894,58 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       recurrence: parsed.recurrence,
       reminder: parsed.reminder,
       subTasks: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
       focusMinutes: 0,
       isArchived: false,
       order: 0,
       createdBy: user?.uid,
     };
 
+    // Find shared list data
     const data = sharedLists[sharedListId];
     if (!data) {
-      // sharedLists not yet populated — kick off async fetch-and-add.
-      // Optimistically add task to Firestore snapshot directly to avoid losing it.
+      // sharedLists not yet populated — fetch from Firestore first
+      console.log("[SharedList] sharedLists not populated, fetching from Firestore...");
       ensureSharedListData(sharedListId).then((fetchedData) => {
-        if (!fetchedData) return;
+        if (!fetchedData) {
+          console.error("[SharedList] Failed to fetch shared list data");
+          return;
+        }
         const updatedTasks = [task, ...fetchedData.tasks];
         const updatedData: SharedListData = { ...fetchedData, tasks: updatedTasks };
         saveSharedList(sharedListId, updatedData);
         setSharedLists(getSharedLists());
-        updateSharedSnapshot(sharedListId, updatedData.list, updatedTasks, fetchedData.list.ownerId ?? "", fetchedData.ownerName).catch(console.error);
+        
+        const ownerId = fetchedData.list.ownerId ?? "";
+        console.log("[SharedList] Writing new task to Firestore, ownerId:", ownerId);
+        updateSharedSnapshot(sharedListId, updatedData.list, updatedTasks, ownerId, fetchedData.ownerName)
+          .then(() => console.log("[SharedList] Task saved to Firestore"))
+          .catch((error) => console.error("[SharedList] Failed to save task to Firestore:", error));
       });
       return id; // Return id so UI doesn't show error
     }
 
+    // Add task to local state
     const updatedTasks = [task, ...data.tasks];
     const updatedData: SharedListData = { ...data, tasks: updatedTasks };
-
     saveSharedList(sharedListId, updatedData);
     setSharedLists(getSharedLists());
 
     const ownerId = data.list.ownerId ?? "";
-    updateSharedSnapshot(sharedListId, updatedData.list, updatedTasks, ownerId, data.ownerName).catch(console.error);
+    console.log("[SharedList] Writing new task to Firestore, ownerId:", ownerId);
+    
+    // Write to Firestore with error handling
+    updateSharedSnapshot(sharedListId, updatedData.list, updatedTasks, ownerId, data.ownerName)
+      .then(() => console.log("[SharedList] Task saved to Firestore"))
+      .catch((error) => {
+        console.error("[SharedList] Failed to save task to Firestore:", error);
+        // If Firestore write fails, remove the task from local state
+        const revertedTasks = data.tasks;
+        const revertedData: SharedListData = { ...data, tasks: revertedTasks };
+        saveSharedList(sharedListId, revertedData);
+        setSharedLists(getSharedLists());
+      });
 
     return id;
   }, [sharedLists, user, ensureSharedListData]);
@@ -920,12 +953,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateSharedTask = useCallback((sharedListId: string, taskId: string, updates: Partial<Task>) => {
     const data = sharedLists[sharedListId];
     if (!data) return;
+    
     const updatedTasks = data.tasks.map((t) =>
       t.id === taskId ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
     );
     const updatedData: SharedListData = { ...data, tasks: updatedTasks };
     saveSharedList(sharedListId, updatedData);
     setSharedLists(getSharedLists());
+    
     const ownerId = data.list.ownerId ?? "";
     updateSharedSnapshot(
       sharedListId,
@@ -933,16 +968,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updatedTasks,
       ownerId,
       data.ownerName
-    ).catch(console.error);
+    ).catch((error) => {
+      console.error("[SharedList] Failed to update task:", error);
+      // Revert on failure
+      saveSharedList(sharedListId, data);
+      setSharedLists(getSharedLists());
+    });
   }, [sharedLists, ensureSharedListData]);
 
   const deleteSharedTask = useCallback((sharedListId: string, taskId: string) => {
     const data = sharedLists[sharedListId];
     if (!data) return;
+    
     const updatedTasks = data.tasks.filter((t) => t.id !== taskId);
     const updatedData: SharedListData = { ...data, tasks: updatedTasks };
     saveSharedList(sharedListId, updatedData);
     setSharedLists(getSharedLists());
+    
     const ownerId = data.list.ownerId ?? "";
     updateSharedSnapshot(
       sharedListId,
@@ -950,7 +992,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updatedTasks,
       ownerId,
       data.ownerName
-    ).catch(console.error);
+    ).catch((error) => {
+      console.error("[SharedList] Failed to delete task:", error);
+      // Revert on failure
+      saveSharedList(sharedListId, data);
+      setSharedLists(getSharedLists());
+    });
   }, [sharedLists, ensureSharedListData]);
 
   // ── Notifications ─────────────────────────────────────────
