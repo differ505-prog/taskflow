@@ -20,7 +20,7 @@ import { TaskList, SharedListSnapshot } from "@/lib/types";
 
 // ─── Inner app (has access to useApp) ───────────────────────
 function AppLayoutInner() {
-  const { currentView, addList, updateList, deleteList, setCurrentView, viewCounts, tasks, checkIncomingShareLink } = useApp();
+  const { currentView, addList, updateList, deleteList, setCurrentView, setCurrentSharedList, viewCounts, tasks, checkIncomingShareLink } = useApp();
   const { user } = useAuth();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isListFormOpen, setIsListFormOpen] = useState(false);
@@ -104,6 +104,7 @@ function AppLayoutInner() {
           onOpenPomodoro={() => setIsPomodoroOpen(true)}
           onOpenShareModal={(list, listTasks) => setShareModalList({ list, tasks: listTasks })}
           onOpenSharedLists={() => setShowSharedLists(true)}
+          onOpenSharedList={(sharedId) => { setCurrentSharedList(sharedId); }}
         />
       </div>
 
@@ -143,6 +144,7 @@ function AppLayoutInner() {
               onOpenPomodoro={() => { setIsMobileSidebarOpen(false); setIsPomodoroOpen(true); }}
               onOpenShareModal={(list, listTasks) => { setIsMobileSidebarOpen(false); setShareModalList({ list, tasks: listTasks }); }}
               onOpenSharedLists={() => { setIsMobileSidebarOpen(false); setShowSharedLists(true); }}
+              onOpenSharedList={(sharedId) => { setIsMobileSidebarOpen(false); setCurrentSharedList(sharedId); }}
             />
           </div>
         </>

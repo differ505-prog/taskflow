@@ -24,6 +24,7 @@ const VIEW_LABELS: Record<AppView, string> = {
   tags: "標籤",
   list: "清單",
   stats: "統計",
+  shared: "共用清單",
 };
 
 const SEED_TASKS: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order">[] = [
@@ -88,12 +89,14 @@ interface AppShellProps {
 
 export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteList, onOpenPomodoro, onOpenMobileSidebar, onOpenShareModal, userMenu }: AppShellProps) {
   const {
-    tasks, currentView, currentListId, lists,
+    tasks, currentView, currentListId, currentSharedListId, sharedLists,
+    lists,
     searchQuery, setSearchQuery,
     activeFilter, setActiveFilter,
     addTask, updateTask, deleteTask, toggleTaskStatus,
     archiveTask, quickAdd, getFilteredTasks, viewCounts,
     getTagCounts,
+    quickAddToShared, updateSharedTask, deleteSharedTask,
   } = useApp();
 
   const listTasks = currentListId ? tasks.filter(t => t.listId === currentListId) : [];
@@ -103,7 +106,9 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
   const [showCompleted, setShowCompleted] = useState(true);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [quickAddInput, setQuickAddInput] = useState("");
-  const [showQuickAddHint, setShowQuickAddHint] = useState(false);
+  const [quickAddHint, setQuickAddHint] = useState(false);
+  const [sharedQuickAddInput, setSharedQuickAddInput] = useState("");
+  const sharedQuickAddRef = useRef<HTMLInputElement>(null);
   const quickAddRef = useRef<HTMLInputElement>(null);
 
   // Seed tasks on first load
@@ -120,7 +125,7 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         quickAddRef.current?.focus();
-        setShowQuickAddHint(true);
+        setQuickAddHint(true);
       }
     };
     document.addEventListener("keydown", handler);
@@ -133,6 +138,13 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
     setQuickAddInput("");
     quickAddRef.current?.blur();
   }, [quickAdd, quickAddInput]);
+
+  const handleSharedQuickAdd = useCallback(() => {
+    if (!sharedQuickAddInput.trim() || !currentSharedListId) return;
+    quickAddToShared(currentSharedListId, sharedQuickAddInput);
+    setSharedQuickAddInput("");
+    sharedQuickAddRef.current?.blur();
+  }, [quickAddToShared, sharedQuickAddInput, currentSharedListId]);
 
   const handleEdit = (task: Task) => {
     setEditingTask(task);
@@ -162,9 +174,11 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
     }).length,
   };
 
-  const currentListName = currentListId
-    ? lists.find((l) => l.id === currentListId)?.name
-    : VIEW_LABELS[currentView];
+  const currentListName = currentSharedListId
+    ? sharedLists[currentSharedListId]?.list.name
+    : currentListId
+      ? lists.find((l) => l.id === currentListId)?.name
+      : VIEW_LABELS[currentView];
 
   return (
     <div className="flex flex-col h-full">
@@ -187,7 +201,10 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
                   </svg>
                 </button>
               )}
-              {currentListId && lists.find((l) => l.id === currentListId) && (
+              {currentSharedListId && sharedLists[currentSharedListId] && (
+                <span className="text-2xl">{sharedLists[currentSharedListId].list.icon}</span>
+              )}
+              {currentListId && !currentSharedListId && lists.find((l) => l.id === currentListId) && (
                 <span className="text-2xl">{lists.find((l) => l.id === currentListId)!.icon}</span>
               )}
               <div className="flex items-center gap-2">
@@ -252,8 +269,8 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
                   if (e.key === "Enter") handleQuickAdd();
                   if (e.key === "Escape") { setQuickAddInput(""); quickAddRef.current?.blur(); }
                 }}
-                onFocus={() => setShowQuickAddHint(true)}
-                onBlur={() => setTimeout(() => setShowQuickAddHint(false), 200)}
+                onFocus={() => setQuickAddHint(true)}
+                onBlur={() => setTimeout(() => setQuickAddHint(false), 200)}
                 placeholder="快速新增：明天 3pm 開會 p1 #工作"
                 className="input pl-10 pr-10"
                 style={{ fontSize: 14 }}
@@ -269,7 +286,7 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
                 </button>
               )}
             </div>
-            {showQuickAddHint && (
+            {quickAddHint && (
               <motion.div
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -286,13 +303,109 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
                 <span>「每週三」建立重複任務</span>
               </motion.div>
             )}
+
+            {/* Shared list quick add */}
+            {currentSharedListId && (
+              <div className="mt-3 relative">
+                <div className="relative flex items-center">
+                  <Zap className="absolute left-3.5 w-4 h-4 pointer-events-none" style={{ color: "var(--text-tertiary)" }} />
+                  <input
+                    ref={sharedQuickAddRef}
+                    type="text"
+                    value={sharedQuickAddInput}
+                    onChange={(e) => setSharedQuickAddInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSharedQuickAdd();
+                      if (e.key === "Escape") { setSharedQuickAddInput(""); sharedQuickAddRef.current?.blur(); }
+                    }}
+                    placeholder="新增任務至共用清單..."
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl text-[14px] transition-all duration-150 focus:outline-none"
+                    style={{
+                      background: "var(--surface-muted)",
+                      border: "1px solid var(--border)",
+                      color: "var(--text-primary)",
+                    }}
+                  />
+                  <button
+                    onClick={handleSharedQuickAdd}
+                    className="absolute right-2 p-1.5 rounded-lg transition-all"
+                    style={{ background: "var(--brand)", color: "#fff" }}
+                    aria-label="新增任務"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto px-6 py-5">
-        {displayTasks.length === 0 ? (
+        {/* Shared List View */}
+        {currentSharedListId && sharedLists[currentSharedListId] ? (
+          <>
+            <div className="mb-4">
+              <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+                由 {sharedLists[currentSharedListId].ownerName ?? "未知"} 分享
+              </p>
+            </div>
+            {sharedLists[currentSharedListId].tasks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-64 gap-3">
+                <div
+                  className="w-16 h-16 rounded-full flex items-center justify-center"
+                  style={{ background: "var(--surface-muted)" }}
+                >
+                  <Zap className="w-8 h-8" style={{ color: "var(--text-tertiary)" }} />
+                </div>
+                <p className="text-[14px]" style={{ color: "var(--text-tertiary)" }}>
+                  此清單還沒有任務
+                </p>
+                <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+                  使用上方輸入框新增任務
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <AnimatePresence mode="popLayout">
+                  {[...sharedLists[currentSharedListId].tasks]
+                    .sort((a, b) => {
+                      if (a.status === "done" && b.status !== "done") return 1;
+                      if (a.status !== "done" && b.status === "done") return -1;
+                      return 0;
+                    })
+                    .map((task) => (
+                      <motion.div
+                        key={task.id}
+                        layout
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.97 }}
+                        transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                      >
+                        <TaskSwipeWrapper
+                          taskId={task.id}
+                          isDone={task.status === "done"}
+                          onComplete={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })}
+                          onDelete={() => deleteSharedTask(currentSharedListId, task.id)}
+                          onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })}
+                        >
+                          <TaskCard
+                            task={task}
+                            onToggleStatus={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })}
+                            onEdit={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })}
+                            onDelete={() => deleteSharedTask(currentSharedListId, task.id)}
+                            onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })}
+                          />
+                        </TaskSwipeWrapper>
+                      </motion.div>
+                    ))}
+                </AnimatePresence>
+              </div>
+            )}
+          </>
+        ) : displayTasks.length === 0 ? (
           <EmptyState onAddTask={() => setIsFormOpen(true)} />
         ) : (
           <>

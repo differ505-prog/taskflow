@@ -60,6 +60,8 @@ interface AppContextValue {
   currentView: AppView;
   currentListId?: string;
   setCurrentView: (v: AppView, listId?: string) => void;
+  currentSharedListId?: string;
+  setCurrentSharedList: (sharedId: string | undefined) => void;
 
   // ── Search / Filter ─────────────────────────────────────
   searchQuery: string;
@@ -109,6 +111,9 @@ interface AppContextValue {
   acceptSharedList: (sharedListId: string, data: SharedListSnapshot) => void;
   removeAcceptedSharedList: (sharedListId: string) => void;
   checkIncomingShareLink: () => Promise<{ sharedListId: string; snapshot: SharedListSnapshot } | null>;
+  quickAddToShared: (sharedListId: string, input: string) => string | null;
+  updateSharedTask: (sharedListId: string, taskId: string, updates: Partial<Task>) => void;
+  deleteSharedTask: (sharedListId: string, taskId: string) => void;
 
   // ── Helpers ──────────────────────────────────────────────
   getFilteredTasks: () => Task[];
@@ -127,6 +132,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [todayFocusMinutes, setTodayFocusMinutes] = useState(0);
   const [currentView, setCurrentViewState] = useState<AppView>("inbox");
   const [currentListId, setCurrentListId] = useState<string | undefined>(undefined);
+  const [currentSharedListId, setCurrentSharedListIdState] = useState<string | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<TaskFilter>({});
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "default">("default");
@@ -171,6 +177,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const setCurrentView = useCallback((v: AppView, listId?: string) => {
     setCurrentViewState(v);
     setCurrentListId(listId);
+    setCurrentSharedListIdState(undefined);
+    setSearchQuery("");
+    setActiveFilter({});
+  }, []);
+
+  const setCurrentSharedList = useCallback((sharedId: string | undefined) => {
+    setCurrentSharedListIdState(sharedId);
+    setCurrentViewState(sharedId ? "shared" : "inbox");
     setSearchQuery("");
     setActiveFilter({});
   }, []);
@@ -704,6 +718,92 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [addTask, currentListId]);
 
+  // ── Shared List Task Operations ──────────────────────────
+  const quickAddToShared = useCallback((sharedListId: string, input: string): string | null => {
+    if (!input.trim()) return null;
+    const parsed = parseNaturalLanguage(input);
+    const id = generateId();
+    const task: Task = {
+      id,
+      title: parsed.title,
+      description: parsed.description,
+      priority: parsed.priority,
+      status: "todo",
+      dueDate: parsed.dueDate,
+      dueTime: parsed.dueTime,
+      tags: parsed.tags,
+      listId: sharedListId,
+      recurrence: parsed.recurrence,
+      reminder: parsed.reminder,
+      subTasks: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      focusMinutes: 0,
+      isArchived: false,
+      order: 0,
+    };
+
+    const data = sharedLists[sharedListId];
+    if (!data) return null;
+    const updatedTasks = [task, ...data.tasks];
+
+    const updatedData: SharedListData = {
+      ...data,
+      tasks: updatedTasks,
+    };
+
+    // Update local storage
+    saveSharedList(sharedListId, updatedData);
+    setSharedLists(getSharedLists());
+
+    const ownerId = data.list.ownerId ?? "";
+    updateSharedSnapshot(
+      sharedListId,
+      updatedData.list,
+      updatedTasks,
+      ownerId,
+      data.ownerName
+    ).catch(console.error);
+
+    return id;
+  }, [sharedLists]);
+
+  const updateSharedTask = useCallback((sharedListId: string, taskId: string, updates: Partial<Task>) => {
+    const data = sharedLists[sharedListId];
+    if (!data) return;
+    const updatedTasks = data.tasks.map((t) =>
+      t.id === taskId ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
+    );
+    const updatedData: SharedListData = { ...data, tasks: updatedTasks };
+    saveSharedList(sharedListId, updatedData);
+    setSharedLists(getSharedLists());
+    const ownerId = data.list.ownerId ?? "";
+    updateSharedSnapshot(
+      sharedListId,
+      updatedData.list,
+      updatedTasks,
+      ownerId,
+      data.ownerName
+    ).catch(console.error);
+  }, [sharedLists]);
+
+  const deleteSharedTask = useCallback((sharedListId: string, taskId: string) => {
+    const data = sharedLists[sharedListId];
+    if (!data) return;
+    const updatedTasks = data.tasks.filter((t) => t.id !== taskId);
+    const updatedData: SharedListData = { ...data, tasks: updatedTasks };
+    saveSharedList(sharedListId, updatedData);
+    setSharedLists(getSharedLists());
+    const ownerId = data.list.ownerId ?? "";
+    updateSharedSnapshot(
+      sharedListId,
+      updatedData.list,
+      updatedTasks,
+      ownerId,
+      data.ownerName
+    ).catch(console.error);
+  }, [sharedLists]);
+
   // ── Notifications ─────────────────────────────────────────
   const requestNotificationPermission = useCallback(async (): Promise<boolean> => {
     if (typeof Notification === "undefined") return false;
@@ -720,6 +820,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     currentView,
     currentListId,
     setCurrentView,
+    currentSharedListId,
+    setCurrentSharedList,
     searchQuery,
     setSearchQuery,
     activeFilter, setActiveFilter,
@@ -756,6 +858,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     acceptSharedList,
     removeAcceptedSharedList,
     checkIncomingShareLink,
+    quickAddToShared,
+    updateSharedTask,
+    deleteSharedTask,
   };
 
   if (!isLoaded) return null;

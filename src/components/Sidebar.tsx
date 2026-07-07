@@ -27,12 +27,13 @@ interface SidebarProps {
   onOpenPomodoro?: () => void;
   onOpenShareModal?: (list: TaskList, tasks: import("@/lib/types").Task[]) => void;
   onOpenSharedLists?: () => void;
+  onOpenSharedList?: (sharedId: string) => void;
 }
 
 const LIST_ICONS = ["📋", "💼", "🏠", "🏃", "📚", "💡", "🎯", "🌟", "💰", "🏥", "✈️", "🎨", "🍽️", "🛠️", "📱", "💻"];
 
-export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditList, onDeleteList, onOpenPomodoro, onOpenShareModal, onOpenSharedLists }: SidebarProps) {
-  const { currentView, currentListId, setCurrentView, viewCounts, lists, getListTaskCount, tasks } = useApp();
+export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditList, onDeleteList, onOpenPomodoro, onOpenShareModal, onOpenSharedLists, onOpenSharedList }: SidebarProps) {
+  const { currentView, currentListId, currentSharedListId, setCurrentView, viewCounts, lists, sharedLists, getListTaskCount, tasks } = useApp();
   const [listsExpanded, setListsExpanded] = useState(true);
   const [showListMenu, setShowListMenu] = useState<string | null>(null);
 
@@ -192,15 +193,42 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
         <div className="h-px mx-2 mt-2" style={{ background: "var(--border)" }} />
 
         {/* Shared lists */}
+        {Object.values(sharedLists).length > 0 && (
+          <div className="pt-2 space-y-0.5">
+            <div className="px-3 py-1 text-[11px] font-medium uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+              共用清單
+            </div>
+            {Object.values(sharedLists).map((data) => {
+              const key = data.list.sharedId ?? data.list.id;
+              const isActive = currentSharedListId === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => onOpenSharedList?.(key)}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-150"
+                  style={
+                    isActive
+                      ? { background: "var(--brand-tint)", color: "var(--brand)" }
+                      : { color: "var(--text-secondary)" }
+                  }
+                >
+                  <span className="text-base flex-shrink-0">{data.list.icon}</span>
+                  <span className="flex-1 text-left truncate">{data.list.name}</span>
+                  <span className="text-[11px]" style={{ opacity: 0.6 }}>{data.tasks.length}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
         {onOpenSharedLists && (
-          <div className="pt-2">
+          <div className="pt-1">
             <button
               onClick={onOpenSharedLists}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-150"
-              style={{ color: "var(--text-secondary)" }}
+              style={{ color: "var(--text-tertiary)" }}
             >
               <Users className="w-[18px] h-[18px] flex-shrink-0" />
-              <span className="flex-1 text-left">收藏的共用清單</span>
+              <span className="flex-1 text-left">管理收藏</span>
             </button>
           </div>
         )}
