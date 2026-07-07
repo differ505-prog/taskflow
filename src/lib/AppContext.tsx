@@ -489,7 +489,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, lists]);
 
-  const acceptSharedList = useCallback((sharedListId: string, data: SharedListSnapshot): void => {
+  const acceptSharedList = useCallback(async (sharedListId: string, data: SharedListSnapshot): Promise<void> => {
     const sharedData: SharedListData = {
       list: data.list,
       tasks: data.tasks,
@@ -499,7 +499,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSharedLists(getSharedLists());
 
     // Subscribe to real-time updates
-    const unsubscribe = subscribeToSharedSnapshot(
+    subscribeToSharedSnapshot(
       sharedListId,
       (snapshot) => {
         if (snapshot) {
@@ -520,8 +520,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           delete sharedListUnsubscribeRefs.current[sharedListId];
         }
       }
-    );
-    sharedListUnsubscribeRefs.current[sharedListId] = unsubscribe;
+    ).then((unsubscribe) => {
+      sharedListUnsubscribeRefs.current[sharedListId] = unsubscribe;
+    }).catch(() => {});
   }, []);
 
   const removeAcceptedSharedList = useCallback((sharedListId: string): void => {
@@ -565,11 +566,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const currentUserLists = lists.filter((l) => user && l.ownerId === user.uid && l.sharedId);
 
+    const promises: Promise<void>[] = [];
     currentUserLists.forEach((list) => {
       if (!list.sharedId) return;
       if (sharedListUnsubscribeRefs.current[list.sharedId]) return; // Already subscribed
 
-      const unsubscribe = subscribeToSharedSnapshot(
+      const promise = subscribeToSharedSnapshot(
         list.sharedId,
         () => {
           // Own snapshot updates are handled in the list update function
@@ -578,8 +580,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           // List was deleted externally
           setOwnedSharedListIds((prev) => prev.filter((id) => id !== list.sharedId));
         }
-      );
-      sharedListUnsubscribeRefs.current[list.sharedId] = unsubscribe;
+      ).then((unsubscribe) => {
+        sharedListUnsubscribeRefs.current[list.sharedId] = unsubscribe;
+      }).catch(() => {});
+      promises.push(promise);
     });
 
     return () => {
