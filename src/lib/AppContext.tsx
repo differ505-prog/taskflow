@@ -163,6 +163,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const remoteSharedTasksRef = useRef<Record<string, Task[]>>({});
   // Track last-written snapshot hash to prevent infinite sync loops
   const lastSyncedHashRef = useRef<Record<string, string>>({});
+  // Track last-written snapshot task count (monotonic guard against stale cache)
+  const lastSyncedTaskCountRef = useRef<Record<string, number>>({});
   // Track whether we've received the first snapshot for each shared list
   // (prevents writing before we know what's on the server)
   const snapshotReadyRef = useRef<Record<string, boolean>>({});
@@ -729,14 +731,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           }
 
           // Compare against last-synced hash; if same as last write's hash, skip entirely.
-          // This prevents a stale 2-task snapshot fired AFTER onWriteComplete from
-          // overwriting the 3-task state we just wrote.
+          // Also enforce monotonic task count guard: a snapshot with FEWER tasks than
+          // what we last wrote is necessarily stale (Firestore SDK re-emits old cache).
           const snapshotHash = JSON.stringify(snapshot.tasks.map(t => `${t.id}:${t.updatedAt}`).sort());
-          if (lastSyncedHashRef.current[sharedId] === snapshotHash) {
-            console.log("[SharedList] Subscription skipped (hash matches last write), snapshot has", snapshot.tasks.length, "tasks");
+          const lastCount = lastSyncedTaskCountRef.current[sharedId] ?? 0;
+          if (
+            lastSyncedHashRef.current[sharedId] === snapshotHash ||
+            snapshot.tasks.length < lastCount
+          ) {
+            console.log("[SharedList] Subscription skipped (stale snapshot), has", snapshot.tasks.length, "tasks, last synced count:", lastCount);
             return;
           }
           lastSyncedHashRef.current[sharedId] = snapshotHash;
+          lastSyncedTaskCountRef.current[sharedId] = snapshot.tasks.length;
 
           // Update sharedLists state (React state only, no localStorage write)
           // localStorage is written exclusively by onWriteComplete callbacks to avoid
@@ -980,6 +987,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             snapshotTasksRef.current[sid] = writtenTasks;
             const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
             lastSyncedHashRef.current[sid] = hash;
+            lastSyncedTaskCountRef.current[sid] = writtenTasks.length;
             console.log("[SharedList] Task saved to Firestore, hash updated to:", hash.substring(0, 30));
           }
         ).catch((error) => console.error("[SharedList] Failed to save task to Firestore:", error));
@@ -1021,6 +1029,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         snapshotTasksRef.current[sid] = writtenTasks;
         const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
         lastSyncedHashRef.current[sid] = hash;
+        lastSyncedTaskCountRef.current[sid] = writtenTasks.length;
         console.log("[SharedList] Task saved to Firestore, hash updated to:", hash.substring(0, 30));
         // Clear writing flag
         isWritingRef.current[sid] = false;
@@ -1072,6 +1081,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         snapshotTasksRef.current[sid] = writtenTasks;
         const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
         lastSyncedHashRef.current[sid] = hash;
+        lastSyncedTaskCountRef.current[sid] = writtenTasks.length;
         isWritingRef.current[sid] = false;
       }
     ).catch((error) => {
@@ -1106,6 +1116,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         snapshotTasksRef.current[sid] = writtenTasks;
         const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
         lastSyncedHashRef.current[sid] = hash;
+        lastSyncedTaskCountRef.current[sid] = writtenTasks.length;
         isWritingRef.current[sid] = false;
       }
     ).catch((error) => {
