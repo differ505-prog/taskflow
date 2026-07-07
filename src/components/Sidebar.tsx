@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useApp } from "@/lib/AppContext";
 import { AppView, TaskList } from "@/lib/types";
 import {
@@ -314,9 +314,14 @@ export function ListForm({ isOpen, onClose, onSubmit, initialData, onDelete }: L
   const [name, setName] = useState(initialData?.name || "");
   const [icon, setIcon] = useState(initialData?.icon || "📋");
   const [color, setColor] = useState(initialData?.color || "#636366");
-  const [isEditing] = useState(!!initialData);
+  const isEditing = !!initialData;
 
-  const [isOpen2, setIsOpen2] = useState(isOpen);
+  // Sync state with initialData when it changes (e.g., switching between new/edit)
+  useEffect(() => {
+    setName(initialData?.name || "");
+    setIcon(initialData?.icon || "📋");
+    setColor(initialData?.color || "#636366");
+  }, [initialData]);
 
   if (!isOpen) return null;
 

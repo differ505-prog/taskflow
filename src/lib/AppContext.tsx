@@ -151,6 +151,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const remoteSharedTasksRef = useRef<Record<string, Task[]>>({});
   // Track last-written snapshot hash to prevent infinite sync loops
   const lastSyncedHashRef = useRef<Record<string, string>>({});
+  // Track whether we've received the first snapshot for each shared list
+  // (prevents writing before we know what's on the server)
+  const snapshotReadyRef = useRef<Record<string, boolean>>({});
 
   // ── Init ────────────────────────────────────────────────
   useEffect(() => {
@@ -621,12 +624,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           // Update the hash so we know what's on the server
           const hash = JSON.stringify(snapshot.tasks.map(t => t.id).sort());
           lastSyncedHashRef.current[sharedId] = hash;
+          // Mark this shared list as ready (first snapshot received)
+          snapshotReadyRef.current[sharedId] = true;
         },
         () => {
           // List was deleted externally
           setOwnedSharedListIds((prev) => prev.filter((id) => id !== sharedId));
           delete remoteSharedTasksRef.current[sharedId];
           delete lastSyncedHashRef.current[sharedId];
+          delete snapshotReadyRef.current[sharedId];
         }
       ).then((unsubscribe) => {
         sharedListUnsubscribeRefs.current[sharedId] = unsubscribe;
@@ -642,6 +648,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           delete sharedListUnsubscribeRefs.current[id];
           delete remoteSharedTasksRef.current[id];
           delete lastSyncedHashRef.current[id];
+          delete snapshotReadyRef.current[id];
         }
       });
     };
@@ -703,6 +710,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     ownedLists.forEach(async (list) => {
       if (!list.sharedId) return;
+      // Wait until we've received the first snapshot from Firestore
+      // to avoid overwriting remote tasks with empty data
+      if (!snapshotReadyRef.current[list.sharedId]) return;
       // Owner's local tasks for this list (mark with createdBy)
       const localTasks = tasks
         .filter((t) => t.listId === list.id)
