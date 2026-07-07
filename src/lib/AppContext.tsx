@@ -835,7 +835,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [user, acceptedSharedListIds]);
 
   // ── Sync owned shared lists: push local + remote to Firestore and sharedLists ──
-  // This keeps Firestore in sync AND updates sharedLists so the owner UI shows all tasks
+  // CRITICAL: We use sharedLists[id].tasks (not tasks state) as the source of truth
+  // for owner-created tasks. quickAddToShared only updates sharedLists, never tasks state.
   useEffect(() => {
     if (!user) return;
 
@@ -843,19 +844,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     ownedLists.forEach(async (list) => {
       if (!list.sharedId) return;
-      // Wait until we've received the first snapshot from Firestore
-      // to avoid overwriting remote tasks with empty data
       if (!snapshotReadyRef.current[list.sharedId]) return;
-      // Owner's local tasks for this list (mark with createdBy)
-      const localTasks = tasks
-        .filter((t) => t.listId === list.id)
-        .map((t) => ({ ...t, createdBy: t.createdBy || user.uid }));
-      // Remote tasks contributed by recipients (from the subscription)
-      const remoteTasks = remoteSharedTasksRef.current[list.sharedId] || [];
-      // Merge: local tasks + remote tasks (deduplicate by id, local wins for same id)
-      const localTaskIds = new Set(localTasks.map((t) => t.id));
+      // Use sharedLists[id].tasks as the owner's authoritative task list
+      const ownerTasks = sharedLists[list.sharedId]?.tasks || [];
+      // Remote tasks contributed by recipients (filter out owner's own tasks)
+      const remoteTasks = (ownerTasks || []).filter(
+        (t) => t.createdBy && t.createdBy !== user.uid
+      );
+      // Owner tasks = all in sharedLists minus the remote-only ones
+      const ownerOwnedTasks = ownerTasks.filter(
+        (t) => !t.createdBy || t.createdBy === user.uid
+      );
+      // Merge: owner tasks + remote tasks
+      const localTaskIds = new Set(ownerOwnedTasks.map((t) => t.id));
       const mergedTasks = [
-        ...localTasks,
+        ...ownerOwnedTasks,
         ...remoteTasks.filter((t) => !localTaskIds.has(t.id)),
       ];
 
@@ -869,7 +872,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         await updateSharedSnapshot(list.sharedId, list, mergedTasks, user.uid, ownerName);
         lastSyncedHashRef.current[list.sharedId] = newHash;
 
-        // Also update sharedLists so owner's UI reflects the merged snapshot
         const currentData = sharedLists[list.sharedId];
         if (currentData) {
           const updatedData: SharedListData = {
@@ -885,7 +887,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
     });
-  }, [user, lists, tasks, sharedLists]);
+  }, [user, lists, sharedLists]);
 
   // ── Quick Add ─────────────────────────────────────────────
   const quickAdd = useCallback((input: string): string | null => {
