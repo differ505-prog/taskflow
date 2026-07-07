@@ -1,21 +1,19 @@
 /**
  * Firebase 初始化模組
- *
- * 使用前請替換下面的 firebaseConfig 為你自己的設定
- * 取得方式：Firebase Console → 專案設定 → 應用程式 → 複製 Config
  */
 import { initializeApp, getApps, FirebaseApp } from "firebase/app";
 import { getAuth, Auth } from "firebase/auth";
 import { getFirestore, Firestore } from "firebase/firestore";
 
-// ─── Firebase 設定（請替換為你的設定）───────────────────────
+// ─── Firebase 設定 ───────────────────────────────────────────
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
+  apiKey: "AIzaSyD2yBIIUzRdwvwr_ApEYjAR4ujF-jaX4cs",
+  authDomain: "taskflow-1fbd3.firebaseapp.com",
+  projectId: "taskflow-1fbd3",
+  storageBucket: "taskflow-1fbd3.firebasestorage.app",
+  messagingSenderId: "942619428359",
+  appId: "1:942619428359:web:5718c6891b624a397b8ca2",
+  measurementId: "G-36ELNFZNZD",
 };
 
 // ─── Singleton 初始化 ────────────────────────────────────────
