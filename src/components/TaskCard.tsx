@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Task, SubTask } from "@/lib/types";
 import { PriorityBadge } from "./PriorityBadge";
 import { format, isToday, isTomorrow, isPast, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { AnimatePresence, motion } from "framer-motion";
+import { haptic } from "@/lib/haptics";
 import {
   CheckCircle2, Circle, ChevronDown, Clock, Tag as TagIcon,
   Trash2, Edit3, Archive, Repeat, Plus, Trash,
@@ -119,10 +120,16 @@ export function TaskCard({
   const completedSubTasks = subTasks.filter((s) => s.status === "done").length;
   const subTaskProgress = subTasks.length > 0 ? completedSubTasks / subTasks.length : 0;
 
-  const handleDelete = () => {
+  const handleToggleStatus = useCallback(() => {
+    haptic("success");
+    onToggleStatus(task.id);
+  }, [onToggleStatus, task.id]);
+
+  const handleDelete = useCallback(() => {
+    haptic("warning");
     setIsDeleting(true);
     setTimeout(() => onDelete(task.id), 200);
-  };
+  }, [onDelete, task.id]);
 
   const handleExpand = () => setIsExpanded((p) => !p);
 
@@ -163,7 +170,7 @@ export function TaskCard({
       <div className="flex items-start gap-3 pl-5 pr-4 py-4">
         {/* Status toggle */}
         <button
-          onClick={() => onToggleStatus(task.id)}
+          onClick={handleToggleStatus}
           className="flex-shrink-0 mt-0.5 transition-transform duration-200 hover:scale-110 active:scale-90"
           aria-label={isDone ? "標記為未完成" : "標記為已完成"}
         >

@@ -388,18 +388,275 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 
+  /* Safe area via pseudo-elements for sticky/fixed elements */
+  .safe-area-top::before {
+    content: "";
+    display: block;
+    height: env(safe-area-inset-top);
+    flex-shrink: 0;
+  }
+
+  .safe-area-bottom::after {
+    content: "";
+    display: block;
+    height: env(safe-area-inset-bottom);
+    flex-shrink: 0;
+  }
+
+  /* FAB — Floating Action Button */
+  .fab {
+    position: fixed;
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px) + 16px);
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--brand);
+    color: var(--brand-foreground);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(79, 106, 245, 0.40), 0 2px 8px rgba(0,0,0,0.12);
+    transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 200ms ease;
+    z-index: 40;
+    /* Prevent tap highlight */
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    /* Minimum 44x44 tap target */
+    min-width: 56px;
+    min-height: 56px;
+  }
+
+  .fab:hover {
+    transform: scale(1.08) translateY(-2px);
+    box-shadow: 0 8px 24px rgba(79, 106, 245, 0.50), 0 4px 12px rgba(0,0,0,0.16);
+  }
+
+  .fab:active {
+    transform: scale(0.94);
+    box-shadow: 0 2px 8px rgba(79, 106, 245, 0.30);
+  }
+
+  /* Bottom Navigation */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(60px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    z-index: 50;
+    box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.06);
+  }
+
+  .bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    color: var(--text-tertiary);
+    font-size: 10px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 180ms ease, background 180ms ease;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    min-width: 64px;
+    min-height: 44px;
+    background: none;
+    border: none;
+    flex: 1;
+  }
+
+  .bottom-nav-item:active {
+    background: var(--surface-hover);
+  }
+
+  .bottom-nav-item.active {
+    color: var(--brand);
+  }
+
+  .bottom-nav-badge {
+    position: absolute;
+    top: 4px;
+    right: 8px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    background: var(--status-danger);
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+
+  /* Mobile Sidebar (drawer) */
+  .mobile-sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 60;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+
+  .mobile-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(300px, 85vw);
+    background: var(--surface);
+    z-index: 70;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 4px 0 32px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Swipe action container */
+  .swipe-container {
+    position: relative;
+    overflow: hidden;
+    touch-action: pan-y;
+    user-select: none;
+  }
+
+  .swipe-actions {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    pointer-events: none;
+  }
+
+  .swipe-action {
+    width: 72px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    pointer-events: auto;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .swipe-action-complete {
+    background: var(--status-success);
+  }
+
+  .swipe-action-delete {
+    background: var(--status-danger);
+  }
+
+  /* Skeleton loading */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.06) 25%,
+      rgba(0, 0, 0, 0.10) 50%,
+      rgba(0, 0, 0, 0.06) 75%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+    border-radius: var(--radius-sm);
+  }
+
+  .skeleton-dark {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.06) 25%,
+      rgba(255, 255, 255, 0.10) 50%,
+      rgba(255, 255, 255, 0.06) 75%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+    border-radius: var(--radius-sm);
+  }
+
+  /* Swipe reveal background */
+  .swipe-reveal-right {
+    background: var(--status-success);
+  }
+
+  .swipe-reveal-left {
+    background: var(--status-danger);
+  }
+
+  /* Voice input indicator */
+  .voice-indicator {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--brand-tint);
+    color: var(--brand);
+    cursor: pointer;
+    transition: background 200ms ease, transform 200ms ease;
+    border: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .voice-indicator:hover {
+    background: rgba(79, 106, 245, 0.18);
+    transform: scale(1.08);
+  }
+
+  .voice-indicator.recording {
+    background: var(--status-danger);
+    color: white;
+    animation: pulse-recording 1s ease-in-out infinite;
+  }
+
+  /* Minimum touch target enforcement */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Active state for touch */
+  .press-effect {
+    transition: transform 100ms ease, opacity 100ms ease;
+  }
+
+  .press-effect:active {
+    transform: scale(0.96);
+    opacity: 0.88;
+  }
+}
+
   /* Meta 文字 — 用於次要說明 */
   .text-meta {
     font-size: 12px;
     color: var(--text-tertiary);
     line-height: 1.4;
   }
-
-  /* 滑動指示器 (觸控友好) */
-  .touch-scroll {
-    -webkit-overflow-scrolling: touch;
-  }
-}
 
 /* ============================================================
    ANIMATIONS
@@ -433,4 +690,20 @@
     opacity: 1;
     transform: scale(1);
   }
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes pulse-recording {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.85; }
+}
+
+@keyframes fab-pop {
+  0% { transform: scale(0) rotate(-90deg); opacity: 0; }
+  70% { transform: scale(1.1) rotate(5deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }

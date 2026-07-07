@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Task, Priority, TaskStatus, Recurrence } from "@/lib/types";
 import { PRIORITY_CONFIG } from "@/lib/types";
 import { useApp } from "@/lib/AppContext";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Plus, Repeat, Calendar } from "lucide-react";
+import { X, Plus, Repeat, Calendar, Mic, MicOff } from "lucide-react";
 
 interface TaskFormProps {
   isOpen: boolean;
@@ -45,7 +45,42 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData }: TaskFormPro
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
   const [subTaskInputs, setSubTaskInputs] = useState<string[]>([]);
   const [newSubTask, setNewSubTask] = useState("");
+  const [isRecording, setIsRecording] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
+
+  // ─── Voice Input (Web Speech API) ──────────────────────────
+  const handleVoiceInput = useCallback(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "zh-TW";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    if (isRecording) {
+      recognition.stop();
+      setIsRecording(false);
+      return;
+    }
+
+    setIsRecording(true);
+    recognition.start();
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setTitle((prev) => prev + transcript);
+      setIsRecording(false);
+      titleRef.current?.focus();
+    };
+
+    recognition.onerror = () => { setIsRecording(false); };
+    recognition.onend = () => { setIsRecording(false); };
+  }, [isRecording]);
+
+  useEffect(() => {
+    return () => { /* cleanup recognition if needed */ };
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -168,16 +203,29 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData }: TaskFormPro
                 <label className="block mb-2 text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
                   任務標題 <span style={{ color: "var(--status-danger)" }}>*</span>
                 </label>
-                <input
-                  ref={titleRef}
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="輸入任務名稱"
-                  className={`input ${errors.title ? "input-error" : ""}`}
-                  aria-invalid={!!errors.title}
-                  maxLength={200}
-                />
+                <div className="relative">
+                  <input
+                    ref={titleRef}
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="輸入任務名稱"
+                    className={`input pr-12 ${errors.title ? "input-error" : ""}`}
+                    aria-invalid={!!errors.title}
+                    maxLength={200}
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleVoiceInput}
+                    className={`voice-indicator absolute right-3 ${isRecording ? "recording" : ""}`}
+                    style={{ top: "calc(50% - 1px)" }}
+                    aria-label={isRecording ? "停止錄音" : "語音輸入"}
+                    title={isRecording ? "停止錄音" : "說出任務名稱"}
+                  >
+                    {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                  </button>
+                </div>
                 {errors.title && <p className="mt-1.5 text-[12px]" style={{ color: "var(--status-danger)" }}>{errors.title}</p>}
               </div>
 

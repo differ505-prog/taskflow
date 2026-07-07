@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useApp } from "@/lib/AppContext";
 import { Task, AppView, TaskList } from "@/lib/types";
 import { TaskCard } from "./TaskCard";
+import { TaskSwipeWrapper } from "./SwipeableTaskCard";
 import { TaskForm } from "./TaskForm";
 import { EmptyState } from "./EmptyState";
 import { AnimatePresence, motion } from "framer-motion";
@@ -79,9 +80,10 @@ interface AppShellProps {
   onEditList: (list: TaskList) => void;
   onDeleteList: (id: string) => void;
   onOpenPomodoro: () => void;
+  onOpenMobileSidebar?: () => void;
 }
 
-export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteList, onOpenPomodoro }: AppShellProps) {
+export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteList, onOpenPomodoro, onOpenMobileSidebar }: AppShellProps) {
   const {
     tasks, currentView, currentListId, lists,
     searchQuery, setSearchQuery,
@@ -163,15 +165,28 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
     <div className="flex flex-col h-full">
       {/* Top Header */}
       <header className="flex-shrink-0 glass sticky top-0 z-30">
-        <div className="px-6 py-4">
+        <div className="px-4 md:px-6 py-4">
           <div className="flex items-center justify-between">
             {/* Title */}
             <div className="flex items-center gap-3">
+              {/* Mobile hamburger */}
+              {onOpenMobileSidebar && (
+                <button
+                  onClick={onOpenMobileSidebar}
+                  className="md:hidden p-2 rounded-xl hover:bg-black/5 transition-colors -ml-2 press-effect touch-target"
+                  style={{ color: "var(--text-secondary)" }}
+                  aria-label="開啟側邊欄"
+                >
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                    <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </button>
+              )}
               {currentListId && lists.find((l) => l.id === currentListId) && (
                 <span className="text-2xl">{lists.find((l) => l.id === currentListId)!.icon}</span>
               )}
               <div>
-                <h1 className="text-[18px] font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
+                <h1 className="text-[17px] md:text-[18px] font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
                   {currentListName}
                 </h1>
                 {currentView !== "inbox" && stats.today > 0 && (
@@ -183,8 +198,8 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
               </div>
             </div>
 
-            {/* Header actions */}
-            <div className="flex items-center gap-2">
+            {/* Header actions — desktop only (mobile uses FAB) */}
+            <div className="hidden md:flex items-center gap-2">
               <button
                 onClick={onOpenPomodoro}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-150"
@@ -192,7 +207,7 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
                 aria-label="開啟番茄鐘"
               >
                 <Timer className="w-4 h-4" />
-                <span className="hidden sm:inline">專注</span>
+                <span>專注</span>
               </button>
               <button
                 onClick={() => setIsFormOpen(true)}
@@ -200,7 +215,7 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
                 aria-label="新增任務"
               >
                 <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">新增</span>
+                <span>新增</span>
               </button>
             </div>
           </div>
@@ -362,13 +377,21 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
                     exit={{ opacity: 0, scale: 0.97 }}
                     transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
                   >
-                    <TaskCard
-                      task={task}
-                      onToggleStatus={toggleTaskStatus}
-                      onEdit={handleEdit}
+                    <TaskSwipeWrapper
+                      taskId={task.id}
+                      isDone={task.status === "done"}
+                      onComplete={() => toggleTaskStatus(task.id)}
                       onDelete={deleteTask}
                       onArchive={archiveTask}
-                    />
+                    >
+                      <TaskCard
+                        task={task}
+                        onToggleStatus={toggleTaskStatus}
+                        onEdit={handleEdit}
+                        onDelete={deleteTask}
+                        onArchive={archiveTask}
+                      />
+                    </TaskSwipeWrapper>
                   </motion.div>
                 ))}
               </AnimatePresence>
@@ -384,6 +407,16 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
         onSubmit={handleSubmit}
         initialData={editingTask}
       />
+
+      {/* FAB — Mobile only */}
+      <button
+        className="md:hidden fab"
+        onClick={() => { setIsFormOpen(true); setEditingTask(null); }}
+        aria-label="新增任務"
+        style={{ animation: "fab-pop 300ms cubic-bezier(0.34,1.56,0.64,1)" }}
+      >
+        <Plus className="w-6 h-6" strokeWidth={2.5} />
+      </button>
     </div>
   );
 }
