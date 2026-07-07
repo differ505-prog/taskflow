@@ -159,6 +159,23 @@ export const DEFAULT_LISTS: Omit<TaskList, "id" | "createdAt" | "updatedAt">[] =
   { name: "收集箱", icon: "📥", color: "#636366", order: 0 },
 ];
 
+// ─── Shared List Types ──────────────────────────────────────────
+export interface SharedListMeta {
+  id: string; // same as sharedListSnapshots/{id}
+  ownerId: string;
+  listId: string;
+  ownerName?: string;
+  createdAt: string;
+}
+
+export interface SharedListSnapshot {
+  list: TaskList;
+  tasks: Task[];
+  ownerId: string;
+  ownerName?: string;
+  updatedAt: string;
+}
+
 export const TAG_COLORS = [
   "#3B82F6", "#8B5CF6", "#EC4899", "#EF4444",
   "#F97316", "#EAB308", "#22C55E", "#14B8A6",

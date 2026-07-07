@@ -19,7 +19,7 @@ import {
   Unsubscribe,
 } from "firebase/firestore";
 import { getFirebaseDB } from "./firebase";
-import { Task, TaskList, Habit, PomodoroSession, Tag } from "./types";
+import { Task, TaskList, Habit, PomodoroSession, Tag, SharedListMeta, SharedListSnapshot } from "./types";
 
 // ─── 路徑常數 ────────────────────────────────────────────────
 const uid = (userId: string) => userId;
@@ -210,4 +210,103 @@ export async function importAllData(
 
   await batch.commit();
   return { tasks: taskCount, habits: habitCount, lists: listCount };
+}
+
+// ─── Shared List Operations ─────────────────────────────────────
+export async function createSharedList(
+  list: TaskList,
+  tasks: Task[],
+  ownerId: string,
+  ownerName?: string
+): Promise<string> {
+  const db = await getFirebaseDB();
+  const sharedListId = `sl_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  const now = Timestamp.now().toDate().toISOString();
+
+  const snapshotData: SharedListSnapshot = {
+    list: { ...list, sharedId: sharedListId, ownerId },
+    tasks,
+    ownerId,
+    ownerName,
+    updatedAt: now,
+  };
+
+  const metaData: SharedListMeta = {
+    id: sharedListId,
+    ownerId,
+    listId: list.id,
+    ownerName,
+    createdAt: now,
+  };
+
+  // Write both documents in a batch
+  const batch = writeBatch(db);
+  batch.set(doc(db, "sharedListSnapshots", sharedListId), snapshotData);
+  batch.set(doc(db, "sharedLists", sharedListId), metaData);
+  await batch.commit();
+
+  return sharedListId;
+}
+
+export async function updateSharedSnapshot(
+  sharedListId: string,
+  list: TaskList,
+  tasks: Task[],
+  ownerId: string,
+  ownerName?: string
+): Promise<void> {
+  const db = await getFirebaseDB();
+  const snapshotData: SharedListSnapshot = {
+    list: { ...list, sharedId: sharedListId, ownerId },
+    tasks,
+    ownerId,
+    ownerName,
+    updatedAt: Timestamp.now().toDate().toISOString(),
+  };
+
+  await setDoc(doc(db, "sharedListSnapshots", sharedListId), snapshotData);
+}
+
+export async function getSharedSnapshot(sharedListId: string): Promise<SharedListSnapshot | null> {
+  const db = await getFirebaseDB();
+  const snap = await getDoc(doc(db, "sharedListSnapshots", sharedListId));
+  if (!snap.exists()) return null;
+  return snap.data() as SharedListSnapshot;
+}
+
+export async function subscribeToSharedSnapshot(
+  sharedListId: string,
+  onUpdate: (snapshot: SharedListSnapshot | null) => void,
+  onDeleted?: () => void
+): Promise<Unsubscribe> {
+  const db = await getFirebaseDB();
+  return onSnapshot(doc(db, "sharedListSnapshots", sharedListId), (snap) => {
+    if (!snap.exists()) {
+      onDeleted?.();
+      onUpdate(null);
+      return;
+    }
+    onUpdate(snap.data() as SharedListSnapshot);
+  }, (error) => {
+    // Handle permission denied or other errors
+    if (error.code === "permission-denied" || error.code === "not-found") {
+      onDeleted?.();
+      onUpdate(null);
+    }
+  });
+}
+
+export async function deleteSharedList(sharedListId: string): Promise<void> {
+  const db = await getFirebaseDB();
+  const batch = writeBatch(db);
+  batch.delete(doc(db, "sharedListSnapshots", sharedListId));
+  batch.delete(doc(db, "sharedLists", sharedListId));
+  await batch.commit();
+}
+
+export async function getSharedListMeta(sharedListId: string): Promise<SharedListMeta | null> {
+  const db = await getFirebaseDB();
+  const snap = await getDoc(doc(db, "sharedLists", sharedListId));
+  if (!snap.exists()) return null;
+  return snap.data() as SharedListMeta;
 }

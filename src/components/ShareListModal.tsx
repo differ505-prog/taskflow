@@ -2,16 +2,15 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useApp } from "@/lib/AppContext";
-import { TaskList, Task } from "@/lib/types";
+import { useAuth } from "@/lib/AuthContext";
+import { TaskList, Task, SharedListSnapshot } from "@/lib/types";
 import {
-  encodeSharePayload,
-  decodeSharePayload,
   getSharedLists,
-  saveSharedList,
   removeSharedList,
   SharedListData,
 } from "@/lib/storage";
-import { X, Link2, Copy, Check, Users, Trash2, ExternalLink } from "lucide-react";
+import { getSharedSnapshot } from "@/lib/firestore";
+import { X, Link2, Copy, Check, Users, Trash2, Loader2 } from "lucide-react";
 
 interface ShareListModalProps {
   isOpen: boolean;
@@ -22,7 +21,7 @@ interface ShareListModalProps {
   listTasks?: Task[];
 }
 
-function ShareLinkButton({ shareUrl, listName }: { shareUrl: string; listName: string }) {
+function ShareLinkButton({ shareUrl, listName, isLoading }: { shareUrl: string; listName: string; isLoading?: boolean }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(async () => {
@@ -46,17 +45,18 @@ function ShareLinkButton({ shareUrl, listName }: { shareUrl: string; listName: s
   return (
     <div className="space-y-3">
       <p className="text-[13px]" style={{ color: "var(--text-secondary)" }}>
-        複製以下連結，分享「<strong>{listName}</strong>」給任何人。他們可以在 VibeList 中瀏覽並共同編輯這份清單。
+        複製以下連結，分享「<strong>{listName}</strong>」給任何人。他們可以在 VibeList 中即時同步查看這份清單。
       </p>
       <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: "var(--surface-muted)", border: "1px solid var(--border)" }}>
         <Link2 className="w-4 h-4 flex-shrink-0" style={{ color: "var(--brand)" }} />
         <span className="flex-1 text-[12px] truncate font-mono" style={{ color: "var(--text-secondary)" }}>
-          {shareUrl}
+          {isLoading ? "建立分享連結中..." : shareUrl}
         </span>
       </div>
       <button
         onClick={handleCopy}
-        className="w-full btn-primary flex items-center justify-center gap-2"
+        disabled={isLoading}
+        className="w-full btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
       >
         {copied ? (
           <>
@@ -107,55 +107,92 @@ function SharedListItem({
 }
 
 export function ShareListModal({ isOpen, onClose, listToShare, listTasks }: ShareListModalProps) {
-  const { lists } = useApp();
-  const [sharedLists, setSharedLists] = useState<Record<string, SharedListData>>({});
-  const [incomingShare, setIncomingShare] = useState<SharedListData | null>(null);
-  const [incomingError, setIncomingError] = useState(false);
+  const { user } = useAuth();
+  const { sharedLists, shareList, unshareList, acceptSharedList, removeAcceptedSharedList } = useApp();
+  const [sharedListsState, setSharedListsState] = useState<Record<string, SharedListData>>({});
+  const [incomingShare, setIncomingShare] = useState<{ sharedListId: string; snapshot: any } | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [hasShared, setHasShared] = useState(false);
 
   // Load shared lists on open
   useEffect(() => {
     if (isOpen) {
-      setSharedLists(getSharedLists());
+      setSharedListsState(sharedLists);
+    }
+  }, [isOpen, sharedLists]);
 
-      // Check for incoming share link in URL
-      const params = new URLSearchParams(window.location.search);
-      const shareParam = params.get("share");
-      if (shareParam) {
-        const decoded = decodeSharePayload(shareParam);
-        if (decoded) {
-          setIncomingShare(decoded);
-        } else {
-          setIncomingError(true);
+  // Check for incoming share link in URL when modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const shareParam = params.get("share");
+
+    if (shareParam && !shareParam.includes("=") && !shareParam.includes("ey")) {
+      // This is a new-style share ID (not base64)
+      // Clean URL without reload
+      window.history.replaceState({}, "", window.location.pathname);
+
+      // Fetch the snapshot from Firestore
+      getSharedSnapshot(shareParam).then((snapshot) => {
+        if (snapshot) {
+          setIncomingShare({ sharedListId: shareParam, snapshot });
         }
-        // Clean URL without reload
-        window.history.replaceState({}, "", window.location.pathname);
-      }
+      });
     }
   }, [isOpen]);
 
+  // Handle sharing a list
+  const handleShareList = useCallback(async () => {
+    if (!listToShare || !user) return;
+
+    setIsSharing(true);
+    try {
+      const sharedListId = await shareList(listToShare.id);
+      if (sharedListId) {
+        setShareUrl(`${window.location.origin}?share=${sharedListId}`);
+        setHasShared(true);
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  }, [listToShare, user, shareList]);
+
+  // Handle unsharing a list
+  const handleUnshare = useCallback(async () => {
+    if (!listToShare?.sharedId) return;
+    await unshareList(listToShare.sharedId);
+    setShareUrl(null);
+    setHasShared(false);
+  }, [listToShare, unshareList]);
+
+  // Handle accepting incoming shared list
+  const handleAcceptIncoming = useCallback(() => {
+    if (!incomingShare?.snapshot) return;
+
+    acceptSharedList(incomingShare.sharedListId, incomingShare.snapshot);
+    setIncomingShare(null);
+  }, [incomingShare, acceptSharedList]);
+
+  const handleDeclineIncoming = useCallback(() => {
+    setIncomingShare(null);
+  }, []);
+
+  const handleRemoveShared = useCallback((sharedId: string) => {
+    removeAcceptedSharedList(sharedId);
+    setSharedListsState(getSharedLists());
+  }, [removeAcceptedSharedList]);
+
+  // If we have a list to share, check if it's already shared
+  useEffect(() => {
+    if (listToShare?.sharedId) {
+      setShareUrl(`${window.location.origin}?share=${listToShare.sharedId}`);
+      setHasShared(true);
+    }
+  }, [listToShare?.sharedId]);
+
   if (!isOpen) return null;
-
-  const shareUrl = listToShare
-    ? `${window.location.origin}${window.location.pathname}?share=${encodeSharePayload(listToShare, listTasks ?? [])}`
-    : null;
-
-  const handleAcceptIncoming = () => {
-    if (!incomingShare) return;
-    // Use sharedId from list as key
-    const key = incomingShare.list.sharedId ?? incomingShare.list.id;
-    saveSharedList(key, incomingShare);
-    setSharedLists(getSharedLists());
-    setIncomingShare(null);
-  };
-
-  const handleDeclineIncoming = () => {
-    setIncomingShare(null);
-  };
-
-  const handleRemoveShared = (sharedId: string) => {
-    removeSharedList(sharedId);
-    setSharedLists(getSharedLists());
-  };
 
   return (
     <div
@@ -193,36 +230,91 @@ export function ShareListModal({ isOpen, onClose, listToShare, listTasks }: Shar
                 收到共用清單邀請
               </p>
             </div>
-            <p className="text-[13px]" style={{ color: "var(--text-secondary)" }}>
-              <strong>{incomingShare.list.name}</strong>（{incomingShare.tasks.length} 項任務）
-              {incomingShare.ownerName && ` · 由 ${incomingShare.ownerName} 分享`}
-            </p>
-            <div className="flex gap-2">
-              <button onClick={handleDeclineIncoming} className="btn-ghost flex-1 text-[13px]">
-                略過
-              </button>
-              <button onClick={handleAcceptIncoming} className="btn-primary flex-1 text-[13px]">
-                接受並收藏
-              </button>
-            </div>
-          </div>
-        )}
-
-        {incomingError && (
-          <div className="p-3 rounded-xl text-[13px]" style={{ background: "rgba(255,59,48,0.08)", color: "var(--status-danger)" }}>
-            分享連結無效或已過期。
+            {incomingShare.snapshot ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{incomingShare.snapshot.list.icon}</span>
+                  <div>
+                    <p className="text-[13px] font-medium" style={{ color: "var(--text-primary)" }}>
+                      {incomingShare.snapshot.list.name}
+                    </p>
+                    <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+                      {incomingShare.snapshot.tasks.length} 項任務
+                      {incomingShare.snapshot.ownerName && ` · 由 ${incomingShare.snapshot.ownerName} 分享`}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleDeclineIncoming} className="btn-ghost flex-1 text-[13px]">
+                    略過
+                  </button>
+                  <button onClick={handleAcceptIncoming} className="btn-primary flex-1 text-[13px]">
+                    接受並收藏
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-[13px] flex items-center gap-2" style={{ color: "var(--text-secondary)" }}>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  載入分享內容中...
+                </p>
+                <button onClick={handleDeclineIncoming} className="btn-ghost w-full text-[13px]">
+                  取消
+                </button>
+              </>
+            )}
           </div>
         )}
 
         {/* ── Share a specific list ── */}
-        {listToShare && (
-          <ShareLinkButton shareUrl={shareUrl!} listName={listToShare.name} />
+        {listToShare && !hasShared && (
+          <div className="space-y-4">
+            {!user ? (
+              <p className="text-[13px]" style={{ color: "var(--text-secondary)" }}>
+                請先登入才能分享清單。
+              </p>
+            ) : (
+              <button
+                onClick={handleShareList}
+                disabled={isSharing}
+                className="w-full btn-primary flex items-center justify-center gap-2"
+              >
+                {isSharing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    建立分享連結...
+                  </>
+                ) : (
+                  <>
+                    <Users className="w-4 h-4" />
+                    建立即時同步分享連結
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* ── Show share link for already shared lists ── */}
+        {listToShare && hasShared && shareUrl && (
+          <div className="space-y-4">
+            <ShareLinkButton shareUrl={shareUrl} listName={listToShare.name} />
+            <div className="flex gap-2">
+              <button onClick={handleUnshare} className="btn-ghost flex-1 text-[13px]">
+                取消分享
+              </button>
+            </div>
+            <p className="text-[11px] text-center" style={{ color: "var(--text-tertiary)" }}>
+              修改清單後，分享連結的內容會自動同步更新。
+            </p>
+          </div>
         )}
 
         {/* ── Show all shared lists (when opened without a specific list) ── */}
         {!listToShare && (
           <div className="space-y-3">
-            {Object.keys(sharedLists).length === 0 ? (
+            {Object.keys(sharedListsState).length === 0 ? (
               <div className="text-center py-8 space-y-2">
                 <Users className="w-10 h-10 mx-auto opacity-30" style={{ color: "var(--text-tertiary)" }} />
                 <p className="text-[14px]" style={{ color: "var(--text-tertiary)" }}>
@@ -235,15 +327,37 @@ export function ShareListModal({ isOpen, onClose, listToShare, listTasks }: Shar
             ) : (
               <>
                 <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>
-                  從連結收藏的共用清單（唯讀）
+                  已收藏的共用清單（自動同步更新）
                 </p>
-                {Object.values(sharedLists).map((data) => (
-                  <SharedListItem
-                    key={data.list.sharedId ?? data.list.id}
-                    data={data}
-                    onRemove={() => handleRemoveShared(data.list.sharedId ?? data.list.id)}
-                  />
-                ))}
+                {Object.values(sharedListsState).map((data) => {
+                  const key = data.list.sharedId ?? data.list.id;
+                  return (
+                    <div
+                      key={key}
+                      className="flex items-center gap-3 p-3 rounded-xl"
+                      style={{ background: "var(--surface-muted)", border: "1px solid var(--border)" }}
+                    >
+                      <span className="text-xl flex-shrink-0">{data.list.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-medium truncate" style={{ color: "var(--text-primary)" }}>
+                          {data.list.name}
+                        </p>
+                        <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+                          {data.tasks.length} 項任務
+                          {data.ownerName && ` · 由 ${data.ownerName} 分享`}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveShared(key)}
+                        className="p-2 rounded-lg hover:bg-red-50 transition-colors flex-shrink-0"
+                        style={{ color: "var(--text-tertiary)" }}
+                        title="移除收藏"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  );
+                })}
               </>
             )}
           </div>

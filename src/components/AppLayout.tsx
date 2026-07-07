@@ -16,12 +16,11 @@ import { UserMenu } from "@/components/UserMenu";
 import { AuthGate } from "@/components/AuthGate";
 import { FirebaseDataProvider, SyncWriter } from "@/components/FirebaseDataProvider";
 import { ShareListModal } from "@/components/ShareListModal";
-import { decodeSharePayload } from "@/lib/storage";
 import { TaskList } from "@/lib/types";
 
 // ─── Inner app (has access to useApp) ───────────────────────
 function AppLayoutInner() {
-  const { currentView, addList, updateList, deleteList, setCurrentView, viewCounts, tasks } = useApp();
+  const { currentView, addList, updateList, deleteList, setCurrentView, viewCounts, tasks, checkIncomingShareLink } = useApp();
   const { user } = useAuth();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isListFormOpen, setIsListFormOpen] = useState(false);
@@ -30,20 +29,17 @@ function AppLayoutInner() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [shareModalList, setShareModalList] = useState<{ list: TaskList; tasks: import("@/lib/types").Task[] } | null>(null);
   const [showSharedLists, setShowSharedLists] = useState(false);
-  const [incomingShare, setIncomingShare] = useState<{ list: TaskList; tasks: import("@/lib/types").Task[] } | null>(null);
 
   // Check for incoming share link on mount
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const shareParam = params.get("share");
-    if (shareParam) {
-      const decoded = decodeSharePayload(shareParam);
-      if (decoded) {
-        setIncomingShare({ list: decoded.list, tasks: decoded.tasks });
+    const checkShare = async () => {
+      const result = await checkIncomingShareLink();
+      if (result) {
+        // Incoming share will be handled by ShareListModal
       }
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-  }, []);
+    };
+    checkShare();
+  }, [checkIncomingShareLink]);
 
   const handleOpenListForm = () => {
     setEditingList(null);
@@ -175,13 +171,6 @@ function AppLayoutInner() {
         isOpen={showSharedLists}
         onClose={() => setShowSharedLists(false)}
         listToShare={null}
-      />
-
-      <ShareListModal
-        isOpen={incomingShare !== null}
-        onClose={() => setIncomingShare(null)}
-        listToShare={incomingShare?.list}
-        listTasks={incomingShare?.tasks}
       />
     </div>
   );

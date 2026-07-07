@@ -7,6 +7,7 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
 } from "react";
 import {
   Task,
@@ -17,6 +18,7 @@ import {
   TaskFilter,
   SubTask,
   Recurrence,
+  SharedListSnapshot,
 } from "./types";
 import {
   getTasks,
@@ -28,8 +30,20 @@ import {
   initDefaultLists,
   generateId,
   getTodayFocusMinutes,
+  SharedListData,
+  saveSharedList,
+  getSharedLists,
+  removeSharedList,
 } from "./storage";
+import {
+  createSharedList,
+  updateSharedSnapshot,
+  subscribeToSharedSnapshot,
+  deleteSharedList,
+  getSharedSnapshot,
+} from "./firestore";
 import { parseNaturalLanguage } from "./nlp";
+import { useAuth } from "./AuthContext";
 
 interface AppContextValue {
   // ── Data ────────────────────────────────────────────────
@@ -87,6 +101,15 @@ interface AppContextValue {
   requestNotificationPermission: () => Promise<boolean>;
   notificationPermission: NotificationPermission | "default";
 
+  // ── Shared Lists ─────────────────────────────────────────
+  sharedLists: Record<string, SharedListData>;
+  sharedListIds: string[];
+  shareList: (listId: string) => Promise<string | null>;
+  unshareList: (sharedListId: string) => Promise<void>;
+  acceptSharedList: (sharedListId: string, data: SharedListSnapshot) => void;
+  removeAcceptedSharedList: (sharedListId: string) => void;
+  checkIncomingShareLink: () => Promise<{ sharedListId: string; snapshot: SharedListSnapshot } | null>;
+
   // ── Helpers ──────────────────────────────────────────────
   getFilteredTasks: () => Task[];
   viewCounts: { inbox: number; today: number; next7days: number };
@@ -97,6 +120,7 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [lists, setLists] = useState<TaskList[]>([]);
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -109,6 +133,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
+  // ── Shared List State ─────────────────────────────────────
+  const [sharedLists, setSharedLists] = useState<Record<string, SharedListData>>({});
+  // Track which shared lists the current user owns (for sync updates)
+  const [ownedSharedListIds, setOwnedSharedListIds] = useState<string[]>([]);
+  // Refs to store unsubscribe functions for Firestore listeners
+  const sharedListUnsubscribeRefs = useRef<Record<string, () => void>>({});
+
   // ── Init ────────────────────────────────────────────────
   useEffect(() => {
     const storedLists = initDefaultLists();
@@ -116,6 +147,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTasks(getTasks());
     setHabits(getHabits());
     setTodayFocusMinutes(getTodayFocusMinutes());
+    setSharedLists(getSharedLists());
 
     if (typeof Notification !== "undefined") {
       setNotificationPermission(Notification.permission);
@@ -400,6 +432,189 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     saveHabits(updated);
   }, [habits]);
 
+  // ── Shared List Functions ───────────────────────────────────
+  const shareList = useCallback(async (listId: string): Promise<string | null> => {
+    if (!user) return null;
+    const list = lists.find((l) => l.id === listId);
+    if (!list) return null;
+
+    const listTasks = tasks.filter((t) => t.listId === listId);
+    const ownerName = user.displayName || user.email || undefined;
+
+    try {
+      const sharedListId = await createSharedList(list, listTasks, user.uid, ownerName);
+
+      // Update the list with the sharedId
+      const updatedList = { ...list, sharedId: sharedListId, ownerId: user.uid };
+      const updatedLists = lists.map((l) => l.id === listId ? updatedList : l);
+      setLists(updatedLists);
+      saveLists(updatedLists);
+
+      // Track this as an owned shared list for sync
+      setOwnedSharedListIds((prev) => {
+        if (prev.includes(sharedListId)) return prev;
+        return [...prev, sharedListId];
+      });
+
+      return sharedListId;
+    } catch (error) {
+      console.error("Failed to share list:", error);
+      return null;
+    }
+  }, [user, lists, tasks]);
+
+  const unshareList = useCallback(async (sharedListId: string): Promise<void> => {
+    if (!user) return;
+
+    try {
+      await deleteSharedList(sharedListId);
+
+      // Remove sharedId from the list
+      const updatedLists = lists.map((l) =>
+        l.sharedId === sharedListId ? { ...l, sharedId: undefined, ownerId: undefined } : l
+      );
+      setLists(updatedLists);
+      saveLists(updatedLists);
+
+      // Remove from owned shared lists
+      setOwnedSharedListIds((prev) => prev.filter((id) => id !== sharedListId));
+
+      // Unsubscribe from Firestore updates
+      if (sharedListUnsubscribeRefs.current[sharedListId]) {
+        sharedListUnsubscribeRefs.current[sharedListId]();
+        delete sharedListUnsubscribeRefs.current[sharedListId];
+      }
+    } catch (error) {
+      console.error("Failed to unshare list:", error);
+    }
+  }, [user, lists]);
+
+  const acceptSharedList = useCallback((sharedListId: string, data: SharedListSnapshot): void => {
+    const sharedData: SharedListData = {
+      list: data.list,
+      tasks: data.tasks,
+      ownerName: data.ownerName,
+    };
+    saveSharedList(sharedListId, sharedData);
+    setSharedLists(getSharedLists());
+
+    // Subscribe to real-time updates
+    const unsubscribe = subscribeToSharedSnapshot(
+      sharedListId,
+      (snapshot) => {
+        if (snapshot) {
+          const updatedData: SharedListData = {
+            list: snapshot.list,
+            tasks: snapshot.tasks,
+            ownerName: snapshot.ownerName,
+          };
+          saveSharedList(sharedListId, updatedData);
+          setSharedLists(getSharedLists());
+        }
+      },
+      () => {
+        // Shared list was deleted by owner
+        removeSharedList(sharedListId);
+        setSharedLists(getSharedLists());
+        if (sharedListUnsubscribeRefs.current[sharedListId]) {
+          delete sharedListUnsubscribeRefs.current[sharedListId];
+        }
+      }
+    );
+    sharedListUnsubscribeRefs.current[sharedListId] = unsubscribe;
+  }, []);
+
+  const removeAcceptedSharedList = useCallback((sharedListId: string): void => {
+    removeSharedList(sharedListId);
+    setSharedLists(getSharedLists());
+
+    // Unsubscribe from updates
+    if (sharedListUnsubscribeRefs.current[sharedListId]) {
+      sharedListUnsubscribeRefs.current[sharedListId]();
+      delete sharedListUnsubscribeRefs.current[sharedListId];
+    }
+  }, []);
+
+  const checkIncomingShareLink = useCallback(async (): Promise<{ sharedListId: string; snapshot: SharedListSnapshot } | null> => {
+    if (typeof window === "undefined") return null;
+
+    const params = new URLSearchParams(window.location.search);
+    const shareParam = params.get("share");
+
+    if (!shareParam) return null;
+
+    // Clean URL
+    window.history.replaceState({}, "", window.location.pathname);
+
+    // shareParam is the sharedListId (e.g., "sl_xxx")
+    try {
+      const snapshot = await getSharedSnapshot(shareParam);
+      if (snapshot) {
+        return { sharedListId: shareParam, snapshot };
+      }
+    } catch (error) {
+      console.error("Failed to fetch shared list:", error);
+    }
+
+    return null;
+  }, []);
+
+  // ── Subscribe to owned shared lists for sync updates ───────
+  useEffect(() => {
+    if (!user || ownedSharedListIds.length === 0) return;
+
+    const currentUserLists = lists.filter((l) => user && l.ownerId === user.uid && l.sharedId);
+
+    currentUserLists.forEach((list) => {
+      if (!list.sharedId) return;
+      if (sharedListUnsubscribeRefs.current[list.sharedId]) return; // Already subscribed
+
+      const unsubscribe = subscribeToSharedSnapshot(
+        list.sharedId,
+        () => {
+          // Own snapshot updates are handled in the list update function
+        },
+        () => {
+          // List was deleted externally
+          setOwnedSharedListIds((prev) => prev.filter((id) => id !== list.sharedId));
+        }
+      );
+      sharedListUnsubscribeRefs.current[list.sharedId] = unsubscribe;
+    });
+
+    return () => {
+      // Cleanup: unsubscribe from lists that are no longer owned
+      Object.keys(sharedListUnsubscribeRefs.current).forEach((id) => {
+        if (!ownedSharedListIds.includes(id)) {
+          sharedListUnsubscribeRefs.current[id]();
+          delete sharedListUnsubscribeRefs.current[id];
+        }
+      });
+    };
+  }, [user, ownedSharedListIds, lists]);
+
+  // ── Sync owned shared lists when they are updated ───────────
+  useEffect(() => {
+    if (!user) return;
+
+    const ownedLists = lists.filter((l) => l.ownerId === user.uid && l.sharedId);
+
+    ownedLists.forEach(async (list) => {
+      if (!list.sharedId) return;
+      const listTasks = tasks.filter((t) => t.listId === list.id);
+      const ownerName = user.displayName || user.email || undefined;
+
+      try {
+        await updateSharedSnapshot(list.sharedId, list, listTasks, user.uid, ownerName);
+      } catch (error) {
+        // Permission denied is expected if user doesn't own the list anymore
+        if ((error as any)?.code !== "permission-denied") {
+          console.error("Failed to sync shared list:", error);
+        }
+      }
+    });
+  }, [user, lists, tasks]);
+
   // ── Quick Add ─────────────────────────────────────────────
   const quickAdd = useCallback((input: string): string | null => {
     if (!input.trim()) return null;
@@ -463,6 +678,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     getListTaskCount,
     getTagCounts,
     forceReload: () => setReloadKey((k) => k + 1),
+    // Shared lists
+    sharedLists,
+    sharedListIds: Object.keys(sharedLists),
+    shareList,
+    unshareList,
+    acceptSharedList,
+    removeAcceptedSharedList,
+    checkIncomingShareLink,
   };
 
   if (!isLoaded) return null;
