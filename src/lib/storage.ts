@@ -224,3 +224,136 @@ export function clearAllData(): void {
     localStorage.removeItem(k)
   );
 }
+
+// ─── CSV Export ─────────────────────────────────────────────────
+export function exportTasksToCSV(tasks: Task[]): string {
+  const headers = ["標題", "描述", "優先級", "狀態", "截止日期", "截止時間", "標籤", "循環模式", "建立時間", "專注分鐘"];
+  const rows = tasks.map((t) => [
+    `"${(t.title || "").replace(/"/g, '""')}"`,
+    `"${(t.description || "").replace(/"/g, '""')}"`,
+    t.priority,
+    t.status,
+    t.dueDate || "",
+    t.dueTime || "",
+    `"${(t.tags || []).join(", ")}"`,
+    t.recurrence ? `${t.recurrence.pattern} (每隔${t.recurrence.interval})` : "",
+    t.createdAt,
+    t.focusMinutes || 0,
+  ]);
+  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+}
+
+export function exportHabitsToCSV(habits: Habit[]): string {
+  const headers = ["名稱", "目標描述", "頻率", "建立時間", "連續天數", "最長連續", "總打卡次數"];
+  const rows = habits.map((h) => [
+    `"${(h.title || "").replace(/"/g, '""')}"`,
+    `"${(h.description || "").replace(/"/g, '""')}"`,
+    h.frequency,
+    h.createdAt,
+    h.streak,
+    h.longestStreak,
+    h.checkins.length,
+  ]);
+  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+}
+
+function downloadBlob(content: string, filename: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export function downloadCSV(content: string, filename: string) {
+  downloadBlob(content, filename, "text/csv;charset=utf-8");
+}
+
+export function downloadJSON(data: string, filename: string) {
+  downloadBlob(data, filename, "application/json;charset=utf-8");
+}
+
+// ─── JSON Import ────────────────────────────────────────────────
+export interface ImportResult {
+  success: boolean;
+  tasks: number;
+  habits: number;
+  lists: number;
+  pomodoro: number;
+  tags: number;
+  errors: string[];
+}
+
+export function importData(
+  jsonString: string,
+  existingTasks: Task[],
+  existingHabits: Habit[],
+  existingLists: TaskList[]
+): ImportResult {
+  const errors: string[] = [];
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(jsonString);
+  } catch {
+    return { success: false, tasks: 0, habits: 0, lists: 0, pomodoro: 0, tags: 0, errors: ["JSON 格式無效"] };
+  }
+
+  const validateArray = (key: string) =>
+    Array.isArray(parsed[key]) ? parsed[key] : [];
+
+  const importedTasks: Task[] = validateArray("tasks").map((t, i) => {
+    if (!t.title || typeof t.title !== "string") {
+      errors.push(`任務 ${i + 1} 缺少標題`);
+      return null;
+    }
+    return {
+      ...t,
+      id: generateId(),
+      createdAt: t.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as Task;
+  }).filter(Boolean) as Task[];
+
+  const importedHabits: Habit[] = validateArray("habits").map((h, i) => {
+    if (!h.title && !h.name) {
+      errors.push(`習慣 ${i + 1} 缺少標題`);
+      return null;
+    }
+    return {
+      ...h,
+      id: generateId(),
+      title: h.title || h.name,
+      createdAt: h.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      checkins: h.checkins || [],
+    } as Habit;
+  }).filter(Boolean) as Habit[];
+
+  const importedLists: TaskList[] = validateArray("lists").map((l: any, i) => {
+    if (!l.name || typeof l.name !== "string") {
+      errors.push(`清單 ${i + 1} 缺少名稱`);
+      return null;
+    }
+    return {
+      ...l,
+      id: generateId(),
+      createdAt: l.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as TaskList;
+  }).filter(Boolean) as TaskList[];
+
+  return {
+    success: true,
+    tasks: importedTasks.length,
+    habits: importedHabits.length,
+    lists: importedLists.length,
+    pomodoro: validateArray("pomodoro").length,
+    tags: validateArray("tags").length,
+    errors,
+  };
+}

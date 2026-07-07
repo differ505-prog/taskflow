@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useApp } from "@/lib/AppContext";
-import { clearAllData, exportAllData } from "@/lib/storage";
+import {
+  clearAllData, exportAllData, downloadCSV, downloadJSON,
+  exportTasksToCSV, exportHabitsToCSV, importData,
+} from "@/lib/storage";
 import { motion } from "framer-motion";
 import {
-  Moon, Sun, Bell, Download, Trash2, Info,
-  ChevronRight, X, CheckCircle2, AlertCircle,
+  Moon, Sun, Bell, Download, Upload, Trash2, Info,
+  ChevronRight, X, CheckCircle2, AlertCircle, FileText,
 } from "lucide-react";
 
 interface SettingsPageProps {
@@ -15,10 +18,14 @@ interface SettingsPageProps {
 }
 
 export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
-  const { notificationPermission, requestNotificationPermission, tasks, habits } = useApp();
+  const { notificationPermission, requestNotificationPermission, tasks, habits, lists, addTask, addHabit, addList } = useApp();
   const [theme, setTheme] = useState<"light" | "dark" | "system">("light");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [importStats, setImportStats] = useState<{ tasks: number; habits: number; lists: number } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem("taskflow_theme") as "light" | "dark" | "system" | null;
@@ -56,6 +63,85 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
   const handleClearAll = () => {
     clearAllData();
     window.location.reload();
+  };
+
+  const handleExportJSON = () => {
+    const data = exportAllData();
+    downloadJSON(data, `taskflow-backup-${new Date().toISOString().split("T")[0]}.json`);
+    setExportMsg("已匯出 JSON 備份");
+    setTimeout(() => setExportMsg(null), 3000);
+  };
+
+  const handleExportTasksCSV = () => {
+    const csv = exportTasksToCSV(tasks);
+    downloadCSV(csv, `taskflow-tasks-${new Date().toISOString().split("T")[0]}.csv`);
+    setExportMsg("已匯出任務 CSV");
+    setTimeout(() => setExportMsg(null), 3000);
+  };
+
+  const handleExportHabitsCSV = () => {
+    const csv = exportHabitsToCSV(habits);
+    downloadCSV(csv, `taskflow-habits-${new Date().toISOString().split("T")[0]}.csv`);
+    setExportMsg("已匯出習慣 CSV");
+    setTimeout(() => setExportMsg(null), 3000);
+  };
+
+  const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const parsed = JSON.parse(text);
+      const result = importData(text, tasks, habits, lists);
+      if (result.success) {
+        if (result.tasks > 0 && Array.isArray(parsed.tasks)) {
+          parsed.tasks.forEach((t: any) => {
+            addTask({
+              title: t.title,
+              description: t.description || "",
+              priority: t.priority || "medium",
+              status: t.status || "todo",
+              dueDate: t.dueDate || undefined,
+              dueTime: t.dueTime || undefined,
+              tags: t.tags || [],
+              subTasks: t.subTasks || [],
+              recurrence: t.recurrence || undefined,
+              listId: t.listId || undefined,
+            });
+          });
+        }
+        if (result.habits > 0 && Array.isArray(parsed.habits)) {
+          parsed.habits.forEach((h: any) => {
+            addHabit({
+              title: h.title || h.name || "",
+              description: h.description || "",
+              frequency: h.frequency || "daily",
+              targetCount: h.targetCount || h.target || 1,
+              color: h.color || "#4F6AF5",
+            });
+          });
+        }
+        if (result.lists > 0 && Array.isArray(parsed.lists)) {
+          parsed.lists.forEach((l: any) => {
+            addList({
+              name: l.name,
+              icon: l.icon || "📋",
+              color: l.color || "#4F6AF5",
+            });
+          });
+        }
+        setImportStats({ tasks: result.tasks, habits: result.habits, lists: result.lists });
+        setImportErrors(result.errors);
+        setImportMsg(`成功匯入 ${result.tasks} 項任務、${result.habits} 項習慣、${result.lists} 個清單`);
+      } else {
+        setImportMsg("匯入失敗");
+        setImportErrors(result.errors);
+      }
+      setTimeout(() => { setImportMsg(null); setImportErrors([]); setImportStats(null); }, 5000);
+    };
+    reader.readAsText(file);
+    e.target.value = "";
   };
 
   const totalTasks = tasks.length;
@@ -161,24 +247,68 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
           <section>
             <h3 className="text-[12px] font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-tertiary)" }}>資料管理</h3>
             <div className="space-y-2">
-              <button
-                onClick={handleExport}
-                className="w-full flex items-center justify-between p-4 rounded-xl transition-colors hover:bg-black/5"
-                style={{ background: "var(--surface-muted)" }}
-              >
-                <div className="flex items-center gap-3">
-                  <Download className="w-5 h-5" style={{ color: "var(--brand)" }} />
-                  <div className="text-left">
-                    <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>匯出資料</p>
-                    <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>下載 JSON 備份檔案</p>
-                  </div>
+
+              {/* Export */}
+              <div>
+                <p className="text-[12px] font-medium mb-2" style={{ color: "var(--text-secondary)" }}>匯出資料</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={handleExportJSON} className="flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-medium transition-all active:scale-95" style={{ background: "var(--brand)", color: "white" }}>
+                    <Download className="w-4 h-4" /> JSON
+                  </button>
+                  <button onClick={handleExportTasksCSV} className="flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-medium transition-all active:scale-95" style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>
+                    <FileText className="w-4 h-4" /> 任務 CSV
+                  </button>
                 </div>
-                <ChevronRight className="w-4 h-4" style={{ color: "var(--text-tertiary)" }} />
-              </button>
+                <button onClick={handleExportHabitsCSV} className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-medium transition-all active:scale-95" style={{ background: "var(--surface-muted)", color: "var(--text-secondary)" }}>
+                  <Download className="w-4 h-4" /> 習慣 CSV
+                </button>
+              </div>
 
               {exportMsg && (
-                <p className="text-[12px] px-3" style={{ color: "var(--status-success)" }}>✓ {exportMsg}</p>
+                <p className="text-[12px] px-3 py-2 rounded-xl" style={{ background: "rgba(52,199,89,0.08)", color: "var(--status-success)" }}>
+                  ✓ {exportMsg}
+                </p>
               )}
+
+              <div style={{ height: "1px", background: "var(--border)" }} />
+
+              {/* Import */}
+              <div>
+                <p className="text-[12px] font-medium mb-2" style={{ color: "var(--text-secondary)" }}>匯入資料</p>
+                <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImportJSON} id="import-json-input" />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full flex items-center justify-between p-4 rounded-xl transition-colors hover:bg-black/5"
+                  style={{ background: "var(--surface-muted)" }}
+                >
+                  <div className="flex items-center gap-3">
+                    <Upload className="w-5 h-5" style={{ color: "var(--text-secondary)" }} />
+                    <div className="text-left">
+                      <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>匯入 JSON 備份</p>
+                      <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>還原之前匯出的資料</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4" style={{ color: "var(--text-tertiary)" }} />
+                </button>
+                {importMsg && (
+                  <div className="mt-2 px-3 py-2.5 rounded-xl text-[13px]" style={{ background: importErrors.length > 0 ? "rgba(255,149,0,0.08)" : "rgba(52,199,89,0.08)", color: importErrors.length > 0 ? "var(--status-warning)" : "var(--status-success)" }}>
+                    {importMsg}
+                    {importStats && (
+                      <div className="mt-1 text-[12px] opacity-80">
+                        任務 {importStats.tasks} · 習慣 {importStats.habits} · 清單 {importStats.lists}
+                      </div>
+                    )}
+                    {importErrors.length > 0 && (
+                      <div className="mt-1 text-[12px]" style={{ color: "var(--status-danger)" }}>
+                        {importErrors.slice(0, 3).join("；")}
+                        {importErrors.length > 3 && `...共 ${importErrors.length} 項`}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ height: "1px", background: "var(--border)" }} />
 
               {!showClearConfirm ? (
                 <button
