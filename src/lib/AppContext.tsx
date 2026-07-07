@@ -210,27 +210,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCurrentViewState(sharedId ? "shared" : "inbox");
     setSearchQuery("");
     setActiveFilter({});
-
-    // Owner: when opening a shared list, ensure it's in sharedLists
-    if (sharedId && user) {
-      setSharedLists((prev) => {
-        if (prev[sharedId]) return prev;
-        // Find the list metadata from owned lists
-        const list = lists.find((l) => l.sharedId === sharedId && l.ownerId === user.uid);
-        if (!list) return prev;
-        // Get owner's local tasks for this list
-        const localTasks = tasks.filter((t) => t.listId === list.id);
-        return {
-          ...prev,
-          [sharedId]: {
-            list,
-            tasks: localTasks,
-            ownerName: user.displayName || user.email || undefined,
-          },
-        };
-      });
-    }
-  }, [user, lists, tasks]);
+  }, []);
 
   // ── Filtered tasks ────────────────────────────────────────
   const getFilteredTasks = useCallback((): Task[] => {
@@ -657,20 +637,51 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         sharedId,
         (snapshot) => {
           if (!snapshot) return;
-          // Capture tasks created by other users (recipients)
+
+          const isFirstSnapshot = !snapshotReadyRef.current[sharedId];
+          snapshotReadyRef.current[sharedId] = true;
+
+          // Update sharedLists so owner sees the merged snapshot in UI
+          // On first snapshot: initialize sharedLists[sharedId]
+          // On subsequent: overwrite with the latest merged snapshot from Firestore
+          setSharedLists((prev) => {
+            const existing = prev[sharedId];
+            const updatedData: SharedListData = {
+              list: snapshot.list,
+              tasks: snapshot.tasks,
+              ownerName: snapshot.ownerName ?? existing?.ownerName,
+            };
+            return { ...prev, [sharedId]: updatedData };
+          });
+
+          // Save to localStorage for persistence across page refreshes
+          const existing = sharedLists[sharedId];
+          const updatedData: SharedListData = {
+            list: snapshot.list,
+            tasks: snapshot.tasks,
+            ownerName: snapshot.ownerName ?? existing?.ownerName,
+          };
+          saveSharedList(sharedId, updatedData);
+
+          // Capture remote (recipient) tasks for the sync effect's merge logic
           const remoteTasks = snapshot.tasks.filter(
             (t) => t.createdBy && t.createdBy !== user.uid
           );
           remoteSharedTasksRef.current[sharedId] = remoteTasks;
+
           // Update the hash so we know what's on the server
           const hash = JSON.stringify(snapshot.tasks.map(t => `${t.id}:${t.updatedAt}`).sort());
           lastSyncedHashRef.current[sharedId] = hash;
-          // Mark this shared list as ready (first snapshot received)
-          snapshotReadyRef.current[sharedId] = true;
         },
         () => {
           // List was deleted externally
           setOwnedSharedListIds((prev) => prev.filter((id) => id !== sharedId));
+          setSharedLists((prev) => {
+            const next = { ...prev };
+            delete next[sharedId];
+            return next;
+          });
+          removeSharedList(sharedId);
           delete remoteSharedTasksRef.current[sharedId];
           delete lastSyncedHashRef.current[sharedId];
           delete snapshotReadyRef.current[sharedId];
