@@ -17,6 +17,11 @@ import {
   createUserWithEmailAndPassword,
 } from "firebase/auth";
 import { getFirebaseAuth } from "@/lib/firebase";
+import {
+  bindSupabaseAuthRefresher,
+  refreshSupabaseRealtimeAuth,
+  isSupabaseConfigured,
+} from "@/lib/supabase";
 
 interface AuthContextValue {
   user: User | null;
@@ -42,13 +47,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
+    let unsubSupabase: (() => void) | undefined;
 
     try {
       const auth = getFirebaseAuth();
       unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
         setUser(firebaseUser);
         setLoading(false);
+        // 登入 / 切換身分時立刻刷新 Realtime WebSocket 的 JWT
+        if (isSupabaseConfigured()) {
+          refreshSupabaseRealtimeAuth();
+        }
       });
+      // 監聽 Firebase ID token 刷新（~1 小時）並推到 Supabase Realtime
+      if (isSupabaseConfigured()) {
+        unsubSupabase = bindSupabaseAuthRefresher();
+      }
     } catch {
       // Firebase not configured yet
       setLoading(false);
@@ -56,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       unsubscribe?.();
+      unsubSupabase?.();
     };
   }, []);
 

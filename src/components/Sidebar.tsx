@@ -40,17 +40,20 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
   const [showSharedListMenu, setShowSharedListMenu] = useState<string | null>(null);
 
   const mainNavItems: NavItem[] = [
-    { view: "inbox", label: "收集箱", icon: <Inbox className="w-[18px] h-[18px]" />, count: viewCounts.inbox },
+    { view: "inbox", label: "收集箱", icon: <Inbox className="w-[18px] h-[18px]" />, count: viewCounts.inbox, badge: "GTD" },
     { view: "today", label: "今天", icon: <Sun className="w-[18px] h-[18px]" />, count: viewCounts.today, badge: viewCounts.today > 0 ? String(viewCounts.today) : undefined },
     { view: "next7days", label: "未來 7 天", icon: <CalendarDays className="w-[18px] h-[18px]" />, count: viewCounts.next7days },
     { view: "all", label: "全部任務", icon: <Layers className="w-[18px] h-[18px]" /> },
   ];
+
+  const archivedCount = tasks.filter((t) => t.isArchived).length;
 
   const bottomNavItems: NavItem[] = [
     { view: "habits", label: "習慣打卡", icon: <Heart className="w-[18px] h-[18px]" /> },
     { view: "calendar", label: "日曆視圖", icon: <Clock className="w-[18px] h-[18px]" /> },
     { view: "tags", label: "標籤管理", icon: <Tag className="w-[18px] h-[18px]" /> },
     { view: "stats", label: "統計分析", icon: <BarChart3 className="w-[18px] h-[18px]" /> },
+    { view: "archived", label: "已封存", icon: <Archive className="w-[18px] h-[18px]" />, count: archivedCount },
   ];
 
   const isActive = (view: AppView, listId?: string) => {
@@ -95,14 +98,17 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
               <span className="flex-1 text-left">{item.label}</span>
               {item.badge && (
                 <span
-                  className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full"
-                  style={{ background: "var(--brand)", color: "var(--brand-foreground)" }}
+                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md flex-shrink-0 mr-1"
+                  style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+                  title={item.view === "inbox" ? "Getting Things Done：清空大腦工作記憶，降低認知負載" : undefined}
                 >
                   {item.badge}
                 </span>
               )}
-              {!item.badge && item.count !== undefined && (
-                <span className="text-[12px]" style={{ opacity: 0.5 }}>{item.count}</span>
+              {(item.count !== undefined || item.badge) && (
+                <span className="text-[12px] flex-shrink-0" style={{ opacity: 0.5 }}>
+                  {item.count}
+                </span>
               )}
             </button>
           ))}

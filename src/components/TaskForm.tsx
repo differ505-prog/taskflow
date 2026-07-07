@@ -254,7 +254,16 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                   </select>
                 </div>
                 <div>
-                  <label className="block mb-2 text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>優先級</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>優先級</label>
+                    <span
+                      className="text-[10px] font-medium px-1.5 py-0.5 rounded-md"
+                      style={{ background: "var(--surface-muted)", color: "var(--text-tertiary)" }}
+                      title="艾森豪矩陣：區分重要與緊急，減少決策疲勞"
+                    >
+                      Eisenhower Matrix
+                    </span>
+                  </div>
                   <select value={priority} onChange={(e) => setPriority(e.target.value as Priority)} className="input cursor-pointer" style={selectStyle}>
                     {(["high", "medium", "low"] as Priority[]).map((p) => <option key={p} value={p}>{PRIORITY_CONFIG[p].label}優先</option>)}
                   </select>

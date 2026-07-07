@@ -11,7 +11,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Search, X, LayoutGrid, List,
   Plus, Archive, Zap, ChevronRight, Timer,
-  Share2,
+  Share2, Shield, RotateCcw, Trash2,
 } from "lucide-react";
 
 const VIEW_LABELS: Record<AppView, string> = {
@@ -25,6 +25,7 @@ const VIEW_LABELS: Record<AppView, string> = {
   list: "清單",
   stats: "統計",
   shared: "共用清單",
+  archived: "已封存",
 };
 
 const SEED_TASKS: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order">[] = [
@@ -97,6 +98,7 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
     archiveTask, quickAdd, getFilteredTasks, viewCounts,
     getTagCounts,
     quickAddToShared, updateSharedTask, deleteSharedTask,
+    getMyRole,
   } = useApp();
 
   const listTasks = currentListId ? tasks.filter(t => t.listId === currentListId) : [];
@@ -110,6 +112,10 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
   const [sharedQuickAddInput, setSharedQuickAddInput] = useState("");
   const sharedQuickAddRef = useRef<HTMLInputElement>(null);
   const quickAddRef = useRef<HTMLInputElement>(null);
+
+  // 觀看者模式：Viewer 在 shared list 是唯讀的
+  const sharedRole = currentSharedListId ? getMyRole(currentSharedListId) : null;
+  const isReadOnlyShared = !!currentSharedListId && sharedRole === "viewer";
 
   // Seed tasks on first load
   useEffect(() => {
@@ -311,8 +317,8 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
           </div>
           )}
 
-            {/* Shared list quick add */}
-            {currentSharedListId && (
+            {/* Shared list quick add（viewer 隱藏） */}
+            {currentSharedListId && !isReadOnlyShared && (
               <div className="mt-3 relative">
                 <div className="relative flex items-center">
                   <Zap className="absolute left-3.5 w-4 h-4 pointer-events-none" style={{ color: "var(--text-tertiary)" }} />
@@ -347,10 +353,24 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto px-6 py-5">
-        {/* Shared List View */}
-        {currentSharedListId && sharedLists[currentSharedListId] ? (
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto px-6 py-5">
+          {/* Viewer 唯讀提示 */}
+          {isReadOnlyShared && (
+            <div
+              className="mb-4 px-3 py-2 rounded-xl text-[12px] flex items-center gap-2"
+              style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+              role="status"
+            >
+              <Shield className="w-3.5 h-3.5" />
+              你目前是 Viewer（唯讀）。如需編輯請聯絡 Owner。
+            </div>
+          )}
+
+          {/* Shared List View */}
+          {currentView === "archived" ? (
+            <ArchivedTasksView />
+          ) : currentSharedListId && sharedLists[currentSharedListId] ? (
           <>
             <div className="mb-4">
               <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>
@@ -390,21 +410,31 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
                         exit={{ opacity: 0, scale: 0.97 }}
                         transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
                       >
-                        <TaskSwipeWrapper
-                          taskId={task.id}
-                          isDone={task.status === "done"}
-                          onComplete={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })}
-                          onDelete={() => deleteSharedTask(currentSharedListId, task.id)}
-                          onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })}
-                        >
+                        {isReadOnlyShared ? (
                           <TaskCard
                             task={task}
-                            onToggleStatus={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })}
-                            onEdit={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })}
+                            onToggleStatus={() => {}}
+                            onEdit={() => {}}
+                            onDelete={() => {}}
+                            onArchive={() => {}}
+                          />
+                        ) : (
+                          <TaskSwipeWrapper
+                            taskId={task.id}
+                            isDone={task.status === "done"}
+                            onComplete={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })}
                             onDelete={() => deleteSharedTask(currentSharedListId, task.id)}
                             onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })}
-                          />
-                        </TaskSwipeWrapper>
+                          >
+                            <TaskCard
+                              task={task}
+                              onToggleStatus={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })}
+                              onEdit={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })}
+                              onDelete={() => deleteSharedTask(currentSharedListId, task.id)}
+                              onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })}
+                            />
+                          </TaskSwipeWrapper>
+                        )}
                       </motion.div>
                     ))}
                 </AnimatePresence>
@@ -558,6 +588,100 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
         <Plus className="w-6 h-6" strokeWidth={2.5} />
       </button>
       )}
+    </div>
+  );
+}
+
+// ─── Archived Tasks View ──────────────────────────────────────────
+function ArchivedTasksView() {
+  const { tasks, unarchiveTask, deleteTask } = useApp();
+  const archived = tasks.filter((t) => t.isArchived);
+
+  if (archived.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-3">
+        <div
+          className="w-16 h-16 rounded-full flex items-center justify-center"
+          style={{ background: "var(--surface-muted)" }}
+        >
+          <Archive className="w-8 h-8" style={{ color: "var(--text-tertiary)" }} />
+        </div>
+        <p className="text-[14px] font-medium" style={{ color: "var(--text-tertiary)" }}>
+          沒有已封存的任務
+        </p>
+        <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+          向左滑動或點擊任務右上角 ⋮ 來封存任務
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-[12px] mb-2" style={{ color: "var(--text-tertiary)" }}>
+        {archived.length} 個已封存任務
+      </p>
+      <AnimatePresence mode="popLayout">
+        {archived.map((task) => (
+          <motion.div
+            key={task.id}
+            layout
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.97 }}
+            transition={{ duration: 0.2 }}
+            className="flex items-center gap-3 px-4 py-3 rounded-2xl border group transition-all duration-150"
+            style={{
+              background: "var(--surface-elevated)",
+              borderColor: "var(--border)",
+            }}
+          >
+            {/* Status indicator */}
+            <span
+              className="w-2 h-2 rounded-full flex-shrink-0"
+              style={{
+                background:
+                  task.status === "done"
+                    ? "var(--status-success)"
+                    : task.priority === "high"
+                    ? "var(--status-danger)"
+                    : task.priority === "medium"
+                    ? "var(--status-warning)"
+                    : "var(--text-tertiary)",
+                opacity: 0.6,
+              }}
+            />
+
+            {/* Title */}
+            <span
+              className="flex-1 text-[14px] line-through truncate"
+              style={{ color: "var(--text-tertiary)" }}
+            >
+              {task.title}
+            </span>
+
+            {/* Actions */}
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+              <button
+                onClick={() => unarchiveTask(task.id)}
+                className="p-2 rounded-xl transition-all duration-150 hover:scale-105 active:scale-95"
+                style={{ color: "var(--brand)", background: "var(--brand-tint)" }}
+                title="還原任務"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => deleteTask(task.id)}
+                className="p-2 rounded-xl transition-all duration-150 hover:scale-105 active:scale-95"
+                style={{ color: "var(--status-danger)", background: "rgba(239,68,68,0.1)" }}
+                title="永久刪除"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
     </div>
   );
 }

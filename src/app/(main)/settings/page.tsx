@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Settings as SettingsIcon, Trash2, Download, Moon, Bell, Shield, Info, type LucideIcon } from "lucide-react";
+import { Settings as SettingsIcon, Trash2, Download, Moon, Bell, Shield, Info, CalendarDays, Copy, Check, type LucideIcon } from "lucide-react";
 import { getTasks } from "@/lib/storage";
+import { downloadICal } from "@/lib/ical";
 
 export default function SettingsPage() {
   type SettingsItem =
@@ -11,6 +12,8 @@ export default function SettingsPage() {
     | { icon: LucideIcon; label: string; description: string; type: "danger"; value?: string; onClick: () => void };
 
   const [showConfirm, setShowConfirm] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [lastAction, setLastAction] = useState<string | null>(null);
 
   const handleClearAllData = () => {
     localStorage.removeItem("taskflow_tasks");
@@ -26,6 +29,21 @@ export default function SettingsPage() {
     a.download = `taskflow-export-${new Date().toISOString().split("T")[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadICal = () => {
+    const tasks = getTasks();
+    downloadICal(tasks, "VibeList");
+  };
+
+  const handleCopyWebcal = async () => {
+    const tasks = getTasks();
+    const encoded = Buffer.from(JSON.stringify(tasks)).toString("base64");
+    const url = `${window.location.origin}/api/calendar/feed?tasks=${encoded}`;
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setLastAction("webcal");
+    setTimeout(() => { setCopied(false); setLastAction(null); }, 2000);
   };
 
   const settingsGroups = [
@@ -51,6 +69,25 @@ export default function SettingsPage() {
           type: "info",
           value: "開發中",
         },
+      ],
+    },
+    {
+      title: "日曆同步",
+      items: [
+        {
+          icon: CalendarDays,
+          label: "下載 iCal 檔案",
+          description: "下載 .ics 檔案，匯入 Google Calendar 或 Apple Calendar",
+          type: "action",
+          onClick: handleDownloadICal,
+        } satisfies SettingsItem as SettingsItem,
+        {
+          icon: Copy,
+          label: "複製訂閱連結",
+          description: "Webcal URL，複製後在 Google Calendar 訂閱",
+          type: "action",
+          onClick: handleCopyWebcal,
+        } satisfies SettingsItem as SettingsItem,
       ],
     },
     {
@@ -141,7 +178,9 @@ export default function SettingsPage() {
                       </button>
                     ) : item.type === "action" ? (
                       <button
-                        onClick={() => (item as { onClick?: () => void }).onClick?.()}
+                        onClick={() => {
+                          (item as { onClick?: () => void }).onClick?.();
+                        }}
                         className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-[var(--surface-hover)] transition-colors duration-150"
                         aria-label={item.label}
                       >
@@ -155,7 +194,17 @@ export default function SettingsPage() {
                           <p className="text-[14px] font-medium text-[var(--text-primary)]">{item.label}</p>
                           <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5">{item.description}</p>
                         </div>
-                        <span className="text-[12px] text-[var(--brand)] font-medium">執行</span>
+                        {item.label === "下載 iCal 檔案" ? (
+                          <span className="text-[12px] font-medium" style={{ color: lastAction === "ical" ? "var(--status-success)" : "var(--brand)" }}>
+                            {lastAction === "ical" ? "已下載 ✓" : "執行"}
+                          </span>
+                        ) : item.label === "複製訂閱連結" ? (
+                          <span className="text-[12px] font-medium" style={{ color: lastAction === "webcal" ? "var(--status-success)" : "var(--brand)" }}>
+                            {lastAction === "webcal" ? "已複製 ✓" : copied ? "已複製 ✓" : "執行"}
+                          </span>
+                        ) : (
+                          <span className="text-[12px] text-[var(--brand)] font-medium">執行</span>
+                        )}
                       </button>
                     ) : (
                       <div className="flex items-center gap-4 px-5 py-4">

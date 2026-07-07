@@ -1,6 +1,12 @@
 /**
  * Firestore 資料操作層
  * 所有 Firestore 讀寫都經過這裡
+ *
+ * Shared List 自 2026-07 起改用 Supabase Realtime + Postgres。
+ * 為保留 AppContext 的 import 介面相容，本檔案 export 舊簽名函式，
+ * 內部實作委派給 src/lib/sharedSync.ts。
+ *
+ * Firebase 仍用於：個人任務/清單/習慣/標籤/番茄鐘的本地同步儲存。
  */
 import {
   collection,
@@ -20,21 +26,18 @@ import {
 } from "firebase/firestore";
 import { getFirebaseDB } from "./firebase";
 import { Task, TaskList, Habit, PomodoroSession, Tag, SharedListMeta, SharedListSnapshot } from "./types";
+import * as SharedSync from "./sharedSync";
+import { isSupabaseConfigured } from "./supabase";
 
 // ─── 路徑常數 ────────────────────────────────────────────────
 const uid = (userId: string) => userId;
-const tasksCol = (userId: string) => `users/${uid(userId)}/tasks`;
-const listsCol = (userId: string) => `users/${uid(userId)}/lists`;
-const habitsCol = (userId: string) => `users/${uid(userId)}/habits`;
+const tasksCol    = (userId: string) => `users/${uid(userId)}/tasks`;
+const listsCol    = (userId: string) => `users/${uid(userId)}/lists`;
+const habitsCol   = (userId: string) => `users/${uid(userId)}/habits`;
 const pomodoroCol = (userId: string) => `users/${uid(userId)}/pomodoro`;
-const tagsCol = (userId: string) => `users/${uid(userId)}/tags`;
+const tagsCol     = (userId: string) => `users/${uid(userId)}/tags`;
 
-// ─── 通用 helpers ────────────────────────────────────────────
-function docId(taskId: string) {
-  return taskId; // use the id as the Firestore document id
-}
-
-// ─── 任務 ────────────────────────────────────────────────────
+// ─── 個人資料：任務 ─────────────────────────────────────────
 export async function subscribeTasks(
   userId: string,
   onUpdate: (tasks: Task[]) => void
@@ -70,7 +73,7 @@ export async function batchSaveTasks(userId: string, tasks: Task[]): Promise<voi
   await batch.commit();
 }
 
-// ─── 清單 ────────────────────────────────────────────────────
+// ─── 個人資料：清單 ─────────────────────────────────────────
 export async function subscribeLists(
   userId: string,
   onUpdate: (lists: TaskList[]) => void
@@ -96,7 +99,7 @@ export async function deleteList(userId: string, listId: string): Promise<void> 
   await deleteDoc(doc(db, listsCol(userId), listId));
 }
 
-// ─── 習慣 ────────────────────────────────────────────────────
+// ─── 個人資料：習慣 ─────────────────────────────────────────
 export async function subscribeHabits(
   userId: string,
   onUpdate: (habits: Habit[]) => void
@@ -111,10 +114,7 @@ export async function subscribeHabits(
 
 export async function saveHabit(userId: string, habit: Habit): Promise<void> {
   const db = await getFirebaseDB();
-  await setDoc(doc(db, habitsCol(userId), habit.id), {
-    ...habit,
-    updatedAt: Timestamp.now().toDate().toISOString(),
-  });
+  await setDoc(doc(db, habitsCol(userId), habit.id), habit);
 }
 
 export async function deleteHabit(userId: string, habitId: string): Promise<void> {
@@ -122,7 +122,7 @@ export async function deleteHabit(userId: string, habitId: string): Promise<void
   await deleteDoc(doc(db, habitsCol(userId), habitId));
 }
 
-// ─── 番茄鐘 ─────────────────────────────────────────────────
+// ─── 個人資料：番茄鐘 ───────────────────────────────────────
 export async function subscribePomodoro(
   userId: string,
   onUpdate: (sessions: PomodoroSession[]) => void
@@ -143,7 +143,7 @@ export async function savePomodoroSession(
   await setDoc(doc(db, pomodoroCol(userId), session.id), session);
 }
 
-// ─── 標籤 ────────────────────────────────────────────────────
+// ─── 個人資料：標籤 ─────────────────────────────────────────
 export async function subscribeTags(
   userId: string,
   onUpdate: (tags: Tag[]) => void
@@ -161,8 +161,11 @@ export async function saveTag(userId: string, tag: Tag): Promise<void> {
   await setDoc(doc(db, tagsCol(userId), tag.id), tag);
 }
 
-// ─── 一次寫入所有預設清單（首次登入用）──────────────────────
-export async function seedDefaultLists(userId: string, defaults: Omit<TaskList, "id" | "createdAt" | "updatedAt">[]): Promise<void> {
+// ─── 一次性寫入預設清單（首次登入用）────────────────────────
+export async function seedDefaultLists(
+  userId: string,
+  defaults: Omit<TaskList, "id" | "createdAt" | "updatedAt">[]
+): Promise<void> {
   const db = await getFirebaseDB();
   const batch = writeBatch(db);
   const now = Timestamp.now().toDate().toISOString();
@@ -212,135 +215,107 @@ export async function importAllData(
   return { tasks: taskCount, habits: habitCount, lists: listCount };
 }
 
-// ─── Shared List Operations ─────────────────────────────────────
+// ─── Shared List — 全部委派給 SharedSync ───────────────────────────
+// 保留舊 export signature 以相容 AppContext。
+
+function normalizeSnapshot(snap: NonNullable<Awaited<ReturnType<typeof SharedSync.fetchSharedSnapshot>>>): SharedListSnapshot {
+  return {
+    list: { ...snap.list, sharedId: snap.list.id, ownerId: snap.list.ownerId ?? "" },
+    tasks: snap.tasks,
+    ownerId: snap.list.ownerId ?? "",
+    ownerName: snap.ownerName,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 export async function createSharedList(
   list: TaskList,
   tasks: Task[],
   ownerId: string,
-  ownerName?: string
+  ownerName?: string,
+  ownerEmail?: string | null
 ): Promise<string> {
-  const db = await getFirebaseDB();
   const sharedListId = `sl_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-  const now = Timestamp.now().toDate().toISOString();
 
-  const snapshotData: SharedListSnapshot = {
+  await SharedSync.ensureSharedList({
+    sharedListId,
+    ownerUid: ownerId,
+    ownerEmail: ownerEmail ?? null,
+    ownerName: ownerName || "",
     list: { ...list, sharedId: sharedListId, ownerId },
-    tasks,
-    ownerId,
-    ownerName,
-    updatedAt: now,
-  };
+  });
 
-  const metaData: SharedListMeta = {
-    id: sharedListId,
-    ownerId,
-    listId: list.id,
-    ownerName,
-    createdAt: now,
-  };
-
-  // Write both documents in a batch
-  const batch = writeBatch(db);
-  batch.set(doc(db, "sharedListSnapshots", sharedListId), snapshotData);
-  batch.set(doc(db, "sharedLists", sharedListId), metaData);
-  await batch.commit();
+  // 一次寫入第一批任務（每個都會拿到獨立 row + position）
+  if (tasks.length > 0) {
+    await SharedSync.upsertSharedTasks(sharedListId, tasks);
+  }
 
   return sharedListId;
-}
-
-// Deep-filter: remove undefined values from objects before writing to Firestore
-// Firestore does NOT accept undefined - it must be null or omitted
-function stripUndefined<T extends object>(obj: T): Partial<T> {
-  const result: Partial<T> = {};
-  for (const key of Object.keys(obj) as (keyof T)[]) {
-    const value = obj[key];
-    if (value !== undefined) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (result as any)[key] = value;
-    }
-  }
-  return result;
 }
 
 export async function updateSharedSnapshot(
   sharedListId: string,
   list: TaskList,
   tasks: Task[],
-  ownerId: string,
-  ownerName?: string,
+  _ownerId: string,
+  _ownerName?: string,
   onWriteComplete?: (sharedListId: string, tasks: Task[]) => void
 ): Promise<void> {
-  const db = await getFirebaseDB();
-  const safeOwnerId = ownerId ?? "";
-  if (!safeOwnerId) {
-    console.warn("[Firestore] updateSharedSnapshot called with empty ownerId, sharedListId:", sharedListId);
+  // 1) 更新 list 自身 (僅更新會變動的欄位，避免無謂觸發)
+  const { data: listRow } = await (await import("./supabase")).supabase!
+    .from("shared_lists")
+    .select("name,icon,color")
+    .eq("id", sharedListId)
+    .maybeSingle();
+
+  if (
+    !listRow ||
+    listRow.name !== list.name ||
+    listRow.icon !== list.icon ||
+    listRow.color !== list.color
+  ) {
+    await SharedSync.ensureSharedList({
+      sharedListId,
+      ownerUid: list.ownerId || _ownerId,
+      ownerEmail: null,
+      ownerName: _ownerName || "",
+      list,
+    });
   }
 
-  // Strip undefined from list (critical - Firestore rejects undefined)
-  const safeList = {
-    ...stripUndefined(list),
-    sharedId: sharedListId,
-    ownerId: safeOwnerId,
-  };
+  // 2) 用 Server-side diff：先抓 server rows，比對 id -> 在, 不在 -> 刪除
+  const { data: existingRows } = await (await import("./supabase")).supabase!
+    .from("shared_tasks")
+    .select("id")
+    .eq("shared_list_id", sharedListId);
 
-  // Strip undefined from all tasks (deep-clean)
-  const safeTasks = tasks.map((t) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const obj = t as any;
-    const cleaned: Record<string, unknown> = {};
-    for (const key of Object.keys(obj)) {
-      const val = obj[key];
-      if (val !== undefined) {
-        cleaned[key] = val;
-      }
-    }
-    return cleaned;
-  });
+  const existingIds = new Set((existingRows || []).map((r: any) => r.id));
+  const incomingIds = new Set(tasks.map((t) => t.id));
 
-  console.log("[Firestore] updateSharedSnapshot:", {
-    sharedListId,
-    ownerId: safeOwnerId,
-    listKeys: Object.keys(safeList),
-    listUndefinedKeys: Object.keys(list).filter(k => (list as unknown as Record<string, unknown>)[k] === undefined),
-    taskCount: safeTasks.length,
-    hasUndefinedTasks: tasks.some(t => Object.values(t).some(v => v === undefined)),
-  });
+  const toUpsert = tasks.filter((t) => t.id && !existingIds.has(t.id) || existingIds.has(t.id));
+  const toDelete = Array.from(existingIds).filter((id) => !incomingIds.has(id));
 
-  const snapshotData: SharedListSnapshot = {
-    list: safeList as TaskList,
-    tasks: safeTasks as unknown as Task[],
-    ownerId: safeOwnerId,
-    ownerName,
-    updatedAt: Timestamp.now().toDate().toISOString(),
-  };
+  if (toUpsert.length > 0) {
+    await SharedSync.upsertSharedTasks(sharedListId, toUpsert);
+  }
+  await Promise.all(
+    toDelete.map((id) => SharedSync.deleteSharedTask(sharedListId, id))
+  );
 
-  await setDoc(doc(db, "sharedListSnapshots", sharedListId), snapshotData);
-  console.log("[Firestore] setDoc complete for", sharedListId);
-
-  // Notify caller after write completes so refs stay in sync
   if (onWriteComplete) {
-    console.log("[Firestore] calling onWriteComplete with", tasks.length, "tasks");
     try {
-    onWriteComplete(sharedListId, tasks);
-      console.log("[Firestore] onWriteComplete completed");
+      onWriteComplete(sharedListId, tasks);
     } catch (cbError) {
-      console.error("[Firestore] onWriteComplete threw:", cbError);
+      // eslint-disable-next-line no-console
+      console.error("[SharedSync] onWriteComplete threw:", cbError);
     }
-  } else {
-    console.log("[Firestore] updateSharedSnapshot no callback provided");
   }
 }
 
 export async function getSharedSnapshot(sharedListId: string): Promise<SharedListSnapshot | null> {
-  const db = await getFirebaseDB();
-  const snap = await getDoc(doc(db, "sharedListSnapshots", sharedListId));
-  if (!snap.exists()) return null;
-  const data = snap.data();
-  console.log("[Firestore] getSharedSnapshot raw data for", sharedListId, {
-    ownerId: data.ownerId,
-    listOwnerId: data.list?.ownerId,
-  });
-  return data as SharedListSnapshot;
+  const snap = await SharedSync.fetchSharedSnapshot(sharedListId);
+  if (!snap) return null;
+  return normalizeSnapshot(snap);
 }
 
 export async function subscribeToSharedSnapshot(
@@ -348,40 +323,89 @@ export async function subscribeToSharedSnapshot(
   onUpdate: (snapshot: SharedListSnapshot | null) => void,
   onDeleted?: () => void
 ): Promise<Unsubscribe> {
-  const db = await getFirebaseDB();
-  return onSnapshot(doc(db, "sharedListSnapshots", sharedListId), (snap) => {
-    if (!snap.exists()) {
+  if (!isSupabaseConfigured()) {
+    // eslint-disable-next-line no-console
+    console.warn("[SharedSync] Supabase not configured; realtime disabled");
+    onUpdate(null);
+    return Promise.resolve(() => {});
+  }
+
+  const unsub = SharedSync.subscribeToSharedList(sharedListId, (snap) => {
+    if (!snap) {
       onDeleted?.();
       onUpdate(null);
       return;
     }
-    const data = snap.data();
-    console.log("[Firestore] subscribeToSharedSnapshot raw data for", sharedListId, {
-      ownerId: data.ownerId,
-      listOwnerId: data.list?.ownerId,
-      hasOwnerId: "ownerId" in data,
-    });
-    onUpdate(data as SharedListSnapshot);
-  }, (error) => {
-    // Handle permission denied or other errors
-    if (error.code === "permission-denied" || error.code === "not-found") {
-      onDeleted?.();
-      onUpdate(null);
-    }
+    onUpdate(normalizeSnapshot(snap));
   });
+
+  return Promise.resolve(() => unsub());
 }
 
 export async function deleteSharedList(sharedListId: string): Promise<void> {
-  const db = await getFirebaseDB();
-  const batch = writeBatch(db);
-  batch.delete(doc(db, "sharedListSnapshots", sharedListId));
-  batch.delete(doc(db, "sharedLists", sharedListId));
-  await batch.commit();
+  // 透過 cascade 自然刪掉 tasks / members；只要刪 shared_lists row
+  const { supabase } = await import("./supabase");
+  if (supabase) {
+    await supabase.from("shared_lists").delete().eq("id", sharedListId);
+  }
 }
 
 export async function getSharedListMeta(sharedListId: string): Promise<SharedListMeta | null> {
-  const db = await getFirebaseDB();
-  const snap = await getDoc(doc(db, "sharedLists", sharedListId));
-  if (!snap.exists()) return null;
-  return snap.data() as SharedListMeta;
+  const snap = await SharedSync.fetchSharedSnapshot(sharedListId);
+  if (!snap) return null;
+  return {
+    id: sharedListId,
+    ownerId: snap.list.ownerId ?? "",
+    listId: snap.list.id,
+    ownerName: snap.ownerName,
+    createdAt: snap.list.createdAt ?? new Date().toISOString(),
+  };
+}
+
+// 成員管理 API（轉接給 SharedSync）
+export async function inviteToSharedList(
+  sharedListId: string,
+  memberEmail: string,
+  role: "editor" | "viewer" = "editor"
+): Promise<void> {
+  await SharedSync.inviteMember({ sharedListId, memberEmail, role });
+}
+
+export async function kickFromSharedList(
+  sharedListId: string,
+  memberEmail: string
+): Promise<void> {
+  await SharedSync.removeMember({ sharedListId, memberEmail });
+}
+
+export async function bindCurrentUserToSharedList(args: {
+  sharedListId: string;
+  memberUid: string;
+  memberEmail: string;
+}): Promise<void> {
+  // 走 RPC：後端比對 email 後才寫入 — 補釘 #3
+  await SharedSync.acceptInvite({
+    sharedListId: args.sharedListId,
+    callerUid: args.memberUid,
+    callerEmail: args.memberEmail,
+  });
+}
+
+export async function getMyRoleInSharedList(
+  sharedListId: string,
+  callerUid: string
+): Promise<"owner" | "editor" | "viewer" | null> {
+  return SharedSync.getMyRole({ sharedListId, callerUid });
+}
+
+export async function listSharedMembers(sharedListId: string) {
+  return SharedSync.listMembers(sharedListId);
+}
+
+export async function setSharedTaskPosition(
+  sharedListId: string,
+  taskId: string,
+  position: number
+): Promise<void> {
+  await SharedSync.setSharedTaskPosition(sharedListId, taskId, position);
 }

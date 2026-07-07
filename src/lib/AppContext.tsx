@@ -43,35 +43,39 @@ import {
   subscribeToSharedSnapshot,
   deleteSharedList,
   getSharedSnapshot,
+  kickFromSharedList,
+  bindCurrentUserToSharedList,
+  getMyRoleInSharedList,
+  listSharedMembers,
+  setSharedTaskPosition,
 } from "./firestore";
+import { SharedMember, MemberRole } from "./sharedSync";
 import { parseNaturalLanguage } from "./nlp";
 import { useAuth } from "./AuthContext";
 
 interface AppContextValue {
-  // ── Data ────────────────────────────────────────────────
+  // ── 資料 ──────────────────────────────────────────────
   tasks: Task[];
   lists: TaskList[];
   habits: Habit[];
   todayFocusMinutes: number;
 
-  // ── Firebase sync ────────────────────────────────────────
-  /** 強制從 localStorage 重新讀取（例如 Firebase 即時更新後） */
   forceReload: () => void;
 
-  // ── View ────────────────────────────────────────────────
+  // ── View ──────────────────────────────────────────────
   currentView: AppView;
   currentListId?: string;
   setCurrentView: (v: AppView, listId?: string) => void;
   currentSharedListId?: string;
   setCurrentSharedList: (sharedId: string | undefined) => void;
 
-  // ── Search / Filter ─────────────────────────────────────
+  // ── 搜尋/篩選 ──────────────────────────────────────────
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   activeFilter: TaskFilter;
   setActiveFilter: (f: TaskFilter) => void;
 
-  // ── Task CRUD ────────────────────────────────────────────
+  // ── 任務 CRUD ──────────────────────────────────────────
   addTask: (data: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order">) => string;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
@@ -79,33 +83,33 @@ interface AppContextValue {
   archiveTask: (id: string) => void;
   unarchiveTask: (id: string) => void;
 
-  // ── SubTask ──────────────────────────────────────────────
+  // ── 子任務 ─────────────────────────────────────────────
   addSubTask: (parentId: string, title: string) => void;
   toggleSubTask: (parentId: string, subId: string) => void;
   deleteSubTask: (parentId: string, subId: string) => void;
 
-  // ── Recurring ────────────────────────────────────────────
+  // ── 週期 ──────────────────────────────────────────────
   completeRecurringAndClone: (taskId: string) => void;
 
-  // ── List CRUD ────────────────────────────────────────────
+  // ── 清單 CRUD ──────────────────────────────────────────
   addList: (data: Omit<TaskList, "id" | "createdAt" | "updatedAt" | "order">) => void;
   updateList: (id: string, updates: Partial<TaskList>) => void;
   deleteList: (id: string) => void;
 
-  // ── Habit CRUD ──────────────────────────────────────────
+  // ── 習慣 CRUD ─────────────────────────────────────────
   addHabit: (data: Omit<Habit, "id" | "createdAt" | "updatedAt" | "checkins" | "streak" | "longestStreak">) => void;
   updateHabit: (id: string, updates: Partial<Habit>) => void;
   deleteHabit: (id: string) => void;
   checkinHabit: (id: string, date: string, count?: number, note?: string) => void;
 
-  // ── Quick Add ────────────────────────────────────────────
+  // ── Quick Add ──────────────────────────────────────────
   quickAdd: (input: string) => string | null;
 
-  // ── Notifications ───────────────────────────────────────
+  // ── 通知 ──────────────────────────────────────────────
   requestNotificationPermission: () => Promise<boolean>;
   notificationPermission: NotificationPermission | "default";
 
-  // ── Shared Lists ─────────────────────────────────────────
+  // ── Shared Lists ──────────────────────────────────────
   sharedLists: Record<string, SharedListData>;
   sharedListIds: string[];
   shareList: (listId: string) => Promise<string | null>;
@@ -116,8 +120,17 @@ interface AppContextValue {
   quickAddToShared: (sharedListId: string, input: string) => string | null;
   updateSharedTask: (sharedListId: string, taskId: string, updates: Partial<Task>) => void;
   deleteSharedTask: (sharedListId: string, taskId: string) => void;
+  reorderSharedTask: (sharedListId: string, taskId: string, position: number) => Promise<void>;
 
-  // ── Helpers ──────────────────────────────────────────────
+  // ── Members ───────────────────────────────────────────
+  listSharedMembers: (sharedListId: string) => Promise<SharedMember[]>;
+  inviteToSharedList: (sharedListId: string, email: string, role: MemberRole) => Promise<void>;
+  kickFromSharedList: (sharedListId: string, email: string) => Promise<void>;
+  changeSharedMemberRole: (sharedListId: string, email: string, role: MemberRole) => Promise<void>;
+  getMyRole: (sharedListId: string) => MemberRole | null;
+  membersBySharedList: Record<string, SharedMember[]>;
+
+  // ── 工具 ─────────────────────────────────────────────
   getFilteredTasks: () => Task[];
   viewCounts: { inbox: number; today: number; next7days: number };
   getListTaskCount: (listId: string) => number;
@@ -141,11 +154,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
-  // ── Shared List State ─────────────────────────────────────
+  // ── Shared List State ───────────────────────────────────
   const [sharedLists, setSharedLists] = useState<Record<string, SharedListData>>({});
-  // Track which shared lists the current user owns (for sync updates)
   const [ownedSharedListIds, _setOwnedSharedListIds] = useState<string[]>([]);
-  // Wrap setter to persist ownedSharedListIds to localStorage
   const ownedSharedListIdsRef = useRef<string[]>([]);
   const setOwnedSharedListIds = useCallback((updater: string[] | ((prev: string[]) => string[])) => {
     _setOwnedSharedListIds((prev) => {
@@ -155,40 +166,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
   }, []);
-  // Track shared list IDs that the current user has accepted (recipients)
   const [acceptedSharedListIds, setAcceptedSharedListIds] = useState<string[]>([]);
-  // Refs to store unsubscribe functions for Firestore listeners
   const sharedListUnsubscribeRefs = useRef<Record<string, () => void>>({});
-  // Track remote tasks from recipients (tasks with createdBy !== owner)
   const remoteSharedTasksRef = useRef<Record<string, Task[]>>({});
-  // Track last-written snapshot hash to prevent infinite sync loops
   const lastSyncedHashRef = useRef<Record<string, string>>({});
-  // Track last-written snapshot task count (monotonic guard against stale cache)
   const lastSyncedTaskCountRef = useRef<Record<string, number>>({});
-  // Track whether we've received the first snapshot for each shared list
-  // (prevents writing before we know what's on the server)
   const snapshotReadyRef = useRef<Record<string, boolean>>({});
-  // Store latest snapshot tasks from subscription (bypasses React state closure)
   const snapshotTasksRef = useRef<Record<string, Task[]>>({});
-  // Track when a Firestore write is in progress (prevents subscription from overwriting mid-write)
   const isWritingRef = useRef<Record<string, boolean>>({});
 
-  // ── Init ────────────────────────────────────────────────
+  // 我在每個 shared list 的角色
+  const [myRoleByList, setMyRoleByList] = useState<Record<string, MemberRole>>({});
+
+  // members 列表（給 ShareListModal 顯示用）
+  const [membersBySharedList, setMembersBySharedList] = useState<Record<string, SharedMember[]>>({});
+
+  // ── Init ─────────────────────────────────────────────────
   useEffect(() => {
     const storedLists = initDefaultLists();
     setLists(storedLists);
     setTasks(getTasks());
     setHabits(getHabits());
     setTodayFocusMinutes(getTodayFocusMinutes());
-    // Restore ownedSharedListIds from localStorage (critical for Firestore subscription on reload)
     const storedOwnedIds = getOwnedSharedListIds();
-    console.log("[AppContext Init] storedOwnedIds from localStorage:", storedOwnedIds);
     if (storedOwnedIds.length > 0) {
       _setOwnedSharedListIds(storedOwnedIds);
       ownedSharedListIdsRef.current = storedOwnedIds;
     }
     const storedSharedLists = getSharedLists();
-    console.log("[AppContext Init] storedSharedLists keys:", Object.keys(storedSharedLists));
     setSharedLists(storedSharedLists);
 
     if (typeof Notification !== "undefined") {
@@ -197,7 +202,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsLoaded(true);
   }, [reloadKey]);
 
-  // ── Restore accepted shared list IDs from storage after load ─
   useEffect(() => {
     if (!isLoaded) return;
     const storedSharedLists = getSharedLists();
@@ -207,9 +211,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setAcceptedSharedListIds(acceptedIds);
   }, [isLoaded, reloadKey]);
 
-  // ── Restore owned shared list IDs from lists after load ─────
-  // Without this, the Owner's Firestore subscription would never be
-  // established after a page reload, causing remote tasks to be lost.
   useEffect(() => {
     if (!isLoaded || !user) return;
     const ownedIds = lists
@@ -238,12 +239,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setActiveFilter({});
   }, []);
 
-  // ── Filtered tasks ────────────────────────────────────────
+  // ── 任務排序（個人） ─────────────────────────────────────
   const getFilteredTasks = useCallback((): Task[] => {
     const active = tasks.filter((t) => !t.isArchived);
     let result = active;
-
-    // View-based filtering
     const today = new Date().toISOString().split("T")[0];
     const weekEnd = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
 
@@ -251,16 +250,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       result = result.filter((t) => t.dueDate === today);
     } else if (currentView === "next7days") {
       result = result.filter((t) => t.dueDate && t.dueDate >= today && t.dueDate <= weekEnd);
-    } else if (currentView === "all") {
-      // all active tasks, no date filter
     } else if (currentView === "list" && currentListId) {
       result = result.filter((t) => t.listId === currentListId);
     } else if (currentView === "inbox") {
-      // 收集箱 = 沒有歸屬到任何清單的任務
       result = result.filter((t) => !t.listId);
     }
 
-    // Search
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
@@ -270,23 +265,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           t.tags.some((tag) => tag.toLowerCase().includes(q))
       );
     }
+    if (activeFilter.priority) result = result.filter((t) => t.priority === activeFilter.priority);
+    if (activeFilter.status)   result = result.filter((t) => t.status === activeFilter.status);
+    if (activeFilter.tag)      result = result.filter((t) => t.tags.includes(activeFilter.tag!));
 
-    // Priority filter
-    if (activeFilter.priority) {
-      result = result.filter((t) => t.priority === activeFilter.priority);
-    }
-
-    // Status filter
-    if (activeFilter.status) {
-      result = result.filter((t) => t.status === activeFilter.status);
-    }
-
-    // Tag filter
-    if (activeFilter.tag) {
-      result = result.filter((t) => t.tags.includes(activeFilter.tag!));
-    }
-
-    // Sort: incomplete first, then by priority, then by order
     const priorityOrder = { high: 0, medium: 1, low: 2 };
     return result.sort((a, b) => {
       if (a.status === "done" && b.status !== "done") return 1;
@@ -297,17 +279,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [tasks, currentView, currentListId, searchQuery, activeFilter]);
 
-  // ── View counts ──────────────────────────────────────────
   const viewCounts = useMemo(() => {
     const active = tasks.filter((t) => !t.isArchived);
     const today = new Date().toISOString().split("T")[0];
     const weekEnd = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
     return {
-      // 收集箱：沒有歸屬清單的任務
       inbox: active.filter((t) => !t.listId).length,
-      // 今天：有截止日期等於今天的任務
       today: active.filter((t) => t.dueDate === today).length,
-      // 未來 7 天：截止日期在未來 7 天內的任務
       next7days: active.filter((t) => t.dueDate && t.dueDate >= today && t.dueDate <= weekEnd).length,
     };
   }, [tasks]);
@@ -326,14 +304,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return counts;
   }, [tasks]);
 
-  // ── Task CRUD ─────────────────────────────────────────────
+  // ── 任務 CRUD（個人） ─────────────────────────────────────
   const addTask = useCallback((
     data: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order">
   ): string => {
     const id = generateId();
     const task: Task = {
-      ...data,
-      id,
+      ...data, id,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       focusMinutes: 0,
@@ -371,24 +348,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     saveTasks(updated);
   }, [tasks]);
 
-  const archiveTask = useCallback((id: string) => {
-    updateTask(id, { isArchived: true });
-  }, [updateTask]);
+  const archiveTask = useCallback((id: string) => updateTask(id, { isArchived: true }), [updateTask]);
+  const unarchiveTask = useCallback((id: string) => updateTask(id, { isArchived: false }), [updateTask]);
 
-  const unarchiveTask = useCallback((id: string) => {
-    updateTask(id, { isArchived: false });
-  }, [updateTask]);
-
-  // ── SubTask ──────────────────────────────────────────────
+  // ── 子任務 ──────────────────────────────────────────────
   const addSubTask = useCallback((parentId: string, title: string) => {
     const task = tasks.find((t) => t.id === parentId);
     if (!task) return;
-    const subTask: SubTask = {
-      id: generateId(),
-      title,
-      status: "todo",
-      createdAt: new Date().toISOString(),
-    };
+    const subTask: SubTask = { id: generateId(), title, status: "todo", createdAt: new Date().toISOString() };
     updateTask(parentId, { subTasks: [...(task.subTasks || []), subTask] });
   }, [tasks, updateTask]);
 
@@ -408,15 +375,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateTask(parentId, { subTasks });
   }, [tasks, updateTask]);
 
-  // ── Recurring ────────────────────────────────────────────
+  // ── 週期任務 ────────────────────────────────────────────
   const completeRecurringAndClone = useCallback((taskId: string) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task?.recurrence) return;
-
     const nextDate = getNextRecurrenceDate(task.dueDate || new Date().toISOString().split("T")[0], task.recurrence);
     if (task.recurrence.endDate && nextDate > task.recurrence.endDate) return;
-
-    // Update original task: reset to todo, new due date
     const updatedRecurrence = { ...task.recurrence, completedCount: task.recurrence.completedCount + 1 };
     const updated = tasks.map((t) =>
       t.id === taskId
@@ -427,11 +391,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     saveTasks(updated);
   }, [tasks]);
 
-  // ── List CRUD ────────────────────────────────────────────
+  // ── 清單 CRUD ────────────────────────────────────────────
   const addList = useCallback((data: Omit<TaskList, "id" | "createdAt" | "updatedAt" | "order">) => {
     const newList: TaskList = {
-      ...data,
-      id: generateId(),
+      ...data, id: generateId(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       order: lists.length,
@@ -453,24 +416,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const updated = lists.filter((l) => l.id !== id);
     setLists(updated);
     saveLists(updated);
-    // Unlink tasks
-    const taskUpdated = tasks.map((t) =>
-      t.listId === id ? { ...t, listId: undefined } : t
-    );
+    const taskUpdated = tasks.map((t) => t.listId === id ? { ...t, listId: undefined } : t);
     setTasks(taskUpdated);
     saveTasks(taskUpdated);
   }, [lists, tasks]);
 
-  // ── Habit CRUD ───────────────────────────────────────────
+  // ── 習慣 CRUD ─────────────────────────────────────────
   const addHabit = useCallback((data: Omit<Habit, "id" | "createdAt" | "updatedAt" | "checkins" | "streak" | "longestStreak">) => {
     const newHabit: Habit = {
-      ...data,
-      id: generateId(),
+      ...data, id: generateId(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      checkins: [],
-      streak: 0,
-      longestStreak: 0,
+      checkins: [], streak: 0, longestStreak: 0,
     };
     const updated = [...habits, newHabit];
     setHabits(updated);
@@ -478,9 +435,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [habits]);
 
   const updateHabit = useCallback((id: string, updates: Partial<Habit>) => {
-    const updated = habits.map((h) =>
-      h.id === id ? { ...h, ...updates, updatedAt: new Date().toISOString() } : h
-    );
+    const updated = habits.map((h) => h.id === id ? { ...h, ...updates, updatedAt: new Date().toISOString() } : h);
     setHabits(updated);
     saveHabits(updated);
   }, [habits]);
@@ -513,54 +468,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     saveHabits(updated);
   }, [habits]);
 
-  // ── Shared List Functions ───────────────────────────────────
+  // ── Shared List 主函式 ───────────────────────────────────
   const shareList = useCallback(async (listId: string): Promise<string | null> => {
     if (!user) return null;
     const list = lists.find((l) => l.id === listId);
     if (!list) return null;
-
     const listTasks = tasks.filter((t) => t.listId === listId);
     const ownerName = user.displayName || user.email || undefined;
-
     try {
-      const sharedListId = await createSharedList(list, listTasks, user.uid, ownerName);
-
-      // Update the list with the sharedId
+      const sharedListId = await createSharedList(list, listTasks, user.uid, ownerName, user.email);
       const updatedList = { ...list, sharedId: sharedListId, ownerId: user.uid };
       const updatedLists = lists.map((l) => l.id === listId ? updatedList : l);
       setLists(updatedLists);
       saveLists(updatedLists);
-
-      // Track this as an owned shared list for sync
-      setOwnedSharedListIds((prev) => {
-        if (prev.includes(sharedListId)) return prev;
-        return [...prev, sharedListId];
-      });
-
+      setOwnedSharedListIds((prev) =>
+        prev.includes(sharedListId) ? prev : [...prev, sharedListId]
+      );
+      // 新建立的清單 → 我是 owner
+      setMyRoleByList((prev) => ({ ...prev, [sharedListId]: "owner" }));
       return sharedListId;
-    } catch (error) {
-      console.error("Failed to share list:", error);
-      return null;
+    } catch (error: any) {
+      // eslint-disable-next-line no-console
+      console.error("[AppContext.shareList] createSharedList failed:", error);
+      // 把詳細錯誤拋出 modal 而不是 swallow
+      throw error;
     }
   }, [user, lists, tasks]);
 
   const unshareList = useCallback(async (sharedListId: string): Promise<void> => {
     if (!user) return;
-
     try {
       await deleteSharedList(sharedListId);
-
-      // Remove sharedId from the list
       const updatedLists = lists.map((l) =>
         l.sharedId === sharedListId ? { ...l, sharedId: undefined, ownerId: undefined } : l
       );
       setLists(updatedLists);
       saveLists(updatedLists);
-
-      // Remove from owned shared lists
       setOwnedSharedListIds((prev) => prev.filter((id) => id !== sharedListId));
-
-      // Unsubscribe from Firestore updates
       if (sharedListUnsubscribeRefs.current[sharedListId]) {
         sharedListUnsubscribeRefs.current[sharedListId]();
         delete sharedListUnsubscribeRefs.current[sharedListId];
@@ -570,113 +514,57 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, lists]);
 
-  const acceptSharedList = useCallback(async (sharedListId: string, data: SharedListSnapshot): Promise<void> => {
-    // Ensure ownerId is always set
-    const ownerId = data.ownerId || data.list.ownerId;
-    console.log("[SharedList] acceptSharedList:", {
-      sharedListId,
-      "data.ownerId": data.ownerId,
-      "data.list.ownerId": data.list.ownerId,
-      resolvedOwnerId: ownerId,
-      taskCount: data.tasks?.length,
-      ownerName: data.ownerName,
-    });
+  /** 收件人點開連結 → 後端 RPC 把 email uid 綁到 members */
+  const acceptSharedList = useCallback(async (sharedListId: string, _data: SharedListSnapshot): Promise<void> => {
+    if (!user) return;
+    // 先在後端把自己 uid 綁上去（補釘 #3 — 後端檢查 email 一致）
+    try {
+      await bindCurrentUserToSharedList({
+        sharedListId,
+        memberUid: user.uid,
+        memberEmail: user.email || "",
+      });
+    } catch (err) {
+      console.error("[Shared] accept invite failed (likely not invited):", err);
+      return;
+    }
+    // 再從 server 抓 snapshot 一次當作 initial 資料
+    const snapshot = await getSharedSnapshot(sharedListId);
+    if (!snapshot) return;
 
-    // Ensure required list fields are never undefined (SharedListMeta doesn't store icon/color)
+    const ownerId = snapshot.ownerId || snapshot.list.ownerId;
     const listWithDefaults: TaskList = {
-      ...data.list,
-      ownerId,
-      icon: data.list.icon || "📋",
-      color: data.list.color || "#3B82F6",
+      ...snapshot.list, ownerId,
+      icon: snapshot.list.icon || "📋",
+      color: snapshot.list.color || "#3B82F6",
     };
-
-    // Idempotent check: if already accepted, just update the existing entry
-    // (avoids creating duplicate entries when user clicks the share link again)
-    const existingData = sharedLists[sharedListId];
-    const sharedData: SharedListData = existingData
-      ? {
-          // Merge: keep existing list identity but update from snapshot
-          list: { ...existingData.list, ...listWithDefaults, ownerId },
-          tasks: data.tasks ?? existingData.tasks,
-          ownerName: data.ownerName ?? existingData.ownerName,
-        }
-      : { list: listWithDefaults, tasks: data.tasks, ownerName: data.ownerName };
-
-    console.log("[SharedList] acceptSharedList:", {
-      sharedListId,
-      isReAccept: !!existingData,
-      taskCount: sharedData.tasks?.length,
-      ownerName: sharedData.ownerName,
-    });
-
-    // Save to localStorage first
+    const sharedData: SharedListData = {
+      list: listWithDefaults,
+      tasks: snapshot.tasks,
+      ownerName: snapshot.ownerName,
+    };
     saveSharedList(sharedListId, sharedData);
     setSharedLists(getSharedLists());
-    setAcceptedSharedListIds((prev) =>
-      prev.includes(sharedListId) ? prev : [...prev, sharedListId]
-    );
 
-    // Subscribe to real-time updates and wait for connection
-    return new Promise<void>((resolve) => {
-      subscribeToSharedSnapshot(
-        sharedListId,
-        (snapshot) => {
-          console.log("[SharedList] Received Firestore update for", sharedListId, snapshot?.tasks?.length, "tasks");
-          if (snapshot) {
-            const snapshotOwnerId = snapshot.ownerId || snapshot.list.ownerId;
-            const snapshotListWithDefaults: TaskList = {
-              ...snapshot.list,
-              ownerId: snapshotOwnerId,
-              icon: snapshot.list.icon || "📋",
-              color: snapshot.list.color || "#3B82F6",
-            };
-            const updatedData: SharedListData = {
-              list: snapshotListWithDefaults,
-              tasks: snapshot.tasks,
-              ownerName: snapshot.ownerName,
-            };
-            // Write to localStorage only on initial load (establishes baseline state)
-            // Subsequent updates are NOT written here to avoid stale cache overwrites
-            // Owner writes to localStorage via onWriteComplete callbacks
-            if (!snapshotReadyRef.current[sharedListId]) {
-              saveSharedList(sharedListId, updatedData);
-              console.log("[SharedList] Recipient first subscription, wrote", snapshot.tasks.length, "tasks to localStorage");
-            } else {
-              console.log("[SharedList] Recipient subscription, skipped localStorage write, has", snapshot.tasks.length, "tasks");
-            }
-            snapshotReadyRef.current[sharedListId] = true;
-            setSharedLists(getSharedLists());
-          }
-        },
-        () => {
-          // Shared list was deleted by owner
-          console.log("[SharedList] Shared list deleted:", sharedListId);
-          removeSharedList(sharedListId);
-          setSharedLists(getSharedLists());
-          setAcceptedSharedListIds((prev) => prev.filter((id) => id !== sharedListId));
-          if (sharedListUnsubscribeRefs.current[sharedListId]) {
-            delete sharedListUnsubscribeRefs.current[sharedListId];
-          }
-        }
-      ).then((unsubscribe) => {
-        console.log("[SharedList] Subscribed to shared list:", sharedListId);
-        sharedListUnsubscribeRefs.current[sharedListId] = unsubscribe;
-        resolve(); // Signal that subscription is ready
-      }).catch((error) => {
-        console.error("[SharedList] Failed to subscribe:", error);
-        resolve(); // Still resolve to not block UI
-      });
-    });
-  }, []);
+    const myRole = await getMyRoleInSharedList(sharedListId, user.uid);
+    if (myRole) {
+      setMyRoleByList((prev) => ({ ...prev, [sharedListId]: myRole }));
+    }
+
+    if (!acceptedSharedListIds.includes(sharedListId)) {
+      setAcceptedSharedListIds((prev) => [...prev, sharedListId]);
+    }
+  }, [user, acceptedSharedListIds]);
 
   const removeAcceptedSharedList = useCallback((sharedListId: string): void => {
     removeSharedList(sharedListId);
     setSharedLists(getSharedLists());
     setAcceptedSharedListIds((prev) => prev.filter((id) => id !== sharedListId));
-    // Also clean up ownedSharedListIds to prevent orphaned subscriptions
     setOwnedSharedListIds((prev) => prev.filter((id) => id !== sharedListId));
-
-    // Unsubscribe from updates
+    setMyRoleByList((prev) => {
+      const { [sharedListId]: _, ...rest } = prev;
+      return rest;
+    });
     if (sharedListUnsubscribeRefs.current[sharedListId]) {
       sharedListUnsubscribeRefs.current[sharedListId]();
       delete sharedListUnsubscribeRefs.current[sharedListId];
@@ -685,117 +573,87 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const checkIncomingShareLink = useCallback(async (): Promise<{ sharedListId: string; snapshot: SharedListSnapshot } | null> => {
     if (typeof window === "undefined") return null;
-
     const params = new URLSearchParams(window.location.search);
     const shareParam = params.get("share");
-
     if (!shareParam) return null;
-
-    // Clean URL
     window.history.replaceState({}, "", window.location.pathname);
-
-    // shareParam is the sharedListId (e.g., "sl_xxx")
     try {
       const snapshot = await getSharedSnapshot(shareParam);
-      if (snapshot) {
-        return { sharedListId: shareParam, snapshot };
-      }
+      if (snapshot) return { sharedListId: shareParam, snapshot };
     } catch (error) {
       console.error("Failed to fetch shared list:", error);
     }
-
     return null;
   }, []);
 
-  // ── Subscribe to owned shared lists for sync updates ───────
-  // Owner subscribes to capture tasks written by recipients
+  // ── 共用：寫入權限 gate ─────────────────────────────────
+  const canEditSharedList = useCallback((sharedListId: string): boolean => {
+    const role = myRoleByList[sharedListId];
+    return role === "owner" || role === "editor";
+  }, [myRoleByList]);
+
+  // ── 共用寫入 helper：包 isWriting / 寫後清旗標 ──────────
+  const guardWrite = useCallback((sharedListId: string, fn: () => Promise<void>) => {
+    isWritingRef.current[sharedListId] = true;
+    return fn().finally(() => {
+      isWritingRef.current[sharedListId] = false;
+    });
+  }, []);
+
+  // ── 訂閱：owned shared list（owner 端可看到他人即時更新）──
   useEffect(() => {
     if (!user || ownedSharedListIds.length === 0) return;
 
-    const currentUserLists = lists.filter((l) => user && l.ownerId === user.uid && l.sharedId);
-
+    const ownedSet = new Set(ownedSharedListIds);
     const promises: Promise<void>[] = [];
-    currentUserLists.forEach((list) => {
-      const sharedId = list.sharedId;
-      if (!sharedId) return;
-      if (sharedListUnsubscribeRefs.current[sharedId]) return; // Already subscribed
-
+    ownedSharedListIds.forEach((sharedId) => {
+      if (sharedListUnsubscribeRefs.current[sharedId]) return;
       const promise = subscribeToSharedSnapshot(
         sharedId,
         (snapshot) => {
           if (!snapshot) return;
-
           const isFirstSnapshot = !snapshotReadyRef.current[sharedId];
           snapshotReadyRef.current[sharedId] = true;
-
-          // Use snapshot.ownerId as source of truth (always set by createSharedList)
           const snapshotOwnerId = snapshot.ownerId || snapshot.list.ownerId;
-
           const updatedData: SharedListData = {
             list: { ...snapshot.list, ownerId: snapshotOwnerId },
             tasks: snapshot.tasks,
             ownerName: snapshot.ownerName,
           };
 
-          // Skip updating state if a write is in progress
-          // (Firebase SDK may re-emit stale cached data mid-write)
           if (isWritingRef.current[sharedId]) {
-            console.log("[SharedList] Subscription skipped (write in progress), snapshot has", snapshot.tasks.length, "tasks");
             snapshotTasksRef.current[sharedId] = snapshot.tasks;
             return;
           }
-
-          // Compare against last-synced hash; if same as last write's hash, skip entirely.
-          // Do NOT use task-count monotonic guard: legitimate deletes reduce the count and
-          // a stale Firestore cache re-emission during a write must not be permanently locked
-          // out by an incorrect count baseline.
-          const snapshotHash = JSON.stringify(snapshot.tasks.map(t => `${t.id}:${t.updatedAt}`).sort());
-          if (lastSyncedHashRef.current[sharedId] === snapshotHash) {
-            console.log("[SharedList] Subscription skipped (same hash), has", snapshot.tasks.length, "tasks");
-            return;
-          }
+          const snapshotHash = JSON.stringify(snapshot.tasks.map((t) => `${t.id}:${t.updatedAt}`).sort());
+          if (lastSyncedHashRef.current[sharedId] === snapshotHash) return;
           lastSyncedHashRef.current[sharedId] = snapshotHash;
           lastSyncedTaskCountRef.current[sharedId] = snapshot.tasks.length;
 
-          // Update sharedLists state (React state only, no localStorage write)
-          // localStorage is written exclusively by onWriteComplete callbacks to avoid
-          // stale cache writes. This keeps localStorage authoritative.
           setSharedLists((prev) => ({ ...prev, [sharedId]: updatedData }));
-          console.log("[SharedList] Owner subscription fired, updated React state with", snapshot.tasks.length, "tasks, ownerId:", snapshotOwnerId);
 
-          // Capture remote (recipient) tasks for the sync effect's merge logic
-          const remoteTasks = snapshot.tasks.filter(
-            (t) => t.createdBy && t.createdBy !== user.uid
-          );
+          const remoteTasks = snapshot.tasks.filter((t) => t.createdBy && t.createdBy !== user.uid);
           remoteSharedTasksRef.current[sharedId] = remoteTasks;
-          // Store latest snapshot tasks so sync effect can read without closure lag
           snapshotTasksRef.current[sharedId] = snapshot.tasks;
 
-          // Sync all snapshot tasks into local tasks state so owner can see them
-          // (both owner-created and recipient-created tasks, deduplicated by id)
           setTasks((prev) => {
-            const prevMap = new Map(prev.map(t => [t.id, t]));
+            const prevMap = new Map(prev.map((t) => [t.id, t]));
             const merged = [...prev];
             let changed = false;
             for (const st of snapshot.tasks) {
               const existing = prevMap.get(st.id);
-              if (!existing) {
-                merged.push(st);
-                changed = true;
-              } else if (st.updatedAt > existing.updatedAt) {
-                const idx = merged.findIndex(t => t.id === st.id);
-                if (idx >= 0) merged[idx] = st;
-                changed = true;
+              if (!existing) { merged.push(st); changed = true; }
+              else if (st.updatedAt > existing.updatedAt) {
+                const idx = merged.findIndex((t) => t.id === st.id);
+                if (idx >= 0) { merged[idx] = st; changed = true; }
               }
             }
             return changed ? merged : prev;
           });
 
-          // Update the hash so we know what's on the server
-          // (also done above for stale-cache prevention)
+          void isFirstSnapshot; // suppress unused
         },
         () => {
-          // List was deleted externally
           setOwnedSharedListIds((prev) => prev.filter((id) => id !== sharedId));
           setSharedLists((prev) => {
             const next = { ...prev };
@@ -807,16 +665,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           delete lastSyncedHashRef.current[sharedId];
           delete snapshotReadyRef.current[sharedId];
         }
-      ).then((unsubscribe) => {
-        sharedListUnsubscribeRefs.current[sharedId] = unsubscribe;
+      ).then((unsub) => {
+        sharedListUnsubscribeRefs.current[sharedId] = unsub;
       }).catch(() => {});
       promises.push(promise);
     });
 
     return () => {
-      // Cleanup: unsubscribe from lists that are no longer owned
       Object.keys(sharedListUnsubscribeRefs.current).forEach((id) => {
-        if (!ownedSharedListIds.includes(id)) {
+        if (!ownedSet.has(id)) {
           sharedListUnsubscribeRefs.current[id]();
           delete sharedListUnsubscribeRefs.current[id];
           delete remoteSharedTasksRef.current[id];
@@ -827,68 +684,50 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user, ownedSharedListIds]);
 
-  // ── Subscribe to accepted shared lists (recipient side) ─────
+  // ── 訂閱：accepted shared list（recipient 端） ──────────
   useEffect(() => {
     if (!user || acceptedSharedListIds.length === 0) return;
-
+    const acceptedSet = new Set(acceptedSharedListIds);
     const promises: Promise<void>[] = [];
     acceptedSharedListIds.forEach((sharedListId) => {
-      if (sharedListUnsubscribeRefs.current[sharedListId]) return; // Already subscribed
-
+      if (sharedListUnsubscribeRefs.current[sharedListId]) return;
       const promise = subscribeToSharedSnapshot(
         sharedListId,
         (snapshot) => {
-          if (snapshot) {
-            const snapshotOwnerId = snapshot.ownerId || snapshot.list.ownerId;
-            console.log("[Recipient] Subscription fired for", sharedListId, "with", snapshot.tasks.length, "tasks, user.uid:", user?.uid?.substring(0, 6));
-            // Ensure required fields are never undefined
-            const snapshotListWithDefaults: TaskList = {
-              ...snapshot.list,
-              ownerId: snapshotOwnerId,
-              icon: snapshot.list.icon || "📋",
-              color: snapshot.list.color || "#3B82F6",
-            };
-            const updatedData: SharedListData = {
-              list: snapshotListWithDefaults,
-              tasks: snapshot.tasks,
-              ownerName: snapshot.ownerName,
-            };
-            // Write to localStorage only on initial load (establishes baseline state)
-            // Subsequent updates are NOT written here to avoid stale cache overwrites
-            // Owner writes to localStorage via onWriteComplete callbacks
-            if (!snapshotReadyRef.current[sharedListId]) {
-              saveSharedList(sharedListId, updatedData);
-              console.log("[SharedList] Recipient first subscription, wrote", snapshot.tasks.length, "tasks to localStorage");
-            } else {
-              console.log("[SharedList] Recipient subscription, skipped localStorage write, has", snapshot.tasks.length, "tasks");
-            }
-            snapshotReadyRef.current[sharedListId] = true;
-            // CRITICAL: update sharedLists state so UI (which reads from sharedLists[id].tasks)
-            // reflects the latest snapshot. Without this, recipient only sees the initial 2 tasks.
-            setSharedLists((prev) => ({ ...prev, [sharedListId]: updatedData }));
-            // Sync snapshot tasks into local tasks state so recipient sees them
-            setTasks((prev) => {
-              const prevMap = new Map(prev.map(t => [t.id, t]));
-              const merged = [...prev];
-              let changed = false;
-              for (const st of snapshot.tasks) {
-                const existing = prevMap.get(st.id);
-                if (!existing) {
-                  merged.push(st);
-                  changed = true;
-                } else if (st.updatedAt > existing.updatedAt) {
-                  const idx = merged.findIndex(t => t.id === st.id);
-                  if (idx >= 0) merged[idx] = st;
-                  changed = true;
-                }
-              }
-              return changed ? merged : prev;
-            });
-            setSharedLists(getSharedLists());
+          if (!snapshot) return;
+          const snapshotOwnerId = snapshot.ownerId || snapshot.list.ownerId;
+          const snapshotListWithDefaults: TaskList = {
+            ...snapshot.list, ownerId: snapshotOwnerId,
+            icon: snapshot.list.icon || "📋",
+            color: snapshot.list.color || "#3B82F6",
+          };
+          const updatedData: SharedListData = {
+            list: snapshotListWithDefaults,
+            tasks: snapshot.tasks,
+            ownerName: snapshot.ownerName,
+          };
+          if (!snapshotReadyRef.current[sharedListId]) {
+            saveSharedList(sharedListId, updatedData);
           }
+          snapshotReadyRef.current[sharedListId] = true;
+          setSharedLists((prev) => ({ ...prev, [sharedListId]: updatedData }));
+          setTasks((prev) => {
+            const prevMap = new Map(prev.map((t) => [t.id, t]));
+            const merged = [...prev];
+            let changed = false;
+            for (const st of snapshot.tasks) {
+              const existing = prevMap.get(st.id);
+              if (!existing) { merged.push(st); changed = true; }
+              else if (st.updatedAt > existing.updatedAt) {
+                const idx = merged.findIndex((t) => t.id === st.id);
+                if (idx >= 0) { merged[idx] = st; changed = true; }
+              }
+            }
+            return changed ? merged : prev;
+          });
+          setSharedLists(getSharedLists());
         },
         () => {
-          // Shared list was deleted by owner
           removeSharedList(sharedListId);
           setSharedLists(getSharedLists());
           setAcceptedSharedListIds((prev) => prev.filter((id) => id !== sharedListId));
@@ -896,16 +735,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             delete sharedListUnsubscribeRefs.current[sharedListId];
           }
         }
-      ).then((unsubscribe) => {
-        sharedListUnsubscribeRefs.current[sharedListId] = unsubscribe;
+      ).then((unsub) => {
+        sharedListUnsubscribeRefs.current[sharedListId] = unsub;
       }).catch(() => {});
       promises.push(promise);
     });
 
     return () => {
-      // Cleanup: unsubscribe from lists no longer accepted
       Object.keys(sharedListUnsubscribeRefs.current).forEach((id) => {
-        if (!ownedSharedListIds.includes(id) && !acceptedSharedListIds.includes(id)) {
+        if (!acceptedSet.has(id)) {
           sharedListUnsubscribeRefs.current[id]();
           delete sharedListUnsubscribeRefs.current[id];
         }
@@ -913,7 +751,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user, acceptedSharedListIds]);
 
-  // ── Quick Add ─────────────────────────────────────────────
+  // ── 拉回自己身份（收件人第一次進入時） ─────────────────
+  useEffect(() => {
+    if (!user) return;
+    const allIds = Array.from(new Set([...ownedSharedListIds, ...acceptedSharedListIds]));
+    allIds.forEach(async (sid) => {
+      if (myRoleByList[sid]) return;
+      const r = await getMyRoleInSharedList(sid, user.uid);
+      if (r) setMyRoleByList((prev) => ({ ...prev, [sid]: r }));
+    });
+  }, [user, ownedSharedListIds, acceptedSharedListIds, myRoleByList]);
+
+  // ── Quick Add（個人） ──────────────────────────────────
   const quickAdd = useCallback((input: string): string | null => {
     if (!input.trim()) return null;
     const parsed = parseNaturalLanguage(input);
@@ -932,16 +781,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [addTask, currentListId]);
 
-  // ── Shared List Task Operations ──────────────────────────
-  // Helper: ensure sharedLists[sharedListId] is populated (fetch from Firestore if needed)
+  // ── Shared List 任務操作（權限 gate） ─────────────────
   const ensureSharedListData = useCallback(async (sharedListId: string): Promise<SharedListData | null> => {
     const existing = sharedLists[sharedListId];
     if (existing) return existing;
-    // sharedLists hasn't been populated yet (subscription may not have fired).
-    // Fetch the current snapshot from Firestore to get authoritative data.
     const snapshot = await getSharedSnapshot(sharedListId);
     if (!snapshot) return null;
-    const data: SharedListData = { list: snapshot.list, tasks: snapshot.tasks, ownerName: snapshot.ownerName };
+    const data: SharedListData = {
+      list: { ...snapshot.list, ownerId: snapshot.ownerId || snapshot.list.ownerId },
+      tasks: snapshot.tasks,
+      ownerName: snapshot.ownerName,
+    };
     saveSharedList(sharedListId, data);
     setSharedLists(getSharedLists());
     return data;
@@ -949,219 +799,219 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const quickAddToShared = useCallback((sharedListId: string, input: string): string | null => {
     if (!input.trim()) return null;
+    if (!canEditSharedList(sharedListId)) {
+      console.warn("[Shared] Viewer cannot add tasks");
+      return null;
+    }
     const parsed = parseNaturalLanguage(input);
     const id = generateId();
     const now = new Date().toISOString();
     const task: Task = {
-      id,
-      title: parsed.title,
-      description: parsed.description,
-      priority: parsed.priority,
-      status: "todo",
-      dueDate: parsed.dueDate,
-      dueTime: parsed.dueTime,
-      tags: parsed.tags,
-      listId: sharedListId,
-      recurrence: parsed.recurrence,
-      reminder: parsed.reminder,
-      subTasks: [],
-      createdAt: now,
-      updatedAt: now,
-      focusMinutes: 0,
-      isArchived: false,
-      order: 0,
+      id, title: parsed.title, description: parsed.description,
+      priority: parsed.priority, status: "todo",
+      dueDate: parsed.dueDate, dueTime: parsed.dueTime,
+      tags: parsed.tags, listId: sharedListId,
+      recurrence: parsed.recurrence, reminder: parsed.reminder,
+      subTasks: [], createdAt: now, updatedAt: now,
+      focusMinutes: 0, isArchived: false, order: 0,
       createdBy: user?.uid,
     };
 
-    // Find shared list data
     const data = sharedLists[sharedListId];
     if (!data) {
-      // sharedLists not yet populated — fetch from Firestore first
-      console.log("[SharedList] sharedLists not populated, fetching from Firestore...");
-      ensureSharedListData(sharedListId).then((fetchedData) => {
-        if (!fetchedData) {
-          console.error("[SharedList] Failed to fetch shared list data");
-          return;
-        }
+      void ensureSharedListData(sharedListId).then((fetchedData) => {
+        if (!fetchedData) return;
         const updatedTasks = [task, ...fetchedData.tasks];
         const updatedData: SharedListData = { ...fetchedData, tasks: updatedTasks };
         saveSharedList(sharedListId, updatedData);
         setSharedLists(getSharedLists());
-        
         const ownerId = fetchedData.list.ownerId ?? "";
-        console.log("[SharedList] Writing new task to Firestore, ownerId:", ownerId);
         isWritingRef.current[sharedListId] = true;
-        const pendingHash = JSON.stringify(updatedTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
+        const pendingHash = JSON.stringify(updatedTasks.map((t) => `${t.id}:${t.updatedAt}`).sort());
         lastSyncedHashRef.current[sharedListId] = pendingHash;
         lastSyncedTaskCountRef.current[sharedListId] = updatedTasks.length;
-        updateSharedSnapshot(
-          sharedListId,
-          updatedData.list,
-          updatedTasks,
-          ownerId,
-          fetchedData.ownerName,
-          (sid, writtenTasks) => {
-            const updatedData = { ...fetchedData, tasks: writtenTasks };
-            saveSharedList(sid, updatedData);
-            setSharedLists((prev) => ({ ...prev, [sid]: updatedData }));
-            snapshotTasksRef.current[sid] = writtenTasks;
-            const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
-            lastSyncedHashRef.current[sid] = hash;
-            lastSyncedTaskCountRef.current[sid] = writtenTasks.length;
-            console.log("[SharedList] Task saved to Firestore, hash updated to:", hash.substring(0, 30));
-          }
-        ).catch((error) => console.error("[SharedList] Failed to save task to Firestore:", error));
+        updateSharedSnapshot(sharedListId, updatedData.list, updatedTasks, ownerId, fetchedData.ownerName, (sid, writtenTasks) => {
+          const u = { ...fetchedData, tasks: writtenTasks };
+          saveSharedList(sid, u);
+          setSharedLists((prev) => ({ ...prev, [sid]: u }));
+          snapshotTasksRef.current[sid] = writtenTasks;
+          const hash = JSON.stringify(writtenTasks.map((t) => `${t.id}:${t.updatedAt}`).sort());
+          lastSyncedHashRef.current[sid] = hash;
+          lastSyncedTaskCountRef.current[sid] = writtenTasks.length;
+          isWritingRef.current[sid] = false;
+        }).catch((err) => {
+          console.error("[SharedList] Failed to save task:", err);
+          isWritingRef.current[sharedListId] = false;
+          const revertedData: SharedListData = { ...fetchedData, tasks: fetchedData.tasks };
+          saveSharedList(sharedListId, revertedData);
+          setSharedLists(getSharedLists());
+        });
       });
-      return id; // Return id so UI doesn't show error
+      return id;
     }
 
-    // Add task to local state
     const updatedTasks = [task, ...data.tasks];
     const updatedData: SharedListData = { ...data, tasks: updatedTasks };
     saveSharedList(sharedListId, updatedData);
     setSharedLists(getSharedLists());
-
     const ownerId = data.list.ownerId ?? "";
-    if (!ownerId) {
-      console.error("[SharedList] CRITICAL: ownerId is empty!", {
-        sharedListId,
-        dataList: data.list,
-      });
-    }
-    console.log("[SharedList] Writing new task to Firestore, ownerId:", ownerId);
-
-    // Mark writing in progress to prevent subscription from overwriting mid-write
     isWritingRef.current[sharedListId] = true;
-    console.log("[SharedList] isWriting set to true for", sharedListId);
-    // Pre-set the hash so subscription skips stale snapshots that arrive while writing
-    const pendingHash = JSON.stringify(updatedTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
+    const pendingHash = JSON.stringify(updatedTasks.map((t) => `${t.id}:${t.updatedAt}`).sort());
     lastSyncedHashRef.current[sharedListId] = pendingHash;
     lastSyncedTaskCountRef.current[sharedListId] = updatedTasks.length;
-
-    // Write to Firestore with error handling
-    const result = updateSharedSnapshot(
-      sharedListId,
-      updatedData.list,
-      updatedTasks,
-      ownerId,
-      data.ownerName,
-      (sid, writtenTasks) => {
-        // Update refs and React state after successful write so subscription doesn't overwrite
-        const updatedData = { ...data, tasks: writtenTasks };
-        saveSharedList(sid, updatedData);
-        setSharedLists((prev) => ({ ...prev, [sid]: updatedData }));
-        snapshotTasksRef.current[sid] = writtenTasks;
-        const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
-        lastSyncedHashRef.current[sid] = hash;
-        lastSyncedTaskCountRef.current[sid] = writtenTasks.length;
-        console.log("[SharedList] Task saved to Firestore, hash updated to:", hash.substring(0, 30));
-        // Clear writing flag
-        isWritingRef.current[sid] = false;
-        console.log("[SharedList] isWriting cleared for", sid);
-      }
-    );
-    console.log("[SharedList] updateSharedSnapshot returned:", result, "type:", typeof result);
-    if (result && typeof result.then === "function") {
-      result.catch((error) => {
-        console.error("[SharedList] Failed to save task to Firestore:", error);
-        // Clear writing flag on error
-        isWritingRef.current[sharedListId] = false;
-        // If Firestore write fails, remove the task from local state
-        const revertedTasks = data.tasks;
-        const revertedData: SharedListData = { ...data, tasks: revertedTasks };
-        saveSharedList(sharedListId, revertedData);
-        setSharedLists(getSharedLists());
-      });
-    } else {
-      console.error("[SharedList] CRITICAL: updateSharedSnapshot returned non-promise!", result);
+    updateSharedSnapshot(sharedListId, updatedData.list, updatedTasks, ownerId, data.ownerName, (sid, writtenTasks) => {
+      const u = { ...data, tasks: writtenTasks };
+      saveSharedList(sid, u);
+      setSharedLists((prev) => ({ ...prev, [sid]: u }));
+      snapshotTasksRef.current[sid] = writtenTasks;
+      const hash = JSON.stringify(writtenTasks.map((t) => `${t.id}:${t.updatedAt}`).sort());
+      lastSyncedHashRef.current[sid] = hash;
+      lastSyncedTaskCountRef.current[sid] = writtenTasks.length;
+      isWritingRef.current[sid] = false;
+    }).catch((err) => {
+      console.error("[SharedList] Failed to save task:", err);
       isWritingRef.current[sharedListId] = false;
-    }
-
+      const revertedData: SharedListData = { ...data };
+      saveSharedList(sharedListId, revertedData);
+      setSharedLists(getSharedLists());
+    });
     return id;
-  }, [sharedLists, user, ensureSharedListData]);
+  }, [sharedLists, user, ensureSharedListData, canEditSharedList]);
 
   const updateSharedTask = useCallback((sharedListId: string, taskId: string, updates: Partial<Task>) => {
+    if (!canEditSharedList(sharedListId)) {
+      console.warn("[Shared] Viewer cannot edit tasks");
+      return;
+    }
     const data = sharedLists[sharedListId];
     if (!data) return;
-    
     const updatedTasks = data.tasks.map((t) =>
       t.id === taskId ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
     );
     const updatedData: SharedListData = { ...data, tasks: updatedTasks };
     saveSharedList(sharedListId, updatedData);
     setSharedLists(getSharedLists());
-    
     const ownerId = data.list.ownerId ?? "";
     isWritingRef.current[sharedListId] = true;
-    // Pre-set the hash so subscription skips stale snapshots that arrive while writing
-    const pendingHash = JSON.stringify(updatedTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
+    const pendingHash = JSON.stringify(updatedTasks.map((t) => `${t.id}:${t.updatedAt}`).sort());
     lastSyncedHashRef.current[sharedListId] = pendingHash;
     lastSyncedTaskCountRef.current[sharedListId] = updatedTasks.length;
-    updateSharedSnapshot(
-      sharedListId,
-      updatedData.list,
-      updatedTasks,
-      ownerId,
-      data.ownerName,
-      (sid, writtenTasks) => {
-        setSharedLists((prev) => ({ ...prev, [sid]: { ...prev[sid], tasks: writtenTasks } }));
-        saveSharedList(sid, { ...sharedLists[sid], tasks: writtenTasks });
-        snapshotTasksRef.current[sid] = writtenTasks;
-        const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
-        lastSyncedHashRef.current[sid] = hash;
-        lastSyncedTaskCountRef.current[sid] = writtenTasks.length;
-        isWritingRef.current[sid] = false;
-      }
-    ).catch((error) => {
-      console.error("[SharedList] Failed to update task:", error);
+    updateSharedSnapshot(sharedListId, updatedData.list, updatedTasks, ownerId, data.ownerName, (sid, writtenTasks) => {
+      setSharedLists((prev) => ({ ...prev, [sid]: { ...prev[sid], tasks: writtenTasks } }));
+      saveSharedList(sid, { ...sharedLists[sid], tasks: writtenTasks });
+      snapshotTasksRef.current[sid] = writtenTasks;
+      const hash = JSON.stringify(writtenTasks.map((t) => `${t.id}:${t.updatedAt}`).sort());
+      lastSyncedHashRef.current[sid] = hash;
+      lastSyncedTaskCountRef.current[sid] = writtenTasks.length;
+      isWritingRef.current[sid] = false;
+    }).catch((err) => {
+      console.error("[SharedList] Failed to update task:", err);
       isWritingRef.current[sharedListId] = false;
-      // Revert on failure
       saveSharedList(sharedListId, data);
       setSharedLists(getSharedLists());
     });
-  }, [sharedLists, ensureSharedListData]);
+  }, [sharedLists, canEditSharedList]);
 
   const deleteSharedTask = useCallback((sharedListId: string, taskId: string) => {
+    if (!canEditSharedList(sharedListId)) {
+      console.warn("[Shared] Viewer cannot delete tasks");
+      return;
+    }
     const data = sharedLists[sharedListId];
     if (!data) return;
-    
     const updatedTasks = data.tasks.filter((t) => t.id !== taskId);
     const updatedData: SharedListData = { ...data, tasks: updatedTasks };
     saveSharedList(sharedListId, updatedData);
     setSharedLists(getSharedLists());
-    
     const ownerId = data.list.ownerId ?? "";
     isWritingRef.current[sharedListId] = true;
-    // Pre-set the hash so subscription skips stale snapshots that arrive while writing
-    const pendingHash = JSON.stringify(updatedTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
+    const pendingHash = JSON.stringify(updatedTasks.map((t) => `${t.id}:${t.updatedAt}`).sort());
     lastSyncedHashRef.current[sharedListId] = pendingHash;
     lastSyncedTaskCountRef.current[sharedListId] = updatedTasks.length;
-    console.log("[SharedList] Pre-set hash for delete:", pendingHash.substring(0, 30));
-    updateSharedSnapshot(
-      sharedListId,
-      updatedData.list,
-      updatedTasks,
-      ownerId,
-      data.ownerName,
-      (sid, writtenTasks) => {
-        setSharedLists((prev) => ({ ...prev, [sid]: { ...prev[sid], tasks: writtenTasks } }));
-        saveSharedList(sid, { ...sharedLists[sid], tasks: writtenTasks });
-        snapshotTasksRef.current[sid] = writtenTasks;
-        const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
-        lastSyncedHashRef.current[sid] = hash;
-        lastSyncedTaskCountRef.current[sid] = writtenTasks.length;
-        isWritingRef.current[sid] = false;
-      }
-    ).catch((error) => {
-      console.error("[SharedList] Failed to delete task:", error);
+    updateSharedSnapshot(sharedListId, updatedData.list, updatedTasks, ownerId, data.ownerName, (sid, writtenTasks) => {
+      setSharedLists((prev) => ({ ...prev, [sid]: { ...prev[sid], tasks: writtenTasks } }));
+      saveSharedList(sid, { ...sharedLists[sid], tasks: writtenTasks });
+      snapshotTasksRef.current[sid] = writtenTasks;
+      const hash = JSON.stringify(writtenTasks.map((t) => `${t.id}:${t.updatedAt}`).sort());
+      lastSyncedHashRef.current[sid] = hash;
+      lastSyncedTaskCountRef.current[sid] = writtenTasks.length;
+      isWritingRef.current[sid] = false;
+    }).catch((err) => {
+      console.error("[SharedList] Failed to delete task:", err);
       isWritingRef.current[sharedListId] = false;
-      // Revert on failure
       saveSharedList(sharedListId, data);
       setSharedLists(getSharedLists());
     });
-  }, [sharedLists, ensureSharedListData]);
+  }, [sharedLists, canEditSharedList]);
 
-  // ── Notifications ─────────────────────────────────────────
+  /** 拖曳任務更新 position（RLS 為 can_write_list） */
+  const reorderSharedTask = useCallback(async (sharedListId: string, taskId: string, position: number) => {
+    if (!canEditSharedList(sharedListId)) return;
+    try {
+      await setSharedTaskPosition(sharedListId, taskId, position);
+    } catch (err) {
+      console.warn("[SharedList] reorder failed:", err);
+    }
+  }, [canEditSharedList]);
+
+  // ── Members API ─────────────────────────────────────
+  const listSharedMembersFn = useCallback(async (sharedListId: string) => {
+    const members = await listSharedMembers(sharedListId);
+    setMembersBySharedList((prev) => ({ ...prev, [sharedListId]: members }));
+    return members;
+  }, []);
+
+  const inviteToSharedListFn = useCallback(async (sharedListId: string, email: string, role: MemberRole) => {
+    const myRole = myRoleByList[sharedListId];
+    if (myRole !== "owner") throw new Error("Only owner can invite");
+    const { supabase } = await import("./supabase");
+    if (!supabase) throw new Error("Supabase not configured");
+    const { error } = await supabase.from("shared_list_members").upsert(
+      {
+        shared_list_id: sharedListId,
+        member_email: email.toLowerCase(),
+        role: role === "owner" ? "editor" : role, // 不能透過邀請把對方升成 owner
+        status: "pending",
+        invited_at: new Date().toISOString(),
+      },
+      { onConflict: "shared_list_id,member_email" }
+    );
+    if (error) throw error;
+    await listSharedMembersFn(sharedListId);
+  }, [myRoleByList, listSharedMembersFn]);
+
+  const kickFromSharedListFn = useCallback(async (sharedListId: string, email: string) => {
+    const myRole = myRoleByList[sharedListId];
+    if (myRole !== "owner") throw new Error("Only owner can remove members");
+    await kickFromSharedList(sharedListId, email);
+    await listSharedMembersFn(sharedListId);
+  }, [myRoleByList, listSharedMembersFn]);
+
+  const changeSharedMemberRole = useCallback(async (sharedListId: string, email: string, role: MemberRole) => {
+    const myRole = myRoleByList[sharedListId];
+    if (myRole !== "owner") throw new Error("Only owner can change roles");
+    const { supabase } = await import("./supabase");
+    if (!supabase) return;
+    await supabase
+      .from("shared_list_members")
+      .update({ role })
+      .eq("shared_list_id", sharedListId)
+      .eq("member_email", email.toLowerCase());
+    await listSharedMembersFn(sharedListId);
+  }, [myRoleByList, listSharedMembersFn]);
+
+  const getMyRole = useCallback((sharedListId: string): MemberRole | null => {
+    return myRoleByList[sharedListId] ?? null;
+  }, [myRoleByList]);
+
+  // 進入 shared list → 自動拉成員名單（給 UI 顯示）
+  useEffect(() => {
+    if (currentSharedListId) {
+      void listSharedMembersFn(currentSharedListId);
+    }
+  }, [currentSharedListId, listSharedMembersFn]);
+
+  // ── 通知 ─────────────────────────────────────────────
   const requestNotificationPermission = useCallback(async (): Promise<boolean> => {
     if (typeof Notification === "undefined") return false;
     const result = await Notification.requestPermission();
@@ -1169,59 +1019,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return result === "granted";
   }, []);
 
+  // ── Provider value ─────────────────────────────────────
   const value: AppContextValue = {
-    tasks,
-    lists,
-    habits,
-    todayFocusMinutes,
-    currentView,
-    currentListId,
-    setCurrentView,
-    currentSharedListId,
-    setCurrentSharedList,
-    searchQuery,
-    setSearchQuery,
+    tasks, lists, habits, todayFocusMinutes,
+    currentView, currentListId, setCurrentView,
+    currentSharedListId, setCurrentSharedList,
+    searchQuery, setSearchQuery,
     activeFilter, setActiveFilter,
-    addTask,
-    updateTask,
-    deleteTask,
-    toggleTaskStatus,
-    archiveTask,
-    unarchiveTask,
-    addSubTask,
-    toggleSubTask,
-    deleteSubTask,
+    addTask, updateTask, deleteTask, toggleTaskStatus, archiveTask, unarchiveTask,
+    addSubTask, toggleSubTask, deleteSubTask,
     completeRecurringAndClone,
-    addList,
-    updateList,
-    deleteList,
-    addHabit,
-    updateHabit,
-    deleteHabit,
-    checkinHabit: checkinHabitFn,
+    addList, updateList, deleteList,
+    addHabit, updateHabit, deleteHabit, checkinHabit: checkinHabitFn,
     quickAdd,
-    requestNotificationPermission,
-    notificationPermission,
-    getFilteredTasks,
-    viewCounts,
-    getListTaskCount,
-    getTagCounts,
+    requestNotificationPermission, notificationPermission,
+    sharedLists, sharedListIds: Object.keys(sharedLists),
+    shareList, unshareList, acceptSharedList, removeAcceptedSharedList,
+    checkIncomingShareLink, quickAddToShared, updateSharedTask, deleteSharedTask,
+    reorderSharedTask,
+    listSharedMembers: listSharedMembersFn,
+    inviteToSharedList: inviteToSharedListFn,
+    kickFromSharedList: kickFromSharedListFn,
+    changeSharedMemberRole,
+    getMyRole,
+    membersBySharedList,
+    getFilteredTasks, viewCounts, getListTaskCount, getTagCounts,
     forceReload: () => setReloadKey((k) => k + 1),
-    // Shared lists
-    sharedLists,
-    sharedListIds: Object.keys(sharedLists),
-    shareList,
-    unshareList,
-    acceptSharedList,
-    removeAcceptedSharedList,
-    checkIncomingShareLink,
-    quickAddToShared,
-    updateSharedTask,
-    deleteSharedTask,
   };
 
   if (!isLoaded) return null;
-
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
@@ -1231,25 +1057,7 @@ export function useApp() {
   return ctx;
 }
 
-// ─── Debug helpers exposed to window for inspection ─────────────
-// In production you can call window.__debugSharedList(id) from devtools
-// to verify what Firestore currently has vs your local state.
-if (typeof window !== "undefined") {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (window as any).__debugSharedList = async (sharedListId: string) => {
-    const { getSharedSnapshot } = await import("./firestore");
-    const snap = await getSharedSnapshot(sharedListId);
-    console.log("[DEBUG] Firestore snapshot:", {
-      taskCount: snap?.tasks?.length,
-      taskTitles: snap?.tasks?.map((t) => t.title),
-      ownerId: snap?.ownerId,
-      updatedAt: snap?.updatedAt,
-    });
-    return snap;
-  };
-}
-
-// ─── Helpers ──────────────────────────────────────────────────
+// ─── helpers ─────────────────────────────────────────────────
 function computeHabitStreak(habit: Habit, checkins: Habit["checkins"]): number {
   if (checkins.length === 0) return 0;
   const today = new Date().toISOString().split("T")[0];
@@ -1270,9 +1078,7 @@ function computeHabitStreak(habit: Habit, checkins: Habit["checkins"]): number {
 function getNextRecurrenceDate(from: string, recurrence: Recurrence): string {
   const d = new Date(from);
   switch (recurrence.pattern) {
-    case "daily":
-      d.setDate(d.getDate() + recurrence.interval);
-      break;
+    case "daily": d.setDate(d.getDate() + recurrence.interval); break;
     case "weekly":
       if (recurrence.daysOfWeek && recurrence.daysOfWeek.length > 0) {
         d.setDate(d.getDate() + 1);
@@ -1289,12 +1095,8 @@ function getNextRecurrenceDate(from: string, recurrence: Recurrence): string {
         d.setDate(Math.min(recurrence.dayOfMonth, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()));
       }
       break;
-    case "yearly":
-      d.setFullYear(d.getFullYear() + recurrence.interval);
-      break;
-    case "custom":
-      d.setDate(d.getDate() + recurrence.interval);
-      break;
+    case "yearly": d.setFullYear(d.getFullYear() + recurrence.interval); break;
+    case "custom": d.setDate(d.getDate() + recurrence.interval); break;
   }
   return d.toISOString().split("T")[0];
 }
