@@ -568,20 +568,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const promises: Promise<void>[] = [];
     currentUserLists.forEach((list) => {
-      if (!list.sharedId) return;
-      if (sharedListUnsubscribeRefs.current[list.sharedId]) return; // Already subscribed
+      const sharedId = list.sharedId;
+      if (!sharedId) return;
+      if (sharedListUnsubscribeRefs.current[sharedId]) return; // Already subscribed
 
       const promise = subscribeToSharedSnapshot(
-        list.sharedId,
+        sharedId,
         () => {
           // Own snapshot updates are handled in the list update function
         },
         () => {
           // List was deleted externally
-          setOwnedSharedListIds((prev) => prev.filter((id) => id !== list.sharedId));
+          setOwnedSharedListIds((prev) => prev.filter((id) => id !== sharedId));
         }
       ).then((unsubscribe) => {
-        sharedListUnsubscribeRefs.current[list.sharedId] = unsubscribe;
+        sharedListUnsubscribeRefs.current[sharedId] = unsubscribe;
       }).catch(() => {});
       promises.push(promise);
     });
