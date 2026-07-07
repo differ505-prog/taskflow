@@ -781,7 +781,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       });
     };
-  }, [user, ownedSharedListIds, lists]);
+  }, [user, ownedSharedListIds]);
 
   // ── Subscribe to accepted shared lists (recipient side) ─────
   useEffect(() => {
@@ -855,58 +855,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
     };
   }, [user, acceptedSharedListIds]);
-
-  // ── Sync owned shared lists: push local + remote to Firestore and sharedLists ──
-  // CRITICAL: We use sharedLists[id].tasks (not tasks state) as the source of truth
-  // for owner-created tasks. quickAddToShared only updates sharedLists, never tasks state.
-  useEffect(() => {
-    if (!user) return;
-
-    const ownedLists = lists.filter((l) => l.ownerId === user.uid && l.sharedId);
-
-    ownedLists.forEach(async (list) => {
-      if (!list.sharedId) return;
-      if (!snapshotReadyRef.current[list.sharedId]) return;
-      // Use snapshotTasksRef (set by subscription callback) for authoritative task list
-      // This avoids closure lag where React state hasn't updated yet
-      const ownerTasks = snapshotTasksRef.current[list.sharedId] || [];
-      console.log("[SyncEffect] running for", list.sharedId, "snapshotTasks count:", ownerTasks.length);
-
-      // Owner tasks = all from snapshot
-      const localTaskIds = new Set(ownerTasks.map((t) => t.id));
-      const mergedTasks = [...ownerTasks];
-
-      // Check if anything actually changed to prevent infinite loops
-      const newHash = JSON.stringify(mergedTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
-      if (lastSyncedHashRef.current[list.sharedId] === newHash) {
-        console.log("[SyncEffect] skipping write, hash match");
-        return;
-      }
-
-      console.log("[SyncEffect] writing to Firestore, mergedTasks:", mergedTasks.length, "newHash:", newHash.substring(0, 30));
-
-      const ownerName = user.displayName || user.email || undefined;
-
-      try {
-        await updateSharedSnapshot(list.sharedId, list, mergedTasks, user.uid, ownerName);
-        lastSyncedHashRef.current[list.sharedId] = newHash;
-
-        const currentData = sharedLists[list.sharedId];
-        if (currentData) {
-          const updatedData: SharedListData = {
-            ...currentData,
-            tasks: mergedTasks,
-          };
-          saveSharedList(list.sharedId, updatedData);
-          setSharedLists(getSharedLists());
-        }
-      } catch (error) {
-        if ((error as any)?.code !== "permission-denied") {
-          console.error("Failed to sync shared list:", error);
-        }
-      }
-    });
-  }, [user, lists, sharedLists]);
 
   // ── Quick Add ─────────────────────────────────────────────
   const quickAdd = useCallback((input: string): string | null => {
@@ -985,9 +933,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         
         const ownerId = fetchedData.list.ownerId ?? "";
         console.log("[SharedList] Writing new task to Firestore, ownerId:", ownerId);
-        updateSharedSnapshot(sharedListId, updatedData.list, updatedTasks, ownerId, fetchedData.ownerName)
-          .then(() => console.log("[SharedList] Task saved to Firestore"))
-          .catch((error) => console.error("[SharedList] Failed to save task to Firestore:", error));
+        updateSharedSnapshot(
+          sharedListId,
+          updatedData.list,
+          updatedTasks,
+          ownerId,
+          fetchedData.ownerName,
+          (writtenTasks) => {
+            snapshotTasksRef.current[sharedListId] = writtenTasks;
+            const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
+            lastSyncedHashRef.current[sharedListId] = hash;
+            console.log("[SharedList] Task saved to Firestore, hash updated to:", hash.substring(0, 30));
+          }
+        ).catch((error) => console.error("[SharedList] Failed to save task to Firestore:", error));
       });
       return id; // Return id so UI doesn't show error
     }
@@ -1006,11 +964,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
     }
     console.log("[SharedList] Writing new task to Firestore, ownerId:", ownerId);
-    
+
     // Write to Firestore with error handling
-    updateSharedSnapshot(sharedListId, updatedData.list, updatedTasks, ownerId, data.ownerName)
-      .then(() => console.log("[SharedList] Task saved to Firestore"))
-      .catch((error) => {
+    updateSharedSnapshot(
+      sharedListId,
+      updatedData.list,
+      updatedTasks,
+      ownerId,
+      data.ownerName,
+      (writtenTasks) => {
+        // Update refs after successful write so subscription doesn't overwrite
+        snapshotTasksRef.current[sharedListId] = writtenTasks;
+        const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
+        lastSyncedHashRef.current[sharedListId] = hash;
+        console.log("[SharedList] Task saved to Firestore, hash updated to:", hash.substring(0, 30));
+      }
+    ).catch((error) => {
         console.error("[SharedList] Failed to save task to Firestore:", error);
         // If Firestore write fails, remove the task from local state
         const revertedTasks = data.tasks;
@@ -1039,7 +1008,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updatedData.list,
       updatedTasks,
       ownerId,
-      data.ownerName
+      data.ownerName,
+      (writtenTasks) => {
+        snapshotTasksRef.current[sharedListId] = writtenTasks;
+        const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
+        lastSyncedHashRef.current[sharedListId] = hash;
+      }
     ).catch((error) => {
       console.error("[SharedList] Failed to update task:", error);
       // Revert on failure
@@ -1063,7 +1037,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updatedData.list,
       updatedTasks,
       ownerId,
-      data.ownerName
+      data.ownerName,
+      (writtenTasks) => {
+        snapshotTasksRef.current[sharedListId] = writtenTasks;
+        const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
+        lastSyncedHashRef.current[sharedListId] = hash;
+      }
     ).catch((error) => {
       console.error("[SharedList] Failed to delete task:", error);
       // Revert on failure

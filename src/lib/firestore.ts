@@ -267,7 +267,8 @@ export async function updateSharedSnapshot(
   list: TaskList,
   tasks: Task[],
   ownerId: string,
-  ownerName?: string
+  ownerName?: string,
+  onWriteComplete?: (tasks: Task[]) => void
 ): Promise<void> {
   const db = await getFirebaseDB();
   const safeOwnerId = ownerId ?? "";
@@ -314,6 +315,9 @@ export async function updateSharedSnapshot(
   };
 
   await setDoc(doc(db, "sharedListSnapshots", sharedListId), snapshotData);
+
+  // Notify caller after write completes so refs stay in sync
+  onWriteComplete?.(tasks);
 }
 
 export async function getSharedSnapshot(sharedListId: string): Promise<SharedListSnapshot | null> {
