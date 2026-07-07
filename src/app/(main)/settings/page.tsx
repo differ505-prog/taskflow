@@ -15,11 +15,13 @@ export default function SettingsPage() {
     title: string;
     items: SettingsItem[];
     isTheory?: boolean;
+    isCalendar?: boolean;
   };
 
   const [showConfirm, setShowConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
   const [lastAction, setLastAction] = useState<string | null>(null);
+  const [calCopied, setCalCopied] = useState(false);
 
   const theoryCards = [
     {
@@ -73,7 +75,8 @@ export default function SettingsPage() {
     await navigator.clipboard.writeText(url);
     setCopied(true);
     setLastAction("webcal");
-    setTimeout(() => { setCopied(false); setLastAction(null); }, 2000);
+    setCalCopied(true);
+    setTimeout(() => { setCopied(false); setLastAction(null); setCalCopied(false); }, 2500);
   };
 
   const settingsGroups: SettingsGroup[] = [
@@ -103,22 +106,8 @@ export default function SettingsPage() {
     },
     {
       title: "日曆同步",
-      items: [
-        {
-          icon: CalendarDays,
-          label: "下載 iCal 檔案",
-          description: "下載 .ics 檔案，匯入 Google Calendar 或 Apple Calendar",
-          type: "action",
-          onClick: handleDownloadICal,
-        } satisfies SettingsItem as SettingsItem,
-        {
-          icon: Copy,
-          label: "複製訂閱連結",
-          description: "Webcal URL，複製後在 Google Calendar 訂閱",
-          type: "action",
-          onClick: handleCopyWebcal,
-        } satisfies SettingsItem as SettingsItem,
-      ],
+      items: [],
+      isCalendar: true,
     },
     {
       title: "資料",
@@ -211,6 +200,58 @@ export default function SettingsPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </>
+            ) : group.isCalendar ? (
+              <>
+                <h2
+                  id={`settings-${group.title}`}
+                  className="text-[12px] font-medium text-[var(--text-tertiary)] uppercase tracking-wide mb-3 px-1"
+                >
+                  {group.title}
+                </h2>
+                <div className="space-y-3">
+                  <button
+                    onClick={handleCopyWebcal}
+                    className="w-full flex items-center gap-4 px-5 py-4 rounded-xl transition-all active:scale-98 hover:bg-[var(--surface-hover)]"
+                    style={{ background: "var(--surface-elevated)", border: "1px solid var(--border)" }}
+                  >
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "var(--brand-tint)" }}>
+                      <Copy className="w-5 h-5" style={{ color: "var(--brand)" }} />
+                    </div>
+                    <div className="text-left flex-1 min-w-0">
+                      <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>複製日曆訂閱連結</p>
+                      <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>
+                        貼到 Google Calendar 訂閱，有變動時重新複製即可
+                      </p>
+                    </div>
+                    <span
+                      className="text-[12px] font-medium flex-shrink-0 px-3 py-1.5 rounded-xl transition-all"
+                      style={calCopied
+                        ? { background: "rgba(52,199,89,0.1)", color: "var(--status-success)" }
+                        : { background: "var(--brand-tint)", color: "var(--brand)" }}
+                    >
+                      {calCopied ? "已複製 ✓" : "複製連結"}
+                    </span>
+                  </button>
+                  <div className="p-4 rounded-xl space-y-2" style={{ background: "var(--surface-muted)", border: "1px solid var(--border)" }}>
+                    <p className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>使用方式</p>
+                    <ol className="space-y-1.5">
+                      {[
+                        "點擊「複製連結」",
+                        "Google Calendar → 左側「加入其他日曆」→「從網址加入」",
+                        "貼上後確認訂閱即可",
+                        "日曆顯示目前所有任務，任務有變動時重新複製一次即可刷新",
+                      ].map((step, i) => (
+                        <li key={i} className="flex items-start gap-2 text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+                          <span className="flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center mt-0.5 text-[10px] font-bold" style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>
+                            {i + 1}
+                          </span>
+                          {step}
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
                 </div>
               </>
             ) : (

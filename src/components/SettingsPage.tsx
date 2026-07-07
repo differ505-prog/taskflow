@@ -361,43 +361,64 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
             <h3 className="text-[12px] font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-tertiary)" }}>
               日曆同步
             </h3>
-            <div className="card p-4 space-y-3">
-              <button
-                onClick={() => {
-                  const tasks = getTasks();
-                  downloadICal(tasks, "VibeList");
-                }}
-                className="w-full flex items-center gap-3 p-3 rounded-xl transition-all active:scale-98 hover:bg-[var(--surface-hover)]"
-                style={{ background: "var(--surface-muted)" }}
-              >
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "var(--brand-tint)" }}>
-                  <Download className="w-4 h-4" style={{ color: "var(--brand)" }} />
-                </div>
-                <div className="text-left flex-1 min-w-0">
-                  <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>下載 iCal 檔案</p>
-                  <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>匯入 Google Calendar 或 Apple Calendar</p>
-                </div>
-                <span className="text-[12px] font-medium flex-shrink-0" style={{ color: "var(--brand)" }}>執行</span>
-              </button>
-              <button
-                onClick={async () => {
+            <div className="space-y-3">
+              {/* Copy subscription link */}
+              {(() => {
+                const [calCopied, setCalCopied] = useState(false);
+                const handleCopy = async () => {
                   const tasks = getTasks();
                   const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(tasks))));
                   const url = `${window.location.origin}/api/calendar/feed?tasks=${encoded}`;
                   await navigator.clipboard.writeText(url);
-                }}
-                className="w-full flex items-center gap-3 p-3 rounded-xl transition-all active:scale-98 hover:bg-[var(--surface-hover)]"
-                style={{ background: "var(--surface-muted)" }}
-              >
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "var(--brand-tint)" }}>
-                  <Copy className="w-4 h-4" style={{ color: "var(--brand)" }} />
-                </div>
-                <div className="text-left flex-1 min-w-0">
-                  <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>複製 WebCal 訂閱連結</p>
-                  <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>在 Google Calendar 中訂閱，即時同步</p>
-                </div>
-                <span className="text-[12px] font-medium flex-shrink-0" style={{ color: "var(--brand)" }}>執行</span>
-              </button>
+                  setCalCopied(true);
+                  setTimeout(() => setCalCopied(false), 2500);
+                };
+                return (
+                  <button
+                    onClick={handleCopy}
+                    className="w-full flex items-center gap-3 p-4 rounded-xl transition-all active:scale-98 hover:bg-[var(--surface-hover)]"
+                    style={{ background: "var(--surface-muted)" }}
+                  >
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "var(--brand-tint)" }}>
+                      <Copy className="w-5 h-5" style={{ color: "var(--brand)" }} />
+                    </div>
+                    <div className="text-left flex-1 min-w-0">
+                      <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>複製日曆訂閱連結</p>
+                      <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>
+                        貼到 Google Calendar 訂閱，有新增或編輯任務時回來重新複製即可
+                      </p>
+                    </div>
+                    <span
+                      className="text-[12px] font-medium flex-shrink-0 px-3 py-1.5 rounded-xl transition-all"
+                      style={calCopied
+                        ? { background: "rgba(52,199,89,0.1)", color: "var(--status-success)" }
+                        : { background: "var(--brand-tint)", color: "var(--brand)" }}
+                    >
+                      {calCopied ? "已複製 ✓" : "複製連結"}
+                    </span>
+                  </button>
+                );
+              })()}
+
+              {/* How to use instructions */}
+              <div className="p-4 rounded-xl space-y-2" style={{ background: "var(--surface-muted)", border: "1px solid var(--border)" }}>
+                <p className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>使用方式</p>
+                <ol className="space-y-1.5">
+                  {[
+                    "點擊「複製連結」",
+                    "打開 Google Calendar → 左側「加入其他日曆」→「從網址加入」",
+                    "貼上連結後確認訂閱",
+                    "日曆會顯示目前所有任務，下次有變動時再重新複製一次即可",
+                  ].map((step, i) => (
+                    <li key={i} className="flex items-start gap-2 text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+                      <span className="flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center mt-0.5 text-[10px] font-bold" style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>
+                        {i + 1}
+                      </span>
+                      {step}
+                    </li>
+                  ))}
+                </ol>
+              </div>
             </div>
           </section>
 
