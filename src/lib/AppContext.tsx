@@ -170,6 +170,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const snapshotTasksRef = useRef<Record<string, Task[]>>({});
   // Track when a Firestore write is in progress (prevents subscription from overwriting mid-write)
   const isWritingRef = useRef<Record<string, boolean>>({});
+  // Cooldown flag: set true after write completes, cleared by next subscription
+  // (catches async subscription fires that arrive after onWriteComplete microtask)
+  const justWroteRef = useRef<Record<string, boolean>>({});
 
   // ── Init ────────────────────────────────────────────────
   useEffect(() => {
@@ -720,6 +723,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             return;
           }
 
+          // Skip if a write just completed and we're in the cooldown window
+          // (Firebase SDK fires async subscription AFTER setDoc resolves)
+          if (justWroteRef.current[sharedId]) {
+            justWroteRef.current[sharedId] = false;
+            console.log("[SharedList] Subscription skipped (just wrote), snapshot has", snapshot.tasks.length, "tasks");
+            snapshotTasksRef.current[sharedId] = snapshot.tasks;
+            return;
+          }
+
           // Skip if snapshot hash doesn't match expected hash
           // (stale data from Firebase cache after a write)
           const snapshotHash = JSON.stringify(snapshot.tasks.map(t => `${t.id}:${t.updatedAt}`).sort());
@@ -1005,21 +1017,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setSharedLists((prev) => ({ ...prev, [sharedListId]: freshData }));
         console.log("[SharedList] Wrote", writtenTasks.length, "tasks to localStorage after Firestore write");
 
-        // Update refs
-        snapshotTasksRef.current[sharedListId] = writtenTasks;
+        // Update refs — set hash BEFORE clearing isWriting so subsequent subscriptions
+        // (which are async) will correctly skip stale data with the old hash
         const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
         lastSyncedHashRef.current[sharedListId] = hash;
-        console.log("[SharedList] Task saved to Firestore, hash updated to:", hash.substring(0, 30));
-        // Clear writing flag
+        // Set justWrote flag AFTER saveSharedList so any immediate subscription fires are caught
+        justWroteRef.current[sharedListId] = true;
         isWritingRef.current[sharedListId] = false;
-        console.log("[SharedList] isWriting cleared for", sharedListId);
+        console.log("[SharedList] Task saved to Firestore, hash updated to:", hash.substring(0, 30), "isWriting cleared");
+
+        snapshotTasksRef.current[sharedListId] = writtenTasks;
       }
     );
     console.log("[SharedList] updateSharedSnapshot returned:", result, "type:", typeof result);
     if (result && typeof result.then === "function") {
       result.catch((error) => {
         console.error("[SharedList] Failed to save task to Firestore:", error);
-        // Clear writing flag on error
+        justWroteRef.current[sharedListId] = false;
         isWritingRef.current[sharedListId] = false;
         // If Firestore write fails, remove the task from local state
         const revertedTasks = data.tasks;
@@ -1067,10 +1081,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         snapshotTasksRef.current[sharedListId] = writtenTasks;
         const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
         lastSyncedHashRef.current[sharedListId] = hash;
+        justWroteRef.current[sharedListId] = true;
         isWritingRef.current[sharedListId] = false;
       }
     ).catch((error) => {
       console.error("[SharedList] Failed to update task:", error);
+      justWroteRef.current[sharedListId] = false;
       isWritingRef.current[sharedListId] = false;
       // Revert on failure
       saveSharedList(sharedListId, data);
@@ -1108,10 +1124,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         snapshotTasksRef.current[sharedListId] = writtenTasks;
         const hash = JSON.stringify(writtenTasks.map(t => `${t.id}:${t.updatedAt}`).sort());
         lastSyncedHashRef.current[sharedListId] = hash;
+        justWroteRef.current[sharedListId] = true;
         isWritingRef.current[sharedListId] = false;
       }
     ).catch((error) => {
       console.error("[SharedList] Failed to delete task:", error);
+      justWroteRef.current[sharedListId] = false;
       isWritingRef.current[sharedListId] = false;
       // Revert on failure
       saveSharedList(sharedListId, data);
