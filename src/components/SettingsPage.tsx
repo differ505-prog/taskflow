@@ -461,7 +461,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                     <span className="text-[13px] font-bold" style={{ color: "var(--brand)" }}>G</span>
                   </div>
                   <div>
-                    <p className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>GTD 搞定</p>
+                    <p className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>GTD 時間管理法</p>
                     <p className="text-[12px] mt-0.5 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
                       收集箱用來清空大腦工作記憶，降低認知負載。
                       「今天」與「未來 7 天」視圖將龐大待辦清單化為可執行的下一步行動。
