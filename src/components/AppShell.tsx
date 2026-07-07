@@ -155,7 +155,9 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
     if (editingTask) {
       updateTask(editingTask.id, data);
     } else {
-      addTask(data);
+      // Ensure listId is set for new tasks (from list view or shared list)
+      const withListId = { ...data, listId: data.listId ?? currentListId };
+      addTask(withListId);
     }
     setEditingTask(null);
   };
@@ -542,6 +544,7 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
         onClose={() => { setIsFormOpen(false); setEditingTask(null); }}
         onSubmit={handleSubmit}
         initialData={editingTask}
+        currentListId={currentListId}
       />
 
       {/* FAB — Mobile only, hidden in shared list view */}

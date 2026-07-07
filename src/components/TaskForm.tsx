@@ -12,6 +12,7 @@ interface TaskFormProps {
   onClose: () => void;
   onSubmit: (data: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order">) => void;
   initialData?: Task | null;
+  currentListId?: string;
 }
 
 const RECURRENCE_OPTIONS = [
@@ -27,7 +28,7 @@ const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
 
 const SELECT_ARROW = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23999' strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E";
 
-export function TaskForm({ isOpen, onClose, onSubmit, initialData }: TaskFormProps) {
+export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId }: TaskFormProps) {
   const { lists } = useApp();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -100,7 +101,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData }: TaskFormPro
       setRecurrenceEndDate(initialData.recurrence?.endDate || "");
     } else {
       setTitle(""); setDescription(""); setPriority("medium"); setStatus("todo");
-      setDueDate(""); setDueTime(""); setListId(undefined); setTags([]);
+      setDueDate(""); setDueTime(""); setListId(currentListId); setTags([]);
       setSubTaskInputs([]); setNewSubTask("");
       setRecurrenceType("none"); setRecurrenceInterval(1);
       setRecurrenceDaysOfWeek([]); setRecurrenceEndDate("");
