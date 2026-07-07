@@ -719,30 +719,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           );
           remoteSharedTasksRef.current[sharedId] = remoteTasks;
 
-          // Merge remote tasks into local tasks state so Owner can see them in UI
-          if (remoteTasks.length > 0) {
-            setTasks((prev) => {
-              let changed = false;
-              const prevMap = new Map(prev.map(t => [t.id, t]));
-              
-              const merged = prev.map(pt => {
-                const rt = remoteTasks.find(r => r.id === pt.id);
-                if (rt && rt.updatedAt > pt.updatedAt) {
-                  changed = true;
-                  return rt;
-                }
-                return pt;
-              });
-              
-              const newRemoteTasks = remoteTasks.filter(t => !prevMap.has(t.id));
-              if (newRemoteTasks.length > 0) {
+          // Merge ALL snapshot tasks into local tasks state so Owner can see them in UI
+          setTasks((prev) => {
+            let changed = false;
+            const prevMap = new Map(prev.map(t => [t.id, t]));
+            
+            const merged = prev.map(pt => {
+              const st = snapshot.tasks.find(t => t.id === pt.id);
+              if (st && st.updatedAt > pt.updatedAt) {
                 changed = true;
-                merged.push(...newRemoteTasks);
+                return st;
               }
-              
-              return changed ? merged : prev;
+              return pt;
             });
-          }
+            
+            const newSnapshotTasks = snapshot.tasks.filter(t => !prevMap.has(t.id));
+            if (newSnapshotTasks.length > 0) {
+              changed = true;
+              merged.push(...newSnapshotTasks);
+            }
+            
+            return changed ? merged : prev;
+          });
 
           // Update the hash so we know what's on the server
           const hash = JSON.stringify(snapshot.tasks.map(t => `${t.id}:${t.updatedAt}`).sort());
