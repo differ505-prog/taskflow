@@ -71,6 +71,9 @@ export interface TaskList {
   order: number;
   createdAt: string;
   updatedAt: string;
+  // ── Sharing ────────────────────────────────────────────────
+  sharedId?: string; // non-empty = this list is shared; value is the share token
+  ownerId?: string;  // uid of the list owner (empty for own lists)
 }
 
 export interface Habit {

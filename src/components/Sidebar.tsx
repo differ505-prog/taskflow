@@ -7,7 +7,7 @@ import {
   Inbox, Sun, CalendarDays, Layers, Tag, Clock,
   Plus, ChevronDown, ChevronRight, CheckCircle2,
   BarChart3, Timer, Heart, Settings, Archive,
-  MoreHorizontal, Edit3, Trash2, X,
+  MoreHorizontal, Edit3, Trash2, X, Share2, Users,
 } from "lucide-react";
 
 interface NavItem {
@@ -25,12 +25,14 @@ interface SidebarProps {
   onEditList?: (list: TaskList) => void;
   onDeleteList?: (id: string) => void;
   onOpenPomodoro?: () => void;
+  onOpenShareModal?: (list: TaskList, tasks: import("@/lib/types").Task[]) => void;
+  onOpenSharedLists?: () => void;
 }
 
 const LIST_ICONS = ["📋", "💼", "🏠", "🏃", "📚", "💡", "🎯", "🌟", "💰", "🏥", "✈️", "🎨", "🍽️", "🛠️", "📱", "💻"];
 
-export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditList, onDeleteList, onOpenPomodoro }: SidebarProps) {
-  const { currentView, currentListId, setCurrentView, viewCounts, lists, getListTaskCount } = useApp();
+export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditList, onDeleteList, onOpenPomodoro, onOpenShareModal, onOpenSharedLists }: SidebarProps) {
+  const { currentView, currentListId, setCurrentView, viewCounts, lists, getListTaskCount, tasks } = useApp();
   const [listsExpanded, setListsExpanded] = useState(true);
   const [showListMenu, setShowListMenu] = useState<string | null>(null);
 
@@ -152,7 +154,7 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
                   {/* List context menu */}
                   {showListMenu === list.id && (
                     <div
-                      className="absolute right-2 top-full z-50 mt-1 py-1 w-40 rounded-xl border"
+                      className="absolute right-2 top-full z-50 mt-1 py-1 w-44 rounded-xl border"
                       style={{ background: "var(--surface-elevated)", boxShadow: "var(--shadow-md)", borderColor: "var(--border)" }}
                     >
                       <button
@@ -162,6 +164,15 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
                       >
                         <Edit3 className="w-3.5 h-3.5" /> 編輯清單
                       </button>
+                      {onOpenShareModal && (
+                        <button
+                          onClick={() => { onOpenShareModal(list, tasks.filter(t => t.listId === list.id)); setShowListMenu(null); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                          style={{ color: "var(--brand)" }}
+                        >
+                          <Share2 className="w-3.5 h-3.5" /> 分享清單
+                        </button>
+                      )}
                       <button
                         onClick={() => { onDeleteList?.(list.id); setShowListMenu(null); }}
                         className="w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
@@ -179,6 +190,20 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
 
         {/* Divider */}
         <div className="h-px mx-2 mt-2" style={{ background: "var(--border)" }} />
+
+        {/* Shared lists */}
+        {onOpenSharedLists && (
+          <div className="pt-2">
+            <button
+              onClick={onOpenSharedLists}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-150"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              <Users className="w-[18px] h-[18px] flex-shrink-0" />
+              <span className="flex-1 text-left">收藏的共用清單</span>
+            </button>
+          </div>
+        )}
 
         {/* Secondary views */}
         <div className="pt-2 space-y-0.5">

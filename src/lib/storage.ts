@@ -5,6 +5,7 @@ const LISTS_KEY = "taskflow_lists";
 const HABITS_KEY = "taskflow_habits";
 const POMODORO_KEY = "taskflow_pomodoro";
 const TAGS_KEY = "taskflow_tags";
+const SHARED_LISTS_KEY = "taskflow_shared_lists"; // { [sharedId]: { list, tasks } }
 
 // ─── Generic helpers ────────────────────────────────────────────
 function read<T>(key: string, fallback: T): T {
@@ -356,4 +357,56 @@ export function importData(
     tags: validateArray("tags").length,
     errors,
   };
+}
+
+// ─── Shared Lists ────────────────────────────────────────────────
+export interface SharedListData {
+  list: TaskList;
+  tasks: Task[];
+  ownerName?: string;
+}
+
+export function getSharedLists(): Record<string, SharedListData> {
+  return read<Record<string, SharedListData>>(SHARED_LISTS_KEY, {});
+}
+
+export function saveSharedLists(data: Record<string, SharedListData>): void {
+  write(SHARED_LISTS_KEY, data);
+}
+
+export function getSharedList(sharedId: string): SharedListData | null {
+  const all = getSharedLists();
+  return all[sharedId] ?? null;
+}
+
+export function saveSharedList(sharedId: string, data: SharedListData): void {
+  const all = getSharedLists();
+  all[sharedId] = data;
+  saveSharedLists(all);
+}
+
+export function removeSharedList(sharedId: string): void {
+  const all = getSharedLists();
+  delete all[sharedId];
+  saveSharedLists(all);
+}
+
+export function generateShareToken(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  return Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+}
+
+export function encodeSharePayload(list: TaskList, tasks: Task[]): string {
+  const payload = { l: list, t: tasks };
+  return btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+}
+
+export function decodeSharePayload(encoded: string): SharedListData | null {
+  try {
+    const json = decodeURIComponent(escape(atob(encoded)));
+    const data = JSON.parse(json);
+    return { list: data.l, tasks: data.t, ownerName: data.n };
+  } catch {
+    return null;
+  }
 }
