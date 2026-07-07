@@ -805,6 +805,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               ownerName: snapshot.ownerName,
             };
             saveSharedList(sharedListId, updatedData);
+            // Sync snapshot tasks into local tasks state so recipient sees them
+            setTasks((prev) => {
+              const prevMap = new Map(prev.map(t => [t.id, t]));
+              const merged = [...prev];
+              let changed = false;
+              for (const st of snapshot.tasks) {
+                const existing = prevMap.get(st.id);
+                if (!existing) {
+                  merged.push(st);
+                  changed = true;
+                } else if (st.updatedAt > existing.updatedAt) {
+                  const idx = merged.findIndex(t => t.id === st.id);
+                  if (idx >= 0) merged[idx] = st;
+                  changed = true;
+                }
+              }
+              return changed ? merged : prev;
+            });
             setSharedLists(getSharedLists());
           }
         },
