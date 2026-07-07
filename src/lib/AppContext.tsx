@@ -210,7 +210,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCurrentViewState(sharedId ? "shared" : "inbox");
     setSearchQuery("");
     setActiveFilter({});
-  }, []);
+
+    // Owner: when opening a shared list, ensure it's in sharedLists
+    if (sharedId && user) {
+      setSharedLists((prev) => {
+        if (prev[sharedId]) return prev;
+        // Find the list metadata from owned lists
+        const list = lists.find((l) => l.sharedId === sharedId && l.ownerId === user.uid);
+        if (!list) return prev;
+        // Get owner's local tasks for this list
+        const localTasks = tasks.filter((t) => t.listId === list.id);
+        return {
+          ...prev,
+          [sharedId]: {
+            list,
+            tasks: localTasks,
+            ownerName: user.displayName || user.email || undefined,
+          },
+        };
+      });
+    }
+  }, [user, lists, tasks]);
 
   // ── Filtered tasks ────────────────────────────────────────
   const getFilteredTasks = useCallback((): Task[] => {
@@ -722,8 +742,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user, acceptedSharedListIds]);
 
-  // ── Sync owned shared lists when they are updated ───────────
-  // MERGE-BASED: Owner's local tasks + remote tasks from recipients
+  // ── Sync owned shared lists: push local + remote to Firestore and sharedLists ──
+  // This keeps Firestore in sync AND updates sharedLists so the owner UI shows all tasks
   useEffect(() => {
     if (!user) return;
 
@@ -756,14 +776,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       try {
         await updateSharedSnapshot(list.sharedId, list, mergedTasks, user.uid, ownerName);
         lastSyncedHashRef.current[list.sharedId] = newHash;
+
+        // Also update sharedLists so owner's UI reflects the merged snapshot
+        const currentData = sharedLists[list.sharedId];
+        if (currentData) {
+          const updatedData: SharedListData = {
+            ...currentData,
+            tasks: mergedTasks,
+          };
+          saveSharedList(list.sharedId, updatedData);
+          setSharedLists(getSharedLists());
+        }
       } catch (error) {
-        // Permission denied is expected if user doesn't own the list anymore
         if ((error as any)?.code !== "permission-denied") {
           console.error("Failed to sync shared list:", error);
         }
       }
     });
-  }, [user, lists, tasks]);
+  }, [user, lists, tasks, sharedLists]);
 
   // ── Quick Add ─────────────────────────────────────────────
   const quickAdd = useCallback((input: string): string | null => {
