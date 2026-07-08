@@ -270,17 +270,15 @@ export function TaskCard({
                   {attachmentCount}
                 </span>
               )}
-              {hasDescription && (
-                <button
-                  onClick={handleExpand}
-                  className="flex items-center gap-0.5 text-[11px] hover:underline transition-colors"
-                  style={{ color: "var(--text-tertiary)" }}
-                  aria-label="展開詳情"
-                >
-                  詳情
-                  <ChevronDown className="w-3 h-3 transition-transform duration-200" style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }} />
-                </button>
-              )}
+              <button
+                onClick={handleExpand}
+                className="flex items-center gap-0.5 text-[11px] hover:underline transition-colors"
+                style={{ color: "var(--text-tertiary)" }}
+                aria-label={isExpanded ? "收起詳情" : "展開詳情"}
+              >
+                {isExpanded ? "收起" : "詳情"}
+                <ChevronDown className="w-3 h-3 transition-transform duration-200" style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }} />
+              </button>
             </div>
           )}
 
