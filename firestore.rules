@@ -1,36 +1,58 @@
 rules_version = '2';
 
+// Firestore Security Rules for TaskFlow
+//
+// 文件結構說明：
+//   users/{uid}              - 用戶個人資料（任務、清單、習慣、標籤、番茄鐘、附件）
+//   shared_lists/{id}        - 共享清單（Supabase 為主源，此為鏡像）
+//   permissions/betas/emails/{email_lower}  - Beta 測試者名單（雲端 RBAC）
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ─── User data ─────────────────────────────────────────────
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // ─── 工具函式 ────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    // Admin 白名單從環境變數讀取（部署時注入）
+    function isAdmin() {
+      return isSignedIn() &&
+        request.auth.token.email in [
+          "differ505@gmail.com"
+          // 之後可在這裡加其他創辦人
+        ];
     }
 
-    // ─── Shared Lists ───────────────────────────────────────────
-    // Anyone can read shared list metadata (to check if a share exists)
-    match /sharedLists/{sharedListId} {
-      allow read: if true;
-      // Only the owner can update or delete (create is handled below)
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
+    // ─── 用戶個人資料 ────────────────────────────────────────
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+
+      // 用戶子集合（tasks/lists/habits/tags/pomodoro_sessions/attachments）
+      match /{document=**} {
+        allow read, write: if isOwner(uid);
+      }
     }
 
-    // ─── Shared List Snapshots ──────────────────────────────────
-    // Anyone can read snapshots (the actual shared data)
-    match /sharedListSnapshots/{sharedListId} {
+    // ─── Beta 測試者名單（雲端 RBAC）─────────────────────
+    match /permissions/betas/emails/{email} {
+      // 所有人（包含未登入）都可以讀取：用戶登入時需要知道自己是不是 Beta
       allow read: if true;
-      // Only the owner can create the initial snapshot
-      allow create: if request.auth != null
-        && request.auth.uid == request.resource.data.ownerId;
-      // Any authenticated user can update to contribute tasks
-      // but the ownerId cannot be changed (prevents ownership hijacking)
-      allow update: if request.auth != null
-        && request.resource.data.ownerId == resource.data.ownerId;
-      // Only the owner can delete
-      allow delete: if request.auth != null
-        && request.auth.uid == resource.data.ownerId;
+
+      // 只有 Admin 能新增/修改/刪除
+      allow create, update, delete: if isAdmin();
+
+      // 寫入時驗證資料結構
+      allow create, update: if request.resource.data.keys().hasAll(["email", "addedAt", "addedBy"])
+        && request.resource.data.email == email
+        && request.resource.data.addedBy == request.auth.uid;
+    }
+
+    // ─── 其他未明確定義的 collection（拒絕存取）──────────
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

@@ -23,6 +23,11 @@ import {
   isSupabaseConfigured,
 } from "@/lib/supabase";
 import { UserRole, ADMIN_EMAILS, ROLE_CONFIGS } from "@/lib/types";
+import {
+  addBetaUserFS,
+  removeBetaUserFS,
+  subscribeBetaUsers,
+} from "@/lib/betaListFS";
 
 interface AuthContextValue {
   user: User | null;
@@ -39,6 +44,11 @@ interface AuthContextValue {
   isAdmin: boolean;
   isBeta: boolean;
   isFree: boolean;
+  // ── Beta Cloud List (Firestore-backed) ───────────────
+  betaUsers: string[];
+  betaLoading: boolean;
+  addBetaUser: (email: string) => Promise<void>;
+  removeBetaUser: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -55,28 +65,28 @@ const AuthContext = createContext<AuthContextValue>({
   isAdmin: false,
   isBeta: false,
   isFree: true,
+  betaUsers: [],
+  betaLoading: true,
+  addBetaUser: async () => {},
+  removeBetaUser: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [betaUsers, setBetaUsers] = useState<string[]>([]);
+  const [betaLoading, setBetaLoading] = useState(true);
 
-  const BETA_USERS_KEY = "taskflow_beta_users";
-
-  // Load beta users from localStorage
+  // ── 即時訂閱 Firestore Beta 名單 ──────────────────────────
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(BETA_USERS_KEY);
-      if (stored) {
-        setBetaUsers(JSON.parse(stored));
-      }
-    } catch {
-      // Ignore
-    }
+    const unsubscribe = subscribeBetaUsers((emails) => {
+      setBetaUsers(emails);
+      setBetaLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
 
-  // Compute role based on user email and beta list
+  // 計算當前登入用戶的角色
   const role = (() => {
     if (!user?.email) return "free" as UserRole;
     const email = user.email.toLowerCase();
@@ -92,11 +102,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const roleConfig = ROLE_CONFIGS[role];
   const canUpload = roleConfig.canUpload;
-  const maxFileSizeMB = roleConfig.maxFileSizeMB;
+  const maxFileSizeMB =
+    roleConfig.maxFileSizeMB === Infinity
+      ? Infinity
+      : roleConfig.maxFileSizeMB;
   const isAdmin = role === "admin";
   const isBeta = role === "beta";
   const isFree = role === "free";
 
+  // ── Firebase Auth 監聽 ──────────────────────────────────
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
     let unsubSupabase: (() => void) | undefined;
@@ -106,17 +120,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
         setUser(firebaseUser);
         setLoading(false);
-        // 登入 / 切換身分時立刻刷新 Realtime WebSocket 的 JWT
         if (isSupabaseConfigured()) {
           refreshSupabaseRealtimeAuth();
         }
       });
-      // 監聽 Firebase ID token 刷新（~1 小時）並推到 Supabase Realtime
       if (isSupabaseConfigured()) {
         unsubSupabase = bindSupabaseAuthRefresher();
       }
     } catch {
-      // Firebase not configured yet
       setLoading(false);
     }
 
@@ -125,6 +136,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       unsubSupabase?.();
     };
   }, []);
+
+  // ── Beta CRUD（寫入 Firestore，介面保持相容）─────────────
+  const addBetaUser = async (email: string) => {
+    const normalized = email.toLowerCase().trim();
+    if (!normalized) return;
+    if (!user?.uid) throw new Error("尚未登入");
+    await addBetaUserFS(normalized, user.uid);
+    // 不需手動更新 state，onSnapshot 會即時推送
+  };
+
+  const removeBetaUser = async (email: string) => {
+    const normalized = email.toLowerCase().trim();
+    await removeBetaUserFS(normalized);
+  };
 
   const signInWithGoogle = async () => {
     const auth = getFirebaseAuth();
@@ -154,6 +179,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithGoogle, signInWithEmail, signUpWithEmail, signOut,
         role, roleConfig, canUpload, maxFileSizeMB,
         isAdmin, isBeta, isFree,
+        betaUsers, betaLoading,
+        addBetaUser, removeBetaUser,
       }}
     >
       {children}
@@ -163,46 +190,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   return useContext(AuthContext);
-}
-
-// ── Beta User Management ───────────────────────────────────────
-const BETA_USERS_KEY = "taskflow_beta_users";
-
-export function getBetaUsers(): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const stored = localStorage.getItem(BETA_USERS_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function saveBetaUsers(emails: string[]): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(BETA_USERS_KEY, JSON.stringify(emails));
-  } catch {
-    // Storage unavailable
-  }
-}
-
-export function addBetaUser(email: string): void {
-  const normalized = email.toLowerCase().trim();
-  if (!normalized) return;
-  const users = getBetaUsers();
-  if (!users.map((e) => e.toLowerCase()).includes(normalized)) {
-    saveBetaUsers([...users, normalized]);
-  }
-}
-
-export function removeBetaUser(email: string): void {
-  const normalized = email.toLowerCase().trim();
-  const users = getBetaUsers().filter((e) => e.toLowerCase() !== normalized);
-  saveBetaUsers(users);
-}
-
-export function isUserBeta(email: string | null | undefined): boolean {
-  if (!email) return false;
-  return getBetaUsers().map((e) => e.toLowerCase()).includes(email.toLowerCase());
 }

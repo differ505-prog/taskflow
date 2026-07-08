@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useCallback } from "react";
-import { useAuth, getBetaUsers } from "@/lib/AuthContext";
+import { useAuth } from "@/lib/AuthContext";
 import { ADMIN_EMAILS } from "@/lib/types";
 import { Attachment } from "@/lib/types";
 import { Upload, Lock, AlertCircle, CheckCircle2, X, Image, FileText, Loader2 } from "lucide-react";
@@ -37,16 +37,16 @@ export function ProtectedUploadButton({
   buttonText = "添加附件",
   maxSizeMB,
 }: ProtectedUploadButtonProps) {
-  const { user } = useAuth();
+  const { user, betaUsers } = useAuth();
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // 計算權限
+  // 計算權限（從雲端 beta 名單即時取得）
   const email = user?.email?.toLowerCase();
   const isAdminUser = email ? ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email) : false;
-  const isBetaUser = email ? getBetaUsers().map((e) => e.toLowerCase()).includes(email) : false;
+  const isBetaUser = email ? betaUsers.map((e) => e.toLowerCase()).includes(email) : false;
   const hasUploadAccess = isAdminUser || isBetaUser;
   const effectiveMaxSize = isAdminUser
     ? Infinity
@@ -361,10 +361,10 @@ export function AttachmentItem({ attachment, onRemove, compact = false }: Attach
  * 顯示上傳權限狀態的徽章組件
  */
 export function UploadPermissionBadge() {
-  const { user } = useAuth();
+  const { user, betaUsers } = useAuth();
   const email = user?.email?.toLowerCase();
   const isAdminUser = email ? ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email) : false;
-  const isBetaUser = email ? getBetaUsers().map((e) => e.toLowerCase()).includes(email) : false;
+  const isBetaUser = email ? betaUsers.map((e) => e.toLowerCase()).includes(email) : false;
 
   if (!user) {
     return (

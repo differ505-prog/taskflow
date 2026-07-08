@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useApp } from "@/lib/AppContext";
-import { useAuth, getBetaUsers, addBetaUser, removeBetaUser } from "@/lib/AuthContext";
+import { useAuth } from "@/lib/AuthContext";
 import {
   clearAllData, exportAllData, downloadCSV, downloadJSON,
   exportTasksToCSV, exportHabitsToCSV, importData,
@@ -33,42 +33,53 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
   const [importStats, setImportStats] = useState<{ tasks: number; habits: number; lists: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ── Role Management ────────────────────────────────────────
-  const [betaUsers, setBetaUsers] = useState<string[]>([]);
+  // ── Role Management（從 useAuth 取得雲端 Beta 名單）──────
+  const { betaUsers, betaLoading, addBetaUser: cloudAddBeta, removeBetaUser: cloudRemoveBeta } = useAuth();
   const [newBetaEmail, setNewBetaEmail] = useState("");
   const [betaMsg, setBetaMsg] = useState<string | null>(null);
+  const [betaBusy, setBetaBusy] = useState(false);
 
-  useEffect(() => {
-    if (isOpen) {
-      setBetaUsers(getBetaUsers());
-    }
-  }, [isOpen]);
-
-  const handleAddBetaUser = () => {
+  const handleAddBetaUser = async () => {
+    if (betaBusy) return;
     const email = newBetaEmail.trim().toLowerCase();
     if (!email) return;
-    if (!email.includes("@")) {
+    if (!email.includes("@") || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setBetaMsg("請輸入有效的 Email");
       setTimeout(() => setBetaMsg(null), 3000);
       return;
     }
-    if (getBetaUsers().map((e) => e.toLowerCase()).includes(email)) {
+    if (betaUsers.map((e) => e.toLowerCase()).includes(email)) {
       setBetaMsg("此用戶已在列表中");
       setTimeout(() => setBetaMsg(null), 3000);
       return;
     }
-    addBetaUser(email);
-    setBetaUsers(getBetaUsers());
-    setNewBetaEmail("");
-    setBetaMsg(`已添加 ${email} 為早期測試者`);
-    setTimeout(() => setBetaMsg(null), 3000);
+    try {
+      setBetaBusy(true);
+      await cloudAddBeta(email);
+      setNewBetaEmail("");
+      setBetaMsg(`已將 ${email} 加入雲端名單，所有裝置即時生效`);
+      setTimeout(() => setBetaMsg(null), 3000);
+    } catch (err: any) {
+      setBetaMsg(`加入失敗：${err?.message || "未知錯誤"}`);
+      setTimeout(() => setBetaMsg(null), 4000);
+    } finally {
+      setBetaBusy(false);
+    }
   };
 
-  const handleRemoveBetaUser = (email: string) => {
-    removeBetaUser(email);
-    setBetaUsers(getBetaUsers());
-    setBetaMsg(`已移除 ${email}`);
-    setTimeout(() => setBetaMsg(null), 3000);
+  const handleRemoveBetaUser = async (email: string) => {
+    if (betaBusy) return;
+    try {
+      setBetaBusy(true);
+      await cloudRemoveBeta(email);
+      setBetaMsg(`已從所有裝置移除 ${email}`);
+      setTimeout(() => setBetaMsg(null), 3000);
+    } catch (err: any) {
+      setBetaMsg(`移除失敗：${err?.message || "未知錯誤"}`);
+      setTimeout(() => setBetaMsg(null), 4000);
+    } finally {
+      setBetaBusy(false);
+    }
   };
 
   useEffect(() => {
@@ -369,17 +380,17 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                   <div className="flex items-center gap-2 mb-3">
                     <UserPlus className="w-4 h-4" style={{ color: "var(--brand)" }} />
                     <p className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>
-                      早期測試者管理
+                      早期測試者管理（雲端）
                     </p>
                     <span
                       className="text-[10px] font-medium px-2 py-0.5 rounded-full ml-1"
-                      style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+                      style={{ background: "rgba(52,199,89,0.12)", color: "var(--status-success)" }}
                     >
-                      創辦人專區
+                      🌐 所有裝置即時同步
                     </span>
                   </div>
                   <p className="text-[12px] mb-3" style={{ color: "var(--text-tertiary)" }}>
-                    手動開通早期測試者資格，賦予上傳功能（5MB/單檔限制）
+                    手動開通早期測試者資格，賦予上傳功能（5MB/單檔限制）。新增後對方下次登入即生效。
                   </p>
 
                   {/* Add Beta User */}
@@ -392,17 +403,23 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                       placeholder="輸入用戶 Email"
                       className="input flex-1 text-[13px]"
                       style={{ padding: "10px 12px" }}
+                      disabled={betaBusy}
                     />
                     <button
                       onClick={handleAddBetaUser}
-                      className="btn-primary px-4 flex-shrink-0"
+                      className="btn-primary px-4 flex-shrink-0 disabled:opacity-50"
+                      disabled={betaBusy}
                     >
-                      添加
+                      {betaBusy ? "處理中…" : "添加"}
                     </button>
                   </div>
 
                   {/* Beta Users List */}
-                  {betaUsers.length > 0 ? (
+                  {betaLoading ? (
+                    <p className="text-[12px] text-center py-3" style={{ color: "var(--text-tertiary)" }}>
+                      從雲端載入…
+                    </p>
+                  ) : betaUsers.length > 0 ? (
                     <div className="space-y-2">
                       {betaUsers.map((email) => (
                         <div
@@ -415,9 +432,10 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                           </span>
                           <button
                             onClick={() => handleRemoveBetaUser(email)}
-                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors flex-shrink-0 ml-2"
+                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors flex-shrink-0 ml-2 disabled:opacity-50"
                             style={{ color: "var(--status-danger)" }}
                             aria-label={`移除 ${email}`}
+                            disabled={betaBusy}
                           >
                             <UserMinus className="w-4 h-4" />
                           </button>
@@ -426,7 +444,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                     </div>
                   ) : (
                     <p className="text-[12px] text-center py-3" style={{ color: "var(--text-tertiary)" }}>
-                      尚無早期測試者
+                      雲端名單為空，新增第一位測試者吧
                     </p>
                   )}
 
