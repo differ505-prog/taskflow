@@ -13,6 +13,8 @@ export async function GET(req: NextRequest) {
   const code = url.searchParams.get("code");
 
   if (code) {
+    const supabaseResponse = NextResponse.redirect(new URL("/", req.url));
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -31,6 +33,7 @@ export async function GET(req: NextRequest) {
       }
     );
     await supabase.auth.exchangeCodeForSession(code);
+    return supabaseResponse;
   }
 
   url.pathname = "/";
