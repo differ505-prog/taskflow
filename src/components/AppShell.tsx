@@ -97,6 +97,7 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
     addTask, updateTask, deleteTask, toggleTaskStatus,
     archiveTask, quickAdd, getFilteredTasks, viewCounts,
     getTagCounts,
+    toggleSubTask, addSubTask, deleteSubTask, completeRecurringAndClone,
     quickAddToShared, updateSharedTask, deleteSharedTask,
     getMyRole,
   } = useApp();
@@ -558,6 +559,10 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
                         onEdit={handleEdit}
                         onDelete={deleteTask}
                         onArchive={archiveTask}
+                        onToggleSubTask={toggleSubTask}
+                        onAddSubTask={addSubTask}
+                        onDeleteSubTask={deleteSubTask}
+                        onCompleteRecurring={completeRecurringAndClone}
                       />
                     </TaskSwipeWrapper>
                   </motion.div>

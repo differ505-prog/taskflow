@@ -22,7 +22,7 @@ interface TaskCardProps {
   onDelete: (id: string) => void;
   onArchive?: (id: string) => void;
   onToggleSubTask?: (taskId: string, subId: string) => void;
-  onAddSubTask?: (taskId: string) => void;
+  onAddSubTask?: (taskId: string, title: string) => void;
   onDeleteSubTask?: (taskId: string, subId: string) => void;
   onCompleteRecurring?: (taskId: string) => void;
   draggable?: boolean;
@@ -137,10 +137,9 @@ export function TaskCard({
   const handleExpand = () => setIsExpanded((p) => !p);
 
   const handleSubTaskSubmit = () => {
-    if (!newSubTaskTitle.trim() || !onAddSubTask) return;
-    onAddSubTask(task.id);
-    // Note: this component doesn't manage the input state — onAddSubTask gets called with title
-    // We store the title in a ref via the form — simpler: call context directly
+    const title = newSubTaskTitle.trim();
+    if (!title || !onAddSubTask) return;
+    onAddSubTask(task.id, title);
     setNewSubTaskTitle("");
     setShowSubTaskInput(false);
   };
@@ -268,14 +267,20 @@ export function TaskCard({
                   {attachmentCount}
                 </span>
               )}
+            </div>
+          )}
+
+          {/* 展開按鈕 — 永遠顯示，避免沒有 meta 的任務看不到詳情 */}
+          {!isExpanded && (
+            <div className="mt-2 flex justify-end">
               <button
                 onClick={handleExpand}
                 className="flex items-center gap-0.5 text-[11px] hover:underline transition-colors"
                 style={{ color: "var(--text-tertiary)" }}
-                aria-label={isExpanded ? "收起詳情" : "展開詳情"}
+                aria-label="展開詳情"
               >
-                {isExpanded ? "收起" : "詳情"}
-                <ChevronDown className="w-3 h-3 transition-transform duration-200" style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }} />
+                詳情
+                <ChevronDown className="w-3 h-3 transition-transform duration-200" style={{ transform: "rotate(0)" }} />
               </button>
             </div>
           )}
