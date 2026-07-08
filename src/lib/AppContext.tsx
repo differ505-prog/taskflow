@@ -53,6 +53,7 @@ import {
 import { SharedMember, MemberRole } from "./sharedSync";
 import { parseNaturalLanguage } from "./nlp";
 import { useAuth } from "./AuthContext";
+import { recordActive } from "./userActivityFS";
 
 interface AppContextValue {
   // ── 資料 ──────────────────────────────────────────────
@@ -354,12 +355,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
     const next: Record<string, string> = { todo: "in-progress", "in-progress": "done", done: "todo" };
+    const newStatus = next[task.status] as Task["status"];
     const updated = tasks.map((t) =>
-      t.id === id ? { ...t, status: next[t.status] as Task["status"], updatedAt: new Date().toISOString() } : t
+      t.id === id ? { ...t, status: newStatus, updatedAt: new Date().toISOString() } : t
     );
     setTasks(updated);
     saveTasks(updated);
-  }, [tasks]);
+    // 完成任務時更新 lastActiveAt（節流交由 recordActive 處理）
+    if (newStatus === "done" && user?.uid) {
+      void recordActive(user.uid);
+    }
+  }, [tasks, user?.uid]);
 
   const archiveTask = useCallback((id: string) => updateTask(id, { isArchived: true }), [updateTask]);
   const unarchiveTask = useCallback((id: string) => updateTask(id, { isArchived: false }), [updateTask]);

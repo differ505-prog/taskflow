@@ -28,6 +28,11 @@ import {
   removeBetaUserFS,
   subscribeBetaUsers,
 } from "@/lib/betaListFS";
+import { recordLogin, ensureUserProfile } from "@/lib/userActivityFS";
+import {
+  exchangeIdTokenForSessionCookie,
+  clearSessionCookie,
+} from "@/lib/sessionCookie";
 
 interface AuthContextValue {
   user: User | null;
@@ -117,9 +122,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const auth = getFirebaseAuth();
-      unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         setUser(firebaseUser);
         setLoading(false);
+        if (firebaseUser?.uid && firebaseUser?.email) {
+          // 1. 確保 profile 文件存在
+          void ensureUserProfile({ uid: firebaseUser.uid, email: firebaseUser.email });
+          // 2. 記錄登入時間
+          void recordLogin(firebaseUser.uid);
+          // 3. 換發 HttpOnly session cookie（fire-and-forget）
+          try {
+            const idToken = await firebaseUser.getIdToken();
+            void exchangeIdTokenForSessionCookie(idToken);
+          } catch (err) {
+            console.warn("[Auth] failed to exchange session cookie:", err);
+          }
+        } else {
+          // 登出時清除 cookie
+          void clearSessionCookie();
+        }
         if (isSupabaseConfigured()) {
           refreshSupabaseRealtimeAuth();
         }

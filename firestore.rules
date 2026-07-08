@@ -30,7 +30,7 @@ service cloud.firestore {
     match /users/{uid} {
       allow read, write: if isOwner(uid);
 
-      // 用戶子集合（tasks/lists/habits/tags/pomodoro_sessions/attachments）
+      // 用戶子集合（tasks/lists/habits/tags/pomodoro_sessions/attachments/comments）
       match /{document=**} {
         allow read, write: if isOwner(uid);
       }
