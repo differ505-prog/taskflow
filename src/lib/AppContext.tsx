@@ -49,6 +49,9 @@ import {
   getMyRoleInSharedList,
   listSharedMembers,
   setSharedTaskPosition,
+  subscribeTasks,
+  batchSaveTasks,
+  deleteTask as deleteTaskFirebase,
 } from "./firestore";
 import { SharedMember, MemberRole } from "./sharedSync";
 import { parseNaturalLanguage } from "./nlp";
@@ -178,6 +181,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const snapshotReadyRef = useRef<Record<string, boolean>>({});
   const snapshotTasksRef = useRef<Record<string, Task[]>>({});
   const isWritingRef = useRef<Record<string, boolean>>({});
+  const isWritingLocalRef = useRef(false); // 防止本地寫入 trigger Firebase 推送覆蓋自己
+  const fbUnsubRef = useRef<(() => void) | null>(null);
 
   // 我在每個 shared list 的角色
   const [myRoleByList, setMyRoleByList] = useState<Record<string, MemberRole>>({});
@@ -203,8 +208,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (typeof Notification !== "undefined") {
       setNotificationPermission(Notification.permission);
     }
+
+    // ── 跨設備同步：Firebase 實時監聽個人任務 ──────────────────
+    if (user) {
+      if (fbUnsubRef.current) fbUnsubRef.current();
+      subscribeTasks(user.uid, (fbTasks) => {
+        if (isWritingLocalRef.current) return; // 忽略自己推送的（已由 saveTasks 更新 localStorage）
+        isWritingLocalRef.current = true;
+        setTasks(fbTasks);
+        saveTasks(fbTasks);
+        setTimeout(() => { isWritingLocalRef.current = false; }, 50);
+      }).then((unsub) => {
+        fbUnsubRef.current = unsub;
+      }).catch((err) => {
+        console.warn("[Firebase] 訂閱任務失敗（離線設備會繼續用 localStorage）:", err);
+      });
+    }
+
     setIsLoaded(true);
-  }, [reloadKey]);
+  }, [user, reloadKey]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -322,18 +344,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       order: tasks.filter((t) => !t.isArchived).length,
     };
     const updated = [task, ...tasks];
+    isWritingLocalRef.current = true;
     setTasks(updated);
     saveTasks(updated);
+    if (user) batchSaveTasks(user.uid, updated).catch(console.warn);
+    setTimeout(() => { isWritingLocalRef.current = false; }, 50);
     return id;
-  }, [tasks]);
+  }, [tasks, user]);
 
   const updateTask = useCallback((id: string, updates: Partial<Task>) => {
     const updated = tasks.map((t) =>
       t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
     );
+    isWritingLocalRef.current = true;
     setTasks(updated);
     saveTasks(updated);
-  }, [tasks]);
+    if (user) batchSaveTasks(user.uid, updated).catch(console.warn);
+    setTimeout(() => { isWritingLocalRef.current = false; }, 50);
+  }, [tasks, user]);
 
   const deleteTask = useCallback(async (id: string) => {
     // 刪除任務時，一併清理 Firebase Storage 中的附件
@@ -349,9 +377,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
     const updated = tasks.filter((t) => t.id !== id);
+    isWritingLocalRef.current = true;
     setTasks(updated);
     saveTasks(updated);
-  }, [tasks]);
+    if (user) {
+      deleteTaskFirebase(user.uid, id).catch(console.warn);
+      batchSaveTasks(user.uid, updated).catch(console.warn);
+    }
+    setTimeout(() => { isWritingLocalRef.current = false; }, 50);
+  }, [tasks, user]);
 
   const toggleTaskStatus = useCallback((id: string) => {
     const task = tasks.find((t) => t.id === id);
