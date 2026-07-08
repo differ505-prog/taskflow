@@ -183,7 +183,8 @@ export async function subscribeTaskComments(
   if (!isSupabaseConfigured()) {
     await fbPromise;
     return () => {
-      if (typeof unsubFirebase === "function") unsubFirebase();
+      const fn = unsubFirebase as (() => void) | null;
+      if (typeof fn === "function") fn();
     };
   }
 
