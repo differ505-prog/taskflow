@@ -25,7 +25,7 @@ export async function upsertProfile(args: {
 }): Promise<void> {
   if (!isSupabaseConfigured()) return;
   try {
-    await supabase.rpc("upsert_profile", {
+    await supabase!.rpc("upsert_profile", {
       p_uid: args.uid,
       p_email: args.email,
       p_display_name: args.displayName ?? null,
@@ -42,7 +42,7 @@ export async function upsertProfile(args: {
 export async function updateLastActive(uid: string): Promise<void> {
   if (!isSupabaseConfigured()) return;
   try {
-    await supabase.rpc("update_last_active", { p_uid: uid });
+    await supabase!.rpc("update_last_active", { p_uid: uid });
   } catch (err) {
     console.warn("[userProfiles] updateLastActive failed:", err);
   }
@@ -65,7 +65,7 @@ export interface UserProfile {
 export async function getProfile(uid: string): Promise<UserProfile | null> {
   if (!isSupabaseConfigured()) return null;
   try {
-    const { data, error } = await supabase.rpc("get_profile", { p_uid: uid });
+    const { data, error } = await supabase!.rpc("get_profile", { p_uid: uid });
     if (error || !data) return null;
     const row = Array.isArray(data) ? data[0] : data;
     return {
@@ -90,7 +90,7 @@ export async function getProfile(uid: string): Promise<UserProfile | null> {
 export async function getRole(uid: string): Promise<UserRole> {
   if (!isSupabaseConfigured()) return "free";
   try {
-    const { data, error } = await supabase.rpc("get_user_role", { p_uid: uid });
+    const { data, error } = await supabase!.rpc("get_user_role", { p_uid: uid });
     if (error || !data) return "free";
     return (data as string) as UserRole;
   } catch {
@@ -104,7 +104,7 @@ export async function getRole(uid: string): Promise<UserRole> {
 export async function setUserRole(uid: string, role: UserRole): Promise<void> {
   if (!isSupabaseConfigured()) return;
   try {
-    const { error } = await supabase.rpc("set_user_role", {
+    const { error } = await supabase!.rpc("set_user_role", {
       p_uid: uid,
       p_role: role,
     });
