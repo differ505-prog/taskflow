@@ -52,13 +52,12 @@ export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
   },
 };
 
-// 管理員邮箱列表（可由環境變數覆寫）
+// 管理員邮箱列表（完全由環境變數控制，不允許 hardcode）
 const ADMIN_EMAILS_ENV = process.env.NEXT_PUBLIC_ADMIN_EMAILS || "";
-const ADMIN_EMAILS_DEFAULT = ["your-admin@email.com"]; // 替換為實際管理員郵箱
-export const ADMIN_EMAILS: string[] = [
-  ...ADMIN_EMAILS_DEFAULT.filter((e) => !ADMIN_EMAILS_ENV.includes(e)),
-  ...ADMIN_EMAILS_ENV.split(",").map((e) => e.trim()).filter(Boolean),
-];
+export const ADMIN_EMAILS: string[] = ADMIN_EMAILS_ENV
+  .split(",")
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
 
 export type RecurrencePattern =
   | "daily"

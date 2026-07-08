@@ -13,7 +13,7 @@ import type { Task, TaskList } from "./types";
  * 安全機制：
  *  - 客戶端拿 Firebase ID token 注入 Supabase REST + Realtime
  *  - RLS 用 `can_read_list` / `can_write_list` 兩條 function 決定誰能看 / 寫
- *  - 接受邀請時，client 端必須帶上 firebase user.email；
+ *  - 接受邀請時，client 端必須帶上 supabase user.email；
  *    並在 binding 前比對該 email 是否存在於 invited member list 中。
  *    (詳見 bindCurrentUserToInvite)
  *
@@ -143,8 +143,8 @@ export async function inviteMember(args: {
 // ── Recipient: 接受邀請（必須 email 自報且符合 pending row）───
 // 注意：補釘 #3 — 在寫入時必須再次比對目前登入使用者的 email 是否真為「被邀請者」。
 // 我們用 caller-supplied 兩個欄位完成這層檢查：
-//   1) callerUid      = auth.currentUser.uid
-//   2) callerEmail    = auth.currentUser.email (lowercase)
+//   1) callerUid      = auth.uid
+//   2) callerEmail    = auth.email (lowercase)
 // server 端最終寫入由 `accept_invite` RPC（見 migration）執行，
 // function 內會再次比對 callerEmail == member.member_email，否則 raise exception。
 export async function acceptInvite(args: {

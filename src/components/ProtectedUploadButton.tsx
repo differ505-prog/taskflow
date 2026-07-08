@@ -2,7 +2,6 @@
 
 import { useRef, useState, useCallback } from "react";
 import { useAuth } from "@/lib/AuthContext";
-import { ADMIN_EMAILS } from "@/lib/types";
 import { Attachment } from "@/lib/types";
 import { Upload, Lock, AlertCircle, CheckCircle2, X, Image, FileText, Loader2 } from "lucide-react";
 import { uploadFile, formatFileSize, getFileIcon, UploadProgress } from "@/lib/storageUpload";
@@ -37,22 +36,16 @@ export function ProtectedUploadButton({
   buttonText = "添加附件",
   maxSizeMB,
 }: ProtectedUploadButtonProps) {
-  const { user, betaUsers } = useAuth();
+  const { user, isAdmin, isBeta, maxFileSizeMB } = useAuth();
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // 計算權限（從雲端 beta 名單即時取得）
-  const email = user?.email?.toLowerCase();
-  const isAdminUser = email ? ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email) : false;
-  const isBetaUser = email ? betaUsers.map((e) => e.toLowerCase()).includes(email) : false;
-  const hasUploadAccess = isAdminUser || isBetaUser;
-  const effectiveMaxSize = isAdminUser
-    ? Infinity
-    : (maxSizeMB ?? 5) * 1024 * 1024;
-
   // Free 用戶：完全不顯示上傳按鈕
+  const hasUploadAccess = isAdmin || isBeta;
+  const effectiveMaxSize = isAdmin ? Infinity : (maxSizeMB ?? maxFileSizeMB ?? 5) * 1024 * 1024;
+
   if (!hasUploadAccess) {
     return (
       <div className={`flex items-center gap-2 text-[12px] ${className}`} style={{ color: "var(--text-tertiary)" }}>
@@ -70,7 +63,7 @@ export function ProtectedUploadButton({
 
     // 檢查檔案大小
     for (const file of files) {
-      if (!isAdminUser && file.size > effectiveMaxSize) {
+      if (!isAdmin && file.size > effectiveMaxSize) {
         setError(`「${file.name}」超過大小限制（最大 ${maxSizeMB ?? 5}MB）`);
         return;
       }
@@ -169,8 +162,8 @@ export function ProtectedUploadButton({
         disabled={isUploading}
         className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[14px] font-medium transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
         style={{
-          background: isAdminUser ? "var(--brand)" : "rgba(139,92,246,0.12)",
-          color: isAdminUser ? "white" : "#8B5CF6",
+          background: isAdmin ? "var(--brand)" : "rgba(139,92,246,0.12)",
+          color: isAdmin ? "white" : "#8B5CF6",
         }}
       >
         {isUploading ? (
@@ -179,7 +172,7 @@ export function ProtectedUploadButton({
           <Upload className="w-4 h-4" />
         )}
         {buttonText}
-        {!isAdminUser && (
+        {!isAdmin && (
           <span className="text-[11px] opacity-75">
             (max {maxSizeMB ?? 5}MB)
           </span>
@@ -361,10 +354,7 @@ export function AttachmentItem({ attachment, onRemove, compact = false }: Attach
  * 顯示上傳權限狀態的徽章組件
  */
 export function UploadPermissionBadge() {
-  const { user, betaUsers } = useAuth();
-  const email = user?.email?.toLowerCase();
-  const isAdminUser = email ? ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email) : false;
-  const isBetaUser = email ? betaUsers.map((e) => e.toLowerCase()).includes(email) : false;
+  const { user, isAdmin, isBeta } = useAuth();
 
   if (!user) {
     return (
@@ -376,7 +366,7 @@ export function UploadPermissionBadge() {
     );
   }
 
-  if (isAdminUser) {
+  if (isAdmin) {
     return (
       <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px]"
         style={{ background: "rgba(59,130,246,0.12)", color: "#3B82F6" }}>
@@ -386,7 +376,7 @@ export function UploadPermissionBadge() {
     );
   }
 
-  if (isBetaUser) {
+  if (isBeta) {
     return (
       <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px]"
         style={{ background: "rgba(139,92,246,0.12)", color: "#8B5CF6" }}>

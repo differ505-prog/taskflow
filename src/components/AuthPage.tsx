@@ -39,13 +39,19 @@ export function AuthPage({ onGuestMode }: AuthPageProps) {
         await signUpWithEmail(email, password);
       }
     } catch (e: any) {
-      const msg = e.code === "auth/invalid-credential"
-        ? "Email 或密碼錯誤"
-        : e.code === "auth/email-already-in-use"
-        ? "此 Email 已被註冊"
-        : e.code === "auth/weak-password"
-        ? "密碼至少需要 6 個字元"
-        : e.message || "發生錯誤";
+      // Supabase Auth error codes
+      const msg =
+        e?.message?.includes("Invalid login credentials")
+          ? "Email 或密碼錯誤"
+          : e?.message?.includes("Email not confirmed")
+          ? "請先至信箱點擊驗證連結"
+          : e?.message?.includes("already registered")
+          ? "此 Email 已被註冊"
+          : e?.message?.includes("Password should be at least")
+          ? "密碼至少需要 6 個字元"
+          : e?.message?.includes("canceled")
+          ? "已取消"
+          : e?.message || "發生錯誤";
       setError(msg);
     } finally {
       setSubmitting(false);

@@ -9,6 +9,11 @@
 --   5) Edge Function security definer helpers：incoming JWT email 比對
 -- =============================================================================
 
+-- 先清除舊的不完整版本（避免 position 欄位缺失）
+drop table if exists public.shared_tasks cascade;
+drop table if exists public.shared_list_members cascade;
+drop table if exists public.shared_lists cascade;
+
 -- 1. shared_lists ---------------------------------------------------------
 create table if not exists public.shared_lists (
   id           text primary key,

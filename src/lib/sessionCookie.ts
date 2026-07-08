@@ -1,44 +1,32 @@
 "use client";
 
 /**
- * Session cookie 管理
+ * Session cookie 管理 — Supabase SSR 版
  *
- * - 登入後：呼叫 exchangeIdTokenForSessionCookie() 拿到 HttpOnly cookie
- * - 登出時：呼叫 clearSessionCookie()
- * - 透過 fetch() 自動帶上 cookie（credentials: 'include'）
+ * Supabase Auth (@supabase/ssr) 自動處理 HttpOnly session cookie：
+ * - 登入後：createBrowserClient 自動寫入 cookie
+ * - 登出時：supabase.auth.signOut() 自動清除 cookie
+ * - server 端：createServerClient 自動讀取 cookie
  *
- * ⚠️ 這個機制對 Supabase Realtime 是**輔助**用的。
- *    Supabase RLS 仍然以 firebase ID token 為主，這層只是再加一道防線。
+ * 此模組作為薄的 wrapper，在需要明確操作時使用。
+ * 實質工作已由 @supabase/ssr 代勞。
  */
+import { supabase } from "./supabase";
 
 /**
- * 把當前 Firebase ID token 換成 14 天 HttpOnly cookie
+ * 觸發一次 session refresh（等同於呼叫一次 getSession）
+ * 目前無需使用，Supabase client 會自動刷新。
  */
-export async function exchangeIdTokenForSessionCookie(idToken: string): Promise<boolean> {
-  try {
-    const res = await fetch("/api/auth/session", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken }),
-    });
-    return res.ok;
-  } catch (err) {
-    console.warn("[session] exchange failed:", err);
-    return false;
-  }
+export async function refreshSession(): Promise<void> {
+  if (!supabase) return;
+  const { data } = await supabase.auth.getSession();
+  void data;
 }
 
 /**
- * 清除 HttpOnly cookie
+ * 清除 session（等同於 signOut）
  */
-export async function clearSessionCookie(): Promise<void> {
-  try {
-    await fetch("/api/auth/session", {
-      method: "DELETE",
-      credentials: "include",
-    });
-  } catch (err) {
-    console.warn("[session] clear failed:", err);
-  }
+export async function clearSession(): Promise<void> {
+  if (!supabase) return;
+  await supabase.auth.signOut();
 }

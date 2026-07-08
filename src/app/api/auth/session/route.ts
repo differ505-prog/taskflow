@@ -1,58 +1,75 @@
 /**
  * POST /api/auth/session
- *   Body: { idToken: string }
- *   功能：用短期 ID token 換取 14 天的 HttpOnly Session Cookie
+ *   Body: { accessToken: string, refreshToken: string }
+ *   功能：設定 Supabase Auth Session via HttpOnly cookies
  *
  * DELETE /api/auth/session
- *   功能：清除 Session Cookie
+ *   功能：清除 Auth Session
  *
- * 為何要用 session cookie：
- *   - 前端 ID token 存在記憶體或 sessionStorage，XSS 有機會偷到
- *   - HttpOnly cookie JS 讀不到，CSRF 用 SameSite=Lax 阻擋
- *   - 14 天效期內免重新登入
+ * 為何用 HttpOnly cookies：
+ *   - JS 讀不到 session token，防止 XSS 盜取
+ *   - Supabase client 會自動處理 refresh token 刷新
  */
 import { NextRequest, NextResponse } from "next/server";
-import { getFirebaseAdminAuth } from "@/lib/firebaseAdmin";
+import { createServerClient } from "@supabase/ssr";
 
-const COOKIE_NAME = "__session";
-const SESSION_TTL_SECONDS = 60 * 60 * 24 * 14; // 14 天
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 天
 
-// 🔑 firebase-admin 必須跑在 Node.js runtime，不能跑 Edge
+// 🔑 Supabase SSR client 需要 Node.js runtime
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  // ✅ 診斷增強：把所有初始化階段錯誤都精準暴露
   const diag = {
-    hasProjectId: !!process.env.FIREBASE_PROJECT_ID,
-    hasClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
-    hasPrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
-    privateKeyLen: process.env.FIREBASE_PRIVATE_KEY?.length ?? 0,
-    privateKeyHead: process.env.FIREBASE_PRIVATE_KEY?.slice(0, 30) ?? "",
-    privateKeyTail: process.env.FIREBASE_PRIVATE_KEY?.slice(-30) ?? "",
-    hasNewlines: process.env.FIREBASE_PRIVATE_KEY?.includes("\n") ?? false,
-    hasEscapedNewlines: process.env.FIREBASE_PRIVATE_KEY?.includes("\\n") ?? false,
-    nodeEnv: process.env.NODE_ENV,
+    hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+    hasSupabaseAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   };
 
   try {
     const body = await req.json().catch(() => ({}));
-    const idToken = body?.idToken;
-    if (typeof idToken !== "string" || !idToken) {
-      return NextResponse.json({ error: "Missing idToken", diag }, { status: 400 });
+    const { accessToken, refreshToken } = body ?? {};
+
+    if (!accessToken || !refreshToken) {
+      return NextResponse.json(
+        { error: "Missing accessToken or refreshToken", diag },
+        { status: 400 }
+      );
     }
 
-    const auth = getFirebaseAdminAuth();
-    // expiresIn 必須是 number seconds（最多 2 週）
-    const sessionCookie = await auth.createSessionCookie(idToken, {
-      expiresIn: SESSION_TTL_SECONDS * 1000,
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return req.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              req.cookies.set(name, value);
+            });
+          },
+        },
+      }
+    );
+
+    const { data, error } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
     });
 
+    if (error || !data.user) {
+      return NextResponse.json(
+        { error: error?.message ?? "Session creation failed", diag },
+        { status: 500 }
+      );
+    }
+
     const isProd = process.env.NODE_ENV === "production";
-    const res = NextResponse.json({ ok: true, expiresIn: SESSION_TTL_SECONDS });
+    const res = NextResponse.json({ ok: true, userId: data.user.id });
     res.cookies.set({
-      name: COOKIE_NAME,
-      value: sessionCookie,
+      name: "__sb_session",
+      value: "active",
       httpOnly: true,
       secure: isProd,
       sameSite: "lax",
@@ -63,12 +80,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   } catch (err: any) {
     console.error("[api/auth/session] POST failed:", err?.message || err, err?.stack);
     return NextResponse.json(
-      {
-        error: "Failed to create session",
-        detail: String(err?.message || err),
-        code: err?.code,
-        diag,
-      },
+      { error: "Failed to create session", detail: String(err?.message || err), diag },
       { status: 500 }
     );
   }
@@ -76,35 +88,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
 /**
  * GET /api/auth/session
- * 純診斷：回傳環境變數健康狀態（不洩漏完整金鑰內容）
+ * 診斷：環境變數健康狀態（不洩漏 key 內容）
  */
 export async function GET(): Promise<NextResponse> {
-  const pk = process.env.FIREBASE_PRIVATE_KEY ?? "";
-  const projectId = process.env.FIREBASE_PROJECT_ID ?? "";
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL ?? "";
-
-  let adminInitOk = false;
-  let adminInitError: string | null = null;
-  try {
-    getFirebaseAdminAuth();
-    adminInitOk = true;
-  } catch (e: any) {
-    adminInitError = String(e?.message || e);
-  }
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
   return NextResponse.json({
     env: {
-      FIREBASE_PROJECT_ID: projectId ? "✅ set" : "❌ missing",
-      FIREBASE_CLIENT_EMAIL: clientEmail ? "✅ set" : "❌ missing",
-      FIREBASE_PRIVATE_KEY: pk ? `✅ set (${pk.length} chars)` : "❌ missing",
-      privateKey_has_real_newlines: pk.includes("\n"),
-      privateKey_has_literal_backslash_n: pk.includes("\\n"),
-      privateKey_starts_with_pem_header: pk.startsWith("-----BEGIN"),
-      privateKey_ends_with_pem_footer: pk.endsWith("-----END PRIVATE KEY-----"),
-    },
-    adminInit: {
-      ok: adminInitOk,
-      error: adminInitError,
+      NEXT_PUBLIC_SUPABASE_URL: supabaseUrl ? "✅ set" : "❌ missing",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: anonKey
+        ? `✅ set (${anonKey.length} chars)`
+        : "❌ missing",
     },
     runtime: {
       nodeEnv: process.env.NODE_ENV,
@@ -112,10 +107,27 @@ export async function GET(): Promise<NextResponse> {
   });
 }
 
-export async function DELETE(): Promise<NextResponse> {
+export async function DELETE(req: NextRequest): Promise<NextResponse> {
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return req.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => {
+            req.cookies.set(name, value);
+          });
+        },
+      },
+    }
+  );
+  await supabase.auth.signOut();
   const res = NextResponse.json({ ok: true });
   res.cookies.set({
-    name: COOKIE_NAME,
+    name: "__sb_session",
     value: "",
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

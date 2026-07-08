@@ -7,8 +7,7 @@ import {
   getDownloadURL,
   deleteObject,
 } from "firebase/storage";
-import { getFirebaseStorage } from "./firebase";
-import { getFirebaseAuth } from "./firebase";
+import { getFirebaseStorage, getFirebaseAuth } from "./firebase";
 import { Attachment } from "./types";
 import { generateId } from "./storage";
 

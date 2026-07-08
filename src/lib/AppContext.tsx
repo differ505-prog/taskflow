@@ -53,7 +53,7 @@ import {
 import { SharedMember, MemberRole } from "./sharedSync";
 import { parseNaturalLanguage } from "./nlp";
 import { useAuth } from "./AuthContext";
-import { recordActive } from "./userActivityFS";
+import { updateLastActive } from "@/lib/userProfiles";
 
 interface AppContextValue {
   // ── 資料 ──────────────────────────────────────────────
@@ -155,6 +155,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "default">("default");
   const [isLoaded, setIsLoaded] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const lastActiveWriteAtRef = useRef<Record<string, number>>({});
+  const ACTIVE_THROTTLE_MS = 30_000;
 
   // ── Shared List State ───────────────────────────────────
   const [sharedLists, setSharedLists] = useState<Record<string, SharedListData>>({});
@@ -361,9 +363,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
     setTasks(updated);
     saveTasks(updated);
-    // 完成任務時更新 lastActiveAt（節流交由 recordActive 處理）
+    // 完成任務時更新 lastActiveAt（節流 30 秒）
     if (newStatus === "done" && user?.uid) {
-      void recordActive(user.uid);
+      const now = Date.now();
+      const last = lastActiveWriteAtRef.current[user.uid] ?? 0;
+      if (now - last >= ACTIVE_THROTTLE_MS) {
+        lastActiveWriteAtRef.current[user.uid] = now;
+        void updateLastActive(user.uid);
+      }
     }
   }, [tasks, user?.uid]);
 

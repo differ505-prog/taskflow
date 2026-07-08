@@ -7,35 +7,28 @@ import {
   useState,
   ReactNode,
 } from "react";
-import {
-  User,
-  onAuthStateChanged,
-  signInWithPopup,
-  GoogleAuthProvider,
-  signOut as firebaseSignOut,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-} from "firebase/auth";
-import { getFirebaseAuth } from "@/lib/firebase";
-import {
-  bindSupabaseAuthRefresher,
-  refreshSupabaseRealtimeAuth,
-  isSupabaseConfigured,
-} from "@/lib/supabase";
+import { createBrowserClient } from "@supabase/ssr";
+import { subscribeBetaUsers } from "@/lib/betaListFS";
+import { upsertProfile, getRole } from "@/lib/userProfiles";
 import { UserRole, ADMIN_EMAILS, ROLE_CONFIGS } from "@/lib/types";
-import {
-  addBetaUserFS,
-  removeBetaUserFS,
-  subscribeBetaUsers,
-} from "@/lib/betaListFS";
-import { recordLogin, ensureUserProfile } from "@/lib/userActivityFS";
-import {
-  exchangeIdTokenForSessionCookie,
-  clearSessionCookie,
-} from "@/lib/sessionCookie";
 
+// ── Supabase client ──────────────────────────────────────────────
+const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+// ── 通用 User type（同時相容 Firebase User 欄位）──────────────
+export interface AuthUser {
+  uid: string;
+  id: string;         // === uid
+  email: string | null;
+  displayName: string | null;
+}
+
+// ── Context value ───────────────────────────────────────────────
 interface AuthContextValue {
-  user: User | null;
+  user: AuthUser | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
@@ -49,7 +42,7 @@ interface AuthContextValue {
   isAdmin: boolean;
   isBeta: boolean;
   isFree: boolean;
-  // ── Beta Cloud List (Firestore-backed) ───────────────
+  // ── Beta Cloud List ───────────────────────────────
   betaUsers: string[];
   betaLoading: boolean;
   addBetaUser: (email: string) => Promise<void>;
@@ -77,12 +70,14 @@ const AuthContext = createContext<AuthContextValue>({
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [betaUsers, setBetaUsers] = useState<string[]>([]);
   const [betaLoading, setBetaLoading] = useState(true);
+  // dbRole 是資料庫權威值（緩存最後一次 fetch 的結果）
+  const [dbRole, setDbRole] = useState<UserRole>("free");
 
-  // ── 即時訂閱 Firestore Beta 名單 ──────────────────────────
+  // ── 即時訂閱 Firestore Beta 名單（不受 auth 系統影響）────
   useEffect(() => {
     const unsubscribe = subscribeBetaUsers((emails) => {
       setBetaUsers(emails);
@@ -91,11 +86,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  // 計算當前登入用戶的角色
+  // ── 從資料庫取得權威 role ────────────────────────────────
+  useEffect(() => {
+    if (!user?.uid) return;
+    void getRole(user.uid).then((r) => setDbRole(r));
+  }, [user?.uid]);
+
+  // ── 計算當前角色 ──────────────────────────────────────
+  // 優先使用資料庫權威值（dbRole），若尚未 fetch 到則用前端快速比對
   const role = (() => {
     if (!user?.email) return "free" as UserRole;
     const email = user.email.toLowerCase();
 
+    // 資料庫已知的 beta
+    if (dbRole === "beta") return "beta";
+    // 資料庫已知的 admin
+    if (dbRole === "admin") return "admin";
+
+    // 前端快速比對（作為初始值，資料庫回來後會覆蓋）
     if (ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email)) {
       return "admin" as UserRole;
     }
@@ -115,82 +123,100 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isBeta = role === "beta";
   const isFree = role === "free";
 
-  // ── Firebase Auth 監聽 ──────────────────────────────────
+  // ── Supabase Auth 監聽 ────────────────────────────────
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-    let unsubSupabase: (() => void) | undefined;
-
-    try {
-      const auth = getFirebaseAuth();
-      unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-        setUser(firebaseUser);
-        setLoading(false);
-        if (firebaseUser?.uid && firebaseUser?.email) {
-          // 1. 確保 profile 文件存在
-          void ensureUserProfile({ uid: firebaseUser.uid, email: firebaseUser.email });
-          // 2. 記錄登入時間
-          void recordLogin(firebaseUser.uid);
-          // 3. 換發 HttpOnly session cookie（fire-and-forget）
-          try {
-            const idToken = await firebaseUser.getIdToken();
-            void exchangeIdTokenForSessionCookie(idToken);
-          } catch (err) {
-            console.warn("[Auth] failed to exchange session cookie:", err);
-          }
-        } else {
-          // 登出時清除 cookie
-          void clearSessionCookie();
-        }
-        if (isSupabaseConfigured()) {
-          refreshSupabaseRealtimeAuth();
-        }
-      });
-      if (isSupabaseConfigured()) {
-        unsubSupabase = bindSupabaseAuthRefresher();
+    const init = async () => {
+      const { data } = await supabase.auth.getSession();
+      const u = data.session?.user;
+      if (u?.id) {
+        const authUser: AuthUser = {
+          uid: u.id,
+          id: u.id,
+          email: u.email ?? null,
+          displayName: u.user_metadata?.full_name ?? u.email?.split("@")[0] ?? null,
+        };
+        setUser(authUser);
+        void upsertProfile({
+          uid: u.id,
+          email: u.email ?? "",
+          displayName: authUser.displayName,
+          avatarUrl: u.user_metadata?.avatar_url ?? null,
+        });
       }
-    } catch {
       setLoading(false);
-    }
-
-    return () => {
-      unsubscribe?.();
-      unsubSupabase?.();
     };
+    void init();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        const u = session?.user;
+        if (u?.id) {
+          const authUser: AuthUser = {
+            uid: u.id,
+            id: u.id,
+            email: u.email ?? null,
+            displayName: u.user_metadata?.full_name ?? u.email?.split("@")[0] ?? null,
+          };
+          setUser(authUser);
+          setDbRole("free"); // 重置，等待 fetch
+          void upsertProfile({
+            uid: u.id,
+            email: u.email ?? "",
+            displayName: authUser.displayName,
+            avatarUrl: u.user_metadata?.avatar_url ?? null,
+          });
+        } else {
+          setUser(null);
+          setDbRole("free");
+        }
+        setLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  // ── Beta CRUD（寫入 Firestore，介面保持相容）─────────────
+  // ── Beta CRUD ────────────────────────────────────────
   const addBetaUser = async (email: string) => {
     const normalized = email.toLowerCase().trim();
     if (!normalized) return;
     if (!user?.uid) throw new Error("尚未登入");
+    const { addBetaUserFS } = await import("@/lib/betaListFS");
     await addBetaUserFS(normalized, user.uid);
-    // 不需手動更新 state，onSnapshot 會即時推送
   };
 
   const removeBetaUser = async (email: string) => {
     const normalized = email.toLowerCase().trim();
+    const { removeBetaUserFS } = await import("@/lib/betaListFS");
     await removeBetaUserFS(normalized);
   };
 
+  // ── 登入方法 ────────────────────────────────────────
   const signInWithGoogle = async () => {
-    const auth = getFirebaseAuth();
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+    if (error) throw error;
   };
 
   const signInWithEmail = async (email: string, password: string) => {
-    const auth = getFirebaseAuth();
-    await signInWithEmailAndPassword(auth, email, password);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
   };
 
   const signUpWithEmail = async (email: string, password: string) => {
-    const auth = getFirebaseAuth();
-    await createUserWithEmailAndPassword(auth, email, password);
+    const { error } = await supabase.auth.signUp({ email, password });
+    if (error) throw error;
   };
 
   const signOut = async () => {
-    const auth = getFirebaseAuth();
-    await firebaseSignOut(auth);
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+    setUser(null);
+    setDbRole("free");
   };
 
   return (
