@@ -1,10 +1,15 @@
-import { AuthGate } from "@/components/AuthGate";
+"use client";
 
-export const metadata = {
-  title: "登入 — VibeList",
-  description: "登入或註冊 VibeList 帳號",
-};
+import { AuthPage } from "@/components/AuthPage";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  return <AuthGate />;
+  const router = useRouter();
+
+  const handleGuestMode = () => {
+    localStorage.setItem("taskflow_guest_mode", "true");
+    router.push("/");
+  };
+
+  return <AuthPage onGuestMode={handleGuestMode} />;
 }
