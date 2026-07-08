@@ -10,6 +10,9 @@ import { getFirebaseAdminAuth } from "@/lib/firebaseAdmin";
 
 const COOKIE_NAME = "__session";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     const sessionCookie = req.cookies.get(COOKIE_NAME)?.value;

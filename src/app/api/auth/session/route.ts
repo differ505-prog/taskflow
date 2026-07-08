@@ -17,6 +17,10 @@ import { getFirebaseAdminAuth } from "@/lib/firebaseAdmin";
 const COOKIE_NAME = "__session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 14; // 14 天
 
+// 🔑 firebase-admin 必須跑在 Node.js runtime，不能跑 Edge
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   // ✅ 診斷增強：把所有初始化階段錯誤都精準暴露
   const diag = {
