@@ -6,18 +6,19 @@ import { Task } from "@/lib/types";
 import { PriorityBadge } from "./PriorityBadge";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, ChevronDown } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 const CELL_SIZE = 110;
 
 export function CalendarView() {
-  const { tasks, setCurrentView, updateTask, toggleTaskStatus, addTask } = useApp();
+  const { tasks, setCurrentView, updateTask, toggleTaskStatus, addTask, deleteTask } = useApp();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [draggingTask, setDraggingTask] = useState<string | null>(null);
   const [quickAddDate, setQuickAddDate] = useState<string | null>(null);
   const [quickAddTitle, setQuickAddTitle] = useState("");
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const quickAddInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -254,11 +255,11 @@ export function CalendarView() {
         {selectedDate && (
           <motion.div
             initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 320, opacity: 1 }}
+            animate={{ width: expandedTaskId ? 460 : 360, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
             className="flex-shrink-0 border-l overflow-y-auto"
-            style={{ borderColor: "var(--border)", background: "var(--surface)", width: 320 }}
+            style={{ borderColor: "var(--border)", background: "var(--surface)", width: expandedTaskId ? 460 : 360 }}
           >
             <div className="p-4">
               {/* 快速新增列 — 從日曆點＋或這裡輸入皆可 */}
@@ -311,41 +312,18 @@ export function CalendarView() {
               ) : (
                 <div className="space-y-2">
                   {selectedDateTasks.map((task) => (
-                    <div
+                    <TaskPanelCard
                       key={task.id}
-                      draggable
+                      task={task}
+                      expanded={expandedTaskId === task.id}
+                      onToggleExpand={() => setExpandedTaskId((id) => (id === task.id ? null : task.id))}
                       onDragStart={() => handleDragStart(task.id)}
-                      className="p-3 rounded-xl border"
-                      style={{ borderColor: "var(--border)", background: "var(--surface-muted)" }}
-                    >
-                      <div className="flex items-start gap-2">
-                        <button
-                          onClick={() => toggleTaskStatus(task.id)}
-                          className="flex-shrink-0 mt-0.5"
-                          aria-label={task.status === "done" ? "標記未完成" : "標記完成"}
-                        >
-                          {task.status === "done" ? (
-                            <div className="w-4 h-4 rounded-full" style={{ background: "var(--status-success)" }} />
-                          ) : (
-                            <div className="w-4 h-4 rounded-full border-2" style={{ borderColor: "var(--border-hover)" }} />
-                          )}
-                        </button>
-                        <div className="flex-1 min-w-0">
-                          <p
-                            className="text-[13px] font-medium"
-                            style={{ color: task.status === "done" ? "var(--text-tertiary)" : "var(--text-primary)", textDecoration: task.status === "done" ? "line-through" : "none" }}
-                          >
-                            {task.title}
-                          </p>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <PriorityBadge priority={task.priority} size="sm" />
-                            {task.dueTime && (
-                              <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>{task.dueTime}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                      onToggleStatus={() => toggleTaskStatus(task.id)}
+                      onUpdate={(updates) => updateTask(task.id, updates)}
+                      onDelete={() => {
+                        if (confirm(`刪除「${task.title}」？`)) deleteTask(task.id);
+                      }}
+                    />
                   ))}
                 </div>
               )}
@@ -371,4 +349,222 @@ function hexToRgb(hex: string): string {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `${r}, ${g}, ${b}`;
+}
+
+interface TaskPanelCardProps {
+  task: Task;
+  expanded: boolean;
+  onToggleExpand: () => void;
+  onDragStart: () => void;
+  onToggleStatus: () => void;
+  onUpdate: (updates: Partial<Task>) => void;
+  onDelete: () => void;
+}
+
+const PRIORITY_OPTIONS: Array<{ value: "high" | "medium" | "low"; label: string; color: string }> = [
+  { value: "high", label: "高", color: "#FF3B30" },
+  { value: "medium", label: "中", color: "#FF9500" },
+  { value: "low", label: "低", color: "#34C759" },
+];
+
+function TaskPanelCard({ task, expanded, onToggleExpand, onDragStart, onToggleStatus, onUpdate, onDelete }: TaskPanelCardProps) {
+  const isDone = task.status === "done";
+  const [editTitle, setEditTitle] = useState(task.title);
+
+  // 標題送出時同步到 task
+  const commitTitle = () => {
+    const trimmed = editTitle.trim();
+    if (trimmed && trimmed !== task.title) {
+      onUpdate({ title: trimmed });
+    } else {
+      setEditTitle(task.title);
+    }
+  };
+
+  return (
+    <div
+      draggable={!expanded}
+      onDragStart={onDragStart}
+      className="rounded-xl border transition-all duration-200"
+      style={{
+        borderColor: expanded ? "var(--brand)" : "var(--border)",
+        background: expanded ? "var(--brand-tint)" : "var(--surface-muted)",
+        boxShadow: expanded ? "0 4px 16px rgba(0,0,0,0.04)" : "none",
+      }}
+    >
+      <div className="p-3">
+        <div className="flex items-start gap-2">
+          <button
+            onClick={onToggleStatus}
+            className="flex-shrink-0 mt-0.5"
+            aria-label={isDone ? "標記未完成" : "標記完成"}
+          >
+            {isDone ? (
+              <div className="w-4 h-4 rounded-full" style={{ background: "var(--status-success)" }} />
+            ) : (
+              <div className="w-4 h-4 rounded-full border-2" style={{ borderColor: "var(--border-hover)" }} />
+            )}
+          </button>
+          <button
+            onClick={onToggleExpand}
+            className="flex-1 min-w-0 text-left"
+          >
+            <p
+              className="text-[13px] font-medium"
+              style={{ color: isDone ? "var(--text-tertiary)" : "var(--text-primary)", textDecoration: isDone ? "line-through" : "none" }}
+            >
+              {task.title}
+            </p>
+            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+              <PriorityBadge priority={task.priority} size="sm" />
+              {(task.startDate || task.dueDate) && (
+                <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+                  {task.startDate && task.dueDate && task.startDate !== task.dueDate
+                    ? `${format(parseISO(task.startDate), "M/d", { locale: zhTW })}～${format(parseISO(task.dueDate), "M/d", { locale: zhTW })}`
+                    : task.dueDate && format(parseISO(task.dueDate), "M/d", { locale: zhTW })}
+                </span>
+              )}
+              {task.dueTime && (
+                <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>{task.dueTime}</span>
+              )}
+              {task.tags.length > 0 && (
+                <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>· {task.tags.length} 標籤</span>
+              )}
+            </div>
+          </button>
+          <button
+            onClick={onToggleExpand}
+            className="flex-shrink-0 p-1 rounded-md hover:bg-black/5 transition-colors"
+            style={{ color: "var(--text-tertiary)" }}
+            aria-label={expanded ? "收合" : "展開"}
+          >
+            <ChevronDown className="w-3.5 h-3.5 transition-transform duration-200" style={{ transform: expanded ? "rotate(180deg)" : "rotate(0)" }} />
+          </button>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+            className="overflow-hidden border-t"
+            style={{ borderColor: "var(--border)" }}
+          >
+            <div className="p-3 space-y-3">
+              {/* 標題編輯 */}
+              <div>
+                <label className="block mb-1 text-[11px] font-medium" style={{ color: "var(--text-tertiary)" }}>標題</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  onBlur={commitTitle}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.currentTarget.blur(); } }}
+                  className="input w-full"
+                  style={{ fontSize: 13, padding: "6px 10px" }}
+                />
+              </div>
+
+              {/* 日期區間 */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block mb-1 text-[11px] font-medium" style={{ color: "var(--text-tertiary)" }}>開始</label>
+                  <input
+                    type="date"
+                    value={task.startDate || ""}
+                    onChange={(e) => onUpdate({ startDate: e.target.value || undefined })}
+                    className="input w-full cursor-pointer"
+                    style={{ fontSize: 12, padding: "5px 8px" }}
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 text-[11px] font-medium" style={{ color: "var(--text-tertiary)" }}>截止</label>
+                  <input
+                    type="date"
+                    value={task.dueDate || ""}
+                    min={task.startDate || undefined}
+                    onChange={(e) => onUpdate({ dueDate: e.target.value || undefined })}
+                    className="input w-full cursor-pointer"
+                    style={{ fontSize: 12, padding: "5px 8px" }}
+                  />
+                </div>
+              </div>
+
+              {/* 時間 */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block mb-1 text-[11px] font-medium" style={{ color: "var(--text-tertiary)" }}>時間</label>
+                  <input
+                    type="time"
+                    value={task.dueTime || ""}
+                    onChange={(e) => onUpdate({ dueTime: e.target.value || undefined })}
+                    className="input w-full cursor-pointer"
+                    style={{ fontSize: 12, padding: "5px 8px" }}
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1 text-[11px] font-medium" style={{ color: "var(--text-tertiary)" }}>優先級</label>
+                  <div className="flex gap-1">
+                    {PRIORITY_OPTIONS.map((p) => (
+                      <button
+                        key={p.value}
+                        onClick={() => onUpdate({ priority: p.value })}
+                        className="flex-1 py-1 rounded-md text-[11px] font-medium transition-all"
+                        style={{
+                          background: task.priority === p.value ? p.color : "transparent",
+                          color: task.priority === p.value ? "#fff" : "var(--text-secondary)",
+                          border: `1px solid ${task.priority === p.value ? p.color : "var(--border)"}`,
+                        }}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* 描述（唯讀 — 完整編輯需到任務表單） */}
+              {task.description && (
+                <div>
+                  <label className="block mb-1 text-[11px] font-medium" style={{ color: "var(--text-tertiary)" }}>描述</label>
+                  <p className="text-[12px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text-secondary)" }}>
+                    {task.description}
+                  </p>
+                </div>
+              )}
+
+              {/* 子任務摘要 */}
+              {task.subTasks && task.subTasks.length > 0 && (
+                <div>
+                  <label className="block mb-1 text-[11px] font-medium" style={{ color: "var(--text-tertiary)" }}>
+                    子任務 {task.subTasks.filter((s) => s.status === "done").length}/{task.subTasks.length}
+                  </label>
+                  <div className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
+                    {task.subTasks.map((s) => s.title).join("、")}
+                  </div>
+                </div>
+              )}
+
+              {/* 操作列 */}
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  onClick={onDelete}
+                  className="text-[12px] hover:underline transition-colors"
+                  style={{ color: "var(--status-danger)" }}
+                >
+                  刪除任務
+                </button>
+                <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>
+                  點其他任務收合此卡
+                </span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 }
