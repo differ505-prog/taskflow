@@ -84,7 +84,15 @@ export default function TaskCommentsInline({ taskId }: Props) {
   const handleDelete = async (commentId: string) => {
     if (!user?.uid) return;
     if (!confirm("刪除這則評論？")) return;
-    await deleteTaskComment({ uid: user.uid, taskId, commentId });
+    // 樂觀更新：先從 UI 移除，避免依賴 Realtime 才看到結果
+    const previous = comments;
+    setComments((prev) => prev.filter((c) => c.id !== commentId));
+    try {
+      await deleteTaskComment({ uid: user.uid, taskId, commentId });
+    } catch (err) {
+      console.error("[TaskComments] 刪除失敗，還原列表", err);
+      setComments(previous);
+    }
   };
 
   return (

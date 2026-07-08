@@ -12,3 +12,6 @@ begin
     alter publication supabase_realtime add table public.task_comments;
   end if;
 end $$;
+
+-- 讓 DELETE 事件的 payload.old 帶所有欄位（前端不必再依賴樂觀更新）
+alter table public.task_comments replica identity full;
