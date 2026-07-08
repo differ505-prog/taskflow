@@ -24,6 +24,7 @@ export interface AuthUser {
   id: string;         // === uid
   email: string | null;
   displayName: string | null;
+  photoURL?: string | null; // OAuth avatar
 }
 
 // ── Context value ───────────────────────────────────────────────
@@ -134,13 +135,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           id: u.id,
           email: u.email ?? null,
           displayName: u.user_metadata?.full_name ?? u.email?.split("@")[0] ?? null,
+          photoURL: u.user_metadata?.avatar_url ?? null,
         };
         setUser(authUser);
         void upsertProfile({
           uid: u.id,
           email: u.email ?? "",
           displayName: authUser.displayName,
-          avatarUrl: u.user_metadata?.avatar_url ?? null,
+          avatarUrl: authUser.photoURL,
         });
       }
       setLoading(false);
@@ -156,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             id: u.id,
             email: u.email ?? null,
             displayName: u.user_metadata?.full_name ?? u.email?.split("@")[0] ?? null,
+            photoURL: u.user_metadata?.avatar_url ?? null,
           };
           setUser(authUser);
           setDbRole("free"); // 重置，等待 fetch
@@ -163,7 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             uid: u.id,
             email: u.email ?? "",
             displayName: authUser.displayName,
-            avatarUrl: u.user_metadata?.avatar_url ?? null,
+            avatarUrl: authUser.photoURL,
           });
         } else {
           setUser(null);
