@@ -147,12 +147,13 @@ export default function TaskCommentsInline({ taskId }: Props) {
           value={content}
           onChange={(e) => setContent(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            // Enter 直接送出；Shift+Enter 換行
+            if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               handleSubmit();
             }
           }}
-          placeholder="新增回報… (⌘/Ctrl + Enter 送出)"
+          placeholder="新增回報…（Enter 送出，Shift+Enter 換行）"
           rows={2}
           className="w-full resize-none rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[12.5px] text-slate-800 placeholder:text-slate-400 transition-all duration-200 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
         />
