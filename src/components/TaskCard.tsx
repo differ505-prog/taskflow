@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { Task, SubTask } from "@/lib/types";
 import { PriorityBadge } from "./PriorityBadge";
-import TaskCommentsDrawer from "./TaskCommentsDrawer";
+import TaskCommentsInline from "./TaskCommentsInline";
 import { format, isToday, isTomorrow, isPast, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { AnimatePresence, motion } from "framer-motion";
@@ -13,7 +13,6 @@ import {
   CheckCircle2, Circle, ChevronDown, Clock, Tag as TagIcon,
   Trash2, Edit3, Archive, Repeat, Plus, Trash,
   AlertCircle, Timer, ChevronRight, ListChecks, Paperclip,
-  MessageSquare,
 } from "lucide-react";
 
 interface TaskCardProps {
@@ -114,7 +113,6 @@ export function TaskCard({
   const [isDeleting, setIsDeleting] = useState(false);
   const [showSubTaskInput, setShowSubTaskInput] = useState(false);
   const [newSubTaskTitle, setNewSubTaskTitle] = useState("");
-  const [commentsOpen, setCommentsOpen] = useState(false);
 
   const dueInfo = getDueDateInfo(task.dueDate);
   const isDone = task.status === "done";
@@ -480,15 +478,9 @@ export function TaskCard({
                     <ChevronDown className="w-3 h-3 transition-transform duration-200" style={{ transform: "rotate(180deg)" }} />
                   </button>
 
-                  {/* Comments */}
-                  <button
-                    onClick={() => setCommentsOpen(true)}
-                    className="flex items-center gap-1.5 text-[12px] hover:underline transition-colors"
-                    style={{ color: "var(--text-tertiary)" }}
-                  >
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    開啟評論
-                  </button>
+                  {/* Comments inline */}
+                  <TaskCommentsInline taskId={task.id} />
+
                 </div>
               </motion.div>
             )}
@@ -533,12 +525,6 @@ export function TaskCard({
         </div>
       </div>
 
-      <TaskCommentsDrawer
-        taskId={task.id}
-        taskTitle={task.title}
-        open={commentsOpen}
-        onClose={() => setCommentsOpen(false)}
-      />
     </article>
   );
 }
