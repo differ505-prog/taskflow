@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useApp } from "@/lib/AppContext";
 import { Task } from "@/lib/types";
 import { PriorityBadge } from "./PriorityBadge";
@@ -12,10 +12,19 @@ import { AnimatePresence, motion } from "framer-motion";
 const CELL_SIZE = 110;
 
 export function CalendarView() {
-  const { tasks, setCurrentView, updateTask, toggleTaskStatus } = useApp();
+  const { tasks, setCurrentView, updateTask, toggleTaskStatus, addTask } = useApp();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [draggingTask, setDraggingTask] = useState<string | null>(null);
+  const [quickAddDate, setQuickAddDate] = useState<string | null>(null);
+  const [quickAddTitle, setQuickAddTitle] = useState("");
+  const quickAddInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (quickAddDate && quickAddInputRef.current) {
+      quickAddInputRef.current.focus();
+    }
+  }, [quickAddDate]);
 
   const days = useMemo(() => {
     const start = startOfMonth(currentMonth);
@@ -43,14 +52,41 @@ export function CalendarView() {
 
   const getTasksForDay = (date: Date): Task[] => {
     const dateStr = format(date, "yyyy-MM-dd");
-    return tasks.filter((t) => t.dueDate === dateStr && !t.isArchived);
+    return tasks.filter((t) => {
+      if (t.isArchived) return false;
+      const start = t.startDate || t.dueDate;
+      const end = t.dueDate || t.startDate;
+      if (!start || !end) return false;
+      return dateStr >= start && dateStr <= end;
+    });
+  };
+
+  const submitQuickAdd = (dateStr: string, title: string) => {
+    const trimmed = title.trim();
+    if (!trimmed) { setQuickAddDate(null); return; }
+    addTask({
+      title: trimmed,
+      priority: "medium",
+      status: "todo",
+      startDate: dateStr,
+      dueDate: dateStr,
+      tags: [],
+    });
+    setQuickAddDate(null);
+    setQuickAddTitle("");
   };
 
   const prevMonth = () => setCurrentMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
   const nextMonth = () => setCurrentMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
 
   const selectedDateTasks = selectedDate
-    ? tasks.filter((t) => t.dueDate === selectedDate && !t.isArchived)
+    ? tasks.filter((t) => {
+        if (t.isArchived) return false;
+        const start = t.startDate || t.dueDate;
+        const end = t.dueDate || t.startDate;
+        if (!start || !end) return false;
+        return selectedDate >= start && selectedDate <= end;
+      })
     : [];
 
   // Drag and drop
@@ -59,7 +95,23 @@ export function CalendarView() {
   const handleDrop = (date: Date) => {
     if (!draggingTask) return;
     const dateStr = format(date, "yyyy-MM-dd");
-    updateTask(draggingTask, { dueDate: dateStr });
+    const task = tasks.find((t) => t.id === draggingTask);
+    if (task) {
+      const oldStart = task.startDate || task.dueDate || dateStr;
+      const oldEnd = task.dueDate || task.startDate || dateStr;
+      const lengthDays = Math.round(
+        (parseISO(oldEnd).getTime() - parseISO(oldStart).getTime()) / 86400000
+      );
+      const newStart = dateStr;
+      const newEndDate = new Date(parseISO(newStart).getTime() + lengthDays * 86400000);
+      const newEnd = format(newEndDate, "yyyy-MM-dd");
+      updateTask(draggingTask, {
+        startDate: newStart,
+        dueDate: newEnd,
+      });
+    } else {
+      updateTask(draggingTask, { startDate: dateStr, dueDate: dateStr });
+    }
     setDraggingTask(null);
   };
 
@@ -121,7 +173,7 @@ export function CalendarView() {
             return (
               <div
                 key={i}
-                className="relative flex flex-col overflow-hidden transition-colors duration-100 cursor-pointer"
+                className="group relative flex flex-col overflow-hidden transition-colors duration-100 cursor-pointer"
                 style={{
                   background: isSelected
                     ? "var(--brand-tint)"
@@ -136,7 +188,7 @@ export function CalendarView() {
                 onDragLeave={() => {}}
               >
                 {/* Day number */}
-                <div className="flex items-center justify-center pt-2 pb-1 flex-shrink-0">
+                <div className="flex items-center justify-between pt-2 pb-1 px-1.5 flex-shrink-0">
                   <span
                     className="w-7 h-7 flex items-center justify-center rounded-full text-[13px] font-medium"
                     style={
@@ -149,6 +201,15 @@ export function CalendarView() {
                   >
                     {format(day, "d")}
                   </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setQuickAddDate(dateStr); setQuickAddTitle(""); setSelectedDate(dateStr); }}
+                    className="w-5 h-5 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-black/5 transition-all duration-150"
+                    style={{ color: "var(--text-tertiary)" }}
+                    aria-label={`在 ${dateStr} 新增任務`}
+                    title="新增任務"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
                 </div>
 
                 {/* Task dots */}
@@ -200,7 +261,34 @@ export function CalendarView() {
             style={{ borderColor: "var(--border)", background: "var(--surface)", width: 320 }}
           >
             <div className="p-4">
-              <div className="flex items-center justify-between mb-4">
+              {/* 快速新增列 — 從日曆點＋或這裡輸入皆可 */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (quickAddDate === selectedDate && quickAddTitle.trim()) {
+                    submitQuickAdd(selectedDate, quickAddTitle);
+                  } else if (selectedDate) {
+                    submitQuickAdd(selectedDate, quickAddTitle || "新任務");
+                  }
+                }}
+                className="mb-4 flex items-center gap-2"
+              >
+                <input
+                  ref={quickAddInputRef}
+                  type="text"
+                  value={quickAddTitle}
+                  onChange={(e) => setQuickAddTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") { setQuickAddDate(null); setQuickAddTitle(""); }
+                  }}
+                  placeholder={`在 ${format(parseISO(selectedDate), "M/d", { locale: zhTW })} 新增任務…`}
+                  className="input flex-1"
+                  style={{ fontSize: 13, padding: "7px 10px" }}
+                />
+                <button type="submit" className="btn-primary py-1.5 px-3 text-[12px]">新增</button>
+              </form>
+
+              <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
                   {format(parseISO(selectedDate), "M 月 d 日", { locale: zhTW })}
                   {isToday(parseISO(selectedDate)) && (

@@ -35,11 +35,28 @@ interface DueDateInfo {
   isTomorrow: boolean;
 }
 
-function getDueDateInfo(dateStr: string | undefined): DueDateInfo | null {
+function getDueDateInfo(
+  dateStr: string | undefined,
+  startDateStr?: string
+): DueDateInfo | null {
   if (!dateStr) return null;
   try {
     const date = parseISO(dateStr);
     const overdue = !isToday(date) && isPast(date);
+
+    // 區間任務：起訖不同
+    if (startDateStr && startDateStr !== dateStr) {
+      const start = parseISO(startDateStr);
+      const startLabel = isToday(start) ? "今天" : format(start, "M/d", { locale: zhTW });
+      const endLabel = isToday(date) ? "今天" : isTomorrow(date) ? "明天" : format(date, "M/d", { locale: zhTW });
+      return {
+        text: `${startLabel}～${endLabel}`,
+        isOverdue: overdue,
+        isToday: isToday(date) || isToday(start),
+        isTomorrow: isTomorrow(date) || isTomorrow(start),
+      };
+    }
+
     return {
       text: isToday(date) ? "今天" : isTomorrow(date) ? "明天" : format(date, "M/d", { locale: zhTW }),
       isOverdue: overdue,
@@ -114,7 +131,7 @@ export function TaskCard({
   const [showSubTaskInput, setShowSubTaskInput] = useState(false);
   const [newSubTaskTitle, setNewSubTaskTitle] = useState("");
 
-  const dueInfo = getDueDateInfo(task.dueDate);
+  const dueInfo = getDueDateInfo(task.dueDate, task.startDate);
   const isDone = task.status === "done";
   const hasMeta = dueInfo || task.tags.length > 0 || task.subTasks?.length || task.recurrence;
   const hasDescription = Boolean(task.description);

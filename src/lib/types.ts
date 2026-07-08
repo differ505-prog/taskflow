@@ -88,8 +88,9 @@ export interface Task {
   description?: string;
   priority: Priority;
   status: TaskStatus;
-  dueDate?: string; // ISO date string (YYYY-MM-DD)
-  dueTime?: string; // HH:mm
+  startDate?: string; // 區間起點（ISO date string YYYY-MM-DD）
+  dueDate?: string;   // 截止日 / 區間終點（ISO date string YYYY-MM-DD）
+  dueTime?: string;   // HH:mm
   createdAt: string; // ISO datetime
   updatedAt: string;
   tags: string[];

@@ -36,6 +36,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<Priority>("medium");
   const [status, setStatus] = useState<TaskStatus>("todo");
+  const [startDate, setStartDate] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [dueTime, setDueTime] = useState("");
   const [listId, setListId] = useState<string | undefined>(undefined);
@@ -47,6 +48,12 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
   const [recurrenceDaysOfWeek, setRecurrenceDaysOfWeek] = useState<number[]>([]);
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
   const [subTaskInputs, setSubTaskInputs] = useState<string[]>([]);
+
+  const formatDateLabel = (iso: string): string => {
+    if (!iso) return "";
+    const [y, m, d] = iso.split("-").map(Number);
+    return `${m}/${d}`;
+  };
   const [newSubTask, setNewSubTask] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -94,6 +101,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
       setPriority(initialData.priority);
       setStatus(initialData.status);
       setDueDate(initialData.dueDate || "");
+      setStartDate(initialData.startDate || "");
       setDueTime(initialData.dueTime || "");
       setListId(initialData.listId);
       setTags(initialData.tags);
@@ -104,7 +112,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
       setRecurrenceEndDate(initialData.recurrence?.endDate || "");
     } else {
       setTitle(""); setDescription(""); setPriority("medium"); setStatus("todo");
-      setDueDate(""); setDueTime(""); setListId(currentListId); setTags([]);
+      setDueDate(""); setStartDate(""); setDueTime(""); setListId(currentListId); setTags([]);
       setSubTaskInputs([]); setNewSubTask("");
       setRecurrenceType("none"); setRecurrenceInterval(1);
       setRecurrenceDaysOfWeek([]); setRecurrenceEndDate("");
@@ -150,11 +158,14 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
       status: initialData?.subTasks?.[i]?.status || "todo" as const,
       createdAt: initialData?.subTasks?.[i]?.createdAt || new Date().toISOString(),
     }));
+    // 區間：未填截止日但有起始日 → 自動把截止日 = 起始日（單日任務）
+    const finalDueDate = dueDate || startDate || undefined;
     onSubmit({
       title: title.trim(),
       description: description.trim() || undefined,
       priority, status,
-      dueDate: dueDate || undefined,
+      startDate: startDate || undefined,
+      dueDate: finalDueDate,
       dueTime: dueTime || undefined,
       listId,
       tags,
@@ -292,14 +303,41 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                 </div>
               </div>
 
-              {/* Date + Time */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block mb-2 text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
-                    <Calendar className="w-3.5 h-3.5 inline mr-1" />截止日期
-                  </label>
-                  <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="input cursor-pointer" />
+              {/* 日期區間 + 時間 */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block mb-2 text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                      <Calendar className="w-3.5 h-3.5 inline mr-1" />開始日期
+                    </label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="input cursor-pointer"
+                    />
+                  </div>
+                  <div>
+                    <label className="block mb-2 text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                      <Calendar className="w-3.5 h-3.5 inline mr-1" />截止日期
+                    </label>
+                    <input
+                      type="date"
+                      value={dueDate}
+                      min={startDate || undefined}
+                      onChange={(e) => setDueDate(e.target.value)}
+                      className="input cursor-pointer"
+                    />
+                  </div>
                 </div>
+                {(startDate || dueDate) && (
+                  <div className="text-[12px] flex items-center gap-1.5" style={{ color: "var(--text-tertiary)" }}>
+                    <Calendar className="w-3 h-3" />
+                    {startDate && dueDate && startDate !== dueDate
+                      ? `${formatDateLabel(startDate)} ~ ${formatDateLabel(dueDate)}`
+                      : formatDateLabel(startDate || dueDate)}
+                  </div>
+                )}
                 <div>
                   <label className="block mb-2 text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>具體時間</label>
                   <input type="time" value={dueTime} onChange={(e) => setDueTime(e.target.value)} className="input cursor-pointer" />
