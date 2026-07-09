@@ -98,7 +98,13 @@ export function generateICal(tasks: Task[], listName = "VibeList"): string {
     `X-WR-CALNAME:${escapeICalText(listName)}`,
   ].join("\r\n");
 
-  const events = tasks
+  const filtered = tasks.filter((t) => !t.isArchived && (t.dueDate || t.status !== "done"));
+  console.log("[ical] total tasks:", tasks.length, "filtered in:", filtered.length);
+  filtered.forEach((t) => {
+    console.log(`[ical] task: "${t.title}" dueDate=${t.dueDate} status=${t.status}`);
+  });
+
+  const events = filtered
     .filter((t) => !t.isArchived && (t.dueDate || t.status !== "done"))
     .map((task) => `BEGIN:VEVENT\r\n${taskToVEVENT(task)}\r\nEND:VEVENT`)
     .join("\r\n");
