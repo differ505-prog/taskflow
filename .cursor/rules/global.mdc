@@ -190,3 +190,52 @@ https://placehold.co/800x400/e2e8f0/475569?text=hero-banner\n[minimalist illustr
   應對方式:立即停下,輸出評分表,等你確認後再執行剩餘步驟。
 - **與第 13 條的關係**:本條為第 13.1 評分機制的「執行層補強」,
   兩條並存;本條僅補強「前置攔截」,不修改第 13 條既有的「被淘汰方案列出」要求。
+
+---
+
+## 【補充:失敗插樁除錯紀律】
+
+> 追加日期: 2026-07-09
+> 原因: 修復「左滑刪除任務」問題時,連續 4 個 commit 都用「症狀猜測」(z-index 堆疊)繞道,
+> 完全沒有 runtime 證據,直到第 5 次才發現真正的 root cause 是 `onDelete()` 沒收到 taskId。
+> 為避免重蹈「瞎猜 → 試試看 → 再瞎猜」的浪費循環,新增以下硬規則:
+
+### 15. 失敗插樁除錯紀律 (Failure-Driven Instrumentation Gate)
+
+#### 15.1 觸發條件(Trigger)
+當**同一個問題(同一個症狀或同一條資料流)累計修復 ≥ 3 次仍未解決**時,必須立即停止盲目修改,
+改走「插樁除錯(Instrumentation-First Debugging)」流程,直到取得 runtime 證據。
+
+#### 15.2 插樁位置(Instrumentation Points)
+依序在下列節點插入觀測點(用 `console.log` / `window.alert` / `data-debug` 屬性):
+
+1. **事件入口(Event Entry)**:確認使用者操作真的有觸發程式碼
+   - `onClick` / `onTouchEnd` / `onChange` 等事件 handler 進入時
+2. **資料流邊界(Data Boundary)**:確認資料正確傳遞
+   - handler 的參數(如 `taskId`)是否如預期
+   - 父子層 props 是否如預期
+3. **狀態變更點(State Mutation)**:確認狀態真的有改
+   - reducer / setter 呼叫前後的 snapshot
+   - localStorage / DB 寫入前後的 payload
+4. **UI 重渲染點(Render Boundary)**:確認 state 改變有反映到畫面
+   - 條件渲染的關鍵條件值
+   - React DevTools 的 re-render 次數
+
+#### 15.3 證據優先於推測(Evidence Over Guessing)
+- **禁止**再根據「症狀相似度」猜下一個修法
+- **必須**依據插樁輸出,精準定位問題層級後,只修**那一層**
+- 定位後,在 commit message 中明確寫出「證據:某 log 顯示 X,故修改 Y」
+
+#### 15.4 多平台取證策略
+- **桌面開發**:用 `console.log` + Chrome DevTools
+- **手機/PWA 測試(無 DevTools)**:用 `window.alert()` 或 `document.title = '...'`(後者不打斷使用者操作)
+- **生產環境**:用 telemetry / Sentry / LogRocket 等觀測工具
+
+#### 15.5 收尾紀律
+- 修復完成後,**必須移除插樁代碼**(debug log / alert)
+- 移除動作可以併入下一個正常變更的 commit,不需獨立 commit
+- 若插樁代碼意外進入 production,需立即發 hotfix commit 清除
+
+#### 15.6 與第 13、14 條的關係
+- 與第 13 條「異動自主權」:本條**優先**於第 13.2 的「直接做完並 commit」
+- 與第 14 條「修改前置評分」:本條是評分機制的「失敗觸發版」——前 2 次仍照第 14 條評分, 第 3 次起**強制改走本條插樁流程**
