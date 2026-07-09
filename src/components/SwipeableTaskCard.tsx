@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback } from "react";
 import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
 import { CheckCircle2, Trash2, Archive } from "lucide-react";
 import { haptic } from "@/lib/haptics";
@@ -31,12 +31,12 @@ export function SwipeableTaskCard({
   onSwipeRight,
 }: SwipeableTaskCardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const cardRef = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
   const [isDragging, setIsDragging] = useState(false);
-  // Block child onClick fires after a drag ends (prevents tap-while-dragging bug)
   const clickBlockedRef = useRef(false);
 
+  // leftActions revealed when user swipes LEFT (card moves right → reveals left side)
+  // rightActions revealed when user swipes RIGHT (card moves left → reveals right side)
   const leftReveal = useTransform(x, [0, ACTION_WIDTH], [0, ACTION_WIDTH]);
   const rightReveal = useTransform(x, [0, -ACTION_WIDTH], [0, -ACTION_WIDTH]);
 
@@ -52,7 +52,7 @@ export function SwipeableTaskCard({
       onSwipeLeft();
     }
 
-    // Block any child onClick that fires within ~200ms of drag-end
+    // Block child's onClick for ~200ms after drag ends
     clickBlockedRef.current = true;
     setTimeout(() => { clickBlockedRef.current = false; }, 200);
   }, [onSwipeLeft, onSwipeRight]);
@@ -62,8 +62,8 @@ export function SwipeableTaskCard({
     clickBlockedRef.current = true;
   }, []);
 
-  // Intercept child's onClick to prevent it from firing when user was swiping
-  const handleCardClick = useCallback((e: React.MouseEvent) => {
+  // Block child's onClick when it bubbles up after a swipe
+  const handleMotionClick = useCallback((e: React.MouseEvent) => {
     if (clickBlockedRef.current) {
       e.stopPropagation();
       e.preventDefault();
@@ -71,12 +71,12 @@ export function SwipeableTaskCard({
   }, []);
 
   return (
-    <div className="relative overflow-hidden" ref={containerRef}>
-      {/* Left action strip */}
+    <div className="relative overflow-hidden" ref={containerRef} style={{ touchAction: "pan-y" }}>
+      {/* Left action strip (revealed when swiping LEFT, i.e. card moves right) */}
       {leftActions.length > 0 && (
         <motion.div
           className="absolute inset-y-0 left-0 flex items-stretch"
-          style={{ width: ACTION_WIDTH, x: leftReveal, zIndex: 0 }}
+          style={{ width: leftActions.length * ACTION_WIDTH, x: leftReveal, zIndex: 0 }}
         >
           {leftActions.map((action, i) => (
             <button
@@ -93,11 +93,11 @@ export function SwipeableTaskCard({
         </motion.div>
       )}
 
-      {/* Right action strip */}
+      {/* Right action strip (revealed when swiping RIGHT, i.e. card moves left) */}
       {rightActions.length > 0 && (
         <motion.div
           className="absolute inset-y-0 right-0 flex items-stretch"
-          style={{ width: ACTION_WIDTH, x: rightReveal, zIndex: 0 }}
+          style={{ width: rightActions.length * ACTION_WIDTH, x: rightReveal, zIndex: 0 }}
         >
           {rightActions.map((action, i) => (
             <button
@@ -114,27 +114,30 @@ export function SwipeableTaskCard({
         </motion.div>
       )}
 
-      {/* Main card — click-block overlay prevents child's onClick after swipe */}
-      <div ref={cardRef} onClick={handleCardClick}>
-        <motion.div
-          className="relative z-10 bg-[var(--surface)]"
-          drag={isDragging ? "x" : false}
-          dragDirectionLock
-          dragConstraints={{ left: -(rightActions.length * ACTION_WIDTH), right: leftActions.length * ACTION_WIDTH }}
-          dragElastic={0.1}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          style={{ x }}
-          whileTap={{ cursor: "grabbing" }}
-        >
-          {children}
-        </motion.div>
-      </div>
+      {/* Main card */}
+      <motion.div
+        className="relative z-10 bg-[var(--surface)]"
+        drag="x"
+        dragDirectionLock
+        dragConstraints={{
+          // Card can only move within the space needed to reveal action strips
+          left: -(rightActions.length * ACTION_WIDTH),
+          right: leftActions.length * ACTION_WIDTH,
+        }}
+        dragElastic={0.05}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onClick={handleMotionClick}
+        style={{ x, touchAction: "none" }}
+        whileTap={{ cursor: "grabbing" }}
+      >
+        {children}
+      </motion.div>
     </div>
   );
 }
 
-// Convenience wrapper with typical task actions pre-wired
+// Convenience wrapper — swipe LEFT = delete, swipe RIGHT = complete
 interface TaskSwipeWrapperProps {
   taskId: string;
   isDone: boolean;
@@ -145,30 +148,22 @@ interface TaskSwipeWrapperProps {
 }
 
 export function TaskSwipeWrapper({ taskId, isDone, onComplete, onDelete, onArchive, children }: TaskSwipeWrapperProps) {
-  const leftActions: SwipeAction[] = isDone ? [] : [
-    {
-      icon: <CheckCircle2 className="w-5 h-5" />,
-      label: "完成",
-      color: "var(--status-success)",
-      onClick: onComplete,
-    },
+  // LEFT side = DELETE (red)
+  const leftActions: SwipeAction[] = [
+    { icon: <Trash2 className="w-5 h-5" />, label: "刪除", color: "var(--status-danger)", onClick: () => onDelete(taskId) },
   ];
 
-  const rightActions: SwipeAction[] = onArchive
-    ? [
-        { icon: <Archive className="w-5 h-5" />, label: "封存", color: "var(--text-tertiary)", onClick: () => onArchive(taskId) },
-        { icon: <Trash2 className="w-5 h-5" />, label: "刪除", color: "var(--status-danger)", onClick: () => onDelete(taskId) },
-      ]
-    : [
-        { icon: <Trash2 className="w-5 h-5" />, label: "刪除", color: "var(--status-danger)", onClick: () => onDelete(taskId) },
-      ];
+  // RIGHT side = COMPLETE (green), no archive strip
+  const rightActions: SwipeAction[] = isDone ? [] : [
+    { icon: <CheckCircle2 className="w-5 h-5" />, label: "完成", color: "var(--status-success)", onClick: onComplete },
+  ];
 
   return (
     <SwipeableTaskCard
       leftActions={leftActions}
       rightActions={rightActions}
-      onSwipeRight={isDone ? undefined : onComplete}
       onSwipeLeft={() => onDelete(taskId)}
+      onSwipeRight={isDone ? undefined : onComplete}
     >
       {children}
     </SwipeableTaskCard>
