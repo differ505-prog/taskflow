@@ -59,21 +59,25 @@ function taskToVEVENT(task: Task): string {
   lines.push(`LAST-MODIFIED:${formatUTC(created)}`);
 
   if (task.dueDate) {
-    const due = parseISO(task.dueDate);
+    const startRaw = task.startDate ?? task.dueDate;
+    const start = parseISO(startRaw);
+    const end = parseISO(task.dueDate);
     if (task.dueTime) {
       // Timed event — use floating local time (no TZ suffix)
-      const dueDatetime = new Date(`${task.dueDate}T${task.dueTime}`);
-      const startStr = formatLocalDateTime(dueDatetime);
-      const endDatetime = new Date(dueDatetime.getTime() + 3600000);
+      const startDatetime = new Date(`${startRaw}T${task.dueTime}`);
+      const startStr = formatLocalDateTime(startDatetime);
+      const endDatetime = new Date(startDatetime.getTime() + 3600000);
       const endStr = formatLocalDateTime(endDatetime);
       lines.push(`DTSTART:${startStr}`);
       lines.push(`DTEND:${endStr}`);
     } else {
-      // All-day event — VALUE=DATE; DTEND must be (due + 1 day) per RFC 5545 §3.6.1
-      const dateStr = formatLocalDate(due);
-      const endStr = formatLocalDate(addDays(due, 1));
-      lines.push(`DTSTART;VALUE=DATE:${dateStr}`);
-      lines.push(`DTEND;VALUE=DATE:${endStr}`);
+      // All-day event — VALUE=DATE
+      // DTSTART: startDate (or dueDate if no startDate)
+      // DTEND: dueDate + 1 day (exclusive, RFC 5545 §3.6.1)
+      const startDateStr = formatLocalDate(start);
+      const endDateStr = formatLocalDate(addDays(end, 1));
+      lines.push(`DTSTART;VALUE=DATE:${startDateStr}`);
+      lines.push(`DTEND;VALUE=DATE:${endDateStr}`);
     }
   }
 

@@ -252,7 +252,7 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
                 aria-label="開啟番茄鐘"
               >
                 <Timer className="w-4 h-4" />
-                <span>專注</span>
+                <span title="番茄工作法 (Pomodoro Technique)">番茄鐘</span>
               </button>
               {!currentSharedListId && (
               <button

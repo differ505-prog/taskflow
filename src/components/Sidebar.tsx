@@ -286,12 +286,13 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
       <div className="p-2 border-t space-y-1" style={{ borderColor: "var(--border)" }}>
         {onOpenPomodoro && (
           <button
+            title="番茄工作法 (Pomodoro Technique)"
             onClick={onOpenPomodoro}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-150"
             style={{ color: "var(--brand)" }}
           >
             <Timer className="w-[18px] h-[18px]" />
-            專注計時
+            番茄鐘
           </button>
         )}
         <button
