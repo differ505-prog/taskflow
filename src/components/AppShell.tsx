@@ -427,13 +427,13 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
                             onDelete={() => deleteSharedTask(currentSharedListId, task.id)}
                             onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })}
                           >
-                            <TaskCard
-                              task={task}
-                              onToggleStatus={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })}
-                              onEdit={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })}
-                              onDelete={() => deleteSharedTask(currentSharedListId, task.id)}
-                              onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })}
-                            />
+                          <TaskCard
+                            task={task}
+                            onToggleStatus={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })}
+                            onEdit={() => {}}
+                            onDelete={() => deleteSharedTask(currentSharedListId, task.id)}
+                            onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })}
+                          />
                           </TaskSwipeWrapper>
                         )}
                       </motion.div>

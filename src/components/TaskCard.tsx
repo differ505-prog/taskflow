@@ -8,11 +8,11 @@ import { format, isToday, isTomorrow, isPast, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { AnimatePresence, motion } from "framer-motion";
 import { haptic } from "@/lib/haptics";
-import { getFileIcon, formatFileSize } from "@/lib/storageUpload";
+import { getFileIcon } from "@/lib/storageUpload";
 import {
   CheckCircle2, Circle, ChevronDown, Clock, Tag as TagIcon,
   Trash2, Edit3, Archive, Repeat, Plus, Trash,
-  AlertCircle, Timer, ChevronRight, ListChecks, Paperclip,
+  AlertCircle, Timer, ListChecks, Paperclip,
 } from "lucide-react";
 
 interface TaskCardProps {
@@ -44,7 +44,6 @@ function getDueDateInfo(
     const date = parseISO(dateStr);
     const overdue = !isToday(date) && isPast(date);
 
-    // 區間任務：起訖不同
     if (startDateStr && startDateStr !== dateStr) {
       const start = parseISO(startDateStr);
       const startLabel = isToday(start) ? "今天" : format(start, "M/d", { locale: zhTW });
@@ -123,9 +122,7 @@ export function TaskCard({
   onToggleSubTask,
   onAddSubTask,
   onDeleteSubTask,
-  onCompleteRecurring,
 }: TaskCardProps) {
-  const [isHovered, setIsHovered] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showSubTaskInput, setShowSubTaskInput] = useState(false);
@@ -134,24 +131,41 @@ export function TaskCard({
   const dueInfo = getDueDateInfo(task.dueDate, task.startDate);
   const isDone = task.status === "done";
   const hasMeta = dueInfo || task.tags.length > 0 || task.subTasks?.length || task.recurrence;
-  const hasDescription = Boolean(task.description);
   const subTasks = task.subTasks || [];
   const completedSubTasks = subTasks.filter((s) => s.status === "done").length;
   const subTaskProgress = subTasks.length > 0 ? completedSubTasks / subTasks.length : 0;
   const attachmentCount = task.attachments?.length || 0;
 
-  const handleToggleStatus = useCallback(() => {
+  const handleToggleStatus = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
     haptic("success");
     onToggleStatus(task.id);
   }, [onToggleStatus, task.id]);
 
-  const handleDelete = useCallback(() => {
+  const handleEdit = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEdit(task);
+  }, [onEdit, task]);
+
+  const handleDelete = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
     haptic("warning");
     setIsDeleting(true);
     setTimeout(() => onDelete(task.id), 200);
   }, [onDelete, task.id]);
 
-  const handleExpand = () => setIsExpanded((p) => !p);
+  const handleArchive = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onArchive) onArchive(task.id);
+  }, [onArchive, task.id]);
+
+  const handleExpand = useCallback(() => {
+    setIsExpanded((p) => !p);
+  }, []);
+
+  const handleCardClick = useCallback(() => {
+    handleExpand();
+  }, [handleExpand]);
 
   const handleSubTaskSubmit = () => {
     const title = newSubTaskTitle.trim();
@@ -167,9 +181,17 @@ export function TaskCard({
         isDone ? "opacity-60" : ""
       } ${isDeleting ? "scale-[0.97] opacity-0" : ""}`}
       style={{ transition: "box-shadow 200ms ease, transform 200ms ease, opacity 200ms ease" }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onClick={handleCardClick}
+      role="button"
+      aria-expanded={isExpanded}
       aria-label={`任務: ${task.title}`}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleExpand();
+        }
+      }}
     >
       {/* Priority left border accent */}
       {!isDone && (
@@ -187,7 +209,7 @@ export function TaskCard({
       )}
 
       <div className="flex items-start gap-3 pl-5 pr-4 py-4">
-        {/* Status toggle */}
+        {/* Status toggle — always visible, tap to complete */}
         <button
           onClick={handleToggleStatus}
           className="flex-shrink-0 mt-0.5 transition-transform duration-200 hover:scale-110 active:scale-90"
@@ -206,9 +228,7 @@ export function TaskCard({
           <div className="flex items-start justify-between gap-2">
             <h3
               className={`text-[15px] font-medium leading-snug min-w-0 flex-1 ${
-                isDone
-                  ? "line-through"
-                  : ""
+                isDone ? "line-through" : ""
               }`}
               style={isDone ? { color: "var(--text-tertiary)" } : { color: "var(--text-primary)" }}
             >
@@ -227,6 +247,14 @@ export function TaskCard({
                 </span>
               )}
               <PriorityBadge priority={task.priority} size="sm" />
+              {/* Chevron — indicates expand state */}
+              <ChevronDown
+                className="w-3.5 h-3.5 transition-transform duration-200"
+                style={{
+                  color: "var(--text-tertiary)",
+                  transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                }}
+              />
             </div>
           </div>
 
@@ -284,21 +312,6 @@ export function TaskCard({
                   {attachmentCount}
                 </span>
               )}
-            </div>
-          )}
-
-          {/* 展開按鈕 — 永遠顯示，避免沒有 meta 的任務看不到詳情 */}
-          {!isExpanded && (
-            <div className="mt-2 flex justify-end">
-              <button
-                onClick={handleExpand}
-                className="flex items-center gap-0.5 text-[11px] hover:underline transition-colors"
-                style={{ color: "var(--text-tertiary)" }}
-                aria-label="展開詳情"
-              >
-                詳情
-                <ChevronDown className="w-3 h-3 transition-transform duration-200" style={{ transform: "rotate(0)" }} />
-              </button>
             </div>
           )}
 
@@ -397,6 +410,7 @@ export function TaskCard({
                             className="group relative aspect-square rounded-xl overflow-hidden border transition-all hover:border-brand"
                             style={{ borderColor: "var(--border)" }}
                             title={attachment.name}
+                            onClick={(e) => e.stopPropagation()}
                           >
                             {attachment.type === "image" ? (
                               <img
@@ -416,7 +430,6 @@ export function TaskCard({
                                 </span>
                               </div>
                             )}
-                            {/* Hover overlay */}
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <span className="text-white text-[11px] font-medium">預覽</span>
                             </div>
@@ -456,6 +469,7 @@ export function TaskCard({
                   {showSubTaskInput ? (
                     <form
                       onSubmit={(e) => { e.preventDefault(); handleSubTaskSubmit(); }}
+                      onClick={(e) => e.stopPropagation()}
                       className="flex items-center gap-2"
                     >
                       <input
@@ -473,7 +487,7 @@ export function TaskCard({
                       <button type="submit" className="btn-primary py-1.5 px-3 text-[12px]">新增</button>
                       <button
                         type="button"
-                        onClick={() => { setShowSubTaskInput(false); setNewSubTaskTitle(""); }}
+                        onClick={(e) => { e.stopPropagation(); setShowSubTaskInput(false); setNewSubTaskTitle(""); }}
                         className="btn-ghost py-1.5 px-3 text-[12px]"
                       >
                         取消
@@ -481,7 +495,7 @@ export function TaskCard({
                     </form>
                   ) : (
                     <button
-                      onClick={() => setShowSubTaskInput(true)}
+                      onClick={(e) => { e.stopPropagation(); setShowSubTaskInput(true); }}
                       className="flex items-center gap-1.5 text-[12px] hover:underline transition-colors"
                       style={{ color: "var(--text-tertiary)" }}
                     >
@@ -490,63 +504,61 @@ export function TaskCard({
                     </button>
                   )}
 
-                  {/* Collapse button */}
-                  <button
-                    onClick={handleExpand}
-                    className="flex items-center gap-0.5 text-[11px] hover:underline transition-colors pt-1"
-                    style={{ color: "var(--text-tertiary)" }}
-                  >
-                    收起
-                    <ChevronDown className="w-3 h-3 transition-transform duration-200" style={{ transform: "rotate(180deg)" }} />
-                  </button>
-
-                  {/* Comments inline */}
+                  {/* Comments */}
                   <TaskCommentsInline taskId={task.id} />
 
+                  {/* Divider */}
+                  <div className="border-t" style={{ borderColor: "var(--border)" }} />
+
+                  {/* Bottom action bar: collapse + edit/delete/archive */}
+                  <div className="flex items-center justify-between gap-2 pb-1">
+                    {/* Collapse */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleExpand(); }}
+                      className="flex items-center gap-0.5 text-[11px] hover:underline transition-colors"
+                      style={{ color: "var(--text-tertiary)" }}
+                    >
+                      收起
+                      <ChevronDown className="w-3 h-3 transition-transform duration-200" style={{ transform: "rotate(180deg)" }} />
+                    </button>
+
+                    {/* Edit / Archive / Delete */}
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={handleEdit}
+                        className="p-1.5 rounded-lg hover:bg-black/5 transition-all duration-150 active:scale-90"
+                        style={{ color: "var(--text-tertiary)" }}
+                        aria-label="編輯任務"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      {onArchive && (
+                        <button
+                          onClick={handleArchive}
+                          className="p-1.5 rounded-lg hover:bg-black/5 transition-all duration-150 active:scale-90"
+                          style={{ color: "var(--text-tertiary)" }}
+                          aria-label="封存任務"
+                          title="封存"
+                        >
+                          <Archive className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={handleDelete}
+                        className="p-1.5 rounded-lg hover:bg-red-50 transition-all duration-150 active:scale-90"
+                        style={{ color: "var(--text-tertiary)" }}
+                        aria-label="刪除任務"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
-
-        {/* Hover actions */}
-        <div
-          className="flex-shrink-0 flex items-center gap-0.5 transition-all duration-200"
-          style={{
-            opacity: isHovered && !isDone ? 1 : 0,
-            transform: isHovered && !isDone ? "translateX(0)" : "translateX(-4px)",
-          }}
-        >
-          <button
-            onClick={() => onEdit(task)}
-            className="p-2 rounded-lg hover:bg-black/5 transition-all duration-150 active:scale-90"
-            style={{ color: "var(--text-tertiary)" }}
-            aria-label="編輯任務"
-          >
-            <Edit3 className="w-4 h-4" />
-          </button>
-          {onArchive && (
-            <button
-              onClick={() => onArchive(task.id)}
-              className="p-2 rounded-lg hover:bg-black/5 transition-all duration-150 active:scale-90"
-              style={{ color: "var(--text-tertiary)" }}
-              aria-label="封存任務"
-              title="封存"
-            >
-              <Archive className="w-4 h-4" />
-            </button>
-          )}
-          <button
-            onClick={handleDelete}
-            className="p-2 rounded-lg hover:bg-red-50 transition-all duration-150 active:scale-90"
-            style={{ color: "var(--text-tertiary)" }}
-            aria-label="刪除任務"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
       </div>
-
     </article>
   );
 }
