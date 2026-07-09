@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import {
-  Inbox, Sun, CalendarDays, Layers, Tag, BarChart3, Timer,
+  Inbox, Sun, CalendarDays, Layers, Tag, BarChart3, CalendarRange,
   Settings,
 } from "lucide-react";
 import { AppView } from "@/lib/types";
@@ -17,12 +17,12 @@ interface BottomNavItem {
 const NAV_ITEMS: BottomNavItem[] = [
   { view: "inbox", label: "收集箱", icon: <Inbox className="w-[22px] h-[22px]" /> },
   { view: "today", label: "今天", icon: <Sun className="w-[22px] h-[22px]" /> },
-  { view: "next7days", label: "七日", icon: <CalendarDays className="w-[22px] h-[22px]" /> },
+  { view: "calendar", label: "日曆", icon: <CalendarDays className="w-[22px] h-[22px]" /> },
   { view: "all", label: "全部", icon: <Layers className="w-[22px] h-[22px]" /> },
-  { view: "calendar", label: "日曆", icon: <Timer className="w-[22px] h-[22px]" /> },
 ];
 
 const MORE_ITEMS: BottomNavItem[] = [
+  { view: "next7days", label: "七日", icon: <CalendarRange className="w-[22px] h-[22px]" /> },
   { view: "habits", label: "習慣", icon: <BarChart3 className="w-[22px] h-[22px]" /> },
   { view: "tags", label: "標籤", icon: <Tag className="w-[22px] h-[22px]" /> },
   { view: "stats", label: "統計", icon: <Layers className="w-[22px] h-[22px]" /> },

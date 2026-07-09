@@ -37,13 +37,19 @@ function taskToVEVENT(task: Task): string {
 
   if (task.dueDate) {
     const due = parseISO(task.dueDate);
-    const dateStr = task.dueTime
-      ? `${formatDate(due)}/${formatDate(new Date(`${task.dueDate}T${task.dueTime}`))}`
-      : formatDateLocal(due);
-    lines.push(`DTSTART${task.dueTime ? "" : ";VALUE=DATE"}:${task.dueTime ? dateStr.split("/")[0] : dateStr}`);
     if (task.dueTime) {
-      lines.push(`DTEND:${dateStr.split("/")[1] || dateStr}`);
+      // Timed event — floating time (no TZ), use yyyyMMddTHHmmss
+      const dueDatetime = new Date(`${task.dueDate}T${task.dueTime}`);
+      const startStr = format(dueDatetime, "yyyyMMdd'T'HHmmss");
+      // Default end time = due time + 1 hour
+      const endDatetime = new Date(dueDatetime.getTime() + 3600000);
+      const endStr = format(endDatetime, "yyyyMMdd'T'HHmmss");
+      lines.push(`DTSTART:${startStr}`);
+      lines.push(`DTEND:${endStr}`);
     } else {
+      // All-day event — VALUE=DATE
+      const dateStr = formatDateLocal(due);
+      lines.push(`DTSTART;VALUE=DATE:${dateStr}`);
       lines.push(`DTEND;VALUE=DATE:${dateStr}`);
     }
   }

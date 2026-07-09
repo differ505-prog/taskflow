@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 import {
   Moon, Sun, Bell, Download, Upload, Trash2, Info,
   ChevronRight, X, CheckCircle2, AlertCircle, FileText,
-  CalendarDays, Copy, Shield, UserPlus, UserMinus, Crown, Sparkles,
+  CalendarDays, Shield, UserPlus, UserMinus, Crown, Sparkles,
 } from "lucide-react";
 import { getTasks } from "@/lib/storage";
 import { downloadICal } from "@/lib/ical";
@@ -626,52 +626,41 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
               日曆同步
             </h3>
             <div className="space-y-3">
-              {/* Copy subscription link */}
-              {(() => {
-                const [calCopied, setCalCopied] = useState(false);
-                const handleCopy = async () => {
-                  const tasks = getTasks();
-                  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(tasks))));
-                  const url = `${window.location.origin}/api/calendar/feed?tasks=${encoded}`;
-                  await navigator.clipboard.writeText(url);
-                  setCalCopied(true);
-                  setTimeout(() => setCalCopied(false), 2500);
-                };
-                return (
-                  <button
-                    onClick={handleCopy}
-                    className="w-full flex items-center gap-3 p-4 rounded-xl transition-all active:scale-98 hover:bg-[var(--surface-hover)]"
-                    style={{ background: "var(--surface-muted)" }}
-                  >
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "var(--brand-tint)" }}>
-                      <Copy className="w-5 h-5" style={{ color: "var(--brand)" }} />
-                    </div>
-                    <div className="text-left flex-1 min-w-0">
-                      <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>複製日曆訂閱連結</p>
-                      <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>
-                        貼到 Google Calendar 訂閱，有新增或編輯任務時回來重新複製即可
-                      </p>
-                    </div>
-                    <span
-                      className="text-[12px] font-medium flex-shrink-0 px-3 py-1.5 rounded-xl transition-all"
-                      style={calCopied
-                        ? { background: "rgba(52,199,89,0.1)", color: "var(--status-success)" }
-                        : { background: "var(--brand-tint)", color: "var(--brand)" }}
-                    >
-                      {calCopied ? "已複製 ✓" : "複製連結"}
-                    </span>
-                  </button>
-                );
-              })()}
+              {/* Download .ics */}
+              <button
+                onClick={() => {
+                  downloadICal(getTasks(), "VibeList 任務");
+                  setExportMsg("已下載 .ics 檔案");
+                  setTimeout(() => setExportMsg(null), 3000);
+                }}
+                className="w-full flex items-center gap-3 p-4 rounded-xl transition-all active:scale-98 hover:bg-[var(--surface-hover)]"
+                style={{ background: "var(--surface-muted)" }}
+              >
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "var(--brand-tint)" }}>
+                  <CalendarDays className="w-5 h-5" style={{ color: "var(--brand)" }} />
+                </div>
+                <div className="text-left flex-1 min-w-0">
+                  <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>下載日曆檔案</p>
+                  <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>
+                    匯出為 .ics 檔案，匯入 Google Calendar 或 Apple Calendar
+                  </p>
+                </div>
+                <span
+                  className="text-[12px] font-medium flex-shrink-0 px-3 py-1.5 rounded-xl"
+                  style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+                >
+                  下載 .ics
+                </span>
+              </button>
 
               {/* How to use instructions */}
               <div className="p-4 rounded-xl space-y-3" style={{ background: "var(--surface-muted)", border: "1px solid var(--border)" }}>
-                <p className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>使用方式</p>
+                <p className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>匯入 Google Calendar 步驟</p>
                 <div className="space-y-3">
                   {[
                     {
-                      label: "複製連結",
-                      text: "點擊上方「複製連結」按鈕",
+                      label: "下載檔案",
+                      text: "點擊上方「下載 .ics」按鈕，會下載一個「VibeList 任務.ics」檔案",
                     },
                     {
                       label: "打開 Google Calendar",
@@ -679,12 +668,16 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                       link: { href: "https://calendar.google.com", label: "Google Calendar" },
                     },
                     {
-                      label: "加入日曆",
-                      text: "左側「加入其他日曆」→「從網址加入日曆」",
+                      label: "匯入日曆",
+                      text: "「設定」→「匯入」→「選擇檔案」，上傳剛下載的 .ics",
                     },
                     {
-                      label: "完成訂閱",
-                      text: "貼上剛複製的連結，點確認。日曆會顯示目前所有任務",
+                      label: "完成",
+                      text: "選取要加入的日曆後點確認。即可在 Google Calendar 看見所有任務",
+                    },
+                    {
+                      label: "更新同步",
+                      text: "新增或編輯任務後，回來重新下載一次 .ics 檔案即可",
                     },
                   ].map((step, i) => (
                     <div key={i} className="flex items-start gap-3">
