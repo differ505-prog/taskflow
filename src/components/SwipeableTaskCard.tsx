@@ -9,13 +9,16 @@ const ACTION_WIDTH = 80; // px, width of the revealed action strip
 
 interface SwipeableTaskCardProps {
   children: React.ReactNode;
-  onDelete: () => void;
+  /** Task id forwarded to onDelete (required so the parent can identify which task to remove). */
+  taskId: string;
+  onDelete: (id: string) => void;
   onComplete?: () => void;
   /** Pass true to hide the complete swipe (e.g. when task is already done) */
   hideComplete?: boolean;
 }
 
 export function SwipeableTaskCard({
+  taskId,
   children,
   onDelete,
   onComplete,
@@ -100,7 +103,7 @@ export function SwipeableTaskCard({
           style={{ width: ACTION_WIDTH, background: "var(--status-danger)" }}
           onClick={() => {
             haptic("medium");
-            onDelete();
+            onDelete(taskId);
             close();
           }}
           aria-label="刪除任務"
@@ -156,12 +159,13 @@ export function TaskSwipeWrapper({
   isDone,
   onComplete,
   onDelete,
-  onArchive,
+  onArchive: _onArchive,
   children,
 }: TaskSwipeWrapperProps) {
   return (
     <SwipeableTaskCard
-      onDelete={() => onDelete(taskId)}
+      taskId={taskId}
+      onDelete={onDelete}
       onComplete={isDone ? undefined : onComplete}
       hideComplete={isDone}
     >
