@@ -103,7 +103,7 @@ export function SwipeableTaskCard({
           style={{ width: ACTION_WIDTH, background: "var(--status-danger)" }}
           onClick={() => {
             haptic("medium");
-            console.log("[SwipeableTaskCard] onDelete called with taskId:", taskId);
+            window.alert(`[刪除] taskId: ${taskId}`);
             onDelete(taskId);
             close();
           }}
