@@ -75,7 +75,7 @@ export function SwipeableTaskCard({
     <div className="relative overflow-hidden rounded-2xl" ref={trackRef}>
       {/* Action strip behind the card */}
       <div
-        className="absolute inset-y-0 right-0 flex items-stretch"
+        className="absolute inset-y-0 right-0 z-20 flex items-stretch"
         style={{ width: hideComplete ? ACTION_WIDTH : ACTION_WIDTH * 2 }}
       >
         {/* Complete button (rightmost, revealed first on left-swipe) */}
