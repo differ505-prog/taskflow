@@ -1,135 +1,139 @@
 "use client";
 
 import { useRef, useState, useCallback } from "react";
-import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
-import { CheckCircle2, Trash2, Archive } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Trash2, CheckCircle2 } from "lucide-react";
 import { haptic } from "@/lib/haptics";
 
-const SWIPE_THRESHOLD = 72;
-const ACTION_WIDTH = 72;
-
-interface SwipeAction {
-  icon: React.ReactNode;
-  label: string;
-  color: string;
-  onClick: () => void;
-}
+const ACTION_WIDTH = 80; // px, width of the revealed action strip
 
 interface SwipeableTaskCardProps {
   children: React.ReactNode;
-  leftActions?: SwipeAction[];
-  rightActions?: SwipeAction[];
-  onSwipeLeft?: () => void;
-  onSwipeRight?: () => void;
+  onDelete: () => void;
+  onComplete?: () => void;
+  /** Pass true to hide the complete swipe (e.g. when task is already done) */
+  hideComplete?: boolean;
 }
 
 export function SwipeableTaskCard({
   children,
-  leftActions = [],
-  rightActions = [],
-  onSwipeLeft,
-  onSwipeRight,
+  onDelete,
+  onComplete,
+  hideComplete = false,
 }: SwipeableTaskCardProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const x = useMotionValue(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const clickBlockedRef = useRef(false);
+  const trackRef = useRef<HTMLDivElement>(null);
+  // Track offset: negative = card shifted left, reveals right-side actions
+  const [offset, setOffset] = useState(0);
+  const [isOpen, setIsOpen] = useState(false);
+  const startXRef = useRef(0);
+  const currentOffsetRef = useRef(0);
 
-  // leftActions revealed when user swipes LEFT (card moves right → reveals left side)
-  // rightActions revealed when user swipes RIGHT (card moves left → reveals right side)
-  const leftReveal = useTransform(x, [0, ACTION_WIDTH], [0, ACTION_WIDTH]);
-  const rightReveal = useTransform(x, [0, -ACTION_WIDTH], [0, -ACTION_WIDTH]);
-
-  const handleDragEnd = useCallback((_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    setIsDragging(false);
-    const offset = info.offset.x;
-
-    if (offset > SWIPE_THRESHOLD && onSwipeRight) {
-      haptic("success");
-      onSwipeRight();
-    } else if (offset < -SWIPE_THRESHOLD && onSwipeLeft) {
-      haptic("medium");
-      onSwipeLeft();
-    }
-
-    // Block child's onClick for ~200ms after drag ends
-    clickBlockedRef.current = true;
-    setTimeout(() => { clickBlockedRef.current = false; }, 200);
-  }, [onSwipeLeft, onSwipeRight]);
-
-  const handleDragStart = useCallback(() => {
-    setIsDragging(true);
-    clickBlockedRef.current = true;
+  const close = useCallback(() => {
+    setOffset(0);
+    currentOffsetRef.current = 0;
+    setIsOpen(false);
   }, []);
 
-  // Block child's onClick when it bubbles up after a swipe
-  const handleMotionClick = useCallback((e: React.MouseEvent) => {
-    if (clickBlockedRef.current) {
-      e.stopPropagation();
-      e.preventDefault();
-    }
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    startXRef.current = e.touches[0].clientX;
   }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    const delta = e.touches[0].clientX - startXRef.current;
+    const max = hideComplete ? ACTION_WIDTH : ACTION_WIDTH * 2;
+
+    // Swipe left (delta < 0) reveals actions; swipe right closes
+    const next = Math.min(0, Math.max(-max, currentOffsetRef.current + delta));
+    setOffset(next);
+  }, [hideComplete]);
+
+  const handleTouchEnd = useCallback(() => {
+    const max = hideComplete ? ACTION_WIDTH : ACTION_WIDTH * 2;
+
+    if (offset < -max / 2) {
+      // Snap fully open
+      setOffset(-max);
+      currentOffsetRef.current = -max;
+      setIsOpen(true);
+    } else if (offset < -10) {
+      // Partial open — snap to max
+      setOffset(-max);
+      currentOffsetRef.current = -max;
+      setIsOpen(true);
+    } else {
+      // Snap closed
+      close();
+    }
+  }, [offset, hideComplete, close]);
+
+  // Tap scrim / outside closes the strip
+  const handleOverlayClick = useCallback(() => {
+    close();
+  }, [close]);
 
   return (
-    <div className="relative overflow-hidden" ref={containerRef} style={{ touchAction: "pan-y" }}>
-      {/* Left action strip (revealed when swiping LEFT, i.e. card moves right) */}
-      {leftActions.length > 0 && (
-        <motion.div
-          className="absolute inset-y-0 left-0 flex items-stretch"
-          style={{ width: leftActions.length * ACTION_WIDTH, x: leftReveal, zIndex: 0 }}
+    <div className="relative overflow-hidden rounded-2xl" ref={trackRef}>
+      {/* Action strip behind the card */}
+      <div
+        className="absolute inset-y-0 right-0 flex items-stretch"
+        style={{ width: hideComplete ? ACTION_WIDTH : ACTION_WIDTH * 2 }}
+      >
+        {/* Complete button (rightmost, revealed first on left-swipe) */}
+        {!hideComplete && onComplete && (
+          <button
+            className="flex flex-col items-center justify-center gap-1 text-white text-[11px] font-semibold"
+            style={{ width: ACTION_WIDTH, background: "var(--status-success)" }}
+            onClick={() => {
+              haptic("light");
+              onComplete();
+              close();
+            }}
+            aria-label="完成任務"
+          >
+            <CheckCircle2 className="w-5 h-5" />
+            完成
+          </button>
+        )}
+        {/* Delete button (always present, rightmost) */}
+        <button
+          className="flex flex-col items-center justify-center gap-1 text-white text-[11px] font-semibold"
+          style={{ width: ACTION_WIDTH, background: "var(--status-danger)" }}
+          onClick={() => {
+            haptic("medium");
+            onDelete();
+            close();
+          }}
+          aria-label="刪除任務"
         >
-          {leftActions.map((action, i) => (
-            <button
-              key={i}
-              className="flex-1 flex flex-col items-center justify-center gap-1 text-white text-[11px] font-semibold"
-              style={{ background: action.color }}
-              onClick={() => { haptic("light"); action.onClick(); }}
-              aria-label={action.label}
-            >
-              {action.icon}
-              {action.label}
-            </button>
-          ))}
-        </motion.div>
-      )}
+          <Trash2 className="w-5 h-5" />
+          刪除
+        </button>
+      </div>
 
-      {/* Right action strip (revealed when swiping RIGHT, i.e. card moves left) */}
-      {rightActions.length > 0 && (
-        <motion.div
-          className="absolute inset-y-0 right-0 flex items-stretch"
-          style={{ width: rightActions.length * ACTION_WIDTH, x: rightReveal, zIndex: 0 }}
-        >
-          {rightActions.map((action, i) => (
-            <button
-              key={i}
-              className="flex-1 flex flex-col items-center justify-center gap-1 text-white text-[11px] font-semibold"
-              style={{ background: action.color }}
-              onClick={() => { haptic("light"); action.onClick(); }}
-              aria-label={action.label}
-            >
-              {action.icon}
-              {action.label}
-            </button>
-          ))}
-        </motion.div>
-      )}
+      {/* Scrim: tap anywhere outside buttons to close */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            className="absolute inset-0 z-20"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={handleOverlayClick}
+            aria-hidden="true"
+          />
+        )}
+      </AnimatePresence>
 
-      {/* Main card */}
+      {/* Swipeable card */}
       <motion.div
         className="relative z-10 bg-[var(--surface)]"
-        drag="x"
-        dragDirectionLock
-        dragConstraints={{
-          // Card can only move within the space needed to reveal action strips
-          left: -(rightActions.length * ACTION_WIDTH),
-          right: leftActions.length * ACTION_WIDTH,
-        }}
-        dragElastic={0.05}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onClick={handleMotionClick}
-        style={{ x, touchAction: "none" }}
-        whileTap={{ cursor: "grabbing" }}
+        animate={{ x: offset }}
+        transition={{ type: "spring", stiffness: 400, damping: 35 }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{ width: "100%", touchAction: "pan-y" }}
       >
         {children}
       </motion.div>
@@ -137,7 +141,7 @@ export function SwipeableTaskCard({
   );
 }
 
-// Convenience wrapper — swipe LEFT = delete, swipe RIGHT = complete
+// Convenience wrapper for task lists
 interface TaskSwipeWrapperProps {
   taskId: string;
   isDone: boolean;
@@ -147,23 +151,19 @@ interface TaskSwipeWrapperProps {
   children: React.ReactNode;
 }
 
-export function TaskSwipeWrapper({ taskId, isDone, onComplete, onDelete, onArchive, children }: TaskSwipeWrapperProps) {
-  // LEFT side = DELETE (red)
-  const leftActions: SwipeAction[] = [
-    { icon: <Trash2 className="w-5 h-5" />, label: "刪除", color: "var(--status-danger)", onClick: () => onDelete(taskId) },
-  ];
-
-  // RIGHT side = COMPLETE (green), no archive strip
-  const rightActions: SwipeAction[] = isDone ? [] : [
-    { icon: <CheckCircle2 className="w-5 h-5" />, label: "完成", color: "var(--status-success)", onClick: onComplete },
-  ];
-
+export function TaskSwipeWrapper({
+  taskId,
+  isDone,
+  onComplete,
+  onDelete,
+  onArchive,
+  children,
+}: TaskSwipeWrapperProps) {
   return (
     <SwipeableTaskCard
-      leftActions={leftActions}
-      rightActions={rightActions}
-      onSwipeLeft={() => onDelete(taskId)}
-      onSwipeRight={isDone ? undefined : onComplete}
+      onDelete={() => onDelete(taskId)}
+      onComplete={isDone ? undefined : onComplete}
+      hideComplete={isDone}
     >
       {children}
     </SwipeableTaskCard>
