@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
 import { CheckCircle2, Trash2, Archive } from "lucide-react";
 import { haptic } from "@/lib/haptics";
@@ -31,8 +31,11 @@ export function SwipeableTaskCard({
   onSwipeRight,
 }: SwipeableTaskCardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
   const [isDragging, setIsDragging] = useState(false);
+  // Block child onClick fires after a drag ends (prevents tap-while-dragging bug)
+  const clickBlockedRef = useRef(false);
 
   const leftReveal = useTransform(x, [0, ACTION_WIDTH], [0, ACTION_WIDTH]);
   const rightReveal = useTransform(x, [0, -ACTION_WIDTH], [0, -ACTION_WIDTH]);
@@ -48,10 +51,23 @@ export function SwipeableTaskCard({
       haptic("medium");
       onSwipeLeft();
     }
+
+    // Block any child onClick that fires within ~200ms of drag-end
+    clickBlockedRef.current = true;
+    setTimeout(() => { clickBlockedRef.current = false; }, 200);
   }, [onSwipeLeft, onSwipeRight]);
 
   const handleDragStart = useCallback(() => {
     setIsDragging(true);
+    clickBlockedRef.current = true;
+  }, []);
+
+  // Intercept child's onClick to prevent it from firing when user was swiping
+  const handleCardClick = useCallback((e: React.MouseEvent) => {
+    if (clickBlockedRef.current) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
   }, []);
 
   return (
@@ -98,25 +114,27 @@ export function SwipeableTaskCard({
         </motion.div>
       )}
 
-      {/* Main card */}
-      <motion.div
-        className="relative z-10 bg-[var(--surface)]"
-        drag={isDragging ? "x" : false}
-        dragDirectionLock
-        dragConstraints={{ left: -(rightActions.length * ACTION_WIDTH), right: leftActions.length * ACTION_WIDTH }}
-        dragElastic={0.1}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        style={{ x }}
-        whileTap={{ cursor: "grabbing" }}
-      >
-        {children}
-      </motion.div>
+      {/* Main card — click-block overlay prevents child's onClick after swipe */}
+      <div ref={cardRef} onClick={handleCardClick}>
+        <motion.div
+          className="relative z-10 bg-[var(--surface)]"
+          drag={isDragging ? "x" : false}
+          dragDirectionLock
+          dragConstraints={{ left: -(rightActions.length * ACTION_WIDTH), right: leftActions.length * ACTION_WIDTH }}
+          dragElastic={0.1}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          style={{ x }}
+          whileTap={{ cursor: "grabbing" }}
+        >
+          {children}
+        </motion.div>
+      </div>
     </div>
   );
 }
 
-// Convenience wrapper that adds swipe actions for a typical task
+// Convenience wrapper with typical task actions pre-wired
 interface TaskSwipeWrapperProps {
   taskId: string;
   isDone: boolean;
