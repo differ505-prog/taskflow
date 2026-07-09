@@ -629,9 +629,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
               {/* Download .ics */}
               <button
                 onClick={() => {
-                  const tasks = getTasks();
-                  console.log("[SettingsPage] downloadICal tasks:", tasks.length, tasks.map((t: any) => ({ title: t.title, dueDate: t.dueDate, status: t.status })));
-                  downloadICal(tasks, "VibeList 任務");
+                  downloadICal(getTasks(), "VibeList 任務");
                   setExportMsg("已下載 .ics 檔案");
                   setTimeout(() => setExportMsg(null), 3000);
                 }}
