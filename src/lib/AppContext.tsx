@@ -241,10 +241,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
 
       //      listsUnsubRef.current?.();
+      let lastCloudLists: TaskList[] = [];
       subscribeListsSync(user.uid, (fbLists) => {
         if (fbSyncDebug) console.log("[SUP SYNC] lists 推送:", fbLists.length);
         // 去重：同名的預設清單只保留一份（保留固定 id 那份，合併任務）
         const deduped = dedupeDuplicateLists(fbLists);
+        // 修補：本地任務若指向被丟棄的清單 id，改指到 keeper，並回寫雲端
+        rebindTasksToKeptLists(fbLists, deduped);
+        lastCloudLists = deduped;
         setLists(deduped);
         saveLists(deduped);
       }).then((unsub) => {
@@ -330,6 +334,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             console.log(`[SUP SYNC] 清理重複清單: ${dupId}（保留 ${keeper.id}）`);
           }
         }
+
+        // 同步本地到雲端最終狀態，避免下次訂閱又讀回舊版 id
+        const finalCloudLists = await loadLists(uid);
+        const finalDeduped = dedupeDuplicateLists(finalCloudLists);
+        setLists(finalDeduped);
+        saveLists(finalDeduped);
       } catch (err) {
         console.warn("[SUP SYNC] 雲端去重失敗:", err);
       }
@@ -471,6 +481,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (user) batchSaveTasksFirebase(user.uid, rebuiltTasks).catch(console.warn);
     }
     return result;
+  }
+
+  // ── 工具：把本地任務裡指向「已不存在的清單 id」的 listId 改指到保留那份並回寫雲端 ──
+  function rebindTasksToKeptLists(rawLists: TaskList[], deduped: TaskList[]) {
+    if (!user) return;
+    // 找出 dedupe 後被丟掉的 id 對應到哪個 keeper
+    const liveIds = new Set(deduped.map((l) => l.id));
+    const droppedToKeeper = new Map<string, string>();
+    for (const raw of rawLists) {
+      if (liveIds.has(raw.id)) continue;
+      const keeper = deduped.find(
+        (k) => (DEFAULT_LIST_IDS[k.name] ?? k.id) === (DEFAULT_LIST_IDS[raw.name] ?? raw.id)
+      );
+      if (keeper) droppedToKeeper.set(raw.id, keeper.id);
+    }
+    if (droppedToKeeper.size === 0) return;
+    const currentTasks = tasksRef.current;
+    const rebuilt = currentTasks.map((t) => {
+      if (t.listId && droppedToKeeper.has(t.listId)) {
+        return { ...t, listId: droppedToKeeper.get(t.listId)! };
+      }
+      return t;
+    });
+    if (rebuilt.some((t, i) => t !== currentTasks[i])) {
+      setTasks(rebuilt);
+      saveTasks(rebuilt);
+      batchSaveTasksFirebase(user.uid, rebuilt).catch((err) =>
+        console.warn("[SUP SYNC] rebind tasks failed:", err)
+      );
+    }
   }
 
   const addTask = useCallback((
