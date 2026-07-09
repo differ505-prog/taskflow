@@ -49,10 +49,18 @@ import {
   getMyRoleInSharedList,
   listSharedMembers,
   setSharedTaskPosition,
-  subscribeTasks,
-  batchSaveTasks,
-  deleteTask as deleteTaskFirebase,
 } from "./firestore";
+import {
+  subscribeTasks,
+  saveTask as saveTaskFirebase,
+  batchSaveTasks as batchSaveTasksFirebase,
+  deleteTask as deleteTaskFirebase,
+} from "./personalTaskSync";
+import {
+  subscribeLists as subscribeListsSync,
+  batchSaveLists as batchSaveListsFirebase,
+  deleteList as deleteListFirebase,
+} from "./personalListSync";
 import { SharedMember, MemberRole } from "./sharedSync";
 import { parseNaturalLanguage } from "./nlp";
 import { useAuth } from "./AuthContext";
@@ -161,6 +169,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const lastActiveWriteAtRef = useRef<Record<string, number>>({});
   const ACTIVE_THROTTLE_MS = 30_000;
 
+  // 同步 tasks 到 ref（給 Firebase listener 用，避免 stale closure）
+  useEffect(() => {
+    tasksRef.current = tasks;
+  }, [tasks]);
+
   // ── Shared List State ───────────────────────────────────
   const [sharedLists, setSharedLists] = useState<Record<string, SharedListData>>({});
   const [ownedSharedListIds, _setOwnedSharedListIds] = useState<string[]>([]);
@@ -181,8 +194,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const snapshotReadyRef = useRef<Record<string, boolean>>({});
   const snapshotTasksRef = useRef<Record<string, Task[]>>({});
   const isWritingRef = useRef<Record<string, boolean>>({});
-  const isWritingLocalRef = useRef(false); // 防止本地寫入 trigger Firebase 推送覆蓋自己
   const fbUnsubRef = useRef<(() => void) | null>(null);
+  const listsUnsubRef = useRef<(() => void) | null>(null);
+  const myEchoIdsRef = useRef<Set<string>>(new Set<string>()); // 自己剛寫入的 task.id，下次收到 Firebase 推送時跳過
+  const tasksRef = useRef<Task[]>([]); // 給 Firebase callback 用，避免 stale closure
+  const fbSyncDebug = false; // 由 window.__FB_SYNC_DEBUG__ 控制
 
   // 我在每個 shared list 的角色
   const [myRoleByList, setMyRoleByList] = useState<Record<string, MemberRole>>({});
@@ -209,20 +225,57 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setNotificationPermission(Notification.permission);
     }
 
-    // ── 跨設備同步：Firebase 實時監聽個人任務 ──────────────────
+    // ── 跨設備同步：Supabase Realtime 訂閱個人任務 + 清單 ──────
     if (user) {
       if (fbUnsubRef.current) fbUnsubRef.current();
       subscribeTasks(user.uid, (fbTasks) => {
-        if (isWritingLocalRef.current) return; // 忽略自己推送的（已由 saveTasks 更新 localStorage）
-        isWritingLocalRef.current = true;
+        if (fbSyncDebug) console.log("[SUP SYNC] tasks 推送:", fbTasks.length);
         setTasks(fbTasks);
         saveTasks(fbTasks);
-        setTimeout(() => { isWritingLocalRef.current = false; }, 50);
       }).then((unsub) => {
         fbUnsubRef.current = unsub;
+        if (fbSyncDebug) console.log("[SUP SYNC] 已訂閱 tasks uid:", user.uid);
       }).catch((err) => {
-        console.warn("[Firebase] 訂閱任務失敗（離線設備會繼續用 localStorage）:", err);
+        console.warn("[SUP SYNC] 訂閱任務失敗:", err);
       });
+
+      listsUnsubRef.current?.();
+      subscribeListsSync(user.uid, (fbLists) => {
+        if (fbSyncDebug) console.log("[SUP SYNC] lists 推送:", fbLists.length);
+        setLists(fbLists);
+        saveLists(fbLists);
+      }).then((unsub) => {
+        listsUnsubRef.current = unsub;
+      }).catch((err) => {
+        console.warn("[SUP SYNC] 訂閱清單失敗:", err);
+      });
+
+      // 首次登入：把本地 localStorage 任務上傳到 Supabase（只上傳不在雲端的）
+      void migrateLocalToSupabase(user.uid);
+    }
+
+    // ── 一次性遷移：把 localStorage 既有資料上傳到 Supabase ──
+    async function migrateLocalToSupabase(uid: string): Promise<void> {
+      try {
+        // 標記避免重複遷移
+        const MIGRATE_KEY = `__migrated_to_supabase_${uid}`;
+        if (localStorage.getItem(MIGRATE_KEY)) return;
+
+        const localTasks = getTasks();
+        const localLists = getLists();
+
+        if (localTasks.length > 0) {
+          await batchSaveTasksFirebase(uid, localTasks);
+          console.log(`[SUP SYNC] 遷移 ${localTasks.length} 筆任務到雲端`);
+        }
+        if (localLists.length > 0) {
+          await batchSaveListsFirebase(uid, localLists);
+          console.log(`[SUP SYNC] 遷移 ${localLists.length} 筆清單到雲端`);
+        }
+        localStorage.setItem(MIGRATE_KEY, "1");
+      } catch (err) {
+        console.warn("[SUP SYNC] 遷移失敗（不影響現有功能）:", err);
+      }
     }
 
     setIsLoaded(true);
@@ -344,11 +397,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       order: tasks.filter((t) => !t.isArchived).length,
     };
     const updated = [task, ...tasks];
-    isWritingLocalRef.current = true;
     setTasks(updated);
     saveTasks(updated);
-    if (user) batchSaveTasks(user.uid, updated).catch(console.warn);
-    setTimeout(() => { isWritingLocalRef.current = false; }, 50);
+    if (user) batchSaveTasksFirebase(user.uid, [task]).catch((err) => console.warn("[SUP SYNC] 新增失敗:", err));
     return id;
   }, [tasks, user]);
 
@@ -356,11 +407,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const updated = tasks.map((t) =>
       t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
     );
-    isWritingLocalRef.current = true;
     setTasks(updated);
     saveTasks(updated);
-    if (user) batchSaveTasks(user.uid, updated).catch(console.warn);
-    setTimeout(() => { isWritingLocalRef.current = false; }, 50);
+    if (user) {
+      const task = updated.find((t) => t.id === id);
+      if (task) batchSaveTasksFirebase(user.uid, [task]).catch((err) => console.warn("[SUP SYNC] 更新失敗:", err));
+    }
   }, [tasks, user]);
 
   const deleteTask = useCallback(async (id: string) => {
@@ -377,14 +429,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
     const updated = tasks.filter((t) => t.id !== id);
-    isWritingLocalRef.current = true;
     setTasks(updated);
     saveTasks(updated);
     if (user) {
-      deleteTaskFirebase(user.uid, id).catch(console.warn);
-      batchSaveTasks(user.uid, updated).catch(console.warn);
+      deleteTaskFirebase(user.uid, id).catch((err) => console.warn("[SUP SYNC] 刪除失敗:", err));
     }
-    setTimeout(() => { isWritingLocalRef.current = false; }, 50);
   }, [tasks, user]);
 
   const toggleTaskStatus = useCallback((id: string) => {
@@ -462,7 +511,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const updated = [...lists, newList];
     setLists(updated);
     saveLists(updated);
-  }, [lists]);
+    if (user) batchSaveListsFirebase(user.uid, [newList]).catch(console.warn);
+  }, [lists, user]);
 
   const updateList = useCallback((id: string, updates: Partial<TaskList>) => {
     const updated = lists.map((l) =>
@@ -470,16 +520,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
     setLists(updated);
     saveLists(updated);
-  }, [lists]);
+    if (user) {
+      const list = updated.find((l) => l.id === id);
+      if (list) batchSaveListsFirebase(user.uid, [list]).catch(console.warn);
+    }
+  }, [lists, user]);
 
   const deleteList = useCallback((id: string) => {
     const updated = lists.filter((l) => l.id !== id);
     setLists(updated);
     saveLists(updated);
+    if (user) deleteListFirebase(user.uid, id).catch(console.warn);
     const taskUpdated = tasks.map((t) => t.listId === id ? { ...t, listId: undefined } : t);
     setTasks(taskUpdated);
     saveTasks(taskUpdated);
-  }, [lists, tasks]);
+  }, [lists, tasks, user]);
 
   // ── 習慣 CRUD ─────────────────────────────────────────
   const addHabit = useCallback((data: Omit<Habit, "id" | "createdAt" | "updatedAt" | "checkins" | "streak" | "longestStreak">) => {

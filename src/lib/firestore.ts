@@ -43,11 +43,19 @@ export async function subscribeTasks(
   onUpdate: (tasks: Task[]) => void
 ): Promise<Unsubscribe> {
   const db = await getFirebaseDB();
-  const q = query(collection(db, tasksCol(userId)), orderBy("order"));
-  return onSnapshot(q, (snap) => {
-    const tasks: Task[] = snap.docs.map((d) => ({ ...d.data(), id: d.id } as Task));
-    onUpdate(tasks);
-  });
+  // 不加 orderBy — 既有任務可能缺 order 欄位，orderBy 會整個查詢失敗
+  const q = query(collection(db, tasksCol(userId)));
+  return onSnapshot(q,
+    (snap) => {
+      const tasks: Task[] = snap.docs.map((d) => ({ ...d.data(), id: d.id } as Task));
+      // client 端排序
+      tasks.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      onUpdate(tasks);
+    },
+    (err) => {
+      console.warn("[FB SYNC] onSnapshot error:", err);
+    }
+  );
 }
 
 export async function saveTask(userId: string, task: Task): Promise<void> {
