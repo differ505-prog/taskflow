@@ -81,7 +81,7 @@ export function SwipeableTaskCard({
         {/* Complete button (rightmost, revealed first on left-swipe) */}
         {!hideComplete && onComplete && (
           <button
-            className="flex flex-col items-center justify-center gap-1 text-white text-[11px] font-semibold"
+            className="relative z-40 flex flex-col items-center justify-center gap-1 text-white text-[11px] font-semibold"
             style={{ width: ACTION_WIDTH, background: "var(--status-success)" }}
             onClick={() => {
               haptic("light");
@@ -96,7 +96,7 @@ export function SwipeableTaskCard({
         )}
         {/* Delete button (always present, rightmost) */}
         <button
-          className="flex flex-col items-center justify-center gap-1 text-white text-[11px] font-semibold"
+          className="relative z-40 flex flex-col items-center justify-center gap-1 text-white text-[11px] font-semibold"
           style={{ width: ACTION_WIDTH, background: "var(--status-danger)" }}
           onClick={() => {
             haptic("medium");
