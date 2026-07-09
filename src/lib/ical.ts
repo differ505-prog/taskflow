@@ -1,12 +1,10 @@
 /**
  * iCal (.ics) generator for VibeList tasks.
- * Produces a RFC 5545-compliant calendar that Google Calendar / Apple Calendar can import.
+ * Produces an RFC 5545-compliant calendar that Google Calendar / Apple Calendar can import.
  */
 
 import { Task } from "./types";
 import { format, parseISO } from "date-fns";
-
-const PRODID = "-//VibeList//VibeList Task Manager//EN";
 
 function escapeICalText(str: string): string {
   return str
@@ -17,12 +15,16 @@ function escapeICalText(str: string): string {
     .replace(/\r/g, "");
 }
 
-function formatDate(d: Date): string {
+function formatUTC(d: Date): string {
   return format(d, "yyyyMMdd'T'HHmmss'Z'");
 }
 
-function formatDateLocal(d: Date): string {
+function formatLocalDate(d: Date): string {
   return format(d, "yyyyMMdd");
+}
+
+function formatLocalDateTime(d: Date): string {
+  return format(d, "yyyyMMdd'T'HHmmss");
 }
 
 function taskToVEVENT(task: Task): string {
@@ -32,23 +34,24 @@ function taskToVEVENT(task: Task): string {
   lines.push(`UID:${uid}`);
 
   const created = parseISO(task.createdAt);
-  lines.push(`DTSTAMP:${formatDate(created)}`);
-  lines.push(`CREATED:${formatDate(created)}`);
+  lines.push(`DTSTAMP:${formatUTC(created)}`);
+  lines.push(`CREATED:${formatUTC(created)}`);
 
   if (task.dueDate) {
     const due = parseISO(task.dueDate);
     if (task.dueTime) {
-      // Timed event — floating time (no TZ), use yyyyMMddTHHmmss
+      // Timed event — use LOCAL (floating) time format (no TZ suffix)
+      // Google Calendar & Apple Calendar both treat this as floating time
       const dueDatetime = new Date(`${task.dueDate}T${task.dueTime}`);
-      const startStr = format(dueDatetime, "yyyyMMdd'T'HHmmss");
-      // Default end time = due time + 1 hour
+      const startStr = formatLocalDateTime(dueDatetime);
+      // Default end = start + 1 hour
       const endDatetime = new Date(dueDatetime.getTime() + 3600000);
-      const endStr = format(endDatetime, "yyyyMMdd'T'HHmmss");
+      const endStr = formatLocalDateTime(endDatetime);
       lines.push(`DTSTART:${startStr}`);
       lines.push(`DTEND:${endStr}`);
     } else {
-      // All-day event — VALUE=DATE
-      const dateStr = formatDateLocal(due);
+      // All-day event — VALUE=DATE (RFC 5545 compliant)
+      const dateStr = formatLocalDate(due);
       lines.push(`DTSTART;VALUE=DATE:${dateStr}`);
       lines.push(`DTEND;VALUE=DATE:${dateStr}`);
     }
@@ -67,9 +70,9 @@ function taskToVEVENT(task: Task): string {
 
   if (task.status === "done") {
     lines.push("STATUS:COMPLETED");
-    lines.push(`COMPLETED:${formatDate(new Date())}`);
+    lines.push(`COMPLETED:${formatUTC(new Date())}`);
   } else {
-    lines.push("STATUS:IN-PROCESS");
+    lines.push("STATUS:CONFIRMED");
   }
 
   if (task.tags.length > 0) {
@@ -91,9 +94,8 @@ export function generateICal(tasks: Task[], listName = "VibeList"): string {
     "VERSION:2.0",
     "PRODID:-//VibeList//VibeList Task Manager//EN",
     "CALSCALE:GREGORIAN",
-    `X-WR-CALNAME:${escapeICalText(listName)}`,
-    `X-VIBELIST-EXPORT:${format(now, "yyyy-MM-dd'T'HH:mm:ss'Z'")}`,
     "METHOD:PUBLISH",
+    `X-WR-CALNAME:${escapeICalText(listName)}`,
   ].join("\r\n");
 
   const events = tasks
@@ -110,7 +112,7 @@ export function downloadICal(tasks: Task[], listName = "VibeList"): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `vibelist-${format(new Date(), "yyyy-MM-dd")}.ics`;
+  a.download = `${listName.replace(/\s+/g, "-")}.ics`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
