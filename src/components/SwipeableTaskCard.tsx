@@ -103,7 +103,6 @@ export function SwipeableTaskCard({
           style={{ width: ACTION_WIDTH, background: "var(--status-danger)" }}
           onClick={() => {
             haptic("medium");
-            window.alert(`[刪除] taskId: ${taskId}`);
             onDelete(taskId);
             close();
           }}
@@ -114,11 +113,11 @@ export function SwipeableTaskCard({
         </button>
       </div>
 
-      {/* Scrim: tap anywhere outside buttons to close */}
+      {/* Scrim: tap anywhere outside buttons to close — pointer-events-none lets clicks pass through */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            className="absolute inset-0 z-30"
+            className="absolute inset-0 z-30 pointer-events-none"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -129,7 +128,7 @@ export function SwipeableTaskCard({
         )}
       </AnimatePresence>
 
-      {/* Swipeable card */}
+      {/* Swipeable card — captures clicks to close when scrim is open */}
       <motion.div
         className="relative z-20 bg-[var(--surface)]"
         animate={{ x: offset }}
@@ -137,6 +136,7 @@ export function SwipeableTaskCard({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onClick={isOpen ? close : undefined}
         style={{ width: "100%", touchAction: "pan-y" }}
       >
         {children}

@@ -545,7 +545,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [tasks, user]);
 
   const deleteTask = useCallback(async (id: string) => {
-    window.alert(`[AppContext deleteTask] id: ${id}`);
     // 刪除任務時，一併清理 Firebase Storage 中的附件
     const task = tasks.find((t) => t.id === id);
     if (task?.attachments && task.attachments.length > 0) {
