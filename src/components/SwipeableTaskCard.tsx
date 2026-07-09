@@ -75,7 +75,7 @@ export function SwipeableTaskCard({
     <div className="relative overflow-hidden rounded-2xl" ref={trackRef}>
       {/* Action strip behind the card */}
       <div
-        className="absolute inset-y-0 right-0 z-20 flex items-stretch"
+        className="absolute inset-y-0 right-0 z-10 flex items-stretch"
         style={{ width: hideComplete ? ACTION_WIDTH : ACTION_WIDTH * 2 }}
       >
         {/* Complete button (rightmost, revealed first on left-swipe) */}
@@ -114,7 +114,7 @@ export function SwipeableTaskCard({
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            className="absolute inset-0 z-10"
+            className="absolute inset-0 z-30"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -127,7 +127,7 @@ export function SwipeableTaskCard({
 
       {/* Swipeable card */}
       <motion.div
-        className="relative z-10 bg-[var(--surface)]"
+        className="relative z-20 bg-[var(--surface)]"
         animate={{ x: offset }}
         transition={{ type: "spring", stiffness: 400, damping: 35 }}
         onTouchStart={handleTouchStart}
