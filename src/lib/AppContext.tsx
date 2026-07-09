@@ -19,6 +19,7 @@ import {
   SubTask,
   Recurrence,
   SharedListSnapshot,
+  DEFAULT_LIST_IDS,
 } from "./types";
 import {
   getTasks,
@@ -239,11 +240,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         console.warn("[SUP SYNC] 訂閱任務失敗:", err);
       });
 
-      listsUnsubRef.current?.();
+      //      listsUnsubRef.current?.();
       subscribeListsSync(user.uid, (fbLists) => {
         if (fbSyncDebug) console.log("[SUP SYNC] lists 推送:", fbLists.length);
-        setLists(fbLists);
-        saveLists(fbLists);
+        // 去重：同名的預設清單只保留一份（保留固定 id 那份，合併任務）
+        const deduped = dedupeDuplicateLists(fbLists);
+        setLists(deduped);
+        saveLists(deduped);
       }).then((unsub) => {
         listsUnsubRef.current = unsub;
       }).catch((err) => {
@@ -259,10 +262,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       try {
         // 標記避免重複遷移
         const MIGRATE_KEY = `__migrated_to_supabase_${uid}`;
-        if (localStorage.getItem(MIGRATE_KEY)) return;
+        if (localStorage.getItem(MIGRATE_KEY)) {
+          // 即使已遷移過，仍跑一次雲端去重（用戶可能遷移時還沒去重）
+          await cleanupDuplicateListsInCloud(uid);
+          return;
+        }
 
         const localTasks = getTasks();
-        const localLists = getLists();
+        const localLists = dedupeDuplicateLists(getLists());
 
         if (localTasks.length > 0) {
           await batchSaveTasksFirebase(uid, localTasks);
@@ -273,8 +280,58 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           console.log(`[SUP SYNC] 遷移 ${localLists.length} 筆清單到雲端`);
         }
         localStorage.setItem(MIGRATE_KEY, "1");
+
+        // 跑完本地遷移後，額外做一次雲端去重（其他設備可能也上傳過「收集箱」）
+        await cleanupDuplicateListsInCloud(uid);
       } catch (err) {
         console.warn("[SUP SYNC] 遷移失敗（不影響現有功能）:", err);
+      }
+    }
+
+    // ── 雲端去重：合併雲端所有同名預設清單，固定 id 是 init:inbox ──
+    async function cleanupDuplicateListsInCloud(uid: string): Promise<void> {
+      try {
+        const { loadLists, deleteList: delList } = await import("./personalListSync");
+        const { loadTasks } = await import("./personalTaskSync");
+        const cloudLists = await loadLists(uid);
+        if (cloudLists.length === 0) return;
+
+        // 用「預設清單 key (init:inbox)」分組
+        const groups = new Map<string, TaskList[]>();
+        for (const l of cloudLists) {
+          const key = DEFAULT_LIST_IDS[l.name] ?? l.id;
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key)!.push(l);
+        }
+
+        for (const [, group] of groups) {
+          if (group.length <= 1) continue;
+          // 保留固定 id 那個；若都沒有，保留最早建立的
+          group.sort((a, b) => {
+            const aFixed = a.id.startsWith("init:") ? 0 : 1;
+            const bFixed = b.id.startsWith("init:") ? 0 : 1;
+            if (aFixed !== bFixed) return aFixed - bFixed;
+            return a.createdAt.localeCompare(b.createdAt);
+          });
+          const keeper = group[0];
+          const dupIds = group.slice(1).map((l) => l.id);
+
+          // 把任務從被刪除的清單指向 keeper
+          const cloudTasks = await loadTasks(uid);
+          const rebuilt = cloudTasks.map((t) =>
+            t.listId && dupIds.includes(t.listId) ? { ...t, listId: keeper.id } : t
+          );
+          if (rebuilt.some((t, i) => t !== cloudTasks[i])) {
+            await batchSaveTasksFirebase(uid, rebuilt);
+          }
+          // 刪除多餘清單
+          for (const dupId of dupIds) {
+            await delList(uid, dupId);
+            console.log(`[SUP SYNC] 清理重複清單: ${dupId}（保留 ${keeper.id}）`);
+          }
+        }
+      } catch (err) {
+        console.warn("[SUP SYNC] 雲端去重失敗:", err);
       }
     }
 
@@ -383,7 +440,39 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return counts;
   }, [tasks]);
 
-  // ── 任務 CRUD（個人） ─────────────────────────────────────
+  // ── 工具：清單去重（同名預設清單合併，並把所有任務的 listId 指向保留的那份）──
+  function dedupeDuplicateLists(lists: TaskList[]): TaskList[] {
+    const seen = new Map<string, TaskList>();
+    const dupIds: string[] = [];
+    for (const l of lists) {
+      // 預設清單的 key 用名字，否則用 id 自己
+      const key = DEFAULT_LIST_IDS[l.name] ?? l.id;
+      const existing = seen.get(key);
+      if (existing) {
+        dupIds.push(l.id); // 這份是多餘的，記下來 id
+      } else {
+        seen.set(key, l);
+      }
+    }
+    if (dupIds.length === 0) return lists;
+    const result = Array.from(seen.values());
+    // 把任務裡指向「多餘清單」的 listId 改指向保留那筆
+    const dupIdSet = new Set(dupIds);
+    const rebuiltTasks = tasksRef.current.map((t) => {
+      if (t.listId && dupIdSet.has(t.listId)) {
+        const keeper = result.find((l) => l.name === lists.find((x) => x.id === t.listId)?.name);
+        return { ...t, listId: keeper?.id ?? t.listId };
+      }
+      return t;
+    });
+    if (rebuiltTasks.some((t, i) => t !== tasksRef.current[i])) {
+      setTasks(rebuiltTasks);
+      saveTasks(rebuiltTasks);
+      if (user) batchSaveTasksFirebase(user.uid, rebuiltTasks).catch(console.warn);
+    }
+    return result;
+  }
+
   const addTask = useCallback((
     data: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order">
   ): string => {

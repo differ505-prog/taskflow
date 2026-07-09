@@ -1,4 +1,4 @@
-import { Task, TaskList, Habit, PomodoroSession, Tag, DEFAULT_LISTS } from "./types";
+import { Task, TaskList, Habit, PomodoroSession, Tag, DEFAULT_LISTS, DEFAULT_LIST_IDS } from "./types";
 
 const TASKS_KEY = "taskflow_tasks";
 const LISTS_KEY = "taskflow_lists";
@@ -46,7 +46,8 @@ export function initDefaultLists(): TaskList[] {
   if (existing.length === 0) {
     const defaults = DEFAULT_LISTS.map((l) => ({
       ...l,
-      id: generateId(),
+      // 預設清單（像「收集箱」）使用固定 id，跨裝置登入時不會重複生成
+      id: DEFAULT_LIST_IDS[l.name] ?? generateId(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }));

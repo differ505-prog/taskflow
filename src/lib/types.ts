@@ -219,6 +219,10 @@ export const STATUS_CONFIG: Record<TaskStatus, { label: string; color: string; b
 export const DEFAULT_LISTS: Omit<TaskList, "id" | "createdAt" | "updatedAt">[] = [
   { name: "收集箱", icon: "📥", color: "#636366", order: 0 },
 ];
+// 預設清單使用固定 id，避免多設備之間重複建立（因為 DEFAULT_LISTS 對應的清單本該只有一份）
+export const DEFAULT_LIST_IDS: Record<string, string> = {
+  "收集箱": "init:inbox",
+};
 
 // ─── Shared List Types ──────────────────────────────────────────
 export interface SharedListMeta {
