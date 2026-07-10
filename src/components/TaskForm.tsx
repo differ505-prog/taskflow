@@ -448,7 +448,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
               </div>
 
               {/* Actions */}
-              <div className="flex justify-end gap-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+              <div className="flex justify-end gap-3 pt-3 pb-[calc(60px+env(safe-area-inset-bottom,0px)+12px)]" style={{ borderTop: "1px solid var(--border)" }}>
                 <button type="button" onClick={onClose} className="btn-ghost">取消</button>
                 <button type="submit" className="btn-primary">{initialData ? "儲存變更" : "建立任務"}</button>
               </div>
