@@ -575,6 +575,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
     setTasks(updated);
     saveTasks(updated);
+    if (user) {
+      const updatedTask = updated.find((t) => t.id === id);
+      if (updatedTask) batchSaveTasksFirebase(user.uid, [updatedTask]).catch((err) => console.warn("[SUP SYNC] toggle 失敗:", err));
+    }
     // 完成任務時更新 lastActiveAt（節流 30 秒）
     if (newStatus === "done" && user?.uid) {
       const now = Date.now();
@@ -584,7 +588,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         void updateLastActive(user.uid);
       }
     }
-  }, [tasks, user?.uid]);
+  }, [tasks, user]);
 
   const archiveTask = useCallback((id: string) => updateTask(id, { isArchived: true }), [updateTask]);
   const unarchiveTask = useCallback((id: string) => updateTask(id, { isArchived: false }), [updateTask]);
