@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { Tags as TagsIcon, Trash2, Edit3, Plus, X, Check, Lock } from "lucide-react";
 import { Task } from "@/lib/types";
 import { TAG_COLORS } from "@/lib/types";
-import { getTasks, saveTasks, getTagColors, setTagColor, removeTagColor } from "@/lib/storage";
+import { getTasks, saveTasks, getTagColors, saveTagColors, setTagColor, removeTagColor } from "@/lib/storage";
 import { useAuth } from "@/lib/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 
