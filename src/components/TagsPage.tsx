@@ -5,7 +5,7 @@ import { useApp } from "@/lib/AppContext";
 import { Tags as TagsIcon, Plus, Trash2, Edit3, X, Check, Lock } from "lucide-react";
 import { Task } from "@/lib/types";
 import { TAG_COLORS } from "@/lib/types";
-import { getTagColors, saveTagColors } from "@/lib/storage";
+import { getTagColors, saveTagColors, getOrphanTags, saveOrphanTags } from "@/lib/storage";
 import { useAuth } from "@/lib/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -16,6 +16,7 @@ export function TagsPage() {
   const [editingTag, setEditingTag] = useState<string | null>(null);
   const [editInput, setEditInput] = useState("");
   const [tagColors, setTagColors] = useState<Record<string, string>>({});
+  const [orphanTags, setOrphanTags] = useState<string[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0]);
@@ -23,6 +24,7 @@ export function TagsPage() {
 
   useEffect(() => {
     setTagColors(getTagColors());
+    setOrphanTags(getOrphanTags());
     setIsLoaded(true);
   }, []);
 
@@ -45,10 +47,16 @@ export function TagsPage() {
         }
       });
     });
+    // 將獨立標籤（沒有任務引用）併入列表
+    orphanTags.forEach((name) => {
+      if (!map.has(name)) {
+        map.set(name, { count: 0, tasks: [] });
+      }
+    });
     return Array.from(map.entries())
       .map(([name, val]) => ({ name, ...val }))
       .sort((a, b) => b.count - a.count);
-  }, [tasks]);
+  }, [tasks, orphanTags]);
 
   const handleRename = (oldName: string, newName: string) => {
     if (!newName.trim() || oldName === newName.trim()) { setEditingTag(null); return; }
@@ -61,12 +69,20 @@ export function TagsPage() {
       setTagColors(newColors);
       saveTagColors(newColors);
     }
+    // 更新所有任務內引用
     tasks.forEach((task) => {
       if (task.tags.includes(oldName)) {
         const newTags = task.tags.map((t) => t === oldName ? newNameClean : t);
         updateTask(task.id, { tags: newTags });
       }
     });
+    // 更新 orphanTags（如果舊名是獨立標籤）
+    if (orphanTags.includes(oldName)) {
+      const next = orphanTags.filter((t) => t !== oldName);
+      if (!next.includes(newNameClean)) next.push(newNameClean);
+      setOrphanTags(next);
+      saveOrphanTags(next);
+    }
     setEditingTag(null);
   };
 
@@ -78,6 +94,12 @@ export function TagsPage() {
       setTagColors(newColors);
       saveTagColors(newColors);
     }
+    // 加入獨立標籤清單
+    if (!orphanTags.includes(name)) {
+      const next = [...orphanTags, name];
+      setOrphanTags(next);
+      saveOrphanTags(next);
+    }
     setShowCreateModal(false);
     setNewTagName("");
     setNewTagColor(TAG_COLORS[0]);
@@ -88,6 +110,13 @@ export function TagsPage() {
     delete colors[tagName];
     setTagColors(colors);
     saveTagColors(colors);
+    // 從獨立標籤清單移除
+    if (orphanTags.includes(tagName)) {
+      const next = orphanTags.filter((t) => t !== tagName);
+      setOrphanTags(next);
+      saveOrphanTags(next);
+    }
+    // 從所有任務的 tags 陣列移除
     tasks.forEach((task) => {
       if (task.tags.includes(tagName)) {
         updateTask(task.id, { tags: task.tags.filter((t) => t !== tagName) });
@@ -309,7 +338,7 @@ export function TagsPage() {
                           {entry.name}
                         </span>
                         <span className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>
-                          {entry.count} 項任務
+                          {entry.count > 0 ? `${entry.count} 項任務` : "未使用"}
                         </span>
                       </div>
                     )}

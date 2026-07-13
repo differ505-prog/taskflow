@@ -233,6 +233,28 @@ export function removeTagColor(tagName: string): void {
   saveTagColors(colors);
 }
 
+// ─── Orphan Tags (tags created standalone, not yet attached to any task) ──
+const ORPHAN_TAGS_KEY = "taskflow_orphan_tags"; // string[]
+
+export function getOrphanTags(): string[] {
+  return read<string[]>(ORPHAN_TAGS_KEY, []);
+}
+
+export function saveOrphanTags(tags: string[]): void {
+  write(ORPHAN_TAGS_KEY, tags);
+}
+
+export function addOrphanTag(name: string): void {
+  const tags = getOrphanTags();
+  if (!tags.includes(name)) {
+    saveOrphanTags([...tags, name]);
+  }
+}
+
+export function removeOrphanTag(name: string): void {
+  saveOrphanTags(getOrphanTags().filter((t) => t !== name));
+}
+
 // ─── Export / Clear All ─────────────────────────────────────────
 export function exportAllData(): string {
   return JSON.stringify({
