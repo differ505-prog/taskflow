@@ -202,6 +202,10 @@ export function getTodayFocusMinutes(): number {
 }
 
 // ─── Tags ───────────────────────────────────────────────────────
+// ⚠️ TODO(refactor): taskflow_tags (Tag[]) 與 taskflow_orphan_tags (string[])
+//    兩套 tag 系統並存；目前 orphanTags 是「任務 tags 之外的獨立標籤」。
+//    提案：統一為 Tag[] 模型，但需遷移既有資料。先暫時保留雙軌。
+//    詳見 .cursor/rules/proposals.md Proposal 後續追蹤。
 export function getTags(): Tag[] {
   return read<Tag[]>(TAGS_KEY, []);
 }
