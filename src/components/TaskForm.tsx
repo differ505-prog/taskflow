@@ -4,8 +4,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Task, Priority, TaskStatus, Recurrence, Attachment } from "@/lib/types";
 import { PRIORITY_CONFIG } from "@/lib/types";
 import { useApp } from "@/lib/AppContext";
+import { getTagColors } from "@/lib/storage";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Plus, Repeat, Calendar, Mic, MicOff } from "lucide-react";
+import { X, Plus, Repeat, Calendar, Mic, MicOff, Hash } from "lucide-react";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
 
 interface TaskFormProps {
@@ -31,7 +32,7 @@ const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
 const SELECT_ARROW = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23999' strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E";
 
 export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId, onDeleteAttachment }: TaskFormProps) {
-  const { lists } = useApp();
+  const { lists, tasks, getTagCounts } = useApp();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<Priority>("medium");
@@ -42,6 +43,10 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
   const [listId, setListId] = useState<string | undefined>(undefined);
   const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
+  const [tagColors, setTagColors] = useState<Record<string, string>>({});
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [errors, setErrors] = useState<{ title?: string }>({});
   const [recurrenceType, setRecurrenceType] = useState("none");
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
@@ -93,6 +98,47 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
     return () => { /* cleanup recognition if needed */ };
   }, []);
 
+  // Load tag colors
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setTagColors(getTagColors());
+    }
+  }, []);
+
+  // Tag auto-complete logic
+  const updateTagSuggestions = useCallback((input: string) => {
+    const trimmed = input.trim();
+    if (!trimmed) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    // 支持 # 前綴或純文字匹配
+    const query = trimmed.startsWith("#") ? trimmed.slice(1).toLowerCase() : trimmed.toLowerCase();
+    const counts = getTagCounts();
+    const allTags = Object.keys(counts).filter((tag) => {
+      // 排除已選的標籤
+      if (tags.includes(tag)) return false;
+      // 匹配：去掉 # 前綴後比對
+      const normalized = tag.startsWith("#") ? tag.slice(1) : tag;
+      return normalized.toLowerCase().includes(query);
+    }).sort((a, b) => (counts[b] || 0) - (counts[a] || 0)); // 按使用頻率排序
+
+    setSuggestions(allTags.slice(0, 5)); // 最多顯示 5 個
+    setShowSuggestions(allTags.length > 0 || query.length > 0);
+    setHighlightedIndex(-1);
+  }, [tags, getTagCounts]);
+
+  const selectSuggestion = useCallback((tag: string) => {
+    if (!tags.includes(tag)) {
+      setTags([...tags, tag]);
+    }
+    setTagInput("");
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setHighlightedIndex(-1);
+  }, [tags]);
+
   useEffect(() => {
     if (!isOpen) return;
     if (initialData) {
@@ -117,6 +163,8 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
       setRecurrenceType("none"); setRecurrenceInterval(1);
       setRecurrenceDaysOfWeek([]); setRecurrenceEndDate("");
       setAttachments([]);
+      setTagColors(getTagColors());
+      setTagInput(""); setSuggestions([]); setShowSuggestions(false);
     }
     setErrors({});
     const t = setTimeout(() => titleRef.current?.focus(), 120);
@@ -391,24 +439,102 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
               {/* Tags */}
               <div>
                 <label className="block mb-2 text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>標籤</label>
-                <div className="flex gap-2">
-                  <input type="text" value={tagInput} onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
-                    placeholder="輸入標籤後按 Enter" className="input flex-1" maxLength={50} />
-                  <button type="button" onClick={addTag} className="btn-ghost flex-shrink-0 px-3" aria-label="新增標籤">
-                    <Plus className="w-4 h-4" />
-                  </button>
+                <div className="relative">
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--text-tertiary)" }} aria-hidden="true" />
+                      <input type="text" value={tagInput} onChange={(e) => { setTagInput(e.target.value); updateTagSuggestions(e.target.value); }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            if (highlightedIndex >= 0 && suggestions[highlightedIndex]) {
+                              selectSuggestion(suggestions[highlightedIndex]);
+                            } else {
+                              addTag();
+                            }
+                          }
+                          if (e.key === "ArrowDown") {
+                            e.preventDefault();
+                            setHighlightedIndex((i) => Math.min(i + 1, suggestions.length));
+                          }
+                          if (e.key === "ArrowUp") {
+                            e.preventDefault();
+                            setHighlightedIndex((i) => Math.max(i - 1, -1));
+                          }
+                          if (e.key === "Escape") { setShowSuggestions(false); }
+                        }}
+                        onFocus={() => { if (tagInput.trim()) updateTagSuggestions(tagInput); }}
+                        placeholder="輸入或選擇標籤" className="input flex-1 pl-9" maxLength={50} />
+                    </div>
+                    <button type="button" onClick={addTag} className="btn-ghost flex-shrink-0 px-3" aria-label="新增標籤">
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Auto-complete dropdown */}
+                  <AnimatePresence>
+                    {showSuggestions && (
+                      <motion.div
+                        className="absolute left-0 right-0 z-20 mt-1 rounded-xl overflow-hidden"
+                        style={{ background: "var(--surface)", boxShadow: "var(--shadow-lg)", border: "1px solid var(--border)" }}
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                      >
+                        {suggestions.length > 0 ? (
+                          suggestions.map((tag, i) => {
+                            const color = tagColors[tag] || "#3B82F6";
+                            return (
+                              <button
+                                key={tag}
+                                type="button"
+                                onClick={() => selectSuggestion(tag)}
+                                className="w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors"
+                                style={{
+                                  background: highlightedIndex === i ? "var(--surface-hover)" : "transparent",
+                                }}
+                              >
+                                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
+                                <span className="text-[13px]" style={{ color: "var(--text-primary)" }}>{tag}</span>
+                              </button>
+                            );
+                          })
+                        ) : tagInput.trim() ? (
+                          <button
+                            type="button"
+                            onClick={addTag}
+                            className="w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-[var(--surface-hover)]"
+                          >
+                            <Plus className="w-4 h-4" style={{ color: "var(--brand)" }} />
+                            <span className="text-[13px]" style={{ color: "var(--brand)" }}>建立新標籤「{tagInput.trim()}」</span>
+                          </button>
+                        ) : null}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
+
                 {tags.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-3">
-                    {tags.map((tag) => (
-                      <span key={tag} className="tag-chip">
-                        {tag}
-                        <button type="button" onClick={() => setTags(tags.filter((t) => t !== tag))} className="p-0.5 rounded-full hover:text-red-500" aria-label={`移除標籤 ${tag}`}>
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
+                    {tags.map((tag) => {
+                      const color = tagColors[tag] || "#3B82F6";
+                      return (
+                        <span
+                          key={tag}
+                          className="tag-chip"
+                          style={{
+                            background: `${color}15`,
+                            color: color,
+                            border: `1px solid ${color}25`,
+                          }}
+                        >
+                          {tag}
+                          <button type="button" onClick={() => setTags(tags.filter((t) => t !== tag))} className="p-0.5 rounded-full hover:text-red-500" aria-label={`移除標籤 ${tag}`}>
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      );
+                    })}
                   </div>
                 )}
               </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Task, SubTask } from "@/lib/types";
 import { PriorityBadge } from "./PriorityBadge";
 import TaskCommentsInline from "./TaskCommentsInline";
@@ -9,6 +9,7 @@ import { zhTW } from "date-fns/locale";
 import { AnimatePresence, motion } from "framer-motion";
 import { haptic } from "@/lib/haptics";
 import { getFileIcon } from "@/lib/storageUpload";
+import { getTagColors } from "@/lib/storage";
 import {
   CheckCircle2, Circle, ChevronDown, Clock, Tag as TagIcon,
   Trash2, Edit3, Archive, Repeat, Plus, Trash,
@@ -126,6 +127,11 @@ export function TaskCard({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showSubTaskInput, setShowSubTaskInput] = useState(false);
+  const [tagColors, setTagColors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setTagColors(getTagColors());
+  }, []);
   const [newSubTaskTitle, setNewSubTaskTitle] = useState("");
 
   const dueInfo = getDueDateInfo(task.dueDate, task.startDate);
@@ -294,9 +300,22 @@ export function TaskCard({
                   {dueInfo.isOverdue && !isDone && "逾期 "}{dueInfo.text}
                 </span>
               )}
-              {task.tags.slice(0, 2).map((tag) => (
-                <span key={tag} className="pill-muted text-[11px] py-0.5">{tag}</span>
-              ))}
+              {task.tags.slice(0, 2).map((tag) => {
+                const color = tagColors[tag] || "#3B82F6";
+                return (
+                  <span
+                    key={tag}
+                    className="text-[11px] py-0.5"
+                    style={{
+                      background: `${color}15`,
+                      color: color,
+                      border: `1px solid ${color}25`,
+                      borderRadius: "6px",
+                      padding: "2px 6px",
+                    }}
+                  >{tag}</span>
+                );
+              })}
               {task.tags.length > 2 && (
                 <span className="pill-muted text-[11px] py-0.5">+{task.tags.length - 2}</span>
               )}
@@ -385,9 +404,22 @@ export function TaskCard({
                     <div className="flex flex-wrap items-center gap-2">
                       <TagIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-tertiary)" }} />
                       <div className="flex flex-wrap gap-1.5">
-                        {task.tags.map((tag) => (
-                          <span key={tag} className="pill-muted">{tag}</span>
-                        ))}
+                        {task.tags.map((tag) => {
+                          const color = tagColors[tag] || "#3B82F6";
+                          return (
+                            <span
+                              key={tag}
+                              className="text-[12px]"
+                              style={{
+                                background: `${color}15`,
+                                color: color,
+                                border: `1px solid ${color}25`,
+                                borderRadius: "6px",
+                                padding: "2px 8px",
+                              }}
+                            >{tag}</span>
+                          );
+                        })}
                       </div>
                     </div>
                   )}

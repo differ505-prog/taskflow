@@ -210,6 +210,29 @@ export function saveTags(tags: Tag[]): void {
   write(TAGS_KEY, tags);
 }
 
+// ─── Tag Colors (metadata for tag visual customization) ─────────
+const TAG_COLORS_KEY = "taskflow_tag_colors"; // Record<tagName, colorHex>
+
+export function getTagColors(): Record<string, string> {
+  return read<Record<string, string>>(TAG_COLORS_KEY, {});
+}
+
+export function saveTagColors(colors: Record<string, string>): void {
+  write(TAG_COLORS_KEY, colors);
+}
+
+export function setTagColor(tagName: string, color: string): void {
+  const colors = getTagColors();
+  colors[tagName] = color;
+  saveTagColors(colors);
+}
+
+export function removeTagColor(tagName: string): void {
+  const colors = getTagColors();
+  delete colors[tagName];
+  saveTagColors(colors);
+}
+
 // ─── Export / Clear All ─────────────────────────────────────────
 export function exportAllData(): string {
   return JSON.stringify({
@@ -218,6 +241,7 @@ export function exportAllData(): string {
     habits: getHabits(),
     pomodoro: getPomodoroSessions(),
     tags: getTags(),
+    tagColors: getTagColors(),
     exportedAt: new Date().toISOString(),
   }, null, 2);
 }
