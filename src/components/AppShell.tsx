@@ -109,7 +109,7 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [showCompleted, setShowCompleted] = useState(true);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [quickAddInput, setQuickAddInput] = useState("");
   const [quickAddHint, setQuickAddHint] = useState(false);
@@ -446,6 +446,13 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
                       );
                     })}
                     {currentView === "all" && tasks.some((t) => t.status === "done" && !t.isArchived) && (
+                      <button onClick={() => setShowCompleted(!showCompleted)} className="flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all duration-150"
+                        style={!showCompleted ? { background: "var(--brand-tint)", color: "var(--brand)" } : { background: "rgba(0,0,0,0.04)", color: "var(--text-tertiary)" }}>
+                        <Archive className="w-3 h-3" />
+                        {showCompleted ? "隱藏完成" : "顯示完成"}
+                      </button>
+                    )}
+                    {currentView === "inbox" && tasks.some((t) => t.status === "done" && !t.isArchived) && (
                       <button onClick={() => setShowCompleted(!showCompleted)} className="flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all duration-150"
                         style={!showCompleted ? { background: "var(--brand-tint)", color: "var(--brand)" } : { background: "rgba(0,0,0,0.04)", color: "var(--text-tertiary)" }}>
                         <Archive className="w-3 h-3" />

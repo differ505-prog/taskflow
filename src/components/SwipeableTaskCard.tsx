@@ -30,6 +30,7 @@ export function SwipeableTaskCard({
   const [isOpen, setIsOpen] = useState(false);
   const startXRef = useRef(0);
   const currentOffsetRef = useRef(0);
+  const isProcessingRef = useRef(false); // 防止重複點擊
 
   const close = useCallback(() => {
     setOffset(0);
@@ -51,6 +52,10 @@ export function SwipeableTaskCard({
   }, [hideComplete]);
 
   const handleTouchEnd = useCallback(() => {
+    if (isProcessingRef.current) return; // 防止重複處理
+    isProcessingRef.current = true;
+    setTimeout(() => { isProcessingRef.current = false; }, 300);
+
     const max = hideComplete ? ACTION_WIDTH : ACTION_WIDTH * 2;
 
     if (offset < -max / 2) {
@@ -70,7 +75,8 @@ export function SwipeableTaskCard({
   }, [offset, hideComplete, close]);
 
   // Tap scrim / outside closes the strip
-  const handleOverlayClick = useCallback(() => {
+  const handleOverlayClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation(); // 防止冒泡
     close();
   }, [close]);
 
@@ -136,7 +142,12 @@ export function SwipeableTaskCard({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        onClick={isOpen ? close : undefined}
+        onClick={(e) => {
+          if (isOpen) {
+            e.stopPropagation(); // 防止冒泡到卡片点击
+            close();
+          }
+        }}
         style={{ width: "100%", touchAction: "pan-y" }}
       >
         {children}
