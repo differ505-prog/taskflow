@@ -408,17 +408,22 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
           </div>
           {subTasks.map((sub) => (
             <div key={sub.id} className="flex items-center gap-2 mb-2 group/sub">
-              <button
-                onClick={() => toggleSubTask(sub.id)}
-                className="flex-shrink-0 w-7 h-7 -m-1.5 flex items-center justify-center rounded-full transition-transform hover:scale-110"
-                aria-label={sub.status === "done" ? "標記未完成" : "標記完成"}
+              <label
+                className="flex-shrink-0 w-7 h-7 -m-1.5 flex items-center justify-center rounded-full cursor-pointer transition-transform hover:scale-110"
               >
+                <input
+                  type="checkbox"
+                  checked={sub.status === "done"}
+                  onChange={() => toggleSubTask(sub.id)}
+                  className="sr-only"
+                  aria-label={sub.status === "done" ? "標記未完成" : "標記完成"}
+                />
                 {sub.status === "done" ? (
                   <CheckCircle2 className="w-[18px] h-[18px] text-[var(--status-success)]" />
                 ) : (
-                  <Circle className="w-[18px] h-[18px] text-[var(--text-tertiary)]" />
+                  <Circle className="w-[18px] h-[18px] text-[var(--text-tertiary)] group-hover/sub:text-[var(--text-secondary)]" />
                 )}
-              </button>
+              </label>
               {editingSubId === sub.id ? (
                 <input
                   autoFocus
