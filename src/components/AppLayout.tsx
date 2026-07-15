@@ -164,10 +164,8 @@ function AppLayoutInner() {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 overflow-hidden pb-[72px] md:pb-0 md:flex">
-        <div className="flex-1 overflow-y-auto">
-          {renderView()}
-        </div>
+      <div className="flex-1 overflow-hidden md:flex">
+        {renderView()}
         {/* Desktop: show detail panel or empty state, Mobile: only show when task selected */}
         <div className="hidden md:block">
           {selectedTask ? renderDetailPanel() : (

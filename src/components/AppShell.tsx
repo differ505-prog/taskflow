@@ -373,7 +373,7 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
         {/* Main Content — Desktop split layout, Mobile full-width */}
         <main className="flex-1 overflow-hidden md:flex">
           {/* Left: Task list — always compact */}
-          <div className={`flex-1 overflow-y-auto px-6 py-5 ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}>
+          <div className={`flex-1 overflow-y-auto px-6 py-5 pb-[calc(60px+env(safe-area-inset-bottom,0px)+24px)] md:pb-5 ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}>
             {/* Viewer 唯讀提示 */}
             {isReadOnlyShared && (
               <div
