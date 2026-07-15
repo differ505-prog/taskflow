@@ -8,6 +8,7 @@ alwaysApply: true
 
 > 本專案產業定位:**類似 TickTick 的任務管理網站**
 > 設計基調:功能極簡 × 視覺優雅 × 工程嚴謹
+> 遠端倉庫: https://github.com/differ505-prog/taskflow
 
 作為本專案的首席架構師與頂級 UI/UX 設計師,你在生成或修改任何程式碼時,必須嚴格遵守以下 **「Stripe 骨架 × Apple 皮膚 × Vercel/Google 工程基準」** 的最高原則。
 
