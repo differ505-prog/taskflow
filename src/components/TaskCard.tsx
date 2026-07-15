@@ -6,12 +6,11 @@ import { PriorityBadge } from "./PriorityBadge";
 import TaskCommentsInline from "./TaskCommentsInline";
 import { format, isToday, isTomorrow, isPast, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
-import { AnimatePresence, motion } from "framer-motion";
 import { haptic } from "@/lib/haptics";
 import { getFileIcon } from "@/lib/storageUpload";
 import { getTagColors } from "@/lib/storage";
 import {
-  CheckCircle2, Circle, ChevronDown, Clock, Tag as TagIcon,
+  CheckCircle2, Circle, Clock, Tag as TagIcon,
   Trash2, Edit3, Archive, Repeat, Plus, Trash,
   AlertCircle, Timer, ListChecks, Paperclip,
 } from "lucide-react";
@@ -77,17 +76,12 @@ function SubTaskItem({
   onToggle: () => void;
   onDelete: () => void;
 }) {
-  const [hovered, setHovered] = useState(false);
   const isDone = sub.status === "done";
   return (
-    <div
-      className="flex items-center gap-2.5 py-1.5 group"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
+    <div className="flex items-center gap-2.5 py-1.5 group/SubTask">
       <button
         onClick={onToggle}
-        className="flex-shrink-0 transition-transform hover:scale-110"
+        className="flex-shrink-0 transition-transform hover:scale-110 active:scale-90"
         aria-label={isDone ? "標記未完成" : "標記完成"}
       >
         {isDone ? (
@@ -104,7 +98,7 @@ function SubTaskItem({
       </span>
       <button
         onClick={onDelete}
-        className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-50"
+        className="flex-shrink-0 opacity-0 group-hover/SubTask:opacity-100 transition-opacity p-1 rounded hover:bg-red-50"
         style={{ color: "var(--text-tertiary)" }}
         aria-label="刪除子任務"
       >
@@ -124,7 +118,6 @@ export function TaskCard({
   onAddSubTask,
   onDeleteSubTask,
 }: TaskCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showSubTaskInput, setShowSubTaskInput] = useState(false);
   const [tagColors, setTagColors] = useState<Record<string, string>>({});
@@ -136,10 +129,8 @@ export function TaskCard({
 
   const dueInfo = getDueDateInfo(task.dueDate, task.startDate);
   const isDone = task.status === "done";
-  const hasMeta = dueInfo || task.tags.length > 0 || task.subTasks?.length || task.recurrence;
   const subTasks = task.subTasks || [];
   const completedSubTasks = subTasks.filter((s) => s.status === "done").length;
-  const subTaskProgress = subTasks.length > 0 ? completedSubTasks / subTasks.length : 0;
   const attachmentCount = task.attachments?.length || 0;
 
   const handleToggleStatus = useCallback((e: React.MouseEvent) => {
@@ -165,13 +156,9 @@ export function TaskCard({
     if (onArchive) onArchive(task.id);
   }, [onArchive, task.id]);
 
-  const handleExpand = useCallback(() => {
-    setIsExpanded((p) => !p);
-  }, []);
-
   const handleCardClick = useCallback(() => {
-    handleExpand();
-  }, [handleExpand]);
+    onEdit(task);
+  }, [onEdit, task]);
 
   const handleSubTaskSubmit = () => {
     const title = newSubTaskTitle.trim();
@@ -189,13 +176,12 @@ export function TaskCard({
       style={{ transition: "box-shadow 200ms ease, transform 200ms ease, opacity 200ms ease" }}
       onClick={handleCardClick}
       role="button"
-      aria-expanded={isExpanded}
       aria-label={`任務: ${task.title}`}
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          handleExpand();
+          onEdit(task);
         }
       }}
     >
@@ -253,37 +239,11 @@ export function TaskCard({
                 </span>
               )}
               <PriorityBadge priority={task.priority} size="sm" />
-              {/* Chevron — indicates expand state */}
-              <ChevronDown
-                className="w-3.5 h-3.5 transition-transform duration-200"
-                style={{
-                  color: "var(--text-tertiary)",
-                  transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
-                }}
-              />
             </div>
           </div>
 
-          {/* Sub-task progress bar */}
-          {subTasks.length > 0 && !isExpanded && (
-            <div className="mt-2 flex items-center gap-2">
-              <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.06)" }}>
-                <div
-                  className="h-full rounded-full transition-all duration-300"
-                  style={{
-                    width: `${subTaskProgress * 100}%`,
-                    background: subTaskProgress === 1 ? "var(--status-success)" : "var(--brand)",
-                  }}
-                />
-              </div>
-              <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
-                {completedSubTasks}/{subTasks.length}
-              </span>
-            </div>
-          )}
-
-          {/* Meta row — collapsed */}
-          {!isExpanded && hasMeta && (
+          {/* Meta row — always visible */}
+          {(dueInfo || task.tags.length > 0) && (
             <div className="flex flex-wrap items-center gap-1.5 mt-2">
               {dueInfo && (
                 <span
@@ -334,261 +294,120 @@ export function TaskCard({
             </div>
           )}
 
-          {/* Expanded content */}
-          <AnimatePresence>
-            {isExpanded && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                className="overflow-hidden"
+          {/* Description */}
+          {task.description && (
+            <p
+              className={`text-[13px] leading-relaxed mt-2 ${
+                isDone ? "line-through opacity-50" : ""
+              }`}
+              style={{ color: isDone ? "var(--text-tertiary)" : "var(--text-secondary)" }}
+            >
+              {task.description}
+            </p>
+          )}
+
+          {/* Sub-tasks — always expanded */}
+          {subTasks.length > 0 && (
+            <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                  子任務 ({completedSubTasks}/{subTasks.length})
+                </span>
+                {completedSubTasks === subTasks.length && isDone && (
+                  <span className="text-[11px] font-medium" style={{ color: "var(--status-success)" }}>
+                    ✓ 全部完成
+                  </span>
+                )}
+              </div>
+              <div className="pl-1 space-y-0.5">
+                {subTasks.map((sub) => (
+                  <SubTaskItem
+                    key={sub.id}
+                    sub={sub}
+                    onToggle={() => onToggleSubTask?.(task.id, sub.id)}
+                    onDelete={() => onDeleteSubTask?.(task.id, sub.id)}
+                  />
+                ))}
+              </div>
+
+              {/* Add sub-task */}
+              {showSubTaskInput ? (
+                <form
+                  onSubmit={(e) => { e.preventDefault(); handleSubTaskSubmit(); }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex items-center gap-2 mt-2"
+                >
+                  <input
+                    type="text"
+                    value={newSubTaskTitle}
+                    onChange={(e) => setNewSubTaskTitle(e.target.value)}
+                    placeholder="輸入子任務..."
+                    className="input flex-1"
+                    style={{ fontSize: 13, padding: "6px 10px" }}
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") { setShowSubTaskInput(false); setNewSubTaskTitle(""); }
+                    }}
+                  />
+                  <button type="submit" className="btn-primary py-1.5 px-3 text-[12px]">新增</button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setShowSubTaskInput(false); setNewSubTaskTitle(""); }}
+                    className="btn-ghost py-1.5 px-3 text-[12px]"
+                  >
+                    取消
+                  </button>
+                </form>
+              ) : (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowSubTaskInput(true); }}
+                  className="flex items-center gap-1.5 text-[12px] hover:underline transition-colors mt-2"
+                  style={{ color: "var(--text-tertiary)" }}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  新增子任務
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Comments */}
+          <TaskCommentsInline taskId={task.id} />
+
+          {/* Bottom action bar: edit/delete/archive */}
+          <div
+            className="flex items-center gap-1 mt-3 pt-3 border-t"
+            style={{ borderColor: "var(--border)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={handleEdit}
+              className="p-1.5 rounded-lg hover:bg-black/5 transition-all duration-150 active:scale-90"
+              style={{ color: "var(--text-tertiary)" }}
+              aria-label="編輯任務"
+            >
+              <Edit3 className="w-4 h-4" />
+            </button>
+            {onArchive && (
+              <button
+                onClick={handleArchive}
+                className="p-1.5 rounded-lg hover:bg-black/5 transition-all duration-150 active:scale-90"
+                style={{ color: "var(--text-tertiary)" }}
+                aria-label="封存任務"
+                title="封存"
               >
-                <div className="pt-3 space-y-3">
-                  {/* Description */}
-                  {task.description && (
-                    <div>
-                      <p
-                        className={`text-[13px] leading-relaxed ${
-                          isDone ? "line-through opacity-50" : ""
-                        }`}
-                        style={{ color: isDone ? "var(--text-tertiary)" : "var(--text-secondary)" }}
-                      >
-                        {task.description}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Due date */}
-                  {dueInfo && (
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-tertiary)" }} />
-                      <span
-                        className="text-[12px]"
-                        style={
-                          dueInfo.isOverdue && !isDone
-                            ? { color: "var(--status-danger)", fontWeight: 500 }
-                            : { color: "var(--text-secondary)" }
-                        }
-                      >
-                        {dueInfo.isOverdue && !isDone && (
-                          <span className="inline-flex items-center gap-1 mr-1">
-                            <AlertCircle className="w-3 h-3" /> 已逾期 ·
-                          </span>
-                        )}
-                        截止 {dueInfo.text}
-                        {dueInfo.isToday && "（今天）"}
-                        {dueInfo.isTomorrow && "（明天）"}
-                        {task.dueTime && ` · ${task.dueTime}`}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Recurrence info */}
-                  {task.recurrence && (
-                    <div className="flex items-center gap-2">
-                      <Repeat className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--brand)" }} />
-                      <span className="text-[12px]" style={{ color: "var(--brand)" }}>
-                        {task.recurrence.pattern === "daily" && "每天"}
-                        {task.recurrence.pattern === "weekly" && "每週"}
-                        {task.recurrence.pattern === "monthly" && "每月"}
-                        {task.recurrence.pattern === "yearly" && "每年"}
-                        {task.recurrence.pattern === "custom" && `每隔 ${task.recurrence.interval} 天`}
-                        {task.recurrence.completedCount > 0 && ` · 已完成 ${task.recurrence.completedCount} 次`}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Tags */}
-                  {task.tags.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <TagIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-tertiary)" }} />
-                      <div className="flex flex-wrap gap-1.5">
-                        {task.tags.map((tag) => {
-                          const color = tagColors[tag] || "#3B82F6";
-                          return (
-                            <span
-                              key={tag}
-                              className="text-[12px]"
-                              style={{
-                                background: `${color}15`,
-                                color: color,
-                                border: `1px solid ${color}25`,
-                                borderRadius: "6px",
-                                padding: "2px 8px",
-                              }}
-                            >{tag}</span>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Attachments */}
-                  {task.attachments && task.attachments.length > 0 && (
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
-                          附件 ({task.attachments.length})
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {task.attachments.map((attachment) => (
-                          <a
-                            key={attachment.id}
-                            href={attachment.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="group relative aspect-square rounded-xl overflow-hidden border transition-all hover:border-brand"
-                            style={{ borderColor: "var(--border)" }}
-                            title={attachment.name}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {attachment.type === "image" ? (
-                              <img
-                                src={attachment.url}
-                                alt={attachment.name}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = "none";
-                                }}
-                              />
-                            ) : (
-                              <div className="w-full h-full flex flex-col items-center justify-center p-2"
-                                style={{ background: "var(--surface-muted)" }}>
-                                <span className="text-3xl mb-1">{getFileIcon(attachment.mimeType)}</span>
-                                <span className="text-[10px] text-center truncate w-full" style={{ color: "var(--text-tertiary)" }}>
-                                  {attachment.name}
-                                </span>
-                              </div>
-                            )}
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                              <span className="text-white text-[11px] font-medium">預覽</span>
-                            </div>
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Sub-tasks */}
-                  {subTasks.length > 0 && (
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
-                          子任務 ({completedSubTasks}/{subTasks.length})
-                        </span>
-                        {subTaskProgress === 1 && isDone && (
-                          <span className="text-[11px] font-medium" style={{ color: "var(--status-success)" }}>
-                            ✓ 全部完成
-                          </span>
-                        )}
-                      </div>
-                      <div className="pl-1 space-y-0.5">
-                        {subTasks.map((sub) => (
-                          <SubTaskItem
-                            key={sub.id}
-                            sub={sub}
-                            onToggle={() => onToggleSubTask?.(task.id, sub.id)}
-                            onDelete={() => onDeleteSubTask?.(task.id, sub.id)}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Add sub-task */}
-                  {showSubTaskInput ? (
-                    <form
-                      onSubmit={(e) => { e.preventDefault(); handleSubTaskSubmit(); }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex items-center gap-2"
-                    >
-                      <input
-                        type="text"
-                        value={newSubTaskTitle}
-                        onChange={(e) => setNewSubTaskTitle(e.target.value)}
-                        placeholder="輸入子任務..."
-                        className="input flex-1"
-                        style={{ fontSize: 13, padding: "6px 10px" }}
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === "Escape") { setShowSubTaskInput(false); setNewSubTaskTitle(""); }
-                        }}
-                      />
-                      <button type="submit" className="btn-primary py-1.5 px-3 text-[12px]">新增</button>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); setShowSubTaskInput(false); setNewSubTaskTitle(""); }}
-                        className="btn-ghost py-1.5 px-3 text-[12px]"
-                      >
-                        取消
-                      </button>
-                    </form>
-                  ) : (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setShowSubTaskInput(true); }}
-                      className="flex items-center gap-1.5 text-[12px] hover:underline transition-colors"
-                      style={{ color: "var(--text-tertiary)" }}
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      新增子任務
-                    </button>
-                  )}
-
-                  {/* Comments */}
-                  <TaskCommentsInline taskId={task.id} />
-
-                  {/* Divider */}
-                  <div className="border-t" style={{ borderColor: "var(--border)" }} />
-
-                  {/* Bottom action bar: collapse + edit/delete/archive */}
-                  <div className="flex items-center justify-between gap-2 pb-1">
-                    {/* Collapse */}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleExpand(); }}
-                      className="flex items-center gap-0.5 text-[11px] hover:underline transition-colors"
-                      style={{ color: "var(--text-tertiary)" }}
-                    >
-                      收起
-                      <ChevronDown className="w-3 h-3 transition-transform duration-200" style={{ transform: "rotate(180deg)" }} />
-                    </button>
-
-                    {/* Edit / Archive / Delete */}
-                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={handleEdit}
-                        className="p-1.5 rounded-lg hover:bg-black/5 transition-all duration-150 active:scale-90"
-                        style={{ color: "var(--text-tertiary)" }}
-                        aria-label="編輯任務"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      {onArchive && (
-                        <button
-                          onClick={handleArchive}
-                          className="p-1.5 rounded-lg hover:bg-black/5 transition-all duration-150 active:scale-90"
-                          style={{ color: "var(--text-tertiary)" }}
-                          aria-label="封存任務"
-                          title="封存"
-                        >
-                          <Archive className="w-4 h-4" />
-                        </button>
-                      )}
-                      <button
-                        onClick={handleDelete}
-                        className="p-1.5 rounded-lg hover:bg-red-50 transition-all duration-150 active:scale-90"
-                        style={{ color: "var(--text-tertiary)" }}
-                        aria-label="刪除任務"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
+                <Archive className="w-4 h-4" />
+              </button>
             )}
-          </AnimatePresence>
+            <button
+              onClick={handleDelete}
+              className="p-1.5 rounded-lg hover:bg-red-50 transition-all duration-150 active:scale-90"
+              style={{ color: "var(--text-tertiary)" }}
+              aria-label="刪除任務"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
     </article>
