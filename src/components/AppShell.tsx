@@ -7,6 +7,8 @@ import { TaskCard } from "./TaskCard";
 import { TaskSwipeWrapper } from "./SwipeableTaskCard";
 import { TaskForm } from "./TaskForm";
 import { EmptyState } from "./EmptyState";
+import { TaskListItem } from "./TaskListItem";
+import { TaskDetailPanel } from "./TaskDetailPanel";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Search, X, LayoutGrid, List,
@@ -113,6 +115,7 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
   const [sharedQuickAddInput, setSharedQuickAddInput] = useState("");
   const sharedQuickAddRef = useRef<HTMLInputElement>(null);
   const quickAddRef = useRef<HTMLInputElement>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   // 觀看者模式：Viewer 在 shared list 是唯讀的
   const sharedRole = currentSharedListId ? getMyRole(currentSharedListId) : null;
@@ -188,6 +191,19 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
     : currentListId
       ? lists.find((l) => l.id === currentListId)?.name
       : VIEW_LABELS[currentView];
+
+  const selectedTask = selectedTaskId ? tasks.find((t) => t.id === selectedTaskId) ?? null : null;
+
+  // Clear selection if selected task is deleted
+  useEffect(() => {
+    if (selectedTaskId && !tasks.find((t) => t.id === selectedTaskId)) {
+      setSelectedTaskId(null);
+    }
+  }, [tasks, selectedTaskId]);
+
+  const handleSelectTask = (taskId: string) => {
+    setSelectedTaskId((prev) => (prev === taskId ? null : taskId));
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -354,224 +370,158 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
         </div>
       </header>
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-y-auto px-6 py-5">
-          {/* Viewer 唯讀提示 */}
-          {isReadOnlyShared && (
-            <div
-              className="mb-4 px-3 py-2 rounded-xl text-[12px] flex items-center gap-2"
-              style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
-              role="status"
-            >
-              <Shield className="w-3.5 h-3.5" />
-              你目前是 Viewer（唯讀）。如需編輯請聯絡 Owner。
-            </div>
-          )}
-
-          {/* Shared List View */}
-          {currentView === "archived" ? (
-            <ArchivedTasksView />
-          ) : currentSharedListId && sharedLists[currentSharedListId] ? (
-          <>
-            <div className="mb-4">
-              <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>
-                由 {sharedLists[currentSharedListId].ownerName ?? "未知"} 分享
-              </p>
-            </div>
-            {sharedLists[currentSharedListId].tasks.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 gap-3">
-                <div
-                  className="w-16 h-16 rounded-full flex items-center justify-center"
-                  style={{ background: "var(--surface-muted)" }}
-                >
-                  <Zap className="w-8 h-8" style={{ color: "var(--text-tertiary)" }} />
-                </div>
-                <p className="text-[14px]" style={{ color: "var(--text-tertiary)" }}>
-                  此清單還沒有任務
-                </p>
-                <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>
-                  使用上方輸入框新增任務
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2">
-                <AnimatePresence mode="popLayout">
-                  {[...sharedLists[currentSharedListId].tasks]
-                    .sort((a, b) => {
-                      if (a.status === "done" && b.status !== "done") return 1;
-                      if (a.status !== "done" && b.status === "done") return -1;
-                      return 0;
-                    })
-                    .map((task) => (
-                      <motion.div
-                        key={task.id}
-                        layout
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.97 }}
-                        transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-                      >
-                        {isReadOnlyShared ? (
-                          <TaskCard
-                            task={task}
-                            onToggleStatus={() => {}}
-                            onEdit={() => {}}
-                            onDelete={() => {}}
-                            onArchive={() => {}}
-                          />
-                        ) : (
-                          <TaskSwipeWrapper
-                            taskId={task.id}
-                            isDone={task.status === "done"}
-                            onComplete={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })}
-                            onDelete={() => deleteSharedTask(currentSharedListId, task.id)}
-                            onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })}
-                          >
-                          <TaskCard
-                            task={task}
-                            onToggleStatus={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })}
-                            onEdit={() => {}}
-                            onDelete={() => deleteSharedTask(currentSharedListId, task.id)}
-                            onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })}
-                          />
-                          </TaskSwipeWrapper>
-                        )}
-                      </motion.div>
-                    ))}
-                </AnimatePresence>
+        {/* Main Content — Desktop split layout, Mobile full-width */}
+        <main className="flex-1 overflow-hidden md:flex">
+          {/* Left: Task list */}
+          <div className={`flex-1 overflow-y-auto px-6 py-5 ${selectedTaskId ? "hidden md:block" : ""}`}>
+            {/* Viewer 唯讀提示 */}
+            {isReadOnlyShared && (
+              <div
+                className="mb-4 px-3 py-2 rounded-xl text-[12px] flex items-center gap-2"
+                style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+                role="status"
+              >
+                <Shield className="w-3.5 h-3.5" />
+                你目前是 Viewer（唯讀）。如需編輯請聯絡 Owner。
               </div>
             )}
-          </>
-        ) : displayTasks.length === 0 ? (
-          <EmptyState onAddTask={() => setIsFormOpen(true)} />
-        ) : (
-          <>
-            {/* Toolbar */}
-            <div className="flex items-center justify-between gap-4 mb-4 min-w-0">
-              {/* Filter pills */}
-              <div className="flex flex-wrap items-center gap-2 overflow-x-auto scrollbar-hide pb-1 touch-scroll">
-                {["全部", "待辦", "進行中", "已完成"].map((label, i) => {
-                  const statuses = ["all", "todo", "in-progress", "done"] as const;
-                  const val = statuses[i];
-                  const isActive = activeFilter.status === val || (val === "all" && !activeFilter.status);
-                  const count = val === "all"
-                    ? filteredTasks.length
-                    : filteredTasks.filter((t) => t.status === val).length;
-                  return (
-                    <button
-                      key={val}
-                      onClick={() => setActiveFilter({ ...activeFilter, status: val === "all" ? undefined : val as any })}
-                      className="flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all duration-150"
-                      style={
-                        isActive
-                          ? { background: "var(--text-primary)", color: "var(--surface)" }
-                          : { background: "rgba(0,0,0,0.04)", color: "var(--text-secondary)" }
-                      }
-                    >
-                      {label}
-                      <span style={{ opacity: 0.5 }}>{count}</span>
-                    </button>
-                  );
-                })}
 
-                {/* Hide completed */}
-                {currentView === "all" && tasks.some((t) => t.status === "done" && !t.isArchived) && (
-                  <button
-                    onClick={() => setShowCompleted(!showCompleted)}
-                    className="flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all duration-150"
-                    style={
-                      !showCompleted
-                        ? { background: "var(--brand-tint)", color: "var(--brand)" }
-                        : { background: "rgba(0,0,0,0.04)", color: "var(--text-tertiary)" }
-                    }
-                  >
-                    <Archive className="w-3 h-3" />
-                    {showCompleted ? "隱藏完成" : "顯示完成"}
-                  </button>
+            {/* Shared List View */}
+            {currentView === "archived" ? (
+              <ArchivedTasksView />
+            ) : currentSharedListId && sharedLists[currentSharedListId] ? (
+              <>
+                <div className="mb-4">
+                  <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+                    由 {sharedLists[currentSharedListId].ownerName ?? "未知"} 分享
+                  </p>
+                </div>
+                {sharedLists[currentSharedListId].tasks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-64 gap-3">
+                    <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "var(--surface-muted)" }}>
+                      <Zap className="w-8 h-8" style={{ color: "var(--text-tertiary)" }} />
+                    </div>
+                    <p className="text-[14px]" style={{ color: "var(--text-tertiary)" }}>此清單還沒有任務</p>
+                    <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>使用上方輸入框新增任務</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <AnimatePresence mode="popLayout">
+                      {[...sharedLists[currentSharedListId].tasks].sort((a, b) => {
+                        if (a.status === "done" && b.status !== "done") return 1;
+                        if (a.status !== "done" && b.status === "done") return -1;
+                        return 0;
+                      }).map((task) => (
+                        <motion.div key={task.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
+                          {isReadOnlyShared ? (
+                            <TaskCard task={task} onToggleStatus={() => {}} onEdit={() => {}} onDelete={() => {}} onArchive={() => {}} />
+                          ) : (
+                            <TaskSwipeWrapper taskId={task.id} isDone={task.status === "done"} onComplete={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })} onDelete={() => deleteSharedTask(currentSharedListId, task.id)} onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })}>
+                              <TaskCard task={task} onToggleStatus={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })} onEdit={() => {}} onDelete={() => deleteSharedTask(currentSharedListId, task.id)} onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })} />
+                            </TaskSwipeWrapper>
+                          )}
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
                 )}
-              </div>
-
-              {/* View mode + search */}
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {/* Search */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--text-tertiary)" }} />
-                  <input
-                    type="search"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="搜尋..."
-                    className="input pl-9 pr-4"
-                    style={{ fontSize: 13, paddingTop: 7, paddingBottom: 7, width: 140 }}
-                  />
+              </>
+            ) : displayTasks.length === 0 ? (
+              <EmptyState onAddTask={() => setIsFormOpen(true)} />
+            ) : (
+              <>
+                {/* Toolbar */}
+                <div className="flex items-center justify-between gap-4 mb-4 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 overflow-x-auto scrollbar-hide pb-1 touch-scroll">
+                    {["全部", "待辦", "進行中", "已完成"].map((label, i) => {
+                      const statuses = ["all", "todo", "in-progress", "done"] as const;
+                      const val = statuses[i];
+                      const isActive = activeFilter.status === val || (val === "all" && !activeFilter.status);
+                      const count = val === "all" ? filteredTasks.length : filteredTasks.filter((t) => t.status === val).length;
+                      return (
+                        <button key={val} onClick={() => setActiveFilter({ ...activeFilter, status: val === "all" ? undefined : val as any })} className="flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all duration-150"
+                          style={isActive ? { background: "var(--text-primary)", color: "var(--surface)" } : { background: "rgba(0,0,0,0.04)", color: "var(--text-secondary)" }}>
+                          {label} <span style={{ opacity: 0.5 }}>{count}</span>
+                        </button>
+                      );
+                    })}
+                    {currentView === "all" && tasks.some((t) => t.status === "done" && !t.isArchived) && (
+                      <button onClick={() => setShowCompleted(!showCompleted)} className="flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all duration-150"
+                        style={!showCompleted ? { background: "var(--brand-tint)", color: "var(--brand)" } : { background: "rgba(0,0,0,0.04)", color: "var(--text-tertiary)" }}>
+                        <Archive className="w-3 h-3" />
+                        {showCompleted ? "隱藏完成" : "顯示完成"}
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--text-tertiary)" }} />
+                      <input type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜尋..." className="input pl-9 pr-4" style={{ fontSize: 13, paddingTop: 7, paddingBottom: 7, width: 140 }} />
+                    </div>
+                    <div className="flex items-center gap-0.5 p-1 rounded-xl" style={{ background: "rgba(0,0,0,0.04)" }}>
+                      <button onClick={() => setViewMode("list")} className="p-1.5 rounded-lg transition-all duration-150" style={viewMode === "list" ? { background: "var(--surface)", boxShadow: "var(--shadow-xs)", color: "var(--text-primary)" } : { color: "var(--text-tertiary)" }} aria-label="列表檢視">
+                        <List className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => setViewMode("grid")} className="p-1.5 rounded-lg transition-all duration-150" style={viewMode === "grid" ? { background: "var(--surface)", boxShadow: "var(--shadow-xs)", color: "var(--text-primary)" } : { color: "var(--text-tertiary)" }} aria-label="網格檢視">
+                        <LayoutGrid className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
-                {/* View toggle */}
-                <div className="flex items-center gap-0.5 p-1 rounded-xl" style={{ background: "rgba(0,0,0,0.04)" }}>
-                  <button
-                    onClick={() => setViewMode("list")}
-                    className="p-1.5 rounded-lg transition-all duration-150"
-                    style={viewMode === "list" ? { background: "var(--surface)", boxShadow: "var(--shadow-xs)", color: "var(--text-primary)" } : { color: "var(--text-tertiary)" }}
-                    aria-label="列表檢視"
-                  >
-                    <List className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setViewMode("grid")}
-                    className="p-1.5 rounded-lg transition-all duration-150"
-                    style={viewMode === "grid" ? { background: "var(--surface)", boxShadow: "var(--shadow-xs)", color: "var(--text-primary)" } : { color: "var(--text-tertiary)" }}
-                    aria-label="網格檢視"
-                  >
-                    <LayoutGrid className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Task list */}
-            <div
-              className={
-                viewMode === "grid"
-                  ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
-                  : "flex flex-col gap-2"
-              }
-            >
-              <AnimatePresence mode="popLayout">
-                {displayTasks.map((task) => (
-                  <motion.div
-                    key={task.id}
-                    layout
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.97 }}
-                    transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-                  >
-                    <TaskSwipeWrapper
-                      taskId={task.id}
-                      isDone={task.status === "done"}
-                      onComplete={() => toggleTaskStatus(task.id)}
-                      onDelete={deleteTask}
-                      onArchive={archiveTask}
-                    >
-                      <TaskCard
+                {/* Task list / Split list */}
+                {selectedTaskId ? (
+                  /* Compact left list */
+                  <div className="flex flex-col gap-1">
+                    {displayTasks.map((task) => (
+                      <TaskListItem
+                        key={task.id}
                         task={task}
+                        isSelected={task.id === selectedTaskId}
+                        onClick={() => handleSelectTask(task.id)}
                         onToggleStatus={toggleTaskStatus}
-                        onEdit={handleEdit}
-                        onDelete={deleteTask}
-                        onArchive={archiveTask}
                         onToggleSubTask={toggleSubTask}
-                        onAddSubTask={addSubTask}
-                        onDeleteSubTask={deleteSubTask}
-                        onCompleteRecurring={completeRecurringAndClone}
                       />
-                    </TaskSwipeWrapper>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-          </>
-        )}
-      </main>
+                    ))}
+                  </div>
+                ) : (
+                  /* Full task cards */
+                  <div className={viewMode === "grid" ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" : "flex flex-col gap-2"}>
+                    <AnimatePresence mode="popLayout">
+                      {displayTasks.map((task) => (
+                        <motion.div key={task.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
+                          <TaskSwipeWrapper taskId={task.id} isDone={task.status === "done"} onComplete={() => toggleTaskStatus(task.id)} onDelete={deleteTask} onArchive={archiveTask}>
+                            <TaskCard task={task} onToggleStatus={toggleTaskStatus} onEdit={() => { handleSelectTask(task.id); }} onDelete={deleteTask} onArchive={archiveTask} onToggleSubTask={toggleSubTask} onAddSubTask={addSubTask} onDeleteSubTask={deleteSubTask} onCompleteRecurring={completeRecurringAndClone} />
+                          </TaskSwipeWrapper>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Right: Task detail panel (desktop always visible, mobile via overlay) */}
+          <AnimatePresence>
+            {selectedTask ? (
+              <motion.div
+                key="detail-panel"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                className="w-full md:w-[480px] flex-shrink-0 border-l overflow-y-auto"
+                style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+              >
+                <TaskDetailPanel
+                  task={selectedTask}
+                  onClose={() => setSelectedTaskId(null)}
+                />
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </main>
 
       {/* Task Form Modal */}
       <TaskForm
