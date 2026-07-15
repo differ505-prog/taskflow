@@ -8,28 +8,24 @@ import { zhTW } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
-const CELL_SIZE = 110;
-
 interface CalendarViewProps {
   selectedTaskId: string | null;
   onSelectTask: (id: string) => void;
-  onAddTask?: (date: string) => void;
 }
 
-export function CalendarView({ selectedTaskId, onSelectTask, onAddTask }: CalendarViewProps) {
-  const { tasks, setCurrentView, updateTask, toggleTaskStatus, addTask, deleteTask } = useApp();
+export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps) {
+  const { tasks, updateTask, toggleTaskStatus, addTask } = useApp();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [draggingTask, setDraggingTask] = useState<string | null>(null);
-  const [quickAddDate, setQuickAddDate] = useState<string | null>(null);
   const [quickAddTitle, setQuickAddTitle] = useState("");
   const quickAddInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    if (quickAddDate && quickAddInputRef.current) {
+    if (selectedDate && quickAddInputRef.current) {
       quickAddInputRef.current.focus();
     }
-  }, [quickAddDate]);
+  }, [selectedDate]);
 
   const days = useMemo(() => {
     const start = startOfMonth(currentMonth);
@@ -37,7 +33,7 @@ export function CalendarView({ selectedTaskId, onSelectTask, onAddTask }: Calend
     const allDays = eachDayOfInterval({ start, end });
 
     // Pad start
-    const startDay = start.getDay(); // 0=Sun
+    const startDay = start.getDay();
     const padBefore = Array.from({ length: startDay }, (_, i) => {
       const d = new Date(start);
       d.setDate(d.getDate() - (startDay - i));
@@ -68,7 +64,7 @@ export function CalendarView({ selectedTaskId, onSelectTask, onAddTask }: Calend
 
   const submitQuickAdd = (dateStr: string, title: string) => {
     const trimmed = title.trim();
-    if (!trimmed) { setQuickAddDate(null); return; }
+    if (!trimmed) return;
     addTask({
       title: trimmed,
       priority: "medium",
@@ -77,7 +73,6 @@ export function CalendarView({ selectedTaskId, onSelectTask, onAddTask }: Calend
       dueDate: dateStr,
       tags: [],
     });
-    setQuickAddDate(null);
     setQuickAddTitle("");
   };
 
@@ -120,12 +115,18 @@ export function CalendarView({ selectedTaskId, onSelectTask, onAddTask }: Calend
     setDraggingTask(null);
   };
 
+  const handleDayClick = (dateStr: string) => {
+    // 如果點同一個日期，則關閉；如果點不同日期，則切換
+    setSelectedDate(selectedDate === dateStr ? null : dateStr);
+    setQuickAddTitle("");
+  };
+
   return (
-    <div className="flex h-full">
-      {/* Calendar grid */}
-      <div className="flex-1 flex flex-col p-6 overflow-hidden">
+    <div className="flex flex-col h-full">
+      {/* 日曆區域 */}
+      <div className="flex-1 flex flex-col p-4 md:p-6 overflow-hidden">
         {/* Month header */}
-        <div className="flex items-center justify-between mb-5 flex-shrink-0">
+        <div className="flex items-center justify-between mb-4 md:mb-5 flex-shrink-0">
           <h1 className="text-[18px] font-semibold" style={{ color: "var(--text-primary)" }}>
             {format(currentMonth, "yyyy 年 M 月", { locale: zhTW })}
           </h1>
@@ -173,27 +174,25 @@ export function CalendarView({ selectedTaskId, onSelectTask, onAddTask }: Calend
             const dateStr = format(day, "yyyy-MM-dd");
             const dayTasks = getTasksForDay(day);
             const isSelected = selectedDate === dateStr;
-            const isDragOver = draggingTask !== null;
 
             return (
               <div
                 key={i}
-                className="group relative flex flex-col overflow-hidden transition-colors duration-100 cursor-pointer"
+                className="flex flex-col overflow-hidden cursor-pointer transition-all duration-150"
                 style={{
                   background: isSelected
                     ? "var(--brand-tint)"
                     : isCurrentMonth
                     ? "var(--surface)"
                     : "var(--surface-muted)",
-                  minHeight: CELL_SIZE,
+                  minHeight: 80,
                 }}
-                onClick={() => setSelectedDate(isSelected ? null : dateStr)}
+                onClick={() => handleDayClick(dateStr)}
                 onDragOver={handleDragOver}
                 onDrop={() => handleDrop(day)}
-                onDragLeave={() => {}}
               >
                 {/* Day number */}
-                <div className="flex items-center justify-between pt-2 pb-1 px-1.5 flex-shrink-0">
+                <div className="flex items-center justify-center pt-2 pb-1">
                   <span
                     className="w-7 h-7 flex items-center justify-center rounded-full text-[13px] font-medium"
                     style={
@@ -206,32 +205,28 @@ export function CalendarView({ selectedTaskId, onSelectTask, onAddTask }: Calend
                   >
                     {format(day, "d")}
                   </span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setQuickAddDate(dateStr); setQuickAddTitle(""); setSelectedDate(dateStr); }}
-                    className="w-5 h-5 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-black/5 transition-all duration-150"
-                    style={{ color: "var(--text-tertiary)" }}
-                    aria-label={`在 ${dateStr} 新增任務`}
-                    title="新增任務"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
                 </div>
 
-                {/* Task dots */}
+                {/* Task dots - 最多顯示 2 個 */}
                 <div className="flex flex-col gap-0.5 px-1 overflow-hidden flex-1">
-                  {dayTasks.slice(0, 3).map((t) => (
+                  {dayTasks.slice(0, 2).map((t) => (
                     <div
                       key={t.id}
                       draggable
-                      onDragStart={() => handleDragStart(t.id)}
-                      onClick={(e) => { e.stopPropagation(); onSelectTask(t.id); }}
-                      className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium truncate cursor-grab active:cursor-grabbing"
+                      onDragStart={(e) => {
+                        e.stopPropagation();
+                        handleDragStart(t.id);
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectTask(t.id);
+                      }}
+                      className="flex items-center gap-1 px-1 py-0.5 rounded text-[10px] font-medium truncate cursor-grab active:cursor-grabbing"
                       style={{
                         background: t.status === "done"
                           ? "rgba(0,0,0,0.05)"
                           : getPriorityColor(t.priority) + "20",
                         color: t.status === "done" ? "var(--text-tertiary)" : "var(--text-primary)",
-                        textDecoration: t.status === "done" ? "line-through" : "none",
                       }}
                       title={t.title}
                     >
@@ -242,9 +237,9 @@ export function CalendarView({ selectedTaskId, onSelectTask, onAddTask }: Calend
                       {t.title}
                     </div>
                   ))}
-                  {dayTasks.length > 3 && (
-                    <div className="text-[10px] px-1.5" style={{ color: "var(--text-tertiary)" }}>
-                      +{dayTasks.length - 3} 更多
+                  {dayTasks.length > 2 && (
+                    <div className="text-[10px] px-1" style={{ color: "var(--text-tertiary)" }}>
+                      +{dayTasks.length - 2}
                     </div>
                   )}
                 </div>
@@ -254,88 +249,86 @@ export function CalendarView({ selectedTaskId, onSelectTask, onAddTask }: Calend
         </div>
       </div>
 
-      {/* Selected day panel */}
+      {/* 任務列表展開區域 - 在日曆下方 */}
       <AnimatePresence>
         {selectedDate && (
           <motion.div
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 340, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-            className="flex-shrink-0 border-l overflow-hidden"
-            style={{ borderColor: "var(--border)", background: "var(--surface)", width: 340 }}
+            className="border-t overflow-hidden"
+            style={{ borderColor: "var(--border)", background: "var(--surface)" }}
           >
-            <div className="flex flex-col h-full">
+            <div className="p-4 max-h-[50vh] overflow-y-auto">
               {/* Header */}
-              <div className="p-4 flex-shrink-0" style={{ borderBottom: "1px solid var(--border)" }}>
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
-                    {format(parseISO(selectedDate), "M 月 d 日", { locale: zhTW })}
-                    {isToday(parseISO(selectedDate)) && (
-                      <span className="ml-2 text-[12px] font-normal" style={{ color: "var(--brand)" }}>今天</span>
-                    )}
-                  </h2>
-                  <button
-                    onClick={() => setSelectedDate(null)}
-                    className="p-1.5 rounded-lg hover:bg-black/5 transition-colors"
-                    style={{ color: "var(--text-tertiary)" }}
-                  >
-                    ✕
-                  </button>
-                </div>
-                {/* 快速新增 */}
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (quickAddDate === selectedDate && quickAddTitle.trim()) {
-                      submitQuickAdd(selectedDate, quickAddTitle);
-                    } else if (selectedDate) {
-                      submitQuickAdd(selectedDate, quickAddTitle || "新任務");
-                    }
-                  }}
-                  className="flex items-center gap-2"
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
+                  {format(parseISO(selectedDate), "M 月 d 日", { locale: zhTW })}
+                  {isToday(parseISO(selectedDate)) && (
+                    <span className="ml-2 text-[12px] font-normal" style={{ color: "var(--brand)" }}>今天</span>
+                  )}
+                  <span className="ml-2 text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+                    {selectedDateTasks.length} 項任務
+                  </span>
+                </h2>
+                <button
+                  onClick={() => setSelectedDate(null)}
+                  className="p-1.5 rounded-lg hover:bg-black/5 transition-colors"
+                  style={{ color: "var(--text-tertiary)" }}
                 >
-                  <input
-                    ref={quickAddInputRef}
-                    type="text"
-                    value={quickAddTitle}
-                    onChange={(e) => setQuickAddTitle(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") { setQuickAddDate(null); setQuickAddTitle(""); }
-                    }}
-                    placeholder="新增任務…"
-                    className="input flex-1"
-                    style={{ fontSize: 13, padding: "7px 10px" }}
-                  />
-                  <button type="submit" className="btn-primary py-1.5 px-3 text-[12px]">新增</button>
-                </form>
+                  ✕
+                </button>
               </div>
 
+              {/* 快速新增 */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (quickAddTitle.trim()) {
+                    submitQuickAdd(selectedDate, quickAddTitle);
+                  }
+                }}
+                className="flex items-center gap-2 mb-4"
+              >
+                <input
+                  ref={quickAddInputRef}
+                  type="text"
+                  value={quickAddTitle}
+                  onChange={(e) => setQuickAddTitle(e.target.value)}
+                  placeholder="新增任務…"
+                  className="input flex-1"
+                  style={{ fontSize: 14, padding: "10px 14px" }}
+                />
+                <button type="submit" className="btn-primary py-2.5 px-4 flex items-center gap-1.5">
+                  <Plus className="w-4 h-4" />
+                  新增
+                </button>
+              </form>
+
               {/* Task list */}
-              <div className="flex-1 overflow-y-auto">
-                {selectedDateTasks.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-48 gap-2">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "var(--surface-muted)" }}>
-                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: "var(--text-tertiary)" }}>
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                      </svg>
-                    </div>
-                    <p className="text-[13px]" style={{ color: "var(--text-tertiary)" }}>這天沒有任務</p>
+              {selectedDateTasks.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 gap-2">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "var(--surface-muted)" }}>
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: "var(--text-tertiary)" }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
                   </div>
-                ) : (
-                  <div className="divide-y" style={{ borderColor: "var(--border)" }}>
-                    {selectedDateTasks.map((task) => (
-                      <CalendarTaskItem
-                        key={task.id}
-                        task={task}
-                        isSelected={selectedTaskId === task.id}
-                        onClick={() => onSelectTask(task.id)}
-                        onToggleStatus={() => toggleTaskStatus(task.id)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
+                  <p className="text-[13px]" style={{ color: "var(--text-tertiary)" }}>這天沒有任務</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {selectedDateTasks.map((task) => (
+                    <CalendarTaskItem
+                      key={task.id}
+                      task={task}
+                      isSelected={selectedTaskId === task.id}
+                      onClick={() => onSelectTask(task.id)}
+                      onToggleStatus={() => toggleTaskStatus(task.id)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </motion.div>
         )}
@@ -363,11 +356,13 @@ function CalendarTaskItem({
     <div
       onClick={onClick}
       className={`
-        flex items-start gap-3 px-4 py-3 cursor-pointer
+        flex items-start gap-3 px-4 py-3 rounded-xl cursor-pointer
         transition-all duration-150 select-none
-        ${isSelected ? "bg-[var(--brand-tint)]" : "hover:bg-[var(--surface-hover)]"}
-        ${isDone ? "opacity-60" : ""}
+        ${isSelected ? "shadow-sm" : "hover:shadow-sm"}
       `}
+      style={{
+        background: isSelected ? "var(--brand-tint)" : "var(--surface-muted)",
+      }}
     >
       <button
         onClick={(e) => { e.stopPropagation(); onToggleStatus(); }}
@@ -382,14 +377,12 @@ function CalendarTaskItem({
       </button>
       <div className="flex-1 min-w-0">
         <p
-          className={`text-[13px] font-medium truncate ${
-            isDone ? "line-through" : ""
-          }`}
+          className={`text-[14px] font-medium truncate ${isDone ? "line-through" : ""}`}
           style={isDone ? { color: "var(--text-tertiary)" } : { color: "var(--text-primary)" }}
         >
           {task.title}
         </p>
-        <div className="flex items-center gap-2 mt-1">
+        <div className="flex items-center gap-3 mt-1.5">
           <div className="flex items-center gap-1">
             <div className="w-1.5 h-1.5 rounded-full" style={{ background: priorityColor }} />
             <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
@@ -408,7 +401,7 @@ function CalendarTaskItem({
           )}
         </div>
       </div>
-      <div className="flex-shrink-0" style={{ color: "var(--text-tertiary)" }}>
+      <div className="flex-shrink-0 mt-1" style={{ color: "var(--text-tertiary)" }}>
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>

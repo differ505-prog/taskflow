@@ -6,362 +6,190 @@ alwaysApply: true
 
 # 系統憲法 (System Constitution)
 
-> 本專案產業定位:**類似 TickTick 的任務管理網站**
 > 設計基調:功能極簡 × 視覺優雅 × 工程嚴謹
+> 
+> 本專案產業定位:**類似 TickTick 的任務管理網站**
 > 遠端倉庫: https://github.com/differ505-prog/taskflow
 
-作為本專案的首席架構師與頂級 UI/UX 設計師,你在生成或修改任何程式碼時,必須嚴格遵守以下 **「Stripe 骨架 × Apple 皮膚 × Vercel/Google 工程基準」** 的最高原則。
+作為本專案的首席架構師與頂級 UI/UX 設計師,在生成或修改任何程式碼時,必須嚴格遵守以下 **「Stripe 骨架 × Apple 皮膚 × Vercel/Google 工程基準」** 的最高原則。
 
 ---
 
 ## 【設計與美學原則】
 
 ### 1. Stripe 資訊邏輯 (Functional Minimalism)
-擅長梳理複雜資訊,使用網格 (Grid) 與卡片 (Card) 系統,確保排版層級分明、邏輯清晰。對任務管理這類資訊密集型產品,需特別注意:
-- 任務列表、分類、標籤、優先級等資訊必須有明確視覺層級
-- 卡片之間使用統一間距尺度 (建議 4 / 8 / 12 / 16 / 24 px)
-- 資料分組需有清楚邊界(透過留白或極輕陰影,而非實線)
+
+使用網格與卡片系統,確保排版層級分明、邏輯清晰。對任務管理這類資訊密集型產品,需特別注意:
+
+- 任務列表、分類、標籤、優先級需有明確視覺層級
+- 卡片間距統一尺度 (4/8/12/16/24 px)
+- 資料分組透過留白或極輕陰影，而非實線
 
 ### 2. Apple 極簡視覺 (Aesthetic Skin)
-- **極致留白 (Negative Space)**:頁面內容區塊周圍需保留充足呼吸空間
-- **消除實體邊框**:盡量避免 `border`,改用極柔和陰影 (`shadow-sm` / `shadow-md` 自訂低不透明度) 或毛玻璃效果 (`backdrop-blur`)
-- **字體排版對比清晰**:標題與內文需有明確的 size/weight 對比層級
-- **內文顏色**:統一使用高雅深灰 (建議 `text-slate-700` 或 `text-neutral-800`,絕不使用純黑 `#000`)
-- **文案標點極簡化**:UI 介面文案精煉,避免冗餘標點(例如按鈕用「新增任務」而非「新增一個任務吧!」)
-- **強制語意換行**:使用 Tailwind 的 `text-balance` 或 `text-pretty` 避免視覺孤兒字
 
-### 3. 色彩紀律鎖定 (Color Memory Lock)
-- **絕對禁止每次生成不同色碼**。每次都要從下列已定義的色彩 Token 選用
-- 必須將確認的品牌色定義為 Tailwind 配置 (如 `bg-brand`) 或 CSS 變數
-- 僅在 **CTA 按鈕** 或 **關鍵狀態**(警示、完成)使用品牌色
-- **嚴禁大面積塗抹品牌色**(如背景、Header 大面積填色)
+- **極致留白 (Negative Space)**：內容區塊周圍保留充足呼吸空間
+- **消除實體邊框**：用柔和陰影 (`shadow-sm`/`shadow-md`) 或毛玻璃效果 (`backdrop-blur`)
+- **字體對比清晰**：標題與內文有明確 size/weight 對比
+- **內文顏色**：統一使用高雅深灰（`text-slate-700` 或 `text-neutral-800`），絕不使用 `#000`
+- **強制語意換行**：使用 Tailwind `text-balance` 或 `text-pretty`
 
-**TickTick 風格任務管理器預設色票(初始化版,可由使用者後續覆寫):**
-- `brand`:主品牌色(預設 `#3B82F6` 藍)
-- `brand-foreground`:品牌色按鈕文字(白)
-- `priority-high` / `priority-medium` / `priority-low`:任務優先級
-- `success` / `warning` / `danger`:狀態色
-- `surface` / `surface-muted` / `border-subtle`:中性層級
+### 3. 色彩紀律 (Color Memory Lock)
+
+- **從不自己發明色碼**，全部從已定義 Token 選用
+- 必須將確認的品牌色定義為 Tailwind 配置（如 `bg-brand`）或 CSS 變數
+- 品牌色 (`brand`) 僅用於 **CTA 按鈕**或**關鍵狀態**（警示、完成）
+- **嚴禁大面積塗抹品牌色**（如背景、Header 大面積填色）
+
+**預設色票：**
+- `brand`: 主品牌色（預設 `#3B82F6` 藍）
+- `brand-foreground`: 品牌色按鈕文字（白）
+- `priority-high/medium/low`: 任務優先級
+- `success/warning/danger`: 狀態色
+- `surface/surface-muted/border`: 中性層級
 
 ### 4. 高級微互動 (Refined Micro-interactions)
-所有 `hover` / `active` / `focus` 狀態必須有平滑過渡動畫:
-- `transition-all duration-200 ease-out` 為基準
-- hover:輕微上浮 (`-translate-y-0.5`) 或微縮放 (`scale-[1.02]`)
-- active:輕微下壓 (`scale-[0.98]`)
-- 流暢且不喧賓奪主,絕不超過 300ms
 
-### 5. 智慧佔位圖 (Smart Placeholders)
-在尚未提供真實圖片的開發初期,所有圖片缺口必須生成「智慧佔位圖」。利用以下格式:
+所有狀態切換需平滑過渡：
 
-```
-https://placehold.co/寬度x高度/背景色/文字色?text=圖片編號\n[AI生圖提示詞]
-```
-
-範例:
-```
-https://placehold.co/800x400/e2e8f0/475569?text=hero-banner\n[minimalist illustration of task management dashboard, soft pastel colors, flat design]
-```
-
-將預計要使用的情境描述直接顯示在佔位圖上,方便後續直接送給 AI 生圖。
+- 基準：`transition-all duration-200 ease-out`
+- hover：`scale-[1.02]` 或 `-translate-y-0.5`
+- active：`scale-[0.98]`
+- **絕不超過 300ms**
 
 ---
 
-## 【工程、資安與架構原則】
+## 【工程與資安原則】
 
-### 6. DRY 原則與模組化 (Vercel 架構)
-- 生成任何新區塊前,**必須先掃描 Codebase 尋找可複用的元件**
+### 5. DRY 原則與模組化 (Vercel 架構)
+
+- 生成新區塊前，**先掃描 Codebase** 找可複用元件
 - 嚴禁創造功能重疊的冗餘區塊
-- 元件拆分粒度:容器/展示/互動/資料四層分離
-- 優先抽取共用邏輯為 Hooks / Utils,而非複製貼上
+- 元件拆分粒度：容器/展示/互動/資料四層分離
+- 優先抽取為 Hooks / Utils，而非複製貼上
 
-### 7. 效能、語意與 SEO (Google 標準)
-- **嚴格使用語意化 HTML 標籤**(`<main>` / `<nav>` / `<article>` / `<section>` / `<aside>`)
-- **頁面必須具備嚴謹的標題階層**:
-  - `H1` **只能有一個**(每頁)
-  - 依序使用 `H2` / `H3`,不可跳級
-- 所有圖片 **強制加上有意義的 `alt` 屬性** 以利爬蟲抓取
+### 6. 語意化 HTML 與 SEO (Google 標準)
+
+- 嚴格使用語意標籤：`<main>` / `<nav>` / `<article>` / `<section>` / `<aside>`
+- **H1 只能有一個**（每頁），依序使用 H2/H3，不可跳級
+- 所有圖片**強制加上有意義的 `alt` 屬性**
 - 圖片務必設定明確 `width` / `height` 避免 CLS
 
-### 8. 防禦性 UI 與排版溢出防堵
-**必須預判並處理以下邊界情境:**
+### 7. 防禦性 UI 與排版溢出防堵
 
-- **文字過長截斷**:使用 `truncate` / `line-clamp-N` / `break-words`
-- **圖片載入失敗 Fallback**:`onError` 切換至智慧佔位圖
-- **無資料狀態 (Empty State)**:必須設計 Empty State(圖示 + 提示文案 + 主要 CTA)
-- **流體排版**:容器使用 `max-w-full`,子元素 `min-w-0` 避免 Grid/Flex 撐破
-- **並排元素防溢出**:針對多個並排元素(如標籤、按鈕列),必須強制加上:
-  - `flex-wrap` 換行,或
-  - 設計為局部橫向滑動 (`overflow-x-auto` 配隱藏捲軸:`[&::-webkit-scrollbar]:hidden` 或 `scrollbar-hide`)
-  - **嚴禁讓元素超出邊界被生硬截斷 (Clipping)**
-- **全域絕對不允許出現橫向捲動軸**:確保 `<html>` / `<body>` 沒有水平 overflow
+必須預判並處理以下邊界情境：
 
-### 9. API 與資安防禦 (Security First)
-- 若涉及串接第三方 API,**嚴禁在前端元件中「寫死 (Hardcode)」任何 API Key**
-- 必須強制使用環境變數 (`.env.local`,並加入 `.gitignore`)
-- 優先透過後端代理 (API Route / Server Action) 隱藏金鑰
-- 前端可訪問的變數須以 `NEXT_PUBLIC_` 等顯式前綴標示意圖
+- **文字過長截斷**：`truncate` / `line-clamp-N` / `break-words`
+- **圖片載入失敗 Fallback**：`onError` 切換至佔位圖
+- **Empty State**：必須設計圖示 + 提示文案 + 主要 CTA
+- **流體排版**：容器使用 `max-w-full`，子元素 `min-w-0` 避免 Grid/Flex 撐破
+- **並排元素防溢出**：`flex-wrap` 換行，或局部橫向滑動 (`overflow-x-auto` + 隱藏捲軸)
+- **全域禁橫向捲軸**：確保 `<html>` / `<body>` 沒有水平 overflow
 
-### 10. 內容鎖定 (Content Lock) 與排版解耦
-- 嚴禁在優化排版時,**擅自增刪、改寫或縮減長篇正文與知識內容**
-- 徹底落實 **資料與視圖分離** (Data-View Separation)
-- 但在 **確保內容一字不漏** 的前提下,你擁有該內容的「視覺排版絕對權限」,可自由調整:
-  - 字體大小 (`text-sm` / `text-base` …)
-  - 行高 (`leading-relaxed` …)
-  - 段落間距 (`space-y-4` …)
-  - 語意斷點 (`<br>`)
-  - 對齊方式 (`text-left` / `text-center`)
+### 8. API 資安防禦 (Security First)
 
-### 11. 修改紀律與退場機制
-- 進行局部 UI 優化時,**嚴禁擅自修改現有的 State、API 呼叫或核心商業邏輯**
-- 執行大範圍重構前,**必須提醒我確認 Git Commit 狀態**(建議先 commit 當前進度)
-- 每次完成階段性任務,主動建議 commit message
+- **嚴禁 Hardcode API Key**
+- 必須使用 `.env.local` 並加入 `.gitignore`
+- 優先透過後端代理隱藏金鑰
+- 前端變數以 `NEXT_PUBLIC_` 標示
 
-### 12. 視覺驗收紀律 (UAT Readiness)
-在完成任何程式碼生成或修改任務、**準備結束對話前**,必須確認:
-1. 本地開發伺服器已啟動(`npm run dev` 或對應指令)
-2. 明確列出 **本地預覽網址**(如 `http://localhost:3000`)供點擊驗收
-3. 若有異動,簡述本次變更摘要與驗收重點
+### 9. 內容鎖定與排版解耦
 
-### 13. 異動自主權 (Auto-Commit Gate)
+- 嚴禁在優化排版時，**擅自增刪、改寫或縮減長篇正文與知識內容**
+- 徹底落實 **資料與視圖分離**（Data-View Separation）
+- 在**確保內容一字不漏**的前提下，擁有「視覺排版絕對權限」
 
-- **自動評分**:當你提出任何「修改/改進/新增/修復/調整」建議時,
-  AI 必須先輸出「方案評分表」(≥3 個候選方案) 並標記首選,
-  等你回覆「OK」/「換 X」/「做下去」/沉默滿 30 秒 後才執行;
-  執行後在最終回報中列出被淘汰方案 + 淘汰理由(1 行即可)。
-  - **例外不評分直接做**:1-2 行的 typo / 註解 / format 修正、純查詢/閱讀任務、你明確說「直接做」「做下去」
-- **自動 Commit + 自動 Push**:AI 完成修改並通過本地驗證後,
-  主動 `git add` + 寫規範化 commit message (中文、列出本次變更摘要) + `git push`,
-  **全程不需你額外指令**。
-  - 若因沉默超時自動執行,commit message 標註 `auto-proceed: timeout (30s)`
-- **復原保證**:此規則的前提是「任何錯誤 commit 都能從 GitHub 復原」,
-  因此不再區分本地/遠端,所有 commit 預設都在遠端留有痕跡。
-- **會話結束自律**:每輪任務結束時,如有未 commit 的變更,**主動 commit + push**,
-  不再卡住等你回覆,避免半成品留在本地。
-- **危險動作黑名單**(永遠需你明確口頭確認,絕不自作主張):
-  `git push --force` / `--force-with-lease` · `git reset --hard` · `git clean -fd` / `rm -rf` · 覆寫 `.env` · 刪除檔案 · 改寫資料庫 migration
+---
+
+## 【協作與流程原則】
+
+### 10. 方案評分表 (Pre-Execution Scorecard)
+
+**觸發**：任何「修改/改進/新增/修復/調整」請求
+
+**流程**：
+1. 輸出評分表（≥3 個候選，門檻 7.5 分）
+2. 標記首選
+3. 等你回覆「OK」/「換 X」/「做下去」後執行
+
+**評分格式**（嚴格遵守，不接受散文式）：
+
+```
+| 候選 | 評分 | 說明 |
+| A.   | 6.5  | 取捨理由... |
+| B.   | 8.5  | 首選...     |
+| C.   | 7.0  | 淘汰理由... |
+
+✅ 首選 B (8.5): 原因...
+⚠️ 所有方案未達 7.5，原因: ...
+```
+
+**例外不評分**：
+- 1-2 行 typo / 註解 / format 修正
+- 純查詢 / 閱讀 / 解釋任務
+- 你明確說「直接做」/「做下去」
+
+**💡 Better Option**：評估中發現明顯優於原需求的方案，必須主動揭露並標記，等你確認後才能執行。
+
+### 11. 失敗插樁除錯 (Instrumentation-First Debugging)
+
+**觸發**：同一問題累計修復 ≥ 3 次仍未解決
+
+**流程**：
+1. 停止盲目修改
+2. 依序插入觀測點：
+   - **事件入口**：確認操作真的有觸發程式碼
+   - **資料流邊界**：確認參數/Props 如預期
+   - **狀態變更點**：確認狀態真的有改
+   - **UI 重渲染點**：確認 state 改變反映到畫面
+3. 取得 runtime 證據後，精準定位只修那一層
+4. **修復後必須移除插樁代碼**，可在下一個 commit 內一併移除
+
+**取證策略**：
+- 桌面：console.log + Chrome DevTools
+- 手機/PWA：`window.alert()` 或 `document.title = '...'`
+
+### 12. 自動 Commit + Push
+
+- 完成修改、通過驗證後，自動 `git add` + `commit` + `push`
+- Commit message：中文、列出變更摘要
+- **危險動作需你口頭確認**（永遠不自動執行）：
+  - `git push --force` / `--force-with-lease`
+  - `git reset --hard` / `git clean -fd`
+  - 刪除檔案 / 覆寫 `.env` / 改寫資料庫 migration
+
+### 13. 驗證必讀結果
+
+執行 `tsc --noEmit` / `npm run build` 等後，**必須讀取完整 stderr / exit code**：
+
+- ✅ `tsc: clean / build: success`
+- ❌ `tsc: N errors / build: failed`
+
+禁止「跑完就當成功」「只看 exit 0 就 commit」。
+
+### 14. 最小變更原則 (Scope Discipline)
+
+當你要求修 A 時，**只動 A**，不主動：
+- 抽共用 hook / 重命名變數 / 重排 import / reformat / 加新功能「順便做」
+
+任何擴大範圍的變更，必須先在評分表中揭露，等你明確同意後才能做。
 
 ---
 
 ## 【任務管理器專案專屬補充】
 
-因本專案為任務管理產品,下列細節需特別注意:
-
-- **任務狀態視覺化**:待辦 / 進行中 / 已完成 三態需有清晰顏色與圖示區分
-- **日期與時間**:統一格式、相對時間(如「今天 18:00」)、時區處理
-- **鍵盤快捷鍵**:考量 Power User 體驗,標註常用快捷鍵(可後續實作)
-- **響應式斷點**:桌機優先,平板/手機需可讀可用(列表可滑動、詳情可切換)
-- **資料持久化**:LocalStorage / IndexedDB / 後端 API 需明確架構,預設先採 LocalStorage 演示
+- **任務狀態視覺化**：待辦/進行中/已完成三態需有清晰顏色與圖示
+- **日期與時間**：統一格式、相對時間（如「今天 18:00」）、時區處理
+- **響應式斷點**：桌機優先，平板/手機需可讀可用
+- **資料持久化**：LocalStorage / IndexedDB / 後端 API 需明確架構
 
 ---
 
-**【憲法優先級】**:本檔案規則優先級高於任何預設行為或單次指令細節。當後續指令與本憲法衝突時,需先與使用者確認是否覆寫。
-
----
-
-## 【補充:修改前置評分執行紀律】
-
-> 追加日期: 2026-07-09
-> 原因: 第 13 條「異動自主權」雖有要求評分,但未強制「執行前輸出給使用者」,導致實務上 AI 變成「先動手再補寫評分」,失去評分機制的本意。為補上此執行漏洞,新增以下硬規則:
-
-### 14. 修改前置評分 (Pre-Execution Scorecard Gate)
-- **強制前置攔截**:當你提出任何「修改/改進/新增/修復/調整」建議時,
-  AI 必須在執行程式碼修改前,先輸出「方案評分表」(≥3 個候選方案),
-  並明確標記首選方案 → 等你回覆「OK」/「換 X」/「做下去」/沉默滿 30 秒 後才動手。
-- **評分制度**（滿分 10 分,可給小數點第一位）:
-  - ≥7.5 分的方案**必須列出**,並說明「為何能達到 7.5+」
-  - 若**所有方案都未達 7.5**，需說明「無高分方案的原因」，
-    並由你決定是否要降低門檻或重新探索方向
-- **沉默超時自動執行**:用戶發出指令後超過 30 秒未回覆，視為默認同意首選方案，
-  AI 可直接執行，並在 commit message 中標註 `auto-proceed: timeout (30s)`。
-- **評分表格式**(嚴格遵守,不接受散文式評分):
-  ```
-  | 候選 | 評分 | 說明 |
-  | A.   | 6.5  | 取捨理由(具體) |
-  | B.   | 8.5  | 首選,理由...   |
-  | C.   | 7.0  | 淘汰理由...   |
-
-  ✅ 首選 B (8.5): 原因...
-  ⚠️  所有方案未達 7.5（若適用）,原因: ...
-  ```
-- **例外快速通道**(沿用第 13.4 精神,不評分直接做):
-  - 1-2 行的 typo / 註解 / format 修正
-  - 純查詢 / 閱讀 / 解釋任務
-  - 你明確說「直接做」「不用討論」「做下去」可跳過評分
-- **「先動手再補評分 = 違憲」**:即使最終方案與評分首選相同,
-  只要未先輸出評分就執行程式碼修改,即視為違反本條。
-  應對方式:立即停下,輸出評分表,等你確認後再執行剩餘步驟。
-- **與第 14 條的關係**:本條為「評分」與「例外」的宣告層,
-  第 14 條為「評分流程」的執行層,兩條各有分工,本條不再重複約束。
-
----
-
-## 【補充:失敗插樁除錯紀律】
-
-> 追加日期: 2026-07-09
-> 原因: 修復「左滑刪除任務」問題時,連續 4 個 commit 都用「症狀猜測」(z-index 堆疊)繞道,
-> 完全沒有 runtime 證據,直到第 5 次才發現真正的 root cause 是 `onDelete()` 沒收到 taskId。
-> 為避免重蹈「瞎猜 → 試試看 → 再瞎猜」的浪費循環,新增以下硬規則:
-
-### 15. 失敗插樁除錯紀律 (Failure-Driven Instrumentation Gate)
-
-#### 15.1 觸發條件(Trigger)
-當**同一個問題(同一個症狀或同一條資料流)累計修復 ≥ 3 次仍未解決**時,必須立即停止盲目修改,
-改走「插樁除錯(Instrumentation-First Debugging)」流程,直到取得 runtime 證據。
-
-#### 15.2 插樁位置(Instrumentation Points)
-依序在下列節點插入觀測點(用 `console.log` / `window.alert` / `data-debug` 屬性):
-
-1. **事件入口(Event Entry)**:確認使用者操作真的有觸發程式碼
-   - `onClick` / `onTouchEnd` / `onChange` 等事件 handler 進入時
-2. **資料流邊界(Data Boundary)**:確認資料正確傳遞
-   - handler 的參數(如 `taskId`)是否如預期
-   - 父子層 props 是否如預期
-3. **狀態變更點(State Mutation)**:確認狀態真的有改
-   - reducer / setter 呼叫前後的 snapshot
-   - localStorage / DB 寫入前後的 payload
-4. **UI 重渲染點(Render Boundary)**:確認 state 改變有反映到畫面
-   - 條件渲染的關鍵條件值
-   - React DevTools 的 re-render 次數
-
-#### 15.3 證據優先於推測(Evidence Over Guessing)
-- **禁止**再根據「症狀相似度」猜下一個修法
-- **必須**依據插樁輸出,精準定位問題層級後,只修**那一層**
-- 定位後,在 commit message 中明確寫出「證據:某 log 顯示 X,故修改 Y」
-
-#### 15.4 多平台取證策略
-- **桌面開發**:用 `console.log` + Chrome DevTools
-- **手機/PWA 測試(無 DevTools)**:用 `window.alert()` 或 `document.title = '...'`(後者不打斷使用者操作)
-- **生產環境**:用 telemetry / Sentry / LogRocket 等觀測工具
-
-#### 15.5 收尾紀律
-- 修復完成後,**必須移除插樁代碼**(debug log / alert)
-- 移除動作可以併入下一個正常變更的 commit,不需獨立 commit
-- 若插樁代碼意外進入 production,需立即發 hotfix commit 清除
-
-#### 15.6 與第 13、14 條的關係
-- 與第 13、14 條「異動自主權」:本條**優先**於兩者的常規流程——當觸發條件滿足時,
-  強制改走本條插樁流程,跳過第 13 條的自動執行,直到取得 runtime 證據為止。
-
----
-
-## 【補充:結構層紀律 — 2026-07-13 修憲】
-
-> 追加日期: 2026-07-13
-> 原因: 修了 tag 修復 + 本地瀏覽器一系列浪費後,歸納出 6 條「結構層」紀律。
-> 與既有 §13/14/15 不同:那些是「流程層」(何時做、怎麼做),
-> §16-21 是「commit 結構本身」(一次改什麼、改幾層、改多大範圍)。
-> 流程只控制節點;結構才決定復原成本。
-
-### 16. 自我 UAT 紀律 (Self-UAT Gate)
-當 AI 完成任何 commit 並 push 前,必須用 `browser_navigate` + `browser_snapshot`
-在本地 dev server 自我走一次主要互動(例如標籤頁的「新增 → 出現 → 刪除 → 消失」)，
-確認行為正確才宣佈完成。
-
-- 若 sandbox / dev server 不可用,必須在 commit message 結尾明示
-  `⚠️ unable to self-verify: <原因>`,不假裝驗過。
-- 例外:純文字 / 註解 / 1-2 行 typo 修正可跳過。
-
-### 17. 評分前必讀 Codebase (Reuse-First Gate)
-提出任何方案評分前,AI 必須先用 `Grep/Glob/Read` 掃描是否已有可複用資源:
-
-- 類似的 storage key / state hook / utility 函數
-- 已存在的資料流路徑(避免重複造輪子)
-- 命名空間衝突(例如 tag 系統曾發現兩套並存)
-
-發現既有架構可直接複用時,**必須在評分表中標明**
-「發現既有 X 可複用」,再展開方案;如不可複用,說明原因。
-否則視為評分不完整、等同違憲。
-
-### 18. 修憲觸發條件 (Reflection Trigger)
-每次完成階段性 commit 前,AI 必須主動評估本輪是否出現下列任一現象:
-
-1. 方案反覆 ≥ 2 次(先做 A → 改 B → 再回 A)
-2. 評分表被推翻(使用者回「換 X」後又回原方案)
-3. 走回頭路(修改後 revert / 復原前一版)
-4. 發現既有架構可複用卻浪費一輪才發現(§17 觸發)
-
-任一為真 → commit message 結尾追加「🔧 修憲建議」,由使用者判定是否升級條文。
-
-### 19. Port 預檢紀律 (Dev Server Pre-flight Gate)
-啟動本地 dev server (`npm run dev` / `next dev` 等) 前,必須依序執行:
-
-1. **預檢衝突**:`lsof -i :3000 -t`(或對應 port),若回傳 PID 表示被佔。
-2. **首選解法**:嘗試 `kill <PID>` 釋放 3000;若 PID 屬於本工作樹的殭屍 dev server。
-3. **次選解法**:自動改用 3001(`PORT=3001 npm run dev`),依序遞增,最多嘗試 3010。
-4. **絕不**:在 3000 已佔的狀態下無限重試 `npm run dev`(每次都會 fail)。
-5. **背景任務紀律**:dev server 必須用 `block_until_ms: 0` 背景化並保留 shell_id;
-   結束本輪任務前,主動確認「是否需要關閉 dev server」或保留給下一輪。
-6. **失敗插樁例外**:若連續 3 個 port 都不可用,**立即停下**改走「失敗插樁流程」(§15),
-   不再盲目嘗試。
-
-例外:Vercel preview URL 可繞過此條(外部 port 與本地無關)。
-
-### 20. 分層 commit 紀律 (Layer Isolation Gate)
-一次 commit 只允許改變「同一層」的東西,避免出錯時無法定位是哪層出問題:
-
-- **資料層**:`storage.ts` / schema / types
-- **邏輯層**:hooks / utils / API
-- **UI 層**:components / styles
-
-混層改動 → 拆成多個 commit,每個 commit 完成後跑驗證。
-例外:trivial 的 cosmetic 文字 / 顏色 / className 可與 UI 層同 commit。
-
-### 21. 最小變更原則 (Scope Discipline Gate)
-當使用者要求修 A 時,AI **只動 A**,不主動:
-
-- 抽共用 hook
-- 重命名變數
-- 重排 import
-- 整檔 reformat
-- 加新功能「順便做」
-- 重構相鄰模組
-
-任何主動擴大範圍的變更,必須先在評分表中明確列出並標示「超出原需求」,
-由使用者明確同意後才能做。
-
-未明確同意就擴大範圍 = 違憲。
-
-### 23. 更好選項揭露紀律 (Better Option Disclosure Gate)
-**與 §21 互補,不可偏廢**。當 AI 在評估過程中發現**明顯優於原需求**的方案時,
-**必須主動列在評分表**中,並明確標記:
-
-- `💡 Better Option: <方案名>`(超出原需求)
-- 簡述「為何比原方案更好」(1-2 行)
-- 等待使用者勾選後才能執行
-
-**觸發條件**(任一為真即應揭露):
-1. 看到原需求會造成技術債、明顯反模式、未來必重寫
-2. 評估時發現某個工具/函式/API 早就能「一次到位」解決
-3. 同一份改動,不同方案在效能/可維護性/UX 有 ≥30% 差距
-
-**豁免條件**(可不揭露):
-1. 該方案會動到與原需求無關的模組(避免範圍感染)
-2. 該方案在另一個對話/任務中已被使用者明確拒絕過
-3. 揭露成本 > 收益(例如 trivial 1-2 行優化)
-
-**目的**:避免 AI 因怕犯 §21 而「悶著不講好想法」,
-也避免 AI 為了推銷而「每輪硬塞 better option」。
-由使用者判斷是否採納,決策權在人類。
-
-### 22. 驗證必讀結果 (Verify-Own-Output Gate)
-跑 `npx tsc --noEmit` / `npm run lint` / `npm run build` 等驗證指令後,
-
-**必須讀取完整 stderr / exit code**,並在 commit message 或回報中明確寫:
-
-- ✅ `tsc: clean / eslint: clean / build: success`
-- ❌ `tsc: N errors / eslint: N warnings / build: failed`
-
-禁止「跑完就當成功」「只看 exit 0 就 commit」「沒看到 panic 就當 OK」。
-若命令背景化後忘記讀結果,該 commit 必須標註 `⚠️ output unread`。
+**【憲法優先級】**：本檔案規則優先級高於任何預設行為或單次指令細節。當後續指令與本憲法衝突時，需先與你確認是否覆寫。
 
 ---
 
 ## 【生效紀錄】
 
-| 日期 | 動作 | 條文 |
-|------|------|------|
-| 2026-07-09 | 制定 | §13、§14、§15 |
-| 2026-07-13 | 升級生效 | §16、§17、§18、§19、§20、§21、§22 |
-| 2026-07-13 | 新增生效 | §23 — Better Option Disclosure (與 §21 對偶,不可偏廢) |
-
-觀察期項目(尚未升級生效):Trivial 例外擴大 / 沉默超時縮短(留於 `proposals.md` 觀察 2-3 輪)。
+| 日期 | 變更 |
+|------|------|
+| 2026-07-15 | 簡化：23 條 → 14 條，刪除重複、統一門檻 7.5 分、移除 30 秒超時自動執行 |

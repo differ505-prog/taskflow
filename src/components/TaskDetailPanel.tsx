@@ -5,7 +5,7 @@ import { Task, Priority, TaskStatus, Recurrence, SubTask, Attachment } from "@/l
 import { PRIORITY_CONFIG } from "@/lib/types";
 import { useApp } from "@/lib/AppContext";
 import { getTagColors } from "@/lib/storage";
-import { AnimatePresence, motion, useMotionValue, useTransform } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   X, Plus, Repeat, Calendar, Mic, MicOff, Hash,
   Trash2, CheckCircle2, Circle, Tag as TagIcon,
@@ -13,8 +13,6 @@ import {
 } from "lucide-react";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
 import TaskCommentsInline from "./TaskCommentsInline";
-
-const SWIPE_THRESHOLD = -100; // Swipe left more than 100px to close
 
 const RECURRENCE_OPTIONS = [
   { label: "不重複", value: "none" },
@@ -221,39 +219,53 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     return `${m}/${d}`;
   };
 
-  // Swipe to close functionality
+  // Native swipe to close functionality
   const panelRef = useRef<HTMLDivElement>(null);
-  const x = useMotionValue(0);
-  const opacity = useTransform(x, [0, -100], [1, 0.5]);
-  
-  const handleDragEnd = (event: any, info: any) => {
-    if (info.offset.x < SWIPE_THRESHOLD) {
-      onClose?.();
+  const [swipeX, setSwipeX] = useState(0);
+  const touchStartX = useRef<number>(0);
+  const touchCurrentX = useRef<number>(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchCurrentX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchCurrentX.current = e.touches[0].clientX;
+    const diff = touchCurrentX.current - touchStartX.current;
+    // Only allow left swipe (negative diff)
+    if (diff < 0) {
+      setSwipeX(diff);
     }
   };
 
+  const handleTouchEnd = () => {
+    const diff = touchCurrentX.current - touchStartX.current;
+    // Swipe left more than 80px to close
+    if (diff < -80) {
+      onClose?.();
+    }
+    setSwipeX(0);
+  };
+
+  const panelStyle = onClose ? {
+    transform: `translateX(${swipeX}px)`,
+    transition: swipeX === 0 ? 'transform 0.25s ease-out' : 'none',
+  } : {};
+
   return (
     <div ref={panelRef} className="flex flex-col h-full overflow-hidden">
-      {/* Swipeable container */}
-      <motion.div
-        className="flex-1 flex flex-col overflow-hidden"
-        style={{ x, opacity }}
-        drag={onClose ? "x" : false}
-        dragConstraints={panelRef}
-        dragElastic={0.3}
-        onDragEnd={handleDragEnd}
-      >
-        {/* Swipe indicator */}
-        {onClose && (
-          <div className="absolute top-1/2 left-2 -translate-y-1/2 z-10 pointer-events-none opacity-30">
-            <svg className="w-3 h-6" viewBox="0 0 12 24" fill="none">
-              <path d="M8 4L4 12L8 20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-        )}
-        
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 flex-shrink-0" style={{ borderBottom: "1px solid var(--border)" }}>
+      {/* Swipe indicator */}
+      {onClose && swipeX < 0 && (
+        <div className="absolute top-1/2 left-3 -translate-y-1/2 z-10 pointer-events-none" style={{ opacity: Math.min(1, Math.abs(swipeX) / 100) }}>
+          <svg className="w-4 h-7" viewBox="0 0 16 28" fill="none">
+            <path d="M10 6L4 14L10 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-tertiary)' }}/>
+          </svg>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 flex-shrink-0 touch-none" style={{ borderBottom: "1px solid var(--border)" }}>
           <div className="flex items-center gap-2">
             {onClose && (
               <button
@@ -289,7 +301,13 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
         </div>
 
         {/* Form body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        <div 
+          className="flex-1 overflow-y-auto p-6 space-y-5 touch-none"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          style={panelStyle}
+        >
 
         {/* Title */}
         <div>
@@ -630,7 +648,6 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
         {/* Comments */}
         <TaskCommentsInline taskId={task.id} />
       </div>
-      </motion.div>
     </div>
   );
 }
