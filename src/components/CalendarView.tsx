@@ -11,7 +11,12 @@ import { AnimatePresence, motion } from "framer-motion";
 
 const CELL_SIZE = 110;
 
-export function CalendarView() {
+interface CalendarViewProps {
+  selectedTaskId: string | null;
+  onSelectTask: (id: string) => void;
+}
+
+export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps) {
   const { tasks, setCurrentView, updateTask, toggleTaskStatus, addTask, deleteTask } = useApp();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -220,7 +225,7 @@ export function CalendarView() {
                       key={t.id}
                       draggable
                       onDragStart={() => handleDragStart(t.id)}
-                      onClick={(e) => { e.stopPropagation(); setSelectedDate(dateStr); }}
+                      onClick={(e) => { e.stopPropagation(); onSelectTask(t.id); }}
                       className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium truncate cursor-grab active:cursor-grabbing"
                       style={{
                         background: t.status === "done"

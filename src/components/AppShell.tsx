@@ -8,13 +8,11 @@ import { TaskSwipeWrapper } from "./SwipeableTaskCard";
 import { TaskForm } from "./TaskForm";
 import { EmptyState } from "./EmptyState";
 import { TaskListItem } from "./TaskListItem";
-import { TaskDetailPanel } from "./TaskDetailPanel";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Search, X, LayoutGrid, List,
   Plus, Archive, Zap, ChevronRight, Timer,
   Share2, Shield, RotateCcw, Trash2,
-  AlignLeft,
 } from "lucide-react";
 
 const VIEW_LABELS: Record<AppView, string> = {
@@ -81,6 +79,8 @@ function initSeedTasks(): Task[] {
 }
 
 interface AppShellProps {
+  selectedTaskId: string | null;
+  onSelectTask: (id: string) => void;
   onOpenSettings: () => void;
   onOpenListForm: () => void;
   onEditList: (list: TaskList) => void;
@@ -91,7 +91,7 @@ interface AppShellProps {
   userMenu?: React.ReactNode;
 }
 
-export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteList, onOpenPomodoro, onOpenMobileSidebar, onOpenShareModal, userMenu }: AppShellProps) {
+export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenListForm, onEditList, onDeleteList, onOpenPomodoro, onOpenMobileSidebar, onOpenShareModal, userMenu }: AppShellProps) {
   const {
     tasks, currentView, currentListId, currentSharedListId, sharedLists,
     lists,
@@ -116,7 +116,6 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
   const [sharedQuickAddInput, setSharedQuickAddInput] = useState("");
   const sharedQuickAddRef = useRef<HTMLInputElement>(null);
   const quickAddRef = useRef<HTMLInputElement>(null);
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   // 觀看者模式：Viewer 在 shared list 是唯讀的
   const sharedRole = currentSharedListId ? getMyRole(currentSharedListId) : null;
@@ -198,12 +197,12 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
   // Clear selection if selected task is deleted
   useEffect(() => {
     if (selectedTaskId && !tasks.find((t) => t.id === selectedTaskId)) {
-      setSelectedTaskId(null);
+      onSelectTask(selectedTaskId); // toggle off
     }
-  }, [tasks, selectedTaskId]);
+  }, [tasks, selectedTaskId, onSelectTask]);
 
   const handleSelectTask = (taskId: string) => {
-    setSelectedTaskId((prev) => (prev === taskId ? null : taskId));
+    onSelectTask(taskId);
   };
 
   return (
@@ -489,44 +488,6 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
               </>
             )}
           </div>
-
-          {/* Right: Task detail panel (desktop always visible, mobile via overlay) */}
-          <AnimatePresence>
-            {selectedTask ? (
-              <motion.div
-                key="detail-panel"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-                className="w-full md:w-[480px] flex-shrink-0 border-l overflow-y-auto"
-                style={{ borderColor: "var(--border)", background: "var(--surface)" }}
-              >
-                <TaskDetailPanel
-                  task={selectedTask}
-                  onClose={() => setSelectedTaskId(null)}
-                />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="empty-panel"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="w-full md:w-[480px] flex-shrink-0 border-l overflow-hidden flex flex-col items-center justify-center"
-                style={{ borderColor: "var(--border)", background: "var(--surface)" }}
-              >
-                <div className="flex flex-col items-center justify-center h-64 gap-3">
-                  <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "var(--surface-muted)" }}>
-                    <AlignLeft className="w-8 h-8" style={{ color: "var(--text-tertiary)" }} />
-                  </div>
-                  <p className="text-[14px]" style={{ color: "var(--text-tertiary)" }}>選擇一個任務</p>
-                  <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>點擊左側任務查看詳情</p>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </main>
 
       {/* Task Form Modal */}

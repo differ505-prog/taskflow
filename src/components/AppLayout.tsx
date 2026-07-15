@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import { AppProvider, useApp } from "@/lib/AppContext";
 import { Sidebar, ListForm } from "@/components/Sidebar";
 import { AppShell } from "@/components/AppShell";
+import { TaskDetailPanel } from "@/components/TaskDetailPanel";
 import { SettingsPage } from "@/components/SettingsPage";
 import { CalendarView } from "@/components/CalendarView";
 import { HabitsPage } from "@/components/HabitsPage";
@@ -17,6 +18,7 @@ import { AuthGate } from "@/components/AuthGate";
 import { FirebaseDataProvider, SyncWriter } from "@/components/FirebaseDataProvider";
 import { ShareListModal } from "@/components/ShareListModal";
 import { TaskList, SharedListSnapshot } from "@/lib/types";
+import { AnimatePresence, motion } from "framer-motion";
 
 // ─── Inner app (has access to useApp) ───────────────────────
 function AppLayoutInner() {
@@ -30,6 +32,7 @@ function AppLayoutInner() {
   const [shareModalList, setShareModalList] = useState<{ list: TaskList; tasks: import("@/lib/types").Task[] } | null>(null);
   const [showSharedLists, setShowSharedLists] = useState(false);
   const [incomingShareData, setIncomingShareData] = useState<{ sharedListId: string; snapshot: SharedListSnapshot } | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   // Check for incoming share link on mount
   useEffect(() => {
@@ -73,10 +76,17 @@ function AppLayoutInner() {
     setCurrentView(view);
   };
 
+  const selectedTask = selectedTaskId ? tasks.find((t) => t.id === selectedTaskId) ?? null : null;
+
   const renderView = () => {
     switch (currentView) {
       case "calendar":
-        return <CalendarView />;
+        return (
+          <CalendarView
+            selectedTaskId={selectedTaskId}
+            onSelectTask={(id) => setSelectedTaskId((prev) => (prev === id ? null : id))}
+          />
+        );
       case "habits":
         return <HabitsPage />;
       case "tags":
@@ -86,6 +96,8 @@ function AppLayoutInner() {
       default:
         return (
           <AppShell
+            selectedTaskId={selectedTaskId}
+            onSelectTask={(id) => setSelectedTaskId((prev) => (prev === id ? null : id))}
             onOpenSettings={() => setIsSettingsOpen(true)}
             onOpenListForm={handleOpenListForm}
             onEditList={handleEditList}
@@ -98,6 +110,47 @@ function AppLayoutInner() {
         );
     }
   };
+
+  const renderDetailPanel = () => (
+    <AnimatePresence>
+      {selectedTask ? (
+        <motion.div
+          key="detail-panel"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 20 }}
+          transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+          className="w-full md:w-[480px] flex-shrink-0 border-l overflow-y-auto"
+          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+        >
+          <TaskDetailPanel
+            task={selectedTask}
+            onClose={() => setSelectedTaskId(null)}
+          />
+        </motion.div>
+      ) : (
+        <motion.div
+          key="empty-panel"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="w-full md:w-[480px] flex-shrink-0 border-l overflow-hidden flex flex-col items-center justify-center"
+          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+        >
+          <div className="flex flex-col items-center justify-center h-64 gap-3">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "var(--surface-muted)" }}>
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: "var(--text-tertiary)" }}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            </div>
+            <p className="text-[14px]" style={{ color: "var(--text-tertiary)" }}>選擇一個任務</p>
+            <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>點擊左側任務查看詳情</p>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -118,8 +171,11 @@ function AppLayoutInner() {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 overflow-y-auto pb-[72px] md:pb-0">
-        {renderView()}
+      <div className="flex-1 overflow-hidden pb-[72px] md:pb-0 md:flex">
+        <div className="flex-1 overflow-y-auto">
+          {renderView()}
+        </div>
+        {renderDetailPanel()}
       </div>
 
       {/* Mobile Bottom Navigation */}
