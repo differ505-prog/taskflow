@@ -263,25 +263,39 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
         {/* Title */}
         <div>
           <div className="relative">
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="任務標題"
-              className="w-full text-[16px] font-medium bg-transparent border-none outline-none placeholder:text-[var(--text-tertiary)]"
-              style={{ color: "var(--text-primary)" }}
-              maxLength={200}
-              autoComplete="off"
-            />
-            <button
-              type="button"
-              onClick={handleVoiceInput}
-              className={`absolute right-0 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors ${isRecording ? "recording" : ""}`}
-              style={{ color: isRecording ? "var(--status-danger)" : "var(--text-tertiary)" }}
-              aria-label={isRecording ? "停止錄音" : "語音輸入"}
-            >
-              {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-            </button>
+            {/^https?:\/\//.test(title) ? (
+              <a
+                href={title}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full text-[16px] font-medium block truncate"
+                style={{ color: "var(--brand)" }}
+              >
+                {title}
+              </a>
+            ) : (
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="任務標題"
+                className="w-full text-[16px] font-medium bg-transparent border-none outline-none placeholder:text-[var(--text-tertiary)]"
+                style={{ color: "var(--text-primary)" }}
+                maxLength={200}
+                autoComplete="off"
+              />
+            )}
+            {!/^https?:\/\//.test(title) && (
+              <button
+                type="button"
+                onClick={handleVoiceInput}
+                className={`absolute right-0 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors ${isRecording ? "recording" : ""}`}
+                style={{ color: isRecording ? "var(--status-danger)" : "var(--text-tertiary)" }}
+                aria-label={isRecording ? "停止錄音" : "語音輸入"}
+              >
+                {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </button>
+            )}
           </div>
           {!title.trim() && (
             <p className="mt-1 text-[12px]" style={{ color: "var(--status-danger)" }}>標題必填</p>

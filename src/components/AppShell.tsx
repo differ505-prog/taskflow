@@ -14,6 +14,7 @@ import {
   Search, X, LayoutGrid, List,
   Plus, Archive, Zap, ChevronRight, Timer,
   Share2, Shield, RotateCcw, Trash2,
+  AlignLeft,
 } from "lucide-react";
 
 const VIEW_LABELS: Record<AppView, string> = {
@@ -372,8 +373,8 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
 
         {/* Main Content — Desktop split layout, Mobile full-width */}
         <main className="flex-1 overflow-hidden md:flex">
-          {/* Left: Task list */}
-          <div className={`flex-1 overflow-y-auto px-6 py-5 ${selectedTaskId ? "hidden md:block" : ""}`}>
+          {/* Left: Task list — always compact */}
+          <div className={`flex-1 overflow-y-auto px-6 py-5 ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}>
             {/* Viewer 唯讀提示 */}
             {isReadOnlyShared && (
               <div
@@ -469,34 +470,22 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
                   </div>
                 </div>
 
-                {/* Task list / Split list */}
-                {selectedTaskId ? (
-                  /* Compact left list */
-                  <div className="flex flex-col gap-1">
+                {/* Task list — always compact */}
+                <div className="flex flex-col gap-1">
+                  <AnimatePresence mode="popLayout">
                     {displayTasks.map((task) => (
-                      <TaskListItem
-                        key={task.id}
-                        task={task}
-                        isSelected={task.id === selectedTaskId}
-                        onClick={() => handleSelectTask(task.id)}
-                        onToggleStatus={toggleTaskStatus}
-                      />
+                      <motion.div key={task.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
+                        <TaskListItem
+                          task={task}
+                          isSelected={task.id === selectedTaskId}
+                          onClick={() => handleSelectTask(task.id)}
+                          onToggleStatus={toggleTaskStatus}
+                          onToggleSubTask={toggleSubTask}
+                        />
+                      </motion.div>
                     ))}
-                  </div>
-                ) : (
-                  /* Full task cards */
-                  <div className={viewMode === "grid" ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" : "flex flex-col gap-2"}>
-                    <AnimatePresence mode="popLayout">
-                      {displayTasks.map((task) => (
-                        <motion.div key={task.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
-                          <TaskSwipeWrapper taskId={task.id} isDone={task.status === "done"} onComplete={() => toggleTaskStatus(task.id)} onDelete={deleteTask} onArchive={archiveTask}>
-                            <TaskCard task={task} onToggleStatus={toggleTaskStatus} onEdit={() => { handleSelectTask(task.id); }} onDelete={deleteTask} onArchive={archiveTask} onToggleSubTask={toggleSubTask} onAddSubTask={addSubTask} onDeleteSubTask={deleteSubTask} onCompleteRecurring={completeRecurringAndClone} />
-                          </TaskSwipeWrapper>
-                        </motion.div>
-                      ))}
-                    </AnimatePresence>
-                  </div>
-                )}
+                  </AnimatePresence>
+                </div>
               </>
             )}
           </div>
@@ -518,7 +507,25 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
                   onClose={() => setSelectedTaskId(null)}
                 />
               </motion.div>
-            ) : null}
+            ) : (
+              <motion.div
+                key="empty-panel"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="w-full md:w-[480px] flex-shrink-0 border-l overflow-hidden flex flex-col items-center justify-center"
+                style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+              >
+                <div className="flex flex-col items-center justify-center h-64 gap-3">
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "var(--surface-muted)" }}>
+                    <AlignLeft className="w-8 h-8" style={{ color: "var(--text-tertiary)" }} />
+                  </div>
+                  <p className="text-[14px]" style={{ color: "var(--text-tertiary)" }}>選擇一個任務</p>
+                  <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>點擊左側任務查看詳情</p>
+                </div>
+              </motion.div>
+            )}
           </AnimatePresence>
         </main>
 

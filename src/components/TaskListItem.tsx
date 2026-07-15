@@ -10,6 +10,7 @@ interface TaskListItemProps {
   isSelected: boolean;
   onClick: () => void;
   onToggleStatus: (id: string) => void;
+  onToggleSubTask?: (taskId: string, subId: string) => void;
 }
 
 export function TaskListItem({
@@ -17,6 +18,7 @@ export function TaskListItem({
   isSelected,
   onClick,
   onToggleStatus,
+  onToggleSubTask,
 }: TaskListItemProps) {
   const subTasks = task.subTasks || [];
   const isDone = task.status === "done";
@@ -70,19 +72,37 @@ export function TaskListItem({
           {task.title}
         </h3>
 
-        {/* Sub-task titles */}
+        {/* Sub-task titles with quick-check */}
         {subTasks.length > 0 && (
-          <ul className="mt-1.5 flex flex-col gap-0.5">
+          <ul className="mt-1.5 flex flex-col gap-1">
             {subTasks.map((sub) => (
               <li
                 key={sub.id}
-                className="text-[12px] truncate"
-                style={{
-                  color: sub.status === "done" ? "var(--text-tertiary)" : "var(--text-secondary)",
-                  textDecoration: sub.status === "done" ? "line-through" : "none",
-                }}
+                className="flex items-center gap-2 group/sub"
               >
-                {sub.title}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleSubTask?.(task.id, sub.id);
+                  }}
+                  className="flex-shrink-0 transition-transform duration-200 hover:scale-110 active:scale-90"
+                  aria-label={sub.status === "done" ? "標記未完成" : "標記完成"}
+                >
+                  {sub.status === "done" ? (
+                    <CheckCircle2 className="w-4 h-4 text-[var(--status-success)]" />
+                  ) : (
+                    <Circle className="w-4 h-4 text-[var(--text-tertiary)] group-hover/sub:text-[var(--text-secondary)]" />
+                  )}
+                </button>
+                <span
+                  className="text-[12px] truncate flex-1"
+                  style={{
+                    color: sub.status === "done" ? "var(--text-tertiary)" : "var(--text-secondary)",
+                    textDecoration: sub.status === "done" ? "line-through" : "none",
+                  }}
+                >
+                  {sub.title}
+                </span>
               </li>
             ))}
           </ul>
