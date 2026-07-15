@@ -114,6 +114,19 @@
     border-color: transparent;
   }
 
+  /* ── iOS Safari 標準防護 ────────────────────────────────
+   * 1. -webkit-tap-highlight-color: 阻止 iOS 點擊後殘留灰色高亮
+   *    (這是「圈圈變深」、「按鈕變深」的根本原因)
+   * 2. -webkit-touch-callout: 禁止 long-press 顯示系統選單
+   * 3. user-select: 禁止非輸入區域的文字選取(圈選氣泡)
+   * 注意：輸入元素(input/textarea)排除,保留原生行為
+   */
+  *:not(input):not(textarea):not([contenteditable="true"]) {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+
   /* 選取文字 — 品牌色調 15% 透明度 */
   ::selection {
     background-color: rgba(59, 130, 246, 0.15);
