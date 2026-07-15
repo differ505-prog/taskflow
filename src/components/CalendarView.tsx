@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useApp } from "@/lib/AppContext";
 import { Task } from "@/lib/types";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, parseISO } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -116,14 +116,13 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
   };
 
   const handleDayClick = (dateStr: string) => {
-    // 如果點同一個日期，則關閉；如果點不同日期，則切換
     setSelectedDate(selectedDate === dateStr ? null : dateStr);
     setQuickAddTitle("");
   };
 
   return (
     <div className="flex flex-col h-full">
-      {/* 日曆區域 */}
+      {/* 日曆區域 - 純顯示，不可點擊任務 */}
       <div className="flex-1 flex flex-col p-4 md:p-6 overflow-hidden">
         {/* Month header */}
         <div className="flex items-center justify-between mb-4 md:mb-5 flex-shrink-0">
@@ -166,7 +165,7 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
           ))}
         </div>
 
-        {/* Calendar cells */}
+        {/* Calendar cells - 純顯示，只有日期可點擊 */}
         <div className="grid grid-cols-7 flex-1 gap-px overflow-y-auto" style={{ background: "var(--border)" }}>
           {days.map((day, i) => {
             const isCurrentMonth = isSameMonth(day, currentMonth);
@@ -174,18 +173,19 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
             const dateStr = format(day, "yyyy-MM-dd");
             const dayTasks = getTasksForDay(day);
             const isSelected = selectedDate === dateStr;
+            const taskCount = dayTasks.length;
 
             return (
               <div
                 key={i}
-                className="flex flex-col overflow-hidden cursor-pointer transition-all duration-150"
+                className="flex flex-col overflow-hidden transition-colors duration-150 cursor-pointer"
                 style={{
                   background: isSelected
                     ? "var(--brand-tint)"
                     : isCurrentMonth
                     ? "var(--surface)"
                     : "var(--surface-muted)",
-                  minHeight: 80,
+                  minHeight: 72,
                 }}
                 onClick={() => handleDayClick(dateStr)}
                 onDragOver={handleDragOver}
@@ -207,39 +207,25 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
                   </span>
                 </div>
 
-                {/* Task dots - 最多顯示 2 個 */}
-                <div className="flex flex-col gap-0.5 px-1 overflow-hidden flex-1">
-                  {dayTasks.slice(0, 2).map((t) => (
-                    <div
-                      key={t.id}
-                      draggable
-                      onDragStart={(e) => {
-                        e.stopPropagation();
-                        handleDragStart(t.id);
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectTask(t.id);
-                      }}
-                      className="flex items-center gap-1 px-1 py-0.5 rounded text-[10px] font-medium truncate cursor-grab active:cursor-grabbing"
+                {/* Task indicator - 只顯示數量或優先級指示，不可點擊 */}
+                <div className="flex-1 flex flex-col items-center justify-start px-1 pb-1">
+                  {taskCount > 0 ? (
+                    <div 
+                      className="w-full rounded-md py-0.5 px-1 text-center"
                       style={{
-                        background: t.status === "done"
-                          ? "rgba(0,0,0,0.05)"
-                          : getPriorityColor(t.priority) + "20",
-                        color: t.status === "done" ? "var(--text-tertiary)" : "var(--text-primary)",
+                        background: isCurrentMonth ? getIndicatorBg(dayTasks) : 'rgba(0,0,0,0.03)',
                       }}
-                      title={t.title}
                     >
-                      <div
-                        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                        style={{ background: getPriorityColor(t.priority) }}
-                      />
-                      {t.title}
+                      <span 
+                        className="text-[10px] font-medium"
+                        style={{ color: isCurrentMonth ? "var(--text-secondary)" : "var(--text-tertiary)" }}
+                      >
+                        {taskCount} 項
+                      </span>
                     </div>
-                  ))}
-                  {dayTasks.length > 2 && (
-                    <div className="text-[10px] px-1" style={{ color: "var(--text-tertiary)" }}>
-                      +{dayTasks.length - 2}
+                  ) : (
+                    <div className="w-full rounded-md py-0.5 text-center opacity-0">
+                      <span className="text-[10px]">-</span>
                     </div>
                   )}
                 </div>
@@ -249,7 +235,7 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
         </div>
       </div>
 
-      {/* 任務列表展開區域 - 在日曆下方 */}
+      {/* 任務列表展開區域 - 完全獨立，點擊任務才會觸發 */}
       <AnimatePresence>
         {selectedDate && (
           <motion.div
@@ -306,7 +292,7 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
                 </button>
               </form>
 
-              {/* Task list */}
+              {/* Task list - 任務可點擊，與日曆格子完全分離 */}
               {selectedDateTasks.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 gap-2">
                   <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "var(--surface-muted)" }}>
@@ -337,7 +323,7 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
   );
 }
 
-// 簡化的日曆任務卡片元件
+// 日曆任務卡片 - 可點擊打開詳情
 function CalendarTaskItem({
   task,
   isSelected,
@@ -417,4 +403,14 @@ function getPriorityColor(priority: string): string {
     case "low": return "#34C759";
     default: return "#AEAEB2";
   }
+}
+
+function getIndicatorBg(tasks: Task[]): string {
+  // 根據任務優先級顯示不同顏色
+  const hasHigh = tasks.some(t => t.priority === "high");
+  const hasMedium = tasks.some(t => t.priority === "medium");
+  
+  if (hasHigh) return "rgba(255, 59, 48, 0.15)";
+  if (hasMedium) return "rgba(255, 149, 0, 0.15)";
+  return "rgba(52, 199, 89, 0.15)";
 }

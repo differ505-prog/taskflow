@@ -254,7 +254,14 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   } : {};
 
   return (
-    <div ref={panelRef} className="flex flex-col h-full overflow-hidden">
+    <div 
+      ref={panelRef} 
+      className="flex flex-col h-full overflow-hidden"
+      onTouchStart={onClose ? handleTouchStart : undefined}
+      onTouchMove={onClose ? handleTouchMove : undefined}
+      onTouchEnd={onClose ? handleTouchEnd : undefined}
+      style={panelStyle}
+    >
       {/* Swipe indicator */}
       {onClose && swipeX < 0 && (
         <div className="absolute top-1/2 left-3 -translate-y-1/2 z-10 pointer-events-none" style={{ opacity: Math.min(1, Math.abs(swipeX) / 100) }}>
@@ -301,13 +308,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
         </div>
 
         {/* Form body */}
-        <div 
-          className="flex-1 overflow-y-auto p-6 space-y-5 touch-none"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          style={panelStyle}
-        >
+        <div className="flex-1 overflow-y-auto p-6 space-y-5 pb-24">
 
         {/* Title */}
         <div>

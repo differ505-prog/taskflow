@@ -129,7 +129,7 @@ function AppLayoutInner() {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: isMobile ? "100%" : 20 }}
           transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-          className={isMobile ? "fixed inset-0 z-50" : "w-full md:w-[480px] flex-shrink-0 border-l overflow-y-auto"}
+          className={isMobile ? "fixed inset-0 z-[60] pb-[72px]" : "w-full md:w-[480px] flex-shrink-0 border-l overflow-y-auto"}
           style={{ 
             borderColor: "var(--border)", 
             background: "var(--surface)",
