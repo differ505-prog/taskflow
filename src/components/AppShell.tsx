@@ -371,7 +371,7 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
       </header>
 
         {/* Main Content — Desktop split layout, Mobile full-width */}
-        <main className="flex-1 overflow-hidden md:flex">
+        <main className="flex-1 flex flex-col overflow-hidden md:flex-row">
           {/* Left: Task list — always compact */}
           <div className={`flex-1 overflow-y-auto px-6 py-5 pb-[calc(60px+env(safe-area-inset-bottom,0px)+24px)] md:pb-5 ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}>
             {/* Viewer 唯讀提示 */}
@@ -406,13 +406,13 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2">
-                    <AnimatePresence mode="popLayout">
+                    <AnimatePresence>
                       {[...sharedLists[currentSharedListId].tasks].sort((a, b) => {
                         if (a.status === "done" && b.status !== "done") return 1;
                         if (a.status !== "done" && b.status === "done") return -1;
                         return 0;
                       }).map((task) => (
-                        <motion.div key={task.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
+                        <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
                           {isReadOnlyShared ? (
                             <TaskCard task={task} onToggleStatus={() => {}} onEdit={() => {}} onDelete={() => {}} onArchive={() => {}} />
                           ) : (
@@ -488,7 +488,7 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
                 <div className="flex flex-col gap-1">
                   <AnimatePresence mode="popLayout">
                     {displayTasks.map((task) => (
-                      <motion.div key={task.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
+                      <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
                         <TaskListItem
                           task={task}
                           isSelected={task.id === selectedTaskId}
