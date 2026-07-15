@@ -57,6 +57,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   const [recurrenceEndDate, setRecurrenceEndDate] = useState(task.recurrence?.endDate || "");
   const [subTasks, setSubTasks] = useState<SubTask[]>(task.subTasks || []);
   const [newSubTask, setNewSubTask] = useState("");
+  const [editingSubId, setEditingSubId] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>(task.attachments || []);
   const [hasChanges, setHasChanges] = useState(false);
@@ -81,6 +82,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     setRecurrenceDaysOfWeek(task.recurrence?.daysOfWeek || []);
     setRecurrenceEndDate(task.recurrence?.endDate || "");
     setSubTasks(task.subTasks || []);
+    setEditingSubId(null);
     setAttachments(task.attachments || []);
     setHasChanges(false);
   }, [task.id]);
@@ -214,6 +216,20 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     setSubTasks(updated);
     // 自動儲存刪除變更
     updateTask(task.id, { subTasks: updated });
+  };
+
+  const commitEditSubTask = (subId: string, rawTitle: string) => {
+    const title = rawTitle.trim();
+    if (!title) {
+      // 空字串視為刪除
+      deleteSubTask(subId);
+      setEditingSubId(null);
+      return;
+    }
+    const updated: SubTask[] = subTasks.map((s) => (s.id === subId ? { ...s, title } : s));
+    setSubTasks(updated);
+    updateTask(task.id, { subTasks: updated });
+    setEditingSubId(null);
   };
 
   const selectStyle = {
@@ -391,28 +407,46 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             <span className="ml-auto text-[11px]" style={{ color: "var(--text-tertiary)" }}>自動儲存</span>
           </div>
           {subTasks.map((sub) => (
-            <div key={sub.id} className="flex items-center gap-2 mb-2 group">
+            <div key={sub.id} className="flex items-center gap-2 mb-2 group/sub">
               <button
                 onClick={() => toggleSubTask(sub.id)}
-                className="flex-shrink-0 transition-transform hover:scale-110"
+                className="flex-shrink-0 w-7 h-7 -m-1.5 flex items-center justify-center rounded-full transition-transform hover:scale-110 active:scale-95 hover:bg-black/[0.04]"
                 aria-label={sub.status === "done" ? "標記未完成" : "標記完成"}
               >
                 {sub.status === "done" ? (
-                  <CheckCircle2 className="w-4 h-4 text-[var(--status-success)]" />
+                  <CheckCircle2 className="w-[18px] h-[18px] text-[var(--status-success)]" />
                 ) : (
-                  <Circle className="w-4 h-4 text-[var(--text-tertiary)]" />
+                  <Circle className="w-[18px] h-[18px] text-[var(--text-tertiary)]" />
                 )}
               </button>
-              <span
-                className={`flex-1 text-[13px] ${sub.status === "done" ? "line-through opacity-50" : ""}`}
-                style={{ color: sub.status === "done" ? "var(--text-tertiary)" : "var(--text-primary)" }}
-              >
-                {sub.title}
-              </span>
+              {editingSubId === sub.id ? (
+                <input
+                  autoFocus
+                  type="text"
+                  defaultValue={sub.title}
+                  onBlur={(e) => commitEditSubTask(sub.id, e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+                    if (e.key === "Escape") { setEditingSubId(null); }
+                  }}
+                  className="flex-1 text-[13px] bg-white/60 rounded px-1.5 py-0.5 outline-none border border-[var(--brand)]/40 focus:border-[var(--brand)]"
+                  style={{ color: "var(--text-primary)" }}
+                  aria-label="編輯子任務"
+                />
+              ) : (
+                <span
+                  onClick={() => setEditingSubId(sub.id)}
+                  className={`flex-1 text-[13px] cursor-text rounded px-1 -mx-1 hover:bg-black/[0.03] transition-colors ${sub.status === "done" ? "line-through opacity-50" : ""}`}
+                  style={{ color: sub.status === "done" ? "var(--text-tertiary)" : "var(--text-primary)" }}
+                  title="點擊編輯"
+                >
+                  {sub.title}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => deleteSubTask(sub.id)}
-                className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/5"
+                className="p-1 rounded opacity-0 group-hover/sub:opacity-100 transition-opacity hover:bg-black/5"
                 style={{ color: "var(--text-tertiary)" }}
                 aria-label="刪除子任務"
               >
