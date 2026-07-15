@@ -10,6 +10,7 @@ import {
   X, Plus, Repeat, Calendar, Mic, MicOff, Hash,
   Trash2, CheckCircle2, Circle, Tag as TagIcon,
   AlignLeft, Clock, Timer, ListChecks, Paperclip,
+  Flag,
 } from "lucide-react";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
 import TaskCommentsInline from "./TaskCommentsInline";
@@ -361,6 +362,23 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
           )}
         </div>
 
+        {/* Description */}
+        <div>
+          <div className="flex items-center gap-1.5 mb-2">
+            <AlignLeft className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
+            <label className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>描述</label>
+          </div>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="任務描述（支援 Markdown）"
+            rows={3}
+            className="input resize-none"
+            style={{ minHeight: 80 }}
+            maxLength={1000}
+          />
+        </div>
+
         {/* Sub-tasks */}
         <div className="rounded-2xl p-4" style={{ background: "var(--surface-muted)" }}>
           <div className="flex items-center gap-1.5 mb-3">
@@ -410,63 +428,64 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
           </div>
         </div>
 
-        {/* Description */}
-        <div>
-          <div className="flex items-center gap-1.5 mb-2">
-            <AlignLeft className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
-            <label className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>描述</label>
-          </div>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="任務描述（支援 Markdown）"
-            rows={3}
-            className="input resize-none"
-            style={{ minHeight: 80 }}
-            maxLength={1000}
-          />
-        </div>
-
-        {/* Attachments */}
-        <div>
-          <div className="flex items-center gap-1.5 mb-2">
-            <Paperclip className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
-            <label className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>附件</label>
-          </div>
-          <ProtectedUploadButton
-            existingAttachments={attachments}
-            onRemoveAttachment={(attachment) => {
-              setAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
-            }}
-            onFilesUploaded={(newAttachments) => {
-              setAttachments((prev) => [...prev, ...newAttachments]);
-            }}
-            buttonText="添加附件"
-          />
-        </div>
-
-        {/* List + Priority */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* List + Priority + Attachments — 圖示化緊湊區 */}
+        <div className="rounded-2xl p-4 space-y-3" style={{ background: "var(--surface-muted)" }}>
+          {/* 優先級：旗子圖示切換 */}
           <div>
-            <div className="flex items-center gap-1.5 mb-2">
-              <ListChecks className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
-              <label className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>清單</label>
+            <label className="block mb-2 text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>優先級</label>
+            <div className="flex gap-2">
+              {(["high", "medium", "low"] as Priority[]).map((p) => {
+                const isActive = priority === p;
+                const flagColor = p === "high" ? "var(--priority-high)" : p === "medium" ? "var(--priority-medium)" : "var(--priority-low)";
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPriority(p)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl transition-all duration-150 active:scale-95"
+                    style={isActive
+                      ? { background: flagColor, color: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }
+                      : { background: "var(--surface)", color: flagColor, border: "1px solid var(--border)" }
+                    }
+                    aria-label={`${PRIORITY_CONFIG[p].label}優先`}
+                  >
+                    <Flag className="w-3.5 h-3.5" fill={isActive ? "currentColor" : "none"} />
+                    <span className="text-[12px] font-medium">{PRIORITY_CONFIG[p].label}</span>
+                  </button>
+                );
+              })}
             </div>
-            <select value={listId || ""} onChange={(e) => setListId(e.target.value || undefined)} className="input cursor-pointer" style={selectStyle}>
-              <option value="">無清單</option>
+          </div>
+
+          {/* 清單：緊湊下拉 */}
+          <div>
+            <label className="block mb-2 text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>清單</label>
+            <select value={listId || ""} onChange={(e) => setListId(e.target.value || undefined)} className="input cursor-pointer text-[13px]" style={selectStyle}>
+              <option value="">📋 無清單</option>
               {lists.map((l) => <option key={l.id} value={l.id}>{l.icon} {l.name}</option>)}
             </select>
           </div>
-          <div>
-            <div className="flex items-center gap-1.5 mb-2">
-              <TagIcon className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
-              <label className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>優先級</label>
+
+          {/* 附件：迴紋針按鈕 */}
+          <div className="flex items-center justify-between">
+            <label className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>附件</label>
+            <div className="flex items-center gap-2">
+              {attachments.length > 0 && (
+                <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>
+                  {attachments.length} 個
+                </span>
+              )}
+              <ProtectedUploadButton
+                existingAttachments={attachments}
+                onRemoveAttachment={(attachment) => {
+                  setAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
+                }}
+                onFilesUploaded={(newAttachments) => {
+                  setAttachments((prev) => [...prev, ...newAttachments]);
+                }}
+                buttonText="迴紋針上傳"
+              />
             </div>
-            <select value={priority} onChange={(e) => setPriority(e.target.value as Priority)} className="input cursor-pointer" style={selectStyle}>
-              {(["high", "medium", "low"] as Priority[]).map((p) => (
-                <option key={p} value={p}>{PRIORITY_CONFIG[p].label}優先</option>
-              ))}
-            </select>
           </div>
         </div>
 
@@ -574,24 +593,18 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
         {/* Tags */}
         <div>
           <div className="flex items-center gap-1.5 mb-2">
-            <Hash className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
-            <label className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>標籤</label>
+            <TagIcon className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
+            <label className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>標籤</label>
           </div>
           <div className="relative">
             <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--text-tertiary)" }} aria-hidden="true" />
-                <input type="text" value={tagInput} onChange={(e) => { setTagInput(e.target.value); updateTagSuggestions(e.target.value); }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") { e.preventDefault(); addTag(); }
-                    if (e.key === "Escape") { setShowSuggestions(false); }
-                  }}
-                  onFocus={() => { if (tagInput.trim()) updateTagSuggestions(tagInput); }}
-                  placeholder="輸入或選擇標籤" className="input flex-1 pl-9" maxLength={50} />
-              </div>
-              <button type="button" onClick={addTag} className="btn-ghost flex-shrink-0 px-3" aria-label="新增標籤">
-                <Plus className="w-4 h-4" />
-              </button>
+              <input type="text" value={tagInput} onChange={(e) => { setTagInput(e.target.value); updateTagSuggestions(e.target.value); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); addTag(); }
+                  if (e.key === "Escape") { setShowSuggestions(false); }
+                }}
+                onFocus={() => { if (tagInput.trim()) updateTagSuggestions(tagInput); }}
+                placeholder="新增標籤..." className="input flex-1 text-[13px]" maxLength={50} />
             </div>
 
             <AnimatePresence>
