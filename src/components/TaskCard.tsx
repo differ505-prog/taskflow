@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { Task, SubTask } from "@/lib/types";
+import { Task, SubTask, Priority } from "@/lib/types";
 import { PriorityBadge } from "./PriorityBadge";
+import { TaskQuickActions } from "./TaskQuickActions";
 import TaskCommentsInline from "./TaskCommentsInline";
+import { getEisenhowerVisual } from "@/lib/eisenhower";
 import { format, isToday, isTomorrow, isPast, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { haptic } from "@/lib/haptics";
@@ -25,6 +27,9 @@ interface TaskCardProps {
   onAddSubTask?: (taskId: string, title: string) => void;
   onDeleteSubTask?: (taskId: string, subId: string) => void;
   onCompleteRecurring?: (taskId: string) => void;
+  onUpdatePriority?: (id: string, p: Priority) => void;
+  onUpdateTags?: (id: string, tags: string[]) => void;
+  allTags?: string[];
   draggable?: boolean;
 }
 
@@ -117,6 +122,9 @@ export function TaskCard({
   onToggleSubTask,
   onAddSubTask,
   onDeleteSubTask,
+  onUpdatePriority,
+  onUpdateTags,
+  allTags = [],
 }: TaskCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showSubTaskInput, setShowSubTaskInput] = useState(false);
@@ -185,20 +193,20 @@ export function TaskCard({
         }
       }}
     >
-      {/* Priority left border accent */}
-      {!isDone && (
-        <div
-          className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl"
-          style={{
-            background:
-              task.priority === "high"
-                ? "var(--priority-high)"
-                : task.priority === "medium"
-                ? "var(--priority-medium)"
-                : "var(--priority-low)",
-          }}
-        />
-      )}
+      {/* Priority left border accent — 艾森豪四象限視覺 */}
+      {!isDone && (() => {
+        const eisen = getEisenhowerVisual(task);
+        return (
+          <div
+            className="absolute left-0 top-0 bottom-0 rounded-l-xl"
+            style={{
+              width: eisen.isUrgent ? 3 : 1,
+              background: eisen.color,
+              boxShadow: eisen.isUrgent ? `0 0 8px ${eisen.color}66` : undefined,
+            }}
+          />
+        );
+      })()}
 
       <div className="flex items-start gap-3 pl-5 pr-4 py-4">
         {/* Status toggle — always visible, tap to complete */}
@@ -226,7 +234,12 @@ export function TaskCard({
             >
               {task.title}
             </h3>
-            <div className="flex-shrink-0 flex items-center gap-1.5">
+
+            {/* 右上角：旗子 / 標籤 / 附件 / 子任務 icon 三件套（quick actions） */}
+            <div
+              className="flex-shrink-0 flex items-center gap-1"
+              onClick={(e) => e.stopPropagation()}
+            >
               {task.recurrence && (
                 <span className="p-1 rounded-lg" style={{ color: "var(--brand)" }} title="重複任務">
                   <Repeat className="w-3.5 h-3.5" />
@@ -238,7 +251,14 @@ export function TaskCard({
                   {task.focusMinutes}m
                 </span>
               )}
-              <PriorityBadge priority={task.priority} size="sm" />
+              {(onUpdatePriority || onUpdateTags) && (
+                <TaskQuickActions
+                  task={task}
+                  onUpdatePriority={(p) => onUpdatePriority?.(task.id, p)}
+                  onUpdateTags={(tags) => onUpdateTags?.(task.id, tags)}
+                  allTags={allTags}
+                />
+              )}
             </div>
           </div>
 

@@ -5,12 +5,13 @@ import { Task, Priority, TaskStatus, Recurrence, SubTask, Attachment } from "@/l
 import { PRIORITY_CONFIG } from "@/lib/types";
 import { useApp } from "@/lib/AppContext";
 import { getTagColors } from "@/lib/storage";
+import { getEisenhowerVisual } from "@/lib/eisenhower";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   X, Plus, Repeat, Calendar, Mic, MicOff, Hash,
   Trash2, CheckCircle2, Circle, Tag as TagIcon,
   AlignLeft, Clock, Timer, ListChecks, Paperclip,
-  Flag,
+  Flag, AlertCircle,
 } from "lucide-react";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
 import TaskCommentsInline from "./TaskCommentsInline";
@@ -430,7 +431,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
 
         {/* List + Priority + Attachments — 圖示化緊湊區 */}
         <div className="rounded-2xl p-4 space-y-3" style={{ background: "var(--surface-muted)" }}>
-          {/* 優先級：旗子圖示切換 */}
+          {/* 優先級：旗子圖示切換（艾森豪 Q1-Q4 視覺） */}
           <div>
             <label className="block mb-2 text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>優先級</label>
             <div className="flex gap-2">
@@ -455,6 +456,28 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
                 );
               })}
             </div>
+
+            {/* Q1 緊急狀態提示：priority=high 且 dueDate 在 24h 內時顯示 */}
+            {(() => {
+              const eisen = getEisenhowerVisual({
+                priority,
+                dueDate,
+              });
+              if (!eisen.isUrgent) return null;
+              return (
+                <div
+                  className="mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px]"
+                  style={{
+                    background: `${eisen.color}12`,
+                    color: eisen.color,
+                    border: `1px solid ${eisen.color}30`,
+                  }}
+                >
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="font-medium">艾森豪 Q1 · 24 小時內緊急</span>
+                </div>
+              );
+            })()}
           </div>
 
           {/* 清單：緊湊下拉 */}

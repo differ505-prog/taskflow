@@ -417,7 +417,15 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
                             <TaskCard task={task} onToggleStatus={() => {}} onEdit={() => {}} onDelete={() => {}} onArchive={() => {}} />
                           ) : (
                             <TaskSwipeWrapper taskId={task.id} isDone={task.status === "done"} onComplete={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })} onDelete={() => deleteSharedTask(currentSharedListId, task.id)} onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })}>
-                              <TaskCard task={task} onToggleStatus={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })} onEdit={() => {}} onDelete={() => deleteSharedTask(currentSharedListId, task.id)} onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })} />
+                              <TaskCard
+                                task={task}
+                                onToggleStatus={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })}
+                                onEdit={() => {}}
+                                onDelete={() => deleteSharedTask(currentSharedListId, task.id)}
+                                onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })}
+                                onUpdatePriority={(id, p) => updateSharedTask(currentSharedListId, id, { priority: p })}
+                                onUpdateTags={(id, tags) => updateSharedTask(currentSharedListId, id, { tags })}
+                              />
                             </TaskSwipeWrapper>
                           )}
                         </motion.div>
@@ -487,6 +495,9 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
                           onClick={() => handleSelectTask(task.id)}
                           onToggleStatus={toggleTaskStatus}
                           onToggleSubTask={toggleSubTask}
+                          onUpdatePriority={(id, p) => updateTask(id, { priority: p })}
+                          onUpdateTags={(id, tags) => updateTask(id, { tags })}
+                          allTags={Object.keys(getTagCounts())}
                         />
                       </motion.div>
                     ))}
