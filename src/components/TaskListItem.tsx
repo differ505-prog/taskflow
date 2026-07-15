@@ -2,6 +2,7 @@
 
 import { Task, Priority } from "@/lib/types";
 import { TaskQuickActions } from "./TaskQuickActions";
+import { TextWithLinks } from "./TextWithLinks";
 import {
   CheckCircle2, Circle,
 } from "lucide-react";
@@ -57,7 +58,7 @@ export function TaskListItem({
       {/* Checkbox */}
       <button
         onClick={handleCheckboxClick}
-        className="flex-shrink-0 mt-1 transition-transform duration-200 hover:scale-110 active:scale-90 z-10"
+        className="flex-shrink-0 mt-1 transition-transform hover:scale-110 z-10"
         aria-label={isDone ? "標記未完成" : "標記完成"}
       >
         {isDone ? (
@@ -105,23 +106,32 @@ export function TaskListItem({
                     e.stopPropagation();
                     onToggleSubTask?.(task.id, sub.id);
                   }}
-                  className="flex-shrink-0 transition-transform duration-200 hover:scale-110 active:scale-90"
+                  className="flex-shrink-0 -m-1.5 p-1 rounded-full transition-transform hover:scale-110"
                   aria-label={sub.status === "done" ? "標記未完成" : "標記完成"}
                 >
                   {sub.status === "done" ? (
-                    <CheckCircle2 className="w-4 h-4 text-[var(--status-success)]" />
+                    <CheckCircle2 className="w-[18px] h-[18px] text-[var(--status-success)]" />
                   ) : (
-                    <Circle className="w-4 h-4 text-[var(--text-tertiary)] group-hover/sub:text-[var(--text-secondary)]" />
+                    <Circle className="w-[18px] h-[18px] text-[var(--text-tertiary)] group-hover/sub:text-[var(--text-secondary)]" />
                   )}
                 </button>
                 <span
-                  className="text-[12px] truncate flex-1"
+                  className="text-[12px] truncate min-w-0 flex-1 break-words"
                   style={{
                     color: sub.status === "done" ? "var(--text-tertiary)" : "var(--text-secondary)",
                     textDecoration: sub.status === "done" ? "line-through" : "none",
+                    wordBreak: "break-word",
+                    overflowWrap: "anywhere",
                   }}
+                  title={sub.title}
                 >
-                  {sub.title}
+                  <TextWithLinks
+                    text={sub.title}
+                    linkStyle={{
+                      color: "var(--brand)",
+                      textDecoration: "underline",
+                    }}
+                  />
                 </span>
               </li>
             ))}
