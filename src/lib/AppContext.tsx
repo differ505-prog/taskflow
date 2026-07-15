@@ -568,8 +568,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const toggleTaskStatus = useCallback((id: string) => {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
-    const next: Record<string, string> = { todo: "in-progress", "in-progress": "done", done: "todo" };
-    const newStatus = next[task.status] as Task["status"];
+    // 任務完成按鈕：直接切換 todo <-> done（跳過 in-progress）
+    const newStatus: Task["status"] = task.status === "done" ? "todo" : "done";
     const updated = tasks.map((t) =>
       t.id === id ? { ...t, status: newStatus, updatedAt: new Date().toISOString() } : t
     );
