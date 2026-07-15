@@ -173,32 +173,62 @@ alwaysApply: true
 
 任何擴大範圍的變更，必須先在評分表中揭露，等你明確同意後才能做。
 
-### 15. UI Bug 必看實證前置 Gate (Runtime Evidence First)
+### 15. Runtime 驗證分級 (Right Tool for the Job)
 
-**觸發**：報告任何 UI/佈局/樣式/互動類 bug 時
+**最高原則：最簡工具優先 (Cheapest Tool First)**
 
-**流程**：
-1. **禁止僅憑 code 推測**：grep + 讀源碼 ≠ 看見 bug
-2. **先用瀏覽器或 CDP 取得 runtime 證據**：
-   - 開啟實際頁面（或本地 dev server）
-   - 重現 bug 場景（必要時用 JS 塞資料觸發）
-   - 量測關鍵數值（DOM 結構、CSS 計算值、scrollHeight/clientHeight、viewport 尺寸、flex/grid 屬性）
-3. **進評分表前**，必須列出已觀察到的證據：「我看到 X 是 A、Y 是 B、所以猜測 Z」
-4. **證據不足時，主動要求去看實證**，而不是硬給方案
+> **除非明確需要 runtime 證據，否則不要啟動 CDP / 瀏覽器互動。**
+> 改 Tailwind class、加 component-local state、寫新 handler -- 程式碼看完 + lint 過即收工。
+> 留給使用者實際操作時自然發現問題，不要為了「我覺得應該驗證」而浪費 tool call。
 
-**為什麼**：上輪「收集箱捲到底被遮」bug，光看 code 我推測是 Framer Motion 的 `layout` prop 在搞鬼，實際根本原因是 `<main>` 沒設 `flex flex-col` 導致 list 的 `flex-1 overflow-y-auto` 無效。**沒有 runtime 數據就會繞遠路**。
+#### 15.1 觸發 Runtime 驗證的情境（才走 CDP / 瀏覽器）
 
-**附錄：工具選擇決策樹（避免上輪登入灌資料浪費 10+ tool call）**
+- ✅ 該走 CDP/瀏覽器：跨元件資料流、API 串接、Zustand selector 變更、持久化、CSS 計算值、佈局尺寸、runtime error
+- ✅ 該走瀏覽器互動：驗收真實 UX（transition、modal 開關、hover 視覺）
+- ✅ 該走 CDP 量測：視窗尺寸、flex/grid 屬性、scrollHeight、bounding rect
+
+- ❌ 不該走 CDP/瀏覽器：改 Tailwind class / inline style、加新 component-local state、加新 onClick/onChange handler、改 useEffect 邏輯但沒跨元件
+
+#### 15.2 Runtime 驗證成本意識
+
+- CDP 1 個 evaluate 看 DOM 屬性 = **1 tool call**
+- 開瀏覽器截圖 = **1 tool call**
+- 完整還原「使用者操作流程」（點按鈕 → 等 modal → 點確認 → 等動畫）= **5-10 tool calls**
+- **能從程式碼直接讀出答案的事情（像是 `w-4` = 16px、`w-7` = 28px），不准用 CDP 量**
+
+#### 15.3 失敗上限（繼承 § 16）
+
+連續 2 次 CDP / 互動無收穫 → **立即停止**，向使用者報告：
+1. 我試過什麼（具體動作 + 結果）
+2. 我現在卡在哪（具體阻擋點）
+3. 建議下一步（換策略?手動介入?放棄?）
+
+**禁止**「再試一次然後又換一種方式」 -- 這是 rabbit hole。
+
+#### 15.4 為什麼需要這條
+
+上輪「子任務勾選圈圈太小」改動：
+- 程式碼明確寫 `w-4 h-4`（16px）→ 改為 `w-7 h-7`（28px）
+- 我卻啟動 CDP 量當前尺寸 + 量改後尺寸 + 派發 React event 驗證可編輯
+- 浪費 8+ tool call，還撞到 Auto-review 攔截
+- **程式碼讀完就已經 100% 確認視覺結果，根本不需要 runtime**
+
+對比上上輪「收集箱捲到底被遮」bug：
+- 確實需要 runtime 看見遮擋才能確認 fix 有效 → CDP 是對的
+
+**兩種情境的差別**：前者是「預測改完會怎樣」（程式碼即答案），後者是「診斷為什麼這樣」（必須看見才能定位）。
+
+#### 附錄：工具選擇決策樹（預設從最簡開始）
 
 | 場景 | 推薦工具 | 為何 |
 |------|---------|------|
-| 看真實 UX（按鈕 hover、modal 開關、transition） | `browser_click / type / navigate` | 必須看視覺 |
-| 觸發應用進入某狀態（灌資料、切換頁面） | `CDP Runtime.evaluate` 直接操縱 state / localStorage | **不必走 UI 流程**，1 個 call 搞定 |
-| 量計算後樣式（flex 屬性、scrollHeight、clientHeight、padding） | `CDP CSS.getComputedStyleForNode` 或 `getComputedStyle` | UI 互動量不到 |
-| 量 DOM 結構（父鏈、節點數、bounding rect） | `CDP DOM.getDocument` + `getBoundingClientRect` | UI 互動耗時 |
+| 程式碼讀完就能確定答案（純 Tailwind / 純 inline style / 純 state 新增） | **grep + Read + 程式碼 review** | 0 tool call 浪費 |
+| 程式碼看不出來，但能從 DOM 推算（getBoundingClientRect、computed style） | `CDP Runtime.evaluate` 一次性量測 | 1 tool call 搞定 |
+| 視覺要看真實呈現（hover 效果、modal 開關、transition 動畫） | `browser_click / type / navigate` + screenshot | 必須看 |
+| 需要互動才能進入某狀態（登入、切換頁面、灌資料） | `CDP Runtime.evaluate` 直接操縱 state / localStorage | **不必走 UI 流程** |
 | 抓 console error / network 請求 | `CDP Log.enable` / `Network.enable` | 唯一管道 |
 
-**捷徑**：若目的是「驗證程式碼邏輯 / 抓 bug」→ **預設走 CDP**，不要先走瀏覽器互動；只有「驗收真實 UX」才走瀏覽器。
+**預設順序**：`程式碼 review` → `CDP 量測` → `瀏覽器互動`。**不預設走 CDP**。
 
 ### 16. 失敗上限與卡住回報 (Failure Budget)
 
@@ -253,3 +283,4 @@ alwaysApply: true
 | 2026-07-15 | 簡化：23 條 → 14 條，刪除重複、統一門檻 7.5 分、移除 30 秒超時自動執行 |
 | 2026-07-15 | 新增 3 條：15 UI Bug 必看實證、16 失敗上限卡住回報、17 改動分類揭露（針對「收集箱被遮」bug 繞彎路教訓） |
 | 2026-07-15 | 第 15 條附錄「工具選擇決策樹」（瀏覽器互動 vs CDP 的取捨） |
+| 2026-07-15 | 第 15 條修憲：「UI Bug 必看實證」改為「Runtime 驗證分級」,新增最簡工具優先原則 + 不該走 CDP 的明確清單(針對「圈圈大小」改動浪費 CDP 的教訓) |
