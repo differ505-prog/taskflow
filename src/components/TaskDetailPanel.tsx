@@ -409,7 +409,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
           {subTasks.map((sub) => (
             <div key={sub.id} className="flex items-center gap-2 mb-2 group/sub">
               <label
-                className="flex-shrink-0 w-7 h-7 -m-1.5 flex items-center justify-center rounded-full cursor-pointer transition-transform hover:scale-110"
+                className="flex-shrink-0 w-7 h-7 -m-1.5 flex items-center justify-center rounded-full cursor-pointer transition-transform [@media(hover:hover)]:hover:scale-110"
               >
                 <input
                   type="checkbox"
@@ -421,7 +421,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
                 {sub.status === "done" ? (
                   <CheckCircle2 className="w-[18px] h-[18px] text-[var(--status-success)]" />
                 ) : (
-                  <Circle className="w-[18px] h-[18px] text-[var(--text-tertiary)] group-hover/sub:text-[var(--text-secondary)]" />
+                  <Circle className="w-[18px] h-[18px] text-[var(--text-tertiary)] [@media(hover:hover)]:group-hover/sub:text-[var(--text-secondary)]" />
                 )}
               </label>
               {editingSubId === sub.id ? (
@@ -451,7 +451,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               <button
                 type="button"
                 onClick={() => deleteSubTask(sub.id)}
-                className="p-1 rounded opacity-0 group-hover/sub:opacity-100 transition-opacity hover:bg-black/5"
+                className="p-1 rounded opacity-0 [@media(hover:hover)]:group-hover/sub:opacity-100 transition-opacity hover:bg-black/5"
                 style={{ color: "var(--text-tertiary)" }}
                 aria-label="刪除子任務"
               >
