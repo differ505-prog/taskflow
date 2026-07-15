@@ -183,25 +183,34 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
 
   const addSubTask = () => {
     const t = newSubTask.trim();
-    if (t) {
-      setSubTasks([...subTasks, {
-        id: `${Date.now()}-sub`,
-        title: t,
-        status: "todo" as const,
-        createdAt: new Date().toISOString(),
-      }]);
-      setNewSubTask("");
-    }
+    if (!t) return;
+    const newSub: SubTask = {
+      id: `${Date.now()}-sub`,
+      title: t,
+      status: "todo" as const,
+      createdAt: new Date().toISOString(),
+    };
+    const updated: SubTask[] = [...subTasks, newSub];
+    setSubTasks(updated);
+    setNewSubTask("");
+    // 自動儲存子任務變更
+    updateTask(task.id, { subTasks: updated });
   };
 
   const toggleSubTask = (subId: string) => {
-    setSubTasks(subTasks.map((s) =>
-      s.id === subId ? { ...s, status: s.status === "done" ? "todo" : "done" as const } : s
-    ));
+    const updated: SubTask[] = subTasks.map((s) =>
+      s.id === subId ? { ...s, status: s.status === "done" ? "todo" : "done" } : s
+    );
+    setSubTasks(updated);
+    // 自動儲存勾選狀態變更
+    updateTask(task.id, { subTasks: updated });
   };
 
   const deleteSubTask = (subId: string) => {
-    setSubTasks(subTasks.filter((s) => s.id !== subId));
+    const updated: SubTask[] = subTasks.filter((s) => s.id !== subId);
+    setSubTasks(updated);
+    // 自動儲存刪除變更
+    updateTask(task.id, { subTasks: updated });
   };
 
   const selectStyle = {
@@ -350,6 +359,55 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
           {!title.trim() && (
             <p className="mt-1 text-[12px]" style={{ color: "var(--status-danger)" }}>標題必填</p>
           )}
+        </div>
+
+        {/* Sub-tasks */}
+        <div className="rounded-2xl p-4" style={{ background: "var(--surface-muted)" }}>
+          <div className="flex items-center gap-1.5 mb-3">
+            <ListChecks className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
+            <label className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
+              子任務 ({subTasks.filter((s) => s.status === "done").length}/{subTasks.length})
+            </label>
+            <span className="ml-auto text-[11px]" style={{ color: "var(--text-tertiary)" }}>自動儲存</span>
+          </div>
+          {subTasks.map((sub) => (
+            <div key={sub.id} className="flex items-center gap-2 mb-2 group">
+              <button
+                onClick={() => toggleSubTask(sub.id)}
+                className="flex-shrink-0 transition-transform hover:scale-110"
+                aria-label={sub.status === "done" ? "標記未完成" : "標記完成"}
+              >
+                {sub.status === "done" ? (
+                  <CheckCircle2 className="w-4 h-4 text-[var(--status-success)]" />
+                ) : (
+                  <Circle className="w-4 h-4 text-[var(--text-tertiary)]" />
+                )}
+              </button>
+              <span
+                className={`flex-1 text-[13px] ${sub.status === "done" ? "line-through opacity-50" : ""}`}
+                style={{ color: sub.status === "done" ? "var(--text-tertiary)" : "var(--text-primary)" }}
+              >
+                {sub.title}
+              </span>
+              <button
+                type="button"
+                onClick={() => deleteSubTask(sub.id)}
+                className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/5"
+                style={{ color: "var(--text-tertiary)" }}
+                aria-label="刪除子任務"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+          <div className="flex gap-2 mt-3">
+            <input type="text" value={newSubTask} onChange={(e) => setNewSubTask(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
+              placeholder="新增子任務..." className="input flex-1" style={{ fontSize: 13, padding: "8px 12px" }} />
+            <button type="button" onClick={addSubTask} className="btn-ghost px-3" aria-label="新增子任務">
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Description */}
@@ -596,54 +654,6 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               })}
             </div>
           )}
-        </div>
-
-        {/* Sub-tasks */}
-        <div>
-          <div className="flex items-center gap-1.5 mb-2">
-            <ListChecks className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
-            <label className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
-              子任務 ({subTasks.filter((s) => s.status === "done").length}/{subTasks.length})
-            </label>
-          </div>
-          {subTasks.map((sub, i) => (
-            <div key={sub.id} className="flex items-center gap-2 mb-2 group">
-              <button
-                onClick={() => toggleSubTask(sub.id)}
-                className="flex-shrink-0 transition-transform hover:scale-110"
-                aria-label={sub.status === "done" ? "標記未完成" : "標記完成"}
-              >
-                {sub.status === "done" ? (
-                  <CheckCircle2 className="w-4 h-4 text-[var(--status-success)]" />
-                ) : (
-                  <Circle className="w-4 h-4 text-[var(--text-tertiary)]" />
-                )}
-              </button>
-              <span
-                className={`flex-1 text-[13px] ${sub.status === "done" ? "line-through opacity-50" : ""}`}
-                style={{ color: sub.status === "done" ? "var(--text-tertiary)" : "var(--text-primary)" }}
-              >
-                {sub.title}
-              </span>
-              <button
-                type="button"
-                onClick={() => deleteSubTask(sub.id)}
-                className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/5"
-                style={{ color: "var(--text-tertiary)" }}
-                aria-label="刪除子任務"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
-          <div className="flex gap-2">
-            <input type="text" value={newSubTask} onChange={(e) => setNewSubTask(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
-              placeholder="新增子任務..." className="input flex-1" style={{ fontSize: 13, padding: "8px 12px" }} />
-            <button type="button" onClick={addSubTask} className="btn-ghost px-3" aria-label="新增子任務">
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
         </div>
 
         {/* Comments */}
