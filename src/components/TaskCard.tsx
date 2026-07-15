@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { Task, SubTask, Priority } from "@/lib/types";
-import { PriorityBadge } from "./PriorityBadge";
 import { TaskQuickActions } from "./TaskQuickActions";
 import TaskCommentsInline from "./TaskCommentsInline";
 import { getEisenhowerVisual } from "@/lib/eisenhower";
@@ -251,14 +250,14 @@ export function TaskCard({
                   {task.focusMinutes}m
                 </span>
               )}
-              {(onUpdatePriority || onUpdateTags) && (
-                <TaskQuickActions
-                  task={task}
-                  onUpdatePriority={(p) => onUpdatePriority?.(task.id, p)}
-                  onUpdateTags={(tags) => onUpdateTags?.(task.id, tags)}
-                  allTags={allTags}
-                />
-              )}
+              {/* 即使唯讀也顯示旗子視覺（click handler 留空代表不能編輯） */}
+              <TaskQuickActions
+                task={task}
+                onUpdatePriority={onUpdatePriority ? (p) => onUpdatePriority(task.id, p) : () => {}}
+                onUpdateTags={onUpdateTags ? (tags) => onUpdateTags(task.id, tags) : () => {}}
+                allTags={allTags}
+                readOnly={!onUpdatePriority && !onUpdateTags}
+              />
             </div>
           </div>
 

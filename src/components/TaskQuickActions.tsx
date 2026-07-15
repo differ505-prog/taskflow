@@ -17,6 +17,8 @@ interface TaskQuickActionsProps {
   /** 標籤的候選名單（已存在任務的全集） */
   allTags?: string[];
   compact?: boolean;
+  /** 唯讀模式（共享任務等不能編輯的情境，旗子/標籤不可點擊） */
+  readOnly?: boolean;
 }
 
 const PRIORITY_CYCLE: Priority[] = ["low", "medium", "high"];
@@ -27,6 +29,7 @@ export function TaskQuickActions({
   onUpdateTags,
   allTags = [],
   compact = false,
+  readOnly = false,
 }: TaskQuickActionsProps) {
   const [tagColors, setTagColors] = useState<Record<string, string>>({});
   const [now, setNow] = useState<Date>(() => new Date());
@@ -74,64 +77,117 @@ export function TaskQuickActions({
   return (
     <div className="flex items-center gap-1 flex-wrap">
       {/* 旗子：四象限視覺（Q1=深紅+驚嘆號、Q2=紅、Q3=黃、Q4=綠） */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          handlePriorityCycle();
-        }}
-        className={`${iconBtnBase} ${iconBtnSize} relative`}
-        style={{ color: priorityColor }}
-        title={`優先級：${eisen.label}（點擊切換）`}
-        aria-label={`優先級 ${eisen.label}${eisen.isUrgent ? "（緊急）" : ""}`}
-      >
-        <Flag
-          className={compact ? "w-3.5 h-3.5" : "w-4 h-4"}
-          fill={task.priority !== "low" || eisen.isUrgent ? "currentColor" : "none"}
-        />
-        {eisen.isUrgent && (
-          <AlertCircle
-            className="absolute -top-1 -right-1 drop-shadow-sm"
-            style={{
-              width: compact ? 10 : 12,
-              height: compact ? 10 : 12,
-              color: "#fff",
-              background: priorityColor,
-              borderRadius: "50%",
-              padding: 1,
-            }}
-            fill={priorityColor}
-            strokeWidth={2.5}
+      {readOnly ? (
+        <div
+          className={`${iconBtnBase} ${iconBtnSize} relative cursor-default`}
+          style={{ color: priorityColor }}
+          title={`優先級：${eisen.label}`}
+          aria-label={`優先級 ${eisen.label}${eisen.isUrgent ? "（緊急）" : ""}`}
+        >
+          <Flag
+            className={compact ? "w-3.5 h-3.5" : "w-4 h-4"}
+            fill={task.priority !== "low" || eisen.isUrgent ? "currentColor" : "none"}
           />
-        )}
-      </button>
+          {eisen.isUrgent && (
+            <AlertCircle
+              className="absolute -top-1 -right-1 drop-shadow-sm"
+              style={{
+                width: compact ? 10 : 12,
+                height: compact ? 10 : 12,
+                color: "#fff",
+                background: priorityColor,
+                borderRadius: "50%",
+                padding: 1,
+              }}
+              fill={priorityColor}
+              strokeWidth={2.5}
+            />
+          )}
+        </div>
+      ) : (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handlePriorityCycle();
+          }}
+          className={`${iconBtnBase} ${iconBtnSize} relative`}
+          style={{ color: priorityColor }}
+          title={`優先級：${eisen.label}（點擊切換）`}
+          aria-label={`優先級 ${eisen.label}${eisen.isUrgent ? "（緊急）" : ""}`}
+        >
+          <Flag
+            className={compact ? "w-3.5 h-3.5" : "w-4 h-4"}
+            fill={task.priority !== "low" || eisen.isUrgent ? "currentColor" : "none"}
+          />
+          {eisen.isUrgent && (
+            <AlertCircle
+              className="absolute -top-1 -right-1 drop-shadow-sm"
+              style={{
+                width: compact ? 10 : 12,
+                height: compact ? 10 : 12,
+                color: "#fff",
+                background: priorityColor,
+                borderRadius: "50%",
+                padding: 1,
+              }}
+              fill={priorityColor}
+              strokeWidth={2.5}
+            />
+          )}
+        </button>
+      )}
 
-      {/* 標籤 popover */}
+      {/* 標籤 popover（唯讀時也顯示，但不可編輯） */}
       <IconPopover
         align="end"
         side="bottom"
         trigger={
-          <button
-            onClick={(e) => e.stopPropagation()}
-            className={`${iconBtnBase} ${iconBtnSize} relative`}
-            style={{
-              color: task.tags.length > 0 ? "var(--brand)" : "var(--text-tertiary)",
-            }}
-            title="標籤"
-            aria-label={`標籤 ${task.tags.length} 個`}
-          >
-            <TagIcon className={compact ? "w-3.5 h-3.5" : "w-4 h-4"} />
-            {task.tags.length > 0 && (
-              <span
-                className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-1 flex items-center justify-center rounded-full text-[9px] font-bold"
-                style={{
-                  background: "var(--brand)",
-                  color: "var(--brand-foreground)",
-                }}
-              >
-                {task.tags.length}
-              </span>
-            )}
-          </button>
+          readOnly ? (
+            <div
+              className={`${iconBtnBase} ${iconBtnSize} relative cursor-default`}
+              style={{
+                color: task.tags.length > 0 ? "var(--brand)" : "var(--text-tertiary)",
+              }}
+              title="標籤"
+              aria-label={`標籤 ${task.tags.length} 個`}
+            >
+              <TagIcon className={compact ? "w-3.5 h-3.5" : "w-4 h-4"} />
+              {task.tags.length > 0 && (
+                <span
+                  className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-1 flex items-center justify-center rounded-full text-[9px] font-bold"
+                  style={{
+                    background: "var(--brand)",
+                    color: "var(--brand-foreground)",
+                  }}
+                >
+                  {task.tags.length}
+                </span>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={(e) => e.stopPropagation()}
+              className={`${iconBtnBase} ${iconBtnSize} relative`}
+              style={{
+                color: task.tags.length > 0 ? "var(--brand)" : "var(--text-tertiary)",
+              }}
+              title="標籤"
+              aria-label={`標籤 ${task.tags.length} 個`}
+            >
+              <TagIcon className={compact ? "w-3.5 h-3.5" : "w-4 h-4"} />
+              {task.tags.length > 0 && (
+                <span
+                  className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-1 flex items-center justify-center rounded-full text-[9px] font-bold"
+                  style={{
+                    background: "var(--brand)",
+                    color: "var(--brand-foreground)",
+                  }}
+                >
+                  {task.tags.length}
+                </span>
+              )}
+            </button>
+          )
         }
       >
         <TagPopoverContent
@@ -139,7 +195,8 @@ export function TaskQuickActions({
           tagColors={tagColors}
           allTags={allTags}
           onAdd={handleAddTag}
-          onRemove={handleRemoveTag}
+          onRemove={readOnly ? () => {} : handleRemoveTag}
+          readOnly={readOnly}
         />
       </IconPopover>
 
@@ -209,12 +266,14 @@ function TagPopoverContent({
   allTags,
   onAdd,
   onRemove,
+  readOnly = false,
 }: {
   tags: string[];
   tagColors: Record<string, string>;
   allTags: string[];
   onAdd: (t: string) => void;
   onRemove: (t: string) => void;
+  readOnly?: boolean;
 }) {
   const [input, setInput] = useState("");
   const suggestions = input.trim()
@@ -245,13 +304,15 @@ function TagPopoverContent({
                 }}
               >
                 {tag}
-                <button
-                  onClick={() => onRemove(tag)}
-                  className="p-0.5 rounded hover:bg-black/10 transition-colors"
-                  aria-label={`移除 ${tag}`}
-                >
-                  <X className="w-2.5 h-2.5" />
-                </button>
+                {!readOnly && (
+                  <button
+                    onClick={() => onRemove(tag)}
+                    className="p-0.5 rounded hover:bg-black/10 transition-colors"
+                    aria-label={`移除 ${tag}`}
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                )}
               </span>
             );
           })}
@@ -262,60 +323,64 @@ function TagPopoverContent({
         </div>
       )}
 
-      <div className="flex gap-1.5 pt-1">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              onAdd(input.trim());
-              setInput("");
-            }
-          }}
-          placeholder="新增標籤..."
-          className="input flex-1 text-[12px]"
-          style={{ padding: "6px 8px" }}
-          maxLength={30}
-        />
-        <button
-          onClick={() => {
-            onAdd(input.trim());
-            setInput("");
-          }}
-          disabled={!input.trim()}
-          className="btn-primary px-2 disabled:opacity-40"
-          aria-label="新增"
-        >
-          <Plus className="w-3.5 h-3.5" />
-        </button>
-      </div>
-
-      {suggestions.length > 0 && (
-        <div className="space-y-0.5 pt-1">
-          <div className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>
-            已存在的標籤：
+      {!readOnly && (
+        <>
+          <div className="flex gap-1.5 pt-1">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  onAdd(input.trim());
+                  setInput("");
+                }
+              }}
+              placeholder="新增標籤..."
+              className="input flex-1 text-[12px]"
+              style={{ padding: "6px 8px" }}
+              maxLength={30}
+            />
+            <button
+              onClick={() => {
+                onAdd(input.trim());
+                setInput("");
+              }}
+              disabled={!input.trim()}
+              className="btn-primary px-2 disabled:opacity-40"
+              aria-label="新增"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
           </div>
-          {suggestions.map((tag) => {
-            const color = tagColors[tag] || "#3B82F6";
-            return (
-              <button
-                key={tag}
-                onClick={() => onAdd(tag)}
-                className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-left transition-colors hover:bg-black/5"
-              >
-                <div
-                  className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ background: color }}
-                />
-                <span className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
-                  {tag}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+
+          {suggestions.length > 0 && (
+            <div className="space-y-0.5 pt-1">
+              <div className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>
+                已存在的標籤：
+              </div>
+              {suggestions.map((tag) => {
+                const color = tagColors[tag] || "#3B82F6";
+                return (
+                  <button
+                    key={tag}
+                    onClick={() => onAdd(tag)}
+                    className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-left transition-colors hover:bg-black/5"
+                  >
+                    <div
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ background: color }}
+                    />
+                    <span className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
+                      {tag}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

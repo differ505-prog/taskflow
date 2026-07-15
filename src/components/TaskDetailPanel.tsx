@@ -11,10 +11,11 @@ import {
   X, Plus, Repeat, Calendar, Mic, MicOff, Hash,
   Trash2, CheckCircle2, Circle, Tag as TagIcon,
   AlignLeft, Clock, Timer, ListChecks, Paperclip,
-  Flag, AlertCircle,
+  AlertCircle,
 } from "lucide-react";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
 import TaskCommentsInline from "./TaskCommentsInline";
+import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
 
 const RECURRENCE_OPTIONS = [
   { label: "不重複", value: "none" },
@@ -431,31 +432,21 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
 
         {/* List + Priority + Attachments — 圖示化緊湊區 */}
         <div className="rounded-2xl p-4 space-y-3" style={{ background: "var(--surface-muted)" }}>
-          {/* 優先級：旗子圖示切換（艾森豪 Q1-Q4 視覺） */}
+          {/* 優先級：艾森豪 Q1-Q4 旗子切換（4 級循環：低→中→高） */}
           <div>
-            <label className="block mb-2 text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>優先級</label>
-            <div className="flex gap-2">
-              {(["high", "medium", "low"] as Priority[]).map((p) => {
-                const isActive = priority === p;
-                const flagColor = p === "high" ? "var(--priority-high)" : p === "medium" ? "var(--priority-medium)" : "var(--priority-low)";
-                return (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setPriority(p)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl transition-all duration-150 active:scale-95"
-                    style={isActive
-                      ? { background: flagColor, color: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.06)" }
-                      : { background: "var(--surface)", color: flagColor, border: "1px solid var(--border)" }
-                    }
-                    aria-label={`${PRIORITY_CONFIG[p].label}優先`}
-                  >
-                    <Flag className="w-3.5 h-3.5" fill={isActive ? "currentColor" : "none"} />
-                    <span className="text-[12px] font-medium">{PRIORITY_CONFIG[p].label}</span>
-                  </button>
-                );
-              })}
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>優先級</label>
+              <span
+                className="text-[10px] font-medium px-1.5 py-0.5 rounded-md"
+                style={{ background: "var(--surface-muted)", color: "var(--text-tertiary)" }}
+                title="艾森豪矩陣：區分重要與緊急，減少決策疲勞"
+              >
+                艾森豪
+              </span>
             </div>
+
+            {/* 旗子四象限視覺圖譜 */}
+            <EisenhowerQuadrantGrid priority={priority} onChange={setPriority} />
 
             {/* Q1 緊急狀態提示：priority=high 且 dueDate 在 24h 內時顯示 */}
             {(() => {
@@ -466,7 +457,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               if (!eisen.isUrgent) return null;
               return (
                 <div
-                  className="mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px]"
+                  className="mt-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px]"
                   style={{
                     background: `${eisen.color}12`,
                     color: eisen.color,
@@ -474,7 +465,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
                   }}
                 >
                   <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span className="font-medium">艾森豪 Q1 · 24 小時內緊急</span>
+                  <span className="font-medium">艾森豪 Q1 · 24 小時內緊急（自動）</span>
                 </div>
               );
             })()}
