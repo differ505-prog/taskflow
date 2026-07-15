@@ -441,7 +441,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               ) : (
                 <span
                   onClick={() => setEditingSubId(sub.id)}
-                  className={`flex-1 text-[13px] cursor-text rounded px-1 -mx-1 hover:bg-black/[0.03] transition-colors ${sub.status === "done" ? "line-through opacity-50" : ""}`}
+                  className={`flex-1 text-[13px] cursor-text rounded px-1 -mx-1 ${sub.status === "done" ? "line-through opacity-50" : ""}`}
                   style={{ color: sub.status === "done" ? "var(--text-tertiary)" : "var(--text-primary)" }}
                   title="點擊編輯"
                 >
