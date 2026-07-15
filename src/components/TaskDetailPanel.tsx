@@ -410,7 +410,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             <div key={sub.id} className="flex items-center gap-2 mb-2 group/sub">
               <button
                 onClick={() => toggleSubTask(sub.id)}
-                className="flex-shrink-0 w-7 h-7 -m-1.5 flex items-center justify-center rounded-full transition-transform hover:scale-110 active:scale-95 hover:bg-black/[0.04]"
+                className="flex-shrink-0 w-7 h-7 -m-1.5 flex items-center justify-center rounded-full transition-transform hover:scale-110"
                 aria-label={sub.status === "done" ? "標記未完成" : "標記完成"}
               >
                 {sub.status === "done" ? (
