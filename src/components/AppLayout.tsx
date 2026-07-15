@@ -164,16 +164,16 @@ function AppLayoutInner() {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 overflow-hidden md:flex">
+      <div className="flex-1 min-w-0 overflow-hidden md:flex">
         {renderView()}
         {/* Desktop: show detail panel or empty state, Mobile: only show when task selected */}
-        <div className="hidden md:block">
+        <div className="hidden md:flex md:flex-col min-w-0 flex-1">
           {selectedTask ? renderDetailPanel() : (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.2 }}
-              className="w-full md:w-[480px] flex-shrink-0 border-l overflow-hidden flex flex-col items-center justify-center"
+              className="w-full md:w-[480px] md:min-w-[480px] h-full md:h-auto border-l overflow-hidden flex flex-col items-center justify-center"
               style={{ borderColor: "var(--border)", background: "var(--surface)" }}
             >
               <div className="flex flex-col items-center justify-center h-64 gap-3">
