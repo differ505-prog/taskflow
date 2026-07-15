@@ -480,7 +480,6 @@ export function AppShell({ onOpenSettings, onOpenListForm, onEditList, onDeleteL
                         isSelected={task.id === selectedTaskId}
                         onClick={() => handleSelectTask(task.id)}
                         onToggleStatus={toggleTaskStatus}
-                        onToggleSubTask={toggleSubTask}
                       />
                     ))}
                   </div>

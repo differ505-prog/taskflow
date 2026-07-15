@@ -62,6 +62,26 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     setTagColors(getTagColors());
   }, []);
 
+  // Sync local state when switching tasks
+  useEffect(() => {
+    setTitle(task.title);
+    setDescription(task.description || "");
+    setPriority(task.priority);
+    setStatus(task.status);
+    setStartDate(task.startDate || "");
+    setDueDate(task.dueDate || "");
+    setDueTime(task.dueTime || "");
+    setListId(task.listId);
+    setTags(task.tags);
+    setRecurrenceType(task.recurrence?.pattern || "none");
+    setRecurrenceInterval(task.recurrence?.interval || 1);
+    setRecurrenceDaysOfWeek(task.recurrence?.daysOfWeek || []);
+    setRecurrenceEndDate(task.recurrence?.endDate || "");
+    setSubTasks(task.subTasks || []);
+    setAttachments(task.attachments || []);
+    setHasChanges(false);
+  }, [task.id]);
+
   // Track changes
   useEffect(() => {
     const changed =
