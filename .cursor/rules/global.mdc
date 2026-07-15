@@ -188,6 +188,18 @@ alwaysApply: true
 
 **為什麼**：上輪「收集箱捲到底被遮」bug，光看 code 我推測是 Framer Motion 的 `layout` prop 在搞鬼，實際根本原因是 `<main>` 沒設 `flex flex-col` 導致 list 的 `flex-1 overflow-y-auto` 無效。**沒有 runtime 數據就會繞遠路**。
 
+**附錄：工具選擇決策樹（避免上輪登入灌資料浪費 10+ tool call）**
+
+| 場景 | 推薦工具 | 為何 |
+|------|---------|------|
+| 看真實 UX（按鈕 hover、modal 開關、transition） | `browser_click / type / navigate` | 必須看視覺 |
+| 觸發應用進入某狀態（灌資料、切換頁面） | `CDP Runtime.evaluate` 直接操縱 state / localStorage | **不必走 UI 流程**，1 個 call 搞定 |
+| 量計算後樣式（flex 屬性、scrollHeight、clientHeight、padding） | `CDP CSS.getComputedStyleForNode` 或 `getComputedStyle` | UI 互動量不到 |
+| 量 DOM 結構（父鏈、節點數、bounding rect） | `CDP DOM.getDocument` + `getBoundingClientRect` | UI 互動耗時 |
+| 抓 console error / network 請求 | `CDP Log.enable` / `Network.enable` | 唯一管道 |
+
+**捷徑**：若目的是「驗證程式碼邏輯 / 抓 bug」→ **預設走 CDP**，不要先走瀏覽器互動；只有「驗收真實 UX」才走瀏覽器。
+
 ### 16. 失敗上限與卡住回報 (Failure Budget)
 
 **觸發**：同一問題連續失敗
@@ -240,3 +252,4 @@ alwaysApply: true
 |------|------|
 | 2026-07-15 | 簡化：23 條 → 14 條，刪除重複、統一門檻 7.5 分、移除 30 秒超時自動執行 |
 | 2026-07-15 | 新增 3 條：15 UI Bug 必看實證、16 失敗上限卡住回報、17 改動分類揭露（針對「收集箱被遮」bug 繞彎路教訓） |
+| 2026-07-15 | 第 15 條附錄「工具選擇決策樹」（瀏覽器互動 vs CDP 的取捨） |
