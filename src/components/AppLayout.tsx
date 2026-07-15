@@ -33,6 +33,15 @@ function AppLayoutInner() {
   const [showSharedLists, setShowSharedLists] = useState(false);
   const [incomingShareData, setIncomingShareData] = useState<{ sharedListId: string; snapshot: SharedListSnapshot } | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile viewport
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // Check for incoming share link on mount
   useEffect(() => {
@@ -113,40 +122,24 @@ function AppLayoutInner() {
 
   const renderDetailPanel = () => (
     <AnimatePresence>
-      {selectedTask ? (
+      {selectedTask && (
         <motion.div
           key="detail-panel"
-          initial={{ opacity: 0, x: 20 }}
+          initial={{ opacity: 0, x: isMobile ? "100%" : 20 }}
           animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 20 }}
-          transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-          className="w-full md:w-[480px] flex-shrink-0 border-l overflow-y-auto"
-          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+          exit={{ opacity: 0, x: isMobile ? "100%" : 20 }}
+          transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+          className={isMobile ? "fixed inset-0 z-50" : "w-full md:w-[480px] flex-shrink-0 border-l overflow-y-auto"}
+          style={{ 
+            borderColor: "var(--border)", 
+            background: "var(--surface)",
+            width: isMobile ? "100%" : 480
+          }}
         >
           <TaskDetailPanel
             task={selectedTask}
             onClose={() => setSelectedTaskId(null)}
           />
-        </motion.div>
-      ) : (
-        <motion.div
-          key="empty-panel"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="w-full md:w-[480px] flex-shrink-0 border-l overflow-hidden flex flex-col items-center justify-center"
-          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
-        >
-          <div className="flex flex-col items-center justify-center h-64 gap-3">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "var(--surface-muted)" }}>
-              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: "var(--text-tertiary)" }}>
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            </div>
-            <p className="text-[14px]" style={{ color: "var(--text-tertiary)" }}>選擇一個任務</p>
-            <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>點擊左側任務查看詳情</p>
-          </div>
         </motion.div>
       )}
     </AnimatePresence>
@@ -175,7 +168,30 @@ function AppLayoutInner() {
         <div className="flex-1 overflow-y-auto">
           {renderView()}
         </div>
-        {renderDetailPanel()}
+        {/* Desktop: show detail panel or empty state, Mobile: only show when task selected */}
+        <div className="hidden md:block">
+          {selectedTask ? renderDetailPanel() : (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              className="w-full md:w-[480px] flex-shrink-0 border-l overflow-hidden flex flex-col items-center justify-center"
+              style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+            >
+              <div className="flex flex-col items-center justify-center h-64 gap-3">
+                <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "var(--surface-muted)" }}>
+                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: "var(--text-tertiary)" }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+                <p className="text-[14px]" style={{ color: "var(--text-tertiary)" }}>選擇一個任務</p>
+                <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>點擊左側任務查看詳情</p>
+              </div>
+            </motion.div>
+          )}
+        </div>
+        {/* Mobile: full-screen overlay when task selected */}
+        {selectedTask && isMobile && renderDetailPanel()}
       </div>
 
       {/* Mobile Bottom Navigation */}

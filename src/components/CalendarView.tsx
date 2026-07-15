@@ -3,10 +3,9 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useApp } from "@/lib/AppContext";
 import { Task } from "@/lib/types";
-import { PriorityBadge } from "./PriorityBadge";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus, ChevronDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 const CELL_SIZE = 110;
@@ -14,16 +13,16 @@ const CELL_SIZE = 110;
 interface CalendarViewProps {
   selectedTaskId: string | null;
   onSelectTask: (id: string) => void;
+  onAddTask?: (date: string) => void;
 }
 
-export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps) {
+export function CalendarView({ selectedTaskId, onSelectTask, onAddTask }: CalendarViewProps) {
   const { tasks, setCurrentView, updateTask, toggleTaskStatus, addTask, deleteTask } = useApp();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [draggingTask, setDraggingTask] = useState<string | null>(null);
   const [quickAddDate, setQuickAddDate] = useState<string | null>(null);
   const [quickAddTitle, setQuickAddTitle] = useState("");
-  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const quickAddInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -230,7 +229,7 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
                       style={{
                         background: t.status === "done"
                           ? "rgba(0,0,0,0.05)"
-                          : `rgba(${hexToRgb(getPriorityColor(t.priority))}, 0.12)`,
+                          : getPriorityColor(t.priority) + "20",
                         color: t.status === "done" ? "var(--text-tertiary)" : "var(--text-primary)",
                         textDecoration: t.status === "done" ? "line-through" : "none",
                       }}
@@ -260,82 +259,160 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
         {selectedDate && (
           <motion.div
             initial={{ width: 0, opacity: 0 }}
-            animate={{ width: expandedTaskId ? 460 : 360, opacity: 1 }}
+            animate={{ width: 340, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-            className="flex-shrink-0 border-l overflow-y-auto"
-            style={{ borderColor: "var(--border)", background: "var(--surface)", width: expandedTaskId ? 460 : 360 }}
+            className="flex-shrink-0 border-l overflow-hidden"
+            style={{ borderColor: "var(--border)", background: "var(--surface)", width: 340 }}
           >
-            <div className="p-4">
-              {/* 快速新增列 — 從日曆點＋或這裡輸入皆可 */}
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (quickAddDate === selectedDate && quickAddTitle.trim()) {
-                    submitQuickAdd(selectedDate, quickAddTitle);
-                  } else if (selectedDate) {
-                    submitQuickAdd(selectedDate, quickAddTitle || "新任務");
-                  }
-                }}
-                className="mb-4 flex items-center gap-2"
-              >
-                <input
-                  ref={quickAddInputRef}
-                  type="text"
-                  value={quickAddTitle}
-                  onChange={(e) => setQuickAddTitle(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Escape") { setQuickAddDate(null); setQuickAddTitle(""); }
+            <div className="flex flex-col h-full">
+              {/* Header */}
+              <div className="p-4 flex-shrink-0" style={{ borderBottom: "1px solid var(--border)" }}>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
+                    {format(parseISO(selectedDate), "M 月 d 日", { locale: zhTW })}
+                    {isToday(parseISO(selectedDate)) && (
+                      <span className="ml-2 text-[12px] font-normal" style={{ color: "var(--brand)" }}>今天</span>
+                    )}
+                  </h2>
+                  <button
+                    onClick={() => setSelectedDate(null)}
+                    className="p-1.5 rounded-lg hover:bg-black/5 transition-colors"
+                    style={{ color: "var(--text-tertiary)" }}
+                  >
+                    ✕
+                  </button>
+                </div>
+                {/* 快速新增 */}
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (quickAddDate === selectedDate && quickAddTitle.trim()) {
+                      submitQuickAdd(selectedDate, quickAddTitle);
+                    } else if (selectedDate) {
+                      submitQuickAdd(selectedDate, quickAddTitle || "新任務");
+                    }
                   }}
-                  placeholder={`在 ${format(parseISO(selectedDate), "M/d", { locale: zhTW })} 新增任務…`}
-                  className="input flex-1"
-                  style={{ fontSize: 13, padding: "7px 10px" }}
-                />
-                <button type="submit" className="btn-primary py-1.5 px-3 text-[12px]">新增</button>
-              </form>
-
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
-                  {format(parseISO(selectedDate), "M 月 d 日", { locale: zhTW })}
-                  {isToday(parseISO(selectedDate)) && (
-                    <span className="ml-2 text-[12px] font-normal" style={{ color: "var(--brand)" }}>今天</span>
-                  )}
-                </h2>
-                <button
-                  onClick={() => setSelectedDate(null)}
-                  className="p-1.5 rounded-lg hover:bg-black/5 transition-colors"
-                  style={{ color: "var(--text-tertiary)" }}
+                  className="flex items-center gap-2"
                 >
-                  ✕
-                </button>
+                  <input
+                    ref={quickAddInputRef}
+                    type="text"
+                    value={quickAddTitle}
+                    onChange={(e) => setQuickAddTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") { setQuickAddDate(null); setQuickAddTitle(""); }
+                    }}
+                    placeholder="新增任務…"
+                    className="input flex-1"
+                    style={{ fontSize: 13, padding: "7px 10px" }}
+                  />
+                  <button type="submit" className="btn-primary py-1.5 px-3 text-[12px]">新增</button>
+                </form>
               </div>
 
-              {selectedDateTasks.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-[13px]" style={{ color: "var(--text-tertiary)" }}>這天沒有任務</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {selectedDateTasks.map((task) => (
-                    <TaskPanelCard
-                      key={task.id}
-                      task={task}
-                      expanded={expandedTaskId === task.id}
-                      onToggleExpand={() => setExpandedTaskId((id) => (id === task.id ? null : task.id))}
-                      onDragStart={() => handleDragStart(task.id)}
-                      onToggleStatus={() => toggleTaskStatus(task.id)}
-                      onUpdate={(updates) => updateTask(task.id, updates)}
-                      onDelete={() => {
-                        if (confirm(`刪除「${task.title}」？`)) deleteTask(task.id);
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
+              {/* Task list */}
+              <div className="flex-1 overflow-y-auto">
+                {selectedDateTasks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-48 gap-2">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "var(--surface-muted)" }}>
+                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: "var(--text-tertiary)" }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                    </div>
+                    <p className="text-[13px]" style={{ color: "var(--text-tertiary)" }}>這天沒有任務</p>
+                  </div>
+                ) : (
+                  <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+                    {selectedDateTasks.map((task) => (
+                      <CalendarTaskItem
+                        key={task.id}
+                        task={task}
+                        isSelected={selectedTaskId === task.id}
+                        onClick={() => onSelectTask(task.id)}
+                        onToggleStatus={() => toggleTaskStatus(task.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// 簡化的日曆任務卡片元件
+function CalendarTaskItem({
+  task,
+  isSelected,
+  onClick,
+  onToggleStatus,
+}: {
+  task: Task;
+  isSelected: boolean;
+  onClick: () => void;
+  onToggleStatus: () => void;
+}) {
+  const isDone = task.status === "done";
+  const priorityColor = getPriorityColor(task.priority);
+
+  return (
+    <div
+      onClick={onClick}
+      className={`
+        flex items-start gap-3 px-4 py-3 cursor-pointer
+        transition-all duration-150 select-none
+        ${isSelected ? "bg-[var(--brand-tint)]" : "hover:bg-[var(--surface-hover)]"}
+        ${isDone ? "opacity-60" : ""}
+      `}
+    >
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggleStatus(); }}
+        className="flex-shrink-0 mt-0.5 transition-transform duration-200 hover:scale-110 active:scale-90"
+        aria-label={isDone ? "標記未完成" : "標記完成"}
+      >
+        {isDone ? (
+          <div className="w-[18px] h-[18px] rounded-full" style={{ background: "var(--status-success)" }} />
+        ) : (
+          <div className="w-[18px] h-[18px] rounded-full border-2" style={{ borderColor: "var(--border-hover)" }} />
+        )}
+      </button>
+      <div className="flex-1 min-w-0">
+        <p
+          className={`text-[13px] font-medium truncate ${
+            isDone ? "line-through" : ""
+          }`}
+          style={isDone ? { color: "var(--text-tertiary)" } : { color: "var(--text-primary)" }}
+        >
+          {task.title}
+        </p>
+        <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-1">
+            <div className="w-1.5 h-1.5 rounded-full" style={{ background: priorityColor }} />
+            <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+              {task.priority === "high" ? "高" : task.priority === "medium" ? "中" : "低"}
+            </span>
+          </div>
+          {task.dueTime && (
+            <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+              {task.dueTime}
+            </span>
+          )}
+          {task.subTasks && task.subTasks.length > 0 && (
+            <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+              {task.subTasks.filter(s => s.status === "done").length}/{task.subTasks.length}
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="flex-shrink-0" style={{ color: "var(--text-tertiary)" }}>
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </div>
     </div>
   );
 }
@@ -347,229 +424,4 @@ function getPriorityColor(priority: string): string {
     case "low": return "#34C759";
     default: return "#AEAEB2";
   }
-}
-
-function hexToRgb(hex: string): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `${r}, ${g}, ${b}`;
-}
-
-interface TaskPanelCardProps {
-  task: Task;
-  expanded: boolean;
-  onToggleExpand: () => void;
-  onDragStart: () => void;
-  onToggleStatus: () => void;
-  onUpdate: (updates: Partial<Task>) => void;
-  onDelete: () => void;
-}
-
-const PRIORITY_OPTIONS: Array<{ value: "high" | "medium" | "low"; label: string; color: string }> = [
-  { value: "high", label: "高", color: "#FF3B30" },
-  { value: "medium", label: "中", color: "#FF9500" },
-  { value: "low", label: "低", color: "#34C759" },
-];
-
-function TaskPanelCard({ task, expanded, onToggleExpand, onDragStart, onToggleStatus, onUpdate, onDelete }: TaskPanelCardProps) {
-  const isDone = task.status === "done";
-  const [editTitle, setEditTitle] = useState(task.title);
-
-  // 標題送出時同步到 task
-  const commitTitle = () => {
-    const trimmed = editTitle.trim();
-    if (trimmed && trimmed !== task.title) {
-      onUpdate({ title: trimmed });
-    } else {
-      setEditTitle(task.title);
-    }
-  };
-
-  return (
-    <div
-      draggable={!expanded}
-      onDragStart={onDragStart}
-      className="rounded-xl border transition-all duration-200"
-      style={{
-        borderColor: expanded ? "var(--brand)" : "var(--border)",
-        background: expanded ? "var(--brand-tint)" : "var(--surface-muted)",
-        boxShadow: expanded ? "0 4px 16px rgba(0,0,0,0.04)" : "none",
-      }}
-    >
-      <div className="p-3">
-        <div className="flex items-start gap-2">
-          <button
-            onClick={onToggleStatus}
-            className="flex-shrink-0 mt-0.5"
-            aria-label={isDone ? "標記未完成" : "標記完成"}
-          >
-            {isDone ? (
-              <div className="w-4 h-4 rounded-full" style={{ background: "var(--status-success)" }} />
-            ) : (
-              <div className="w-4 h-4 rounded-full border-2" style={{ borderColor: "var(--border-hover)" }} />
-            )}
-          </button>
-          <button
-            onClick={onToggleExpand}
-            className="flex-1 min-w-0 text-left"
-          >
-            <p
-              className="text-[13px] font-medium"
-              style={{ color: isDone ? "var(--text-tertiary)" : "var(--text-primary)", textDecoration: isDone ? "line-through" : "none" }}
-            >
-              {task.title}
-            </p>
-            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-              <PriorityBadge priority={task.priority} size="sm" />
-              {(task.startDate || task.dueDate) && (
-                <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
-                  {task.startDate && task.dueDate && task.startDate !== task.dueDate
-                    ? `${format(parseISO(task.startDate), "M/d", { locale: zhTW })}～${format(parseISO(task.dueDate), "M/d", { locale: zhTW })}`
-                    : task.dueDate && format(parseISO(task.dueDate), "M/d", { locale: zhTW })}
-                </span>
-              )}
-              {task.dueTime && (
-                <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>{task.dueTime}</span>
-              )}
-              {task.tags.length > 0 && (
-                <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>· {task.tags.length} 標籤</span>
-              )}
-            </div>
-          </button>
-          <button
-            onClick={onToggleExpand}
-            className="flex-shrink-0 p-1 rounded-md hover:bg-black/5 transition-colors"
-            style={{ color: "var(--text-tertiary)" }}
-            aria-label={expanded ? "收合" : "展開"}
-          >
-            <ChevronDown className="w-3.5 h-3.5 transition-transform duration-200" style={{ transform: expanded ? "rotate(180deg)" : "rotate(0)" }} />
-          </button>
-        </div>
-      </div>
-
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-            className="overflow-hidden border-t"
-            style={{ borderColor: "var(--border)" }}
-          >
-            <div className="p-3 space-y-3">
-              {/* 標題編輯 */}
-              <div>
-                <label className="block mb-1 text-[11px] font-medium" style={{ color: "var(--text-tertiary)" }}>標題</label>
-                <input
-                  type="text"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  onBlur={commitTitle}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.currentTarget.blur(); } }}
-                  className="input w-full"
-                  style={{ fontSize: 13, padding: "6px 10px" }}
-                />
-              </div>
-
-              {/* 日期區間 */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block mb-1 text-[11px] font-medium" style={{ color: "var(--text-tertiary)" }}>開始</label>
-                  <input
-                    type="date"
-                    value={task.startDate || ""}
-                    onChange={(e) => onUpdate({ startDate: e.target.value || undefined })}
-                    className="input w-full cursor-pointer"
-                    style={{ fontSize: 12, padding: "5px 8px" }}
-                  />
-                </div>
-                <div>
-                  <label className="block mb-1 text-[11px] font-medium" style={{ color: "var(--text-tertiary)" }}>截止</label>
-                  <input
-                    type="date"
-                    value={task.dueDate || ""}
-                    min={task.startDate || undefined}
-                    onChange={(e) => onUpdate({ dueDate: e.target.value || undefined })}
-                    className="input w-full cursor-pointer"
-                    style={{ fontSize: 12, padding: "5px 8px" }}
-                  />
-                </div>
-              </div>
-
-              {/* 時間 */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block mb-1 text-[11px] font-medium" style={{ color: "var(--text-tertiary)" }}>時間</label>
-                  <input
-                    type="time"
-                    value={task.dueTime || ""}
-                    onChange={(e) => onUpdate({ dueTime: e.target.value || undefined })}
-                    className="input w-full cursor-pointer"
-                    style={{ fontSize: 12, padding: "5px 8px" }}
-                  />
-                </div>
-                <div>
-                  <label className="block mb-1 text-[11px] font-medium" style={{ color: "var(--text-tertiary)" }}>優先級</label>
-                  <div className="flex gap-1">
-                    {PRIORITY_OPTIONS.map((p) => (
-                      <button
-                        key={p.value}
-                        onClick={() => onUpdate({ priority: p.value })}
-                        className="flex-1 py-1 rounded-md text-[11px] font-medium transition-all"
-                        style={{
-                          background: task.priority === p.value ? p.color : "transparent",
-                          color: task.priority === p.value ? "#fff" : "var(--text-secondary)",
-                          border: `1px solid ${task.priority === p.value ? p.color : "var(--border)"}`,
-                        }}
-                      >
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* 描述（唯讀 — 完整編輯需到任務表單） */}
-              {task.description && (
-                <div>
-                  <label className="block mb-1 text-[11px] font-medium" style={{ color: "var(--text-tertiary)" }}>描述</label>
-                  <p className="text-[12px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text-secondary)" }}>
-                    {task.description}
-                  </p>
-                </div>
-              )}
-
-              {/* 子任務摘要 */}
-              {task.subTasks && task.subTasks.length > 0 && (
-                <div>
-                  <label className="block mb-1 text-[11px] font-medium" style={{ color: "var(--text-tertiary)" }}>
-                    子任務 {task.subTasks.filter((s) => s.status === "done").length}/{task.subTasks.length}
-                  </label>
-                  <div className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
-                    {task.subTasks.map((s) => s.title).join("、")}
-                  </div>
-                </div>
-              )}
-
-              {/* 操作列 */}
-              <div className="flex items-center justify-between pt-1">
-                <button
-                  onClick={onDelete}
-                  className="text-[12px] hover:underline transition-colors"
-                  style={{ color: "var(--status-danger)" }}
-                >
-                  刪除任務
-                </button>
-                <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>
-                  點其他任務收合此卡
-                </span>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
 }

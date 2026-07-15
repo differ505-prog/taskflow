@@ -5,7 +5,7 @@ import { Task, Priority, TaskStatus, Recurrence, SubTask, Attachment } from "@/l
 import { PRIORITY_CONFIG } from "@/lib/types";
 import { useApp } from "@/lib/AppContext";
 import { getTagColors } from "@/lib/storage";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useMotionValue, useTransform } from "framer-motion";
 import {
   X, Plus, Repeat, Calendar, Mic, MicOff, Hash,
   Trash2, CheckCircle2, Circle, Tag as TagIcon,
@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
 import TaskCommentsInline from "./TaskCommentsInline";
+
+const SWIPE_THRESHOLD = -100; // Swipe left more than 100px to close
 
 const RECURRENCE_OPTIONS = [
   { label: "不重複", value: "none" },
@@ -219,46 +221,75 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     return `${m}/${d}`;
   };
 
-  return (
-    <div className="flex flex-col h-full overflow-y-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 flex-shrink-0" style={{ borderBottom: "1px solid var(--border)" }}>
-        <div className="flex items-center gap-2">
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-xl hover:bg-black/5 transition-colors"
-              style={{ color: "var(--text-tertiary)" }}
-              aria-label="返回"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          )}
-          <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
-            任務詳情
-          </h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleDelete}
-            className="p-2 rounded-xl hover:bg-red-50 transition-colors"
-            style={{ color: "var(--status-danger)" }}
-            aria-label="刪除任務"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!hasChanges || !title.trim()}
-            className="btn-primary text-[13px] py-2 px-4 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            儲存
-          </button>
-        </div>
-      </div>
+  // Swipe to close functionality
+  const panelRef = useRef<HTMLDivElement>(null);
+  const x = useMotionValue(0);
+  const opacity = useTransform(x, [0, -100], [1, 0.5]);
+  
+  const handleDragEnd = (event: any, info: any) => {
+    if (info.offset.x < SWIPE_THRESHOLD) {
+      onClose?.();
+    }
+  };
 
-      {/* Form body */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-5">
+  return (
+    <div ref={panelRef} className="flex flex-col h-full overflow-hidden">
+      {/* Swipeable container */}
+      <motion.div
+        className="flex-1 flex flex-col overflow-hidden"
+        style={{ x, opacity }}
+        drag={onClose ? "x" : false}
+        dragConstraints={panelRef}
+        dragElastic={0.3}
+        onDragEnd={handleDragEnd}
+      >
+        {/* Swipe indicator */}
+        {onClose && (
+          <div className="absolute top-1/2 left-2 -translate-y-1/2 z-10 pointer-events-none opacity-30">
+            <svg className="w-3 h-6" viewBox="0 0 12 24" fill="none">
+              <path d="M8 4L4 12L8 20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+        )}
+        
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 flex-shrink-0" style={{ borderBottom: "1px solid var(--border)" }}>
+          <div className="flex items-center gap-2">
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-xl hover:bg-black/5 transition-colors"
+                style={{ color: "var(--text-tertiary)" }}
+                aria-label="返回"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+            <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
+              任務詳情
+            </h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDelete}
+              className="p-2 rounded-xl hover:bg-red-50 transition-colors"
+              style={{ color: "var(--status-danger)" }}
+              aria-label="刪除任務"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!hasChanges || !title.trim()}
+              className="btn-primary text-[13px] py-2 px-4 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              儲存
+            </button>
+          </div>
+        </div>
+
+        {/* Form body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
 
         {/* Title */}
         <div>
@@ -599,6 +630,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
         {/* Comments */}
         <TaskCommentsInline taskId={task.id} />
       </div>
+      </motion.div>
     </div>
   );
 }
