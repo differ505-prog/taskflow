@@ -4,6 +4,7 @@
  */
 import {
   ref,
+  uploadBytesResumable,
   getDownloadURL,
   deleteObject,
 } from "firebase/storage";
@@ -107,24 +108,26 @@ export async function uploadFile(
     const storagePath = generateStoragePath(user.uid, file);
     const storageRef = ref(storage, storagePath);
 
-    // 使用 XMLHttpRequest 追蹤上傳進度
-    const xhr = new XMLHttpRequest();
-
     return new Promise((resolve) => {
-      xhr.upload.addEventListener("progress", (event) => {
-        if (event.lengthComputable && onProgress) {
-          onProgress({
-            progress: Math.round((event.loaded / event.total) * 100),
-            bytesUploaded: event.loaded,
-            totalBytes: event.total,
-          });
-        }
-      });
+      const task = uploadBytesResumable(storageRef, file);
 
-      xhr.addEventListener("load", async () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
+      task.on(
+        "state_changed",
+        (snapshot) => {
+          if (onProgress && snapshot.totalBytes > 0) {
+            onProgress({
+              progress: Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+              bytesUploaded: snapshot.bytesTransferred,
+              totalBytes: snapshot.totalBytes,
+            });
+          }
+        },
+        (error) => {
+          resolve({ success: false, error: error.message || "上傳失敗" });
+        },
+        async () => {
           try {
-            const downloadURL = await getDownloadURL(storageRef);
+            const downloadURL = await getDownloadURL(task.snapshot.ref);
             const attachment: Attachment = {
               id: generateId(),
               name: file.name,
@@ -136,33 +139,11 @@ export async function uploadFile(
               storagePath,
             };
             resolve({ success: true, attachment });
-          } catch (downloadError) {
+          } catch (downloadError: any) {
             resolve({ success: false, error: "獲取下載連結失敗" });
           }
-        } else {
-          resolve({ success: false, error: `上傳失敗 (${xhr.status})` });
         }
-      });
-
-      xhr.addEventListener("error", () => {
-        resolve({ success: false, error: "網路錯誤" });
-      });
-
-      xhr.addEventListener("abort", () => {
-        resolve({ success: false, error: "上傳已取消" });
-      });
-
-      // 開始上傳
-      xhr.open("PUT", storageRef.toString(), true);
-
-      // 添加 Firebase ID token 認證 header
-      user.getIdToken().then((token) => {
-        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-        xhr.send(file);
-      }).catch(() => {
-        // 如果獲取 token 失敗，仍然嘗試上傳（基於 Firebase 規則）
-        xhr.send(file);
-      });
+      );
     });
   } catch (error: any) {
     return { success: false, error: error.message || "上傳失敗" };
