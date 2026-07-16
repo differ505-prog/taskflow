@@ -22,7 +22,7 @@ import { AnimatePresence, motion } from "framer-motion";
 
 // ─── Inner app (has access to useApp) ───────────────────────
 function AppLayoutInner() {
-  const { currentView, currentSharedListId, addList, updateList, deleteList, setCurrentView, setCurrentSharedList, removeAcceptedSharedList, viewCounts, tasks, checkIncomingShareLink } = useApp();
+  const { currentView, currentListId, currentSharedListId, addList, updateList, deleteList, setCurrentView, setCurrentSharedList, removeAcceptedSharedList, viewCounts, tasks, checkIncomingShareLink } = useApp();
   const { user } = useAuth();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isListFormOpen, setIsListFormOpen] = useState(false);
@@ -34,6 +34,11 @@ function AppLayoutInner() {
   const [incomingShareData, setIncomingShareData] = useState<{ sharedListId: string; snapshot: SharedListSnapshot } | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Bug fix: clear task selection when switching lists or views
+  useEffect(() => {
+    setSelectedTaskId(null);
+  }, [currentView, currentListId, currentSharedListId]);
 
   // Detect mobile viewport
   useEffect(() => {

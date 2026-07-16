@@ -113,6 +113,7 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [quickAddInput, setQuickAddInput] = useState("");
   const [quickAddHint, setQuickAddHint] = useState(false);
+  const [quickAddKey, setQuickAddKey] = useState(0);
   const [sharedQuickAddInput, setSharedQuickAddInput] = useState("");
   const sharedQuickAddRef = useRef<HTMLInputElement>(null);
   const quickAddRef = useRef<HTMLInputElement>(null);
@@ -146,6 +147,7 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
     if (!quickAddInput.trim()) return;
     quickAdd(quickAddInput);
     setQuickAddInput("");
+    setQuickAddKey((k) => k + 1);
     quickAddRef.current?.blur();
   }, [quickAdd, quickAddInput]);
 
@@ -291,6 +293,7 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
             <div className="relative flex items-center">
               <Zap className="absolute left-3.5 w-4 h-4 pointer-events-none" style={{ color: "var(--text-tertiary)" }} />
               <input
+                key={quickAddKey}
                 ref={quickAddRef}
                 type="text"
                 value={quickAddInput}
@@ -519,8 +522,8 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
         currentListId={currentListId}
       />
 
-      {/* FAB — Mobile only, hidden in shared list view */}
-      {!currentSharedListId && (
+      {/* FAB — Mobile only, hidden in shared list view and when task selected */}
+      {!currentSharedListId && !selectedTaskId && (
       <button
         className="md:hidden fab"
         onClick={() => { setIsFormOpen(true); setEditingTask(null); }}
