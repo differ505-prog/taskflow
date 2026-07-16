@@ -13,6 +13,8 @@ import {
   AlignLeft, Clock, Timer, ListChecks, Paperclip,
   AlertCircle, Flag, ChevronDown,
 } from "lucide-react";
+import { sortSubTasks } from "@/utils/subtaskSort";
+import { ListChipPicker } from "./ListChipPicker";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
 import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
 import { SwipeableSubTask } from "./SwipeableSubTask";
@@ -369,6 +371,13 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
           {!title.trim() && (
             <p className="mt-1 text-[12px]" style={{ color: "var(--status-danger)" }}>標題必填</p>
           )}
+          <div className="mt-2">
+            <ListChipPicker
+              lists={lists}
+              value={listId}
+              onChange={(id) => setListId(id)}
+            />
+          </div>
         </div>
 
         {/* Description */}
@@ -397,7 +406,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             </label>
             <span className="ml-auto text-[11px]" style={{ color: "var(--text-tertiary)" }}>自動儲存</span>
           </div>
-          {subTasks.map((sub) => (
+          {sortSubTasks(subTasks).map((sub) => (
             <SwipeableSubTask
               key={sub.id}
               sub={sub}
@@ -424,15 +433,6 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
 
         {/* List + Priority + Attachments + Tags — 圖示化高頻區 */}
         <div className="rounded-2xl p-4 space-y-3" style={{ background: "var(--surface-muted)" }}>
-          {/* 清單：緊湊下拉 */}
-          <div>
-            <label className="block mb-2 text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>清單</label>
-            <select value={listId || ""} onChange={(e) => setListId(e.target.value || undefined)} className="input cursor-pointer text-[13px]" style={selectStyle}>
-              <option value="">📋 無清單</option>
-              {lists.map((l) => <option key={l.id} value={l.id}>{l.icon} {l.name}</option>)}
-            </select>
-          </div>
-
           {/* 高頻操作列：優先級 + 標籤 + 附件 */}
           <div className="flex items-start gap-2 relative" style={{ zIndex: 30 }}>
             {/* 優先級：艾森豪四象限 */}

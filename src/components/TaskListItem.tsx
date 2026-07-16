@@ -18,6 +18,8 @@ interface TaskListItemProps {
   allTags?: string[];
 }
 
+import { sortSubTasks } from "@/utils/subtaskSort";
+
 export function TaskListItem({
   task,
   isSelected,
@@ -29,11 +31,7 @@ export function TaskListItem({
   allTags = [],
 }: TaskListItemProps) {
   const subTasks = task.subTasks || [];
-  const sortedSubTasks = [...subTasks].sort((a, b) => {
-    if (a.status === "done" && b.status !== "done") return 1;
-    if (a.status !== "done" && b.status === "done") return -1;
-    return 0;
-  });
+  const sortedSubTasks = sortSubTasks(subTasks);
   const isDone = task.status === "done";
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
