@@ -8,7 +8,7 @@ import {
   getDownloadURL,
   deleteObject,
 } from "firebase/storage";
-import { getFirebaseStorage, getFirebaseAuth } from "./firebase";
+import { getFirebaseStorage } from "./firebase";
 import { Attachment } from "./types";
 import { generateId } from "./storage";
 
@@ -86,16 +86,18 @@ function generateStoragePath(uid: string, file: File): string {
 
 /**
  * 上傳單個檔案到 Firebase Storage
+ *
+ * `userId` 必須從呼叫端的 Auth state（React Context）傳入，不再依賴
+ * `firebase.auth().currentUser`。理由：currentUser 在 SSR build / SDK
+ * 重複 init 場景下會是 null，但 React Context 裡的 user 是同步、穩定的。
  */
 export async function uploadFile(
   file: File,
+  userId: string,
   onProgress?: (progress: UploadProgress) => void
 ): Promise<UploadFileResult> {
   try {
-    const auth = getFirebaseAuth();
-    const user = auth.currentUser;
-
-    if (!user) {
+    if (!userId) {
       return { success: false, error: "請先登入" };
     }
 
@@ -105,7 +107,7 @@ export async function uploadFile(
     }
 
     const storage = getFirebaseStorage();
-    const storagePath = generateStoragePath(user.uid, file);
+    const storagePath = generateStoragePath(userId, file);
     const storageRef = ref(storage, storagePath);
 
     return new Promise((resolve) => {
@@ -155,6 +157,7 @@ export async function uploadFile(
  */
 export async function uploadFiles(
   files: File[],
+  userId: string,
   onProgress?: (fileIndex: number, progress: UploadProgress) => void,
   onFileComplete?: (fileIndex: number, result: UploadFileResult) => void
 ): Promise<{ attachments: Attachment[]; errors: string[] }> {
@@ -162,7 +165,7 @@ export async function uploadFiles(
   const errors: string[] = [];
 
   for (let i = 0; i < files.length; i++) {
-    const result = await uploadFile(files[i], (progress) => {
+    const result = await uploadFile(files[i], userId, (progress) => {
       onProgress?.(i, progress);
     });
 

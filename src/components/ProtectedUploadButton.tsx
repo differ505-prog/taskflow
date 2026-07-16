@@ -58,16 +58,18 @@ export function ProtectedUploadButton({
   }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user?.uid) {
+      setError("請先登入後再上傳附件");
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
+
     // 先讀取檔案、清空 input value，避免「同一檔案選第二次」不觸 onChange 的瀏覽器預設行為
     const files = Array.from(e.target.files || []);
-    console.log('[DEBUG] CHANGE fired, files=', files.length, files.map(f => f.name));
     if (inputRef.current) {
       inputRef.current.value = "";
     }
-    if (files.length === 0) {
-      console.log('[DEBUG] CHANGE early-return: no files');
-      return;
-    }
+    if (files.length === 0) return;
 
     setError(null);
 
@@ -99,13 +101,11 @@ export function ProtectedUploadButton({
         prev.map((u) => (u.id === item.id ? { ...u, status: "uploading" } : u))
       );
 
-      const result = await uploadFile(item.file, (progress: UploadProgress) => {
-        console.log('[DEBUG] UPLOAD progress', progress.progress);
+      const result = await uploadFile(item.file, user.uid, (progress: UploadProgress) => {
         setUploads((prev) =>
           prev.map((u) => (u.id === item.id ? { ...u, progress: progress.progress } : u))
         );
       });
-      console.log('[DEBUG] UPLOAD result', { success: result.success, hasAttachment: !!result.attachment, error: result.error, url: result.attachment?.url });
 
       if (result.success && result.attachment) {
         completedAttachments.push(result.attachment);
@@ -170,7 +170,7 @@ export function ProtectedUploadButton({
 
       {/* Upload Button */}
       <button
-        onClick={() => { console.log('[DEBUG] CLICK → open picker, isUploading=', isUploading, 'disabled?', inputRef.current?.disabled); inputRef.current?.click(); }}
+        onClick={() => inputRef.current?.click()}
         disabled={isUploading}
         className={`inline-flex items-center gap-2 rounded-xl text-[14px] font-medium transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${buttonIcon ? "p-2" : "px-4 py-2"}`}
         style={{
