@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { getAuth } from "firebase/auth";
 
+// /diag 需要 runtime 訪問 Supabase / Firebase，不可在 build time prerender。
+// 否則會觸發 @/lib/supabase 的 module top-level getSupabaseClient()，
+// 在 build worker env 注入未到位時 throw Invalid supabaseUrl。
+export const dynamic = "force-dynamic";
+
 interface CheckResult {
   name: string;
   ok: boolean;
