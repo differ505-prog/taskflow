@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { flushSync } from "react-dom";
 import { Task, Priority, TaskStatus, Recurrence, Attachment } from "@/lib/types";
 import { PRIORITY_CONFIG } from "@/lib/types";
 import { useApp } from "@/lib/AppContext";
@@ -67,6 +66,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const titleRef = useRef<HTMLInputElement>(null);
   const subtaskInputRef = useRef<HTMLInputElement>(null);
+  const [subtaskInputValue, setSubtaskInputValue] = useState("");
 
   // ─── Voice Input
   const handleVoiceInput = useCallback(() => {
@@ -187,13 +187,11 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
   };
 
   const addSubTask = () => {
-    const t = subtaskInputRef.current?.value.trim() ?? "";
+    const t = subtaskInputValue.trim();
     if (t) {
       setSubTaskInputs([...subTaskInputs, t]);
-      flushSync(() => {});
-      if (subtaskInputRef.current) {
-        subtaskInputRef.current.value = "";
-      }
+      setSubtaskInputValue("");
+      subtaskInputRef.current?.focus();
     }
   };
 
@@ -584,6 +582,8 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                 ))}
                 <div className="flex gap-2">
                   <input ref={subtaskInputRef} type="text"
+                    value={subtaskInputValue}
+                    onChange={(e) => setSubtaskInputValue(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
                     placeholder="新增子任務..." className="input flex-1" style={{ fontSize: 13, padding: "8px 12px" }} />
                   <button type="button" onClick={addSubTask} className="btn-ghost px-3" aria-label="新增子任務">

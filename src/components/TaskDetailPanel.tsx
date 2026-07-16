@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { flushSync } from "react-dom";
 import { Task, Priority, TaskStatus, Recurrence, SubTask, Attachment } from "@/lib/types";
 import { PRIORITY_CONFIG } from "@/lib/types";
 import { useApp } from "@/lib/AppContext";
@@ -60,6 +59,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   const [recurrenceEndDate, setRecurrenceEndDate] = useState(task.recurrence?.endDate || "");
   const [subTasks, setSubTasks] = useState<SubTask[]>(task.subTasks || []);
   const subtaskInputRef = useRef<HTMLInputElement>(null);
+  const [subtaskInputValue, setSubtaskInputValue] = useState("");
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>(task.attachments || []);
@@ -192,7 +192,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   };
 
   const addSubTask = () => {
-    const t = subtaskInputRef.current?.value.trim() ?? "";
+    const t = subtaskInputValue.trim();
     if (!t) return;
     const newSub: SubTask = {
       id: `${Date.now()}-sub`,
@@ -201,10 +201,10 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
       createdAt: new Date().toISOString(),
     };
     const updated: SubTask[] = [...subTasks, newSub];
-    flushSync(() => { setSubTasks(updated); });
+    setSubTasks(updated);
     updateTask(task.id, { subTasks: updated });
-    subtaskInputRef.current!.value = "";
-    subtaskInputRef.current!.focus();
+    setSubtaskInputValue("");
+    subtaskInputRef.current?.focus();
   };
 
   const toggleSubTask = (subId: string) => {
@@ -412,8 +412,9 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             <input
               ref={subtaskInputRef}
               type="text"
+              value={subtaskInputValue}
+              onChange={(e) => setSubtaskInputValue(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
-              onCompositionUpdate={(e) => { /* 同步 IME composition 期間的 DOM value */ }}
               placeholder="新增子任務..." className="input flex-1" style={{ fontSize: 13, padding: "8px 12px" }} />
             <button type="button" onClick={addSubTask} className="btn-ghost px-3" aria-label="新增子任務">
               <Plus className="w-4 h-4" />
