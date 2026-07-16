@@ -100,10 +100,12 @@ export function ProtectedUploadButton({
       );
 
       const result = await uploadFile(item.file, (progress: UploadProgress) => {
+        console.log('[DEBUG] UPLOAD progress', progress.progress);
         setUploads((prev) =>
           prev.map((u) => (u.id === item.id ? { ...u, progress: progress.progress } : u))
         );
       });
+      console.log('[DEBUG] UPLOAD result', { success: result.success, hasAttachment: !!result.attachment, error: result.error, url: result.attachment?.url });
 
       if (result.success && result.attachment) {
         completedAttachments.push(result.attachment);
