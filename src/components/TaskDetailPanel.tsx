@@ -418,6 +418,8 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               value={newSubTask}
               onChange={(e) => setNewSubTask(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
+              onCompositionUpdate={(e) => setNewSubTask(e.currentTarget.value)}
+              onCompositionEnd={(e) => setNewSubTask(e.currentTarget.value)}
               placeholder="新增子任務..." className="input flex-1" style={{ fontSize: 13, padding: "8px 12px" }} />
             <button type="button" onClick={addSubTask} className="btn-ghost px-3" aria-label="新增子任務">
               <Plus className="w-4 h-4" />
