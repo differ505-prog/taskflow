@@ -165,8 +165,9 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
           ))}
         </div>
 
-        {/* Calendar cells - 純顯示，只有日期可點擊 */}
-        <div className="grid grid-cols-7 flex-1 gap-px overflow-y-auto" style={{ background: "var(--border)" }}>
+        {/* Calendar cells - 純顯示，只有日期可點擊，限制最大高度讓出任務列表空間 */}
+        <div className="grid grid-cols-7 gap-px overflow-hidden" style={{ background: "var(--border)", maxHeight: "calc(100vh - 320px)" }}>
+          <div className="overflow-y-auto overscroll-contain">
           {days.map((day, i) => {
             const isCurrentMonth = isSameMonth(day, currentMonth);
             const isTodayDate = isToday(day);
@@ -232,6 +233,7 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
               </div>
             );
           })}
+          </div>
         </div>
       </div>
 
