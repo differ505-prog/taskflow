@@ -13,10 +13,11 @@
  *   原因：Next.js prerender 會在 build 時載入所有 module，
  *   若此時 env 還沒注入或缺值，`new SupabaseClient(undefined, ...)` 會 throw
  *   "Invalid supabaseUrl"，整個 build 直接 fail。
- *   解法：module 載入時只檢查 env 存在性，真正的 createClient 延到 runtime。
+ *   解法：module 載入時只檢查 env 存在性，真正的 createBrowserClient 延到 runtime。
  */
 
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 // 支援兩種命名：Supabase v2 改用 publishable_key，但舊 codebase 仍可能寫 anon_key
@@ -39,6 +40,10 @@ let cachedClient: SupabaseClient | null = null;
 /**
  * 取得 Supabase client（lazy singleton）。
  *
+ * 用 createBrowserClient（@supabase/ssr）而非 @supabase/supabase-js 的 createClient，
+ * 讓 client 自動透過 document.cookie 讀取 server 端 /api/auth/session 透過 setSession
+ * 寫入的 sb-{ref}-auth-token cookie，使 RLS 政策的 auth.uid() 能正確解析當前登入者。
+ *
  * 用 publishable key（anon 等級），因為瀏覽器端不能持有 service_role。
  * Bucket 已設為 public，upload 時 RLS 由 bucket policy 控制。
  *
@@ -47,9 +52,10 @@ let cachedClient: SupabaseClient | null = null;
 export function getSupabaseClient(): SupabaseClient | null {
   if (cachedClient) return cachedClient;
   if (!SUPABASE_URL || !SUPABASE_KEY) return null;
-  cachedClient = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  cachedClient = createBrowserClient(SUPABASE_URL, SUPABASE_KEY, {
     auth: {
-      // 暫時不接管 auth，Firebase Auth 仍在用
+      // Server 已把 session 寫進 cookie，這裡不要重複持久化到 localStorage
+      // （cookie 路徑由 server 控制，瀏覽器端只需讀取）
       persistSession: false,
       autoRefreshToken: false,
     },
