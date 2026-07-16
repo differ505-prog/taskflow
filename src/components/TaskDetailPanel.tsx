@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { flushSync } from "react-dom";
 import { Task, Priority, TaskStatus, Recurrence, SubTask, Attachment } from "@/lib/types";
 import { PRIORITY_CONFIG } from "@/lib/types";
 import { useApp } from "@/lib/AppContext";
@@ -200,11 +201,10 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
       createdAt: new Date().toISOString(),
     };
     const updated: SubTask[] = [...subTasks, newSub];
-    setSubTasks(updated);
-    if (subtaskInputRef.current) subtaskInputRef.current.value = "";
-    subtaskInputRef.current?.focus();
-    // 自動儲存子任務變更
+    flushSync(() => { setSubTasks(updated); });
     updateTask(task.id, { subTasks: updated });
+    subtaskInputRef.current!.value = "";
+    subtaskInputRef.current!.focus();
   };
 
   const toggleSubTask = (subId: string) => {
@@ -413,6 +413,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               ref={subtaskInputRef}
               type="text"
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
+              onCompositionUpdate={(e) => { /* 同步 IME composition 期間的 DOM value */ }}
               placeholder="新增子任務..." className="input flex-1" style={{ fontSize: 13, padding: "8px 12px" }} />
             <button type="button" onClick={addSubTask} className="btn-ghost px-3" aria-label="新增子任務">
               <Plus className="w-4 h-4" />

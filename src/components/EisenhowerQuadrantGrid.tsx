@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Priority, PRIORITY_CONFIG } from "@/lib/types";
 import { Flag } from "lucide-react";
 
@@ -64,11 +65,16 @@ const QUADRANTS: CellVisual[] = [
  * 點擊任意格 → 切換 priority
  */
 export function EisenhowerQuadrantGrid({ priority, onChange }: EisenhowerQuadrantGridProps) {
-  const isActive = (visualKey: string) => {
-    if (visualKey === "low-soft") return false;
-    return priority === visualKey;
-  };
+  // visualState 追蹤目前 UI 亮哪格，與 priority 邏輯狀態分開
+  const [visualState, setVisualState] = useState<string>(priority);
+
+  const isActive = (visualKey: string) => visualState === visualKey;
+
+  // 當 priority 從外部被更新時（如另一處修改了任務優先級），同步 visualState
+  useEffect(() => { setVisualState(priority); }, [priority]);
+
   const handleClick = (visualKey: string) => {
+    setVisualState(visualKey);
     onChange(visualKey === "low-soft" ? "low" : (visualKey as Priority));
   };
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { flushSync } from "react-dom";
 import { Task, Priority, TaskStatus, Recurrence, Attachment } from "@/lib/types";
 import { PRIORITY_CONFIG } from "@/lib/types";
 import { useApp } from "@/lib/AppContext";
@@ -189,7 +190,10 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
     const t = subtaskInputRef.current?.value.trim() ?? "";
     if (t) {
       setSubTaskInputs([...subTaskInputs, t]);
-      if (subtaskInputRef.current) subtaskInputRef.current.value = "";
+      flushSync(() => {});
+      if (subtaskInputRef.current) {
+        subtaskInputRef.current.value = "";
+      }
     }
   };
 
