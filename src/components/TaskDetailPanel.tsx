@@ -203,6 +203,8 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     const updated: SubTask[] = [...subTasks, newSub];
     setSubTasks(updated);
     setNewSubTask("");
+    // 防止 IME composition 期間 state 未同步，DOM value 沒被 React 重繪覆蓋
+    if (subtaskInputRef.current) subtaskInputRef.current.value = "";
     subtaskInputRef.current?.focus();
     // 自動儲存子任務變更
     updateTask(task.id, { subTasks: updated });

@@ -66,6 +66,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
   const [isRecording, setIsRecording] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const titleRef = useRef<HTMLInputElement>(null);
+  const subtaskInputRef = useRef<HTMLInputElement>(null);
 
   // ─── Voice Input (Web Speech API) ──────────────────────────
   const handleVoiceInput = useCallback(() => {
@@ -187,7 +188,11 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
 
   const addSubTask = () => {
     const t = newSubTask.trim();
-    if (t) { setSubTaskInputs([...subTaskInputs, t]); setNewSubTask(""); }
+    if (t) {
+      setSubTaskInputs([...subTaskInputs, t]);
+      setNewSubTask("");
+      if (subtaskInputRef.current) subtaskInputRef.current.value = "";
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -576,7 +581,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                   </div>
                 ))}
                 <div className="flex gap-2">
-                  <input type="text" value={newSubTask} onChange={(e) => setNewSubTask(e.target.value)}
+                  <input ref={subtaskInputRef} type="text" value={newSubTask} onChange={(e) => setNewSubTask(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
                     placeholder="新增子任務..." className="input flex-1" style={{ fontSize: 13, padding: "8px 12px" }} />
                   <button type="button" onClick={addSubTask} className="btn-ghost px-3" aria-label="新增子任務">
