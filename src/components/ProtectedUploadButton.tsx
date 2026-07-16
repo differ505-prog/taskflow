@@ -58,7 +58,11 @@ export function ProtectedUploadButton({
   }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // 先讀取檔案、清空 input value，避免「同一檔案選第二次」不觸 onChange 的瀏覽器預設行為
     const files = Array.from(e.target.files || []);
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
     if (files.length === 0) return;
 
     setError(null);
