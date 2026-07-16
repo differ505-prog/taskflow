@@ -167,7 +167,7 @@ function AppLayoutInner() {
       <div className="flex-1 min-w-0 overflow-hidden md:flex pb-[72px] md:pb-0">
         {renderView()}
         {/* Desktop: show detail panel or empty state, Mobile: only show when task selected */}
-        <div className="hidden md:flex md:flex-col min-w-0 flex-1">
+        <div className="hidden md:flex md:flex-col min-w-0 flex-1 z-10 relative">
           {selectedTask ? renderDetailPanel() : (
             <motion.div
               initial={{ opacity: 0 }}
