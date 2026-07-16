@@ -70,29 +70,24 @@ export function SwipeableSubTask({
 
   return (
     <div className="relative overflow-hidden rounded-xl" ref={trackRef}>
-      {/* Delete strip behind */}
-      <div
-        className="absolute inset-y-0 right-0 z-10 flex items-center justify-end"
-        style={{ width: ACTION_WIDTH }}
+      {/* Delete button - z-50 so it's above the motion div's z-30 when swiped */}
+      <button
+        className="absolute inset-y-0 right-0 z-50 flex flex-col items-center justify-center gap-0.5 text-white text-[10px] font-semibold"
+        style={{ width: ACTION_WIDTH, background: "var(--status-danger)" }}
+        onClick={() => {
+          onDelete();
+          close();
+        }}
+        aria-label="刪除子任務"
       >
-        <button
-          className="relative z-40 flex flex-col items-center justify-center gap-0.5 text-white text-[10px] font-semibold h-full w-full"
-          style={{ background: "var(--status-danger)" }}
-          onClick={() => {
-            onDelete();
-            close();
-          }}
-          aria-label="刪除子任務"
-        >
-          <Trash2 className="w-4 h-4" />
-          刪除
-        </button>
-      </div>
+        <Trash2 className="w-4 h-4" />
+        刪除
+      </button>
 
       {/* Scrim */}
       {isOpen && (
         <motion.div
-          className="absolute inset-0 z-30"
+          className="absolute inset-0 z-40"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -104,7 +99,7 @@ export function SwipeableSubTask({
 
       {/* Swipeable row */}
       <motion.div
-        className="relative z-20 flex items-center gap-2 py-1.5 px-1"
+        className="relative z-30 flex items-center gap-2 py-1.5 px-1"
         animate={{ x: offset }}
         transition={{ type: "spring", stiffness: 400, damping: 35 }}
         onTouchStart={handleTouchStart}
@@ -116,7 +111,7 @@ export function SwipeableSubTask({
             close();
           }
         }}
-        style={{ width: "100%", touchAction: "pan-y", background: "transparent", pointerEvents: isOpen ? "auto" : "none" }}
+        style={{ width: "100%", touchAction: "pan-y", background: "white", willChange: "transform" }}
       >
         {/* Checkbox */}
         <label className="flex-shrink-0 w-7 h-7 -m-1 flex items-center justify-center rounded-full cursor-pointer transition-transform [@media(hover:hover)]:hover:scale-110">
