@@ -476,9 +476,9 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
           </div>
 
           {/* 高頻操作列：優先級 + 標籤 + 附件 */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 relative" style={{ zIndex: 30 }}>
             {/* 優先級：單一旗子按鈕 + 下拉 */}
-            <div className="relative">
+            <div className="relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setShowPriorityDropdown(false); }}>
               <label className="block mb-1.5 text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>優先級</label>
               <button
                 type="button"
@@ -516,7 +516,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             </div>
 
             {/* 標籤：圖示按鈕 + 計數 */}
-            <div className="flex-1">
+            <div className="flex-1 relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setShowTagPanel(false); }}>
               <label className="block mb-1.5 text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>標籤</label>
               <button
                 type="button"
