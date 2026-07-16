@@ -459,17 +459,17 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
                       );
                     })}
                     {currentView === "all" && tasks.some((t) => t.status === "done" && !t.isArchived) && (
-                      <button onClick={() => setShowCompleted(!showCompleted)} className="flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all duration-150"
+                      <button onClick={() => { setShowCompleted(!showCompleted); setActiveFilter({ ...activeFilter, status: undefined }); }} className="flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all duration-150"
                         style={!showCompleted ? { background: "var(--brand-tint)", color: "var(--brand)" } : { background: "rgba(0,0,0,0.04)", color: "var(--text-tertiary)" }}>
                         <Archive className="w-3 h-3" />
                         {showCompleted ? "隱藏完成" : "顯示完成"}
                       </button>
                     )}
                     {currentView === "inbox" && tasks.some((t) => t.status === "done" && !t.isArchived) && (
-                      <button onClick={() => setShowCompleted(!showCompleted)} className="flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all duration-150"
+                      <button onClick={() => { setShowCompleted(!showCompleted); setActiveFilter({ ...activeFilter, status: undefined }); }} className="flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all duration-150"
                         style={!showCompleted ? { background: "var(--brand-tint)", color: "var(--brand)" } : { background: "rgba(0,0,0,0.04)", color: "var(--text-tertiary)" }}>
                         <Archive className="w-3 h-3" />
-                        {showCompleted ? "隱藏完成" : "顯示完成"}
+                        {showCompleted ? "隱藏完成" : "隱藏完成"}
                       </button>
                     )}
                   </div>
