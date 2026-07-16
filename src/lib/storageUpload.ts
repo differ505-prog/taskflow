@@ -150,6 +150,9 @@ function uploadWithProgress(
 ): Promise<string> {
   return new Promise(async (resolve, reject) => {
     try {
+      if (!supabase) {
+        throw new Error("Supabase 環境變數未設定");
+      }
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -246,6 +249,10 @@ export async function uploadFiles(
 export async function deleteFile(storagePath: string): Promise<boolean> {
   try {
     const supabase = getSupabaseClient();
+    if (!supabase) {
+      console.error("[Storage] Delete error: Supabase client not configured");
+      return false;
+    }
     // 傳入的 storagePath 可能是 "attachments/uid/file" 或僅 "uid/file"
     const cleanPath = storagePath.startsWith(`${ATTACHMENTS_BUCKET}/`)
       ? storagePath.slice(ATTACHMENTS_BUCKET.length + 1)
