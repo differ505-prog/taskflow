@@ -390,9 +390,9 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="任務描述（支援 Markdown）"
-            rows={3}
+            rows={6}
             className="input resize-none"
-            style={{ minHeight: 80 }}
+            style={{ minHeight: 160 }}
             maxLength={1000}
           />
         </div>
