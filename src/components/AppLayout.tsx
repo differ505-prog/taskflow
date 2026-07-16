@@ -172,7 +172,9 @@ function AppLayoutInner() {
 
       {/* Main content */}
       <div className="flex-1 min-w-0 overflow-hidden md:flex pb-[72px] md:pb-0">
-        {renderView()}
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+          {renderView()}
+        </div>
         {/* Desktop: always render detail panel when selected, Mobile: conditional */}
         {selectedTask && !isMobile && renderDetailPanel()}
         {/* Mobile: full-screen overlay when task selected */}
