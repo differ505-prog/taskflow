@@ -4,7 +4,6 @@ var OFFLINE_URL = "/offline";
 
 var PRECACHE_URLS = [
   "/",
-  "/offline",
 ];
 
 // ─── Install ────────────────────────────────────────────────

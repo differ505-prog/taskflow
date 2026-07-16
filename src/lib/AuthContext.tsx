@@ -75,8 +75,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [betaUsers, setBetaUsers] = useState<string[]>([]);
   const [betaLoading, setBetaLoading] = useState(true);
-  // dbRole 是資料庫權威值（緩存最後一次 fetch 的結果）
-  const [dbRole, setDbRole] = useState<UserRole>("free");
+  // dbRole 是資料庫權威值（null = 尚未抓到，避免誤判為 free）
+  const [dbRole, setDbRole] = useState<UserRole | null>(null);
 
   // ── 即時訂閱 Firestore Beta 名單（不受 auth 系統影響）────
   useEffect(() => {
@@ -89,29 +89,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // ── 從資料庫取得權威 role ────────────────────────────────
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!user?.uid) {
+      setDbRole(null);
+      return;
+    }
     void getRole(user.uid).then((r) => setDbRole(r));
   }, [user?.uid]);
 
   // ── 計算當前角色 ──────────────────────────────────────
-  // 優先使用資料庫權威值（dbRole），若尚未 fetch 到則用前端快速比對
+  // 優先級：admin（env）> admin（資料庫）> beta（雲端名單）> beta（資料庫）> free
+  // 即使 Supabase 失敗，ADMIN_EMAILS 與 betaUsers 也能完整判斷角色
   const role = (() => {
     if (!user?.email) return "free" as UserRole;
     const email = user.email.toLowerCase();
 
-    // 資料庫已知的 beta
-    if (dbRole === "beta") return "beta";
-    // 資料庫已知的 admin
-    if (dbRole === "admin") return "admin";
-
-    // 前端快速比對（作為初始值，資料庫回來後會覆蓋）
     if (ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email)) {
       return "admin" as UserRole;
     }
+    if (dbRole === "admin") return "admin" as UserRole;
+
     if (betaUsers.map((e) => e.toLowerCase()).includes(email)) {
       return "beta" as UserRole;
     }
-    return "free" as UserRole;
+    if (dbRole === "beta") return "beta" as UserRole;
+
+    return (dbRole ?? "free") as UserRole;
   })();
 
   const roleConfig = ROLE_CONFIGS[role];
@@ -161,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             photoURL: u.user_metadata?.avatar_url ?? null,
           };
           setUser(authUser);
-          setDbRole("free"); // 重置，等待 fetch
+          setDbRole(null); // 重置，等待 fetch
           void upsertProfile({
             uid: u.id,
             email: u.email ?? "",
@@ -170,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
         } else {
           setUser(null);
-          setDbRole("free");
+          setDbRole(null);
         }
         setLoading(false);
       }
@@ -219,7 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     setUser(null);
-    setDbRole("free");
+    setDbRole(null);
   };
 
   return (
