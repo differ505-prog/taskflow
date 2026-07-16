@@ -29,6 +29,11 @@ export function TaskListItem({
   allTags = [],
 }: TaskListItemProps) {
   const subTasks = task.subTasks || [];
+  const sortedSubTasks = [...subTasks].sort((a, b) => {
+    if (a.status === "done" && b.status !== "done") return 1;
+    if (a.status !== "done" && b.status === "done") return -1;
+    return 0;
+  });
   const isDone = task.status === "done";
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
@@ -96,10 +101,10 @@ export function TaskListItem({
         {/* Sub-task titles with quick-check */}
         {subTasks.length > 0 && (
           <ul className="mt-1.5 flex flex-col gap-1">
-            {subTasks.map((sub) => (
+            {sortedSubTasks.map((sub) => (
               <li
                 key={sub.id}
-                className="flex items-center gap-2 group/sub"
+                className={`flex items-center gap-2 group/sub ${sub.status === "done" ? "opacity-40" : ""}`}
               >
                 <button
                   onClick={(e) => {
