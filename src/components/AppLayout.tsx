@@ -168,28 +168,8 @@ function AppLayoutInner() {
       {/* Main content */}
       <div className="flex-1 min-w-0 overflow-hidden md:flex pb-[72px] md:pb-0">
         {renderView()}
-        {/* Desktop: show detail panel or empty state, Mobile: only show when task selected */}
-        <div className="hidden md:flex md:flex-col min-w-0 flex-1 z-10 relative">
-          {selectedTask ? renderDetailPanel() : (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.2 }}
-              className="w-full md:w-[480px] md:min-w-[480px] h-full md:h-auto border-l overflow-hidden flex flex-col items-center justify-center"
-              style={{ borderColor: "var(--border)", background: "var(--surface)" }}
-            >
-              <div className="flex flex-col items-center justify-center h-64 gap-3">
-                <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "var(--surface-muted)" }}>
-                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: "var(--text-tertiary)" }}>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                </div>
-                <p className="text-[14px]" style={{ color: "var(--text-tertiary)" }}>選擇一個任務</p>
-                <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>點擊左側任務查看詳情</p>
-              </div>
-            </motion.div>
-          )}
-        </div>
+        {/* Desktop: always render detail panel when selected, Mobile: conditional */}
+        {selectedTask && !isMobile && renderDetailPanel()}
         {/* Mobile: full-screen overlay when task selected */}
         {selectedTask && isMobile && renderDetailPanel()}
       </div>

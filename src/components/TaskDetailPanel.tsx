@@ -14,6 +14,7 @@ import {
   AlertCircle, Flag, ChevronDown,
 } from "lucide-react";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
+import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
 import TaskCommentsInline from "./TaskCommentsInline";
 import { TextWithLinks } from "./TextWithLinks";
 
@@ -284,8 +285,8 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   } : {};
 
   return (
-    <div 
-      ref={panelRef} 
+    <div
+      ref={panelRef}
       className="flex flex-col h-full overflow-hidden"
       onTouchStart={onClose ? handleTouchStart : undefined}
       onTouchMove={onClose ? handleTouchMove : undefined}
@@ -476,43 +477,30 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
           </div>
 
           {/* 高頻操作列：優先級 + 標籤 + 附件 */}
-          <div className="flex items-center gap-2 relative" style={{ zIndex: 30 }}>
-            {/* 優先級：單一旗子按鈕 + 下拉 */}
-            <div className="relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setShowPriorityDropdown(false); }}>
-              <label className="block mb-1.5 text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>優先級</label>
-              <button
-                type="button"
-                onClick={() => setShowPriorityDropdown(!showPriorityDropdown)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-colors"
-                style={{
-                  background: "var(--surface)",
-                  borderColor: "var(--border)",
-                  color: PRIORITY_CONFIG[priority].color,
-                }}
-                aria-label="選擇優先級"
-                aria-expanded={showPriorityDropdown}
-              >
-                <Flag className="w-4 h-4" fill="currentColor" />
-                <span className="text-[13px] font-medium">{PRIORITY_CONFIG[priority].label}</span>
-                <ChevronDown className="w-3.5 h-3.5 opacity-60" />
-              </button>
-              {/* 下拉選單 */}
-              {showPriorityDropdown && (
-                <div className="absolute left-0 top-full mt-1 z-20 rounded-xl overflow-hidden min-w-[140px]" style={{ background: "var(--surface)", boxShadow: "var(--shadow-lg)", border: "1px solid var(--border)" }}>
-                  {(["low", "medium", "high"] as Priority[]).map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => { setPriority(p); setShowPriorityDropdown(false); }}
-                      className="w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-[var(--surface-hover)]"
-                      style={priority === p ? { background: "var(--surface-muted)" } : {}}
-                    >
-                      <Flag className="w-4 h-4" fill="currentColor" style={{ color: PRIORITY_CONFIG[p].color }} />
-                      <span className="text-[13px]" style={{ color: "var(--text-primary)" }}>{PRIORITY_CONFIG[p].label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+          <div className="flex items-start gap-2 relative" style={{ zIndex: 30 }}>
+            {/* 優先級：艾森豪四象限 */}
+            <div>
+              <label className="block mb-2 text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>優先級</label>
+              <EisenhowerQuadrantGrid priority={priority} onChange={setPriority} />
+
+              {/* Q1 緊急提示：priority=high 且 dueDate 在 24h 內時顯示 */}
+              {(() => {
+                const eisen = getEisenhowerVisual({ priority, dueDate });
+                if (!eisen.isUrgent) return null;
+                return (
+                  <div
+                    className="mt-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px]"
+                    style={{
+                      background: `${eisen.color}12`,
+                      color: eisen.color,
+                      border: `1px solid ${eisen.color}30`,
+                    }}
+                  >
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="font-medium">24 小時內緊急</span>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* 標籤：圖示按鈕 + 計數 */}
@@ -597,25 +585,6 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               </div>
             </div>
           </div>
-
-          {/* Q1 緊急狀態提示（保留但不佔用主要空間） */}
-          {(() => {
-            const eisen = getEisenhowerVisual({ priority, dueDate });
-            if (!eisen.isUrgent) return null;
-            return (
-              <div
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px]"
-                style={{
-                  background: `${eisen.color}12`,
-                  color: eisen.color,
-                  border: `1px solid ${eisen.color}30`,
-                }}
-              >
-                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                <span className="font-medium">24 小時內緊急</span>
-              </div>
-            );
-          })()}
         </div>
 
         {/* Status */}
