@@ -171,7 +171,7 @@ function AppLayoutInner() {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 min-w-0 overflow-hidden md:flex pb-[72px] md:pb-0">
+      <div className="flex-1 min-w-0 overflow-hidden md:flex pb-[calc(60px+env(safe-area-inset-bottom,0px)+12px)] md:pb-0">
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
           {renderView()}
         </div>
