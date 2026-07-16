@@ -60,10 +60,14 @@ export function ProtectedUploadButton({
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     // 先讀取檔案、清空 input value，避免「同一檔案選第二次」不觸 onChange 的瀏覽器預設行為
     const files = Array.from(e.target.files || []);
+    console.log('[DEBUG] CHANGE fired, files=', files.length, files.map(f => f.name));
     if (inputRef.current) {
       inputRef.current.value = "";
     }
-    if (files.length === 0) return;
+    if (files.length === 0) {
+      console.log('[DEBUG] CHANGE early-return: no files');
+      return;
+    }
 
     setError(null);
 
@@ -164,7 +168,7 @@ export function ProtectedUploadButton({
 
       {/* Upload Button */}
       <button
-        onClick={() => inputRef.current?.click()}
+        onClick={() => { console.log('[DEBUG] CLICK → open picker, isUploading=', isUploading, 'disabled?', inputRef.current?.disabled); inputRef.current?.click(); }}
         disabled={isUploading}
         className={`inline-flex items-center gap-2 rounded-xl text-[14px] font-medium transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${buttonIcon ? "p-2" : "px-4 py-2"}`}
         style={{
