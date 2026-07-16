@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
 import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
+import { SwipeableSubTask } from "./SwipeableSubTask";
 import TaskCommentsInline from "./TaskCommentsInline";
 import { TextWithLinks } from "./TextWithLinks";
 
@@ -58,6 +59,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   const [recurrenceEndDate, setRecurrenceEndDate] = useState(task.recurrence?.endDate || "");
   const [subTasks, setSubTasks] = useState<SubTask[]>(task.subTasks || []);
   const [newSubTask, setNewSubTask] = useState("");
+  const subtaskInputRef = useRef<HTMLInputElement>(null);
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>(task.attachments || []);
@@ -201,6 +203,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     const updated: SubTask[] = [...subTasks, newSub];
     setSubTasks(updated);
     setNewSubTask("");
+    subtaskInputRef.current?.focus();
     // 自動儲存子任務變更
     updateTask(task.id, { subTasks: updated });
   };
@@ -396,68 +399,27 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             <span className="ml-auto text-[11px]" style={{ color: "var(--text-tertiary)" }}>自動儲存</span>
           </div>
           {subTasks.map((sub) => (
-            <div key={sub.id} className="flex items-center gap-2 mb-2 group/sub">
-              <label
-                className="flex-shrink-0 w-7 h-7 -m-1.5 flex items-center justify-center rounded-full cursor-pointer transition-transform [@media(hover:hover)]:hover:scale-110"
-              >
-                <input
-                  type="checkbox"
-                  checked={sub.status === "done"}
-                  onChange={() => toggleSubTask(sub.id)}
-                  className="sr-only"
-                  aria-label={sub.status === "done" ? "標記未完成" : "標記完成"}
-                />
-                {sub.status === "done" ? (
-                  <CheckCircle2 className="w-[18px] h-[18px] text-[var(--status-success)]" />
-                ) : (
-                  <Circle className="w-[18px] h-[18px] text-[var(--text-tertiary)] [@media(hover:hover)]:group-hover/sub:text-[var(--text-secondary)]" />
-                )}
-              </label>
-              {editingSubId === sub.id ? (
-                <input
-                  autoFocus
-                  type="text"
-                  defaultValue={sub.title}
-                  onBlur={(e) => commitEditSubTask(sub.id, e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
-                    if (e.key === "Escape") { setEditingSubId(null); }
-                  }}
-                  className="flex-1 text-[13px] bg-white/60 rounded px-1.5 py-0.5 outline-none border border-[var(--brand)]/40 focus:border-[var(--brand)]"
-                  style={{ color: "var(--text-primary)" }}
-                  aria-label="編輯子任務"
-                />
-              ) : (
-                <span
-                  onClick={() => setEditingSubId(sub.id)}
-                  className={`flex-1 min-w-0 text-[13px] cursor-text rounded px-1 -mx-1 break-words ${sub.status === "done" ? "line-through opacity-50" : ""}`}
-                  style={{ color: sub.status === "done" ? "var(--text-tertiary)" : "var(--text-primary)", wordBreak: "break-word", overflowWrap: "anywhere" }}
-                  title="點擊編輯"
-                >
-                  <TextWithLinks
-                    text={sub.title}
-                    linkStyle={{
-                      color: "var(--brand)",
-                      textDecoration: "underline",
-                      pointerEvents: "auto",
-                    }}
-                  />
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={() => deleteSubTask(sub.id)}
-                className="p-1 rounded opacity-0 [@media(hover:hover)]:group-hover/sub:opacity-100 transition-opacity hover:bg-black/5"
-                style={{ color: "var(--text-tertiary)" }}
-                aria-label="刪除子任務"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            <SwipeableSubTask
+              key={sub.id}
+              sub={sub}
+              isEditing={editingSubId === sub.id}
+              onToggle={() => toggleSubTask(sub.id)}
+              onEdit={() => setEditingSubId(sub.id)}
+              onEditCommit={(title) => commitEditSubTask(sub.id, title)}
+              onDelete={() => deleteSubTask(sub.id)}
+            />
           ))}
           <div className="flex gap-2 mt-3">
-            <input type="text" value={newSubTask} onChange={(e) => setNewSubTask(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
+            <input
+              ref={subtaskInputRef}
+              type="text"
+              value={newSubTask}
+              onChange={(e) => {
+                setNewSubTask(e.target.value);
+                if (e.target.value.trim()) {
+                  addSubTask();
+                }
+              }}
               placeholder="新增子任務..." className="input flex-1" style={{ fontSize: 13, padding: "8px 12px" }} />
             <button type="button" onClick={addSubTask} className="btn-ghost px-3" aria-label="新增子任務">
               <Plus className="w-4 h-4" />
