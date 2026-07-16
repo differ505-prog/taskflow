@@ -7,7 +7,7 @@ alwaysApply: true
 # 系統憲法 (System Constitution)
 
 > 設計基調:功能極簡 × 視覺優雅 × 工程嚴謹
-> 
+>
 > 本專案產業定位:**類似 TickTick 的任務管理網站**
 > 遠端倉庫: https://github.com/differ505-prog/taskflow
 
@@ -182,30 +182,63 @@ alwaysApply: true
 | 需要互動才能進入某狀態（登入、切換頁面、灌資料） | CDP Runtime.evaluate 直接操縱 state/localStorage |
 | 抓 console error / network 請求 | CDP Log.enable / Network.enable |
 
-#### 15.3 失敗上限
+#### 15.3 視覺/佈局 Bug 第一刀：定位 DOM 邊界
 
-連續 2 次 CDP / 互動無收穫 → **立即停下**，報告：
+**視覺症狀（空白、遮擋、變形、殘留）出現時，第一個動作不是讀 CSS，而是定位空白/遮擋屬於哪個 DOM 節點。**
+
+| 用戶描述的動詞 | 必須檢查的 CSS 屬性 |
+|---|---|
+| 變大 / 縮小 | scale / w / h |
+| 變深 / 變亮 / 變色 | color / text- / bg- / border- / opacity |
+| 變形 / 變圓 | rounded- / shape |
+| 閃爍 | transition / animation |
+| 殘留 | 偽類殘留 (:hover / :focus / :active) |
+| **空白未利用 / 內容被遮** | **flex/grid 父層 grow/shrink 設定、min-width、justify-content、是否有相鄰 siblings** |
+
+**決策樹**：
+1. **視覺症狀在哪個 DOM 節點？** → 先確認節點邊界，再確認空白/遮擋在節點內還是外
+2. **空白在節點內** → 讀該節點的 padding / 內部子項 flex 設定
+3. **空白在節點外（siblings 之間或父層邊界）** → 讀父層 flex/grid 佈局（flex-grow/flex-shrink/min-width/justify-content）
+4. **確認後再讀 CSS**，避免在錯誤的 DOM 子樹裡讀幾百行
+
+#### 15.4 Mobile Input 特殊性原則
+
+**觸發**：任何涉及 `<input>` / `<textarea>` 的鍵盤事件綁定（`onKeyDown`、`onKeyUp`、`onChange`）在提交前，必須同時驗證 iOS Safari 和 Android Chrome 上 soft keyboard 的行為是否一致。
+
+**已知 mobile input 時序差異**：
+- **iOS/Android `onKeyDown` 在 React controlled state 同步前觸發**：`e.target.value` 或 React state 在 `onKeyDown` 時可能仍是上一個值；`onChange` 才代表 React state 已同步
+- **IME composition 期間**：`onKeyDown`/`onKeyUp` 行為不一致，`onKeyDown` + `key === "Enter"` 在 iOS Safari 上不可靠
+- **軟體鍵盤 Enter 鍵**：iOS Safari 的「換行」按鈕在 `<input>` 上可能觸發 `key === "Enter"` 也可能不觸發
+
+**對應原則**：
+- 對 controlled input，**優先用 `onChange`** 作為值同步管道，不要依賴 `onKeyDown`/`onKeyUp` 裡讀 state
+- 若必須用 `onKeyDown`/`onKeyUp` 處理特定 key，**用 `onKeyUp`**（時序上更接近 React state commit 完成）
+- IME 相關行為：**禁用 `onKeyDown` 搭配 IME**，只用 `onChange` 或 `onKeyUp`
+- **Desktop browser 測試不足以發現 mobile input timing bug**，需要實機驗證
+
+#### 15.5 失敗上限
+
+**所有驗證工具**（CDP、browser 互動、subagent）累計 **2 次無效動作**（工具 format 錯誤、工具返回空結果、指令被 block）→ **立即停下報告**，不要換同類工具重試。
+
+累計 **3 次嘗試仍未定位根因** → **立即停下**，報告：
 1. 我試過什麼（具體動作 + 結果）
 2. 我卡在哪（具體阻擋點）
 3. 建議下一步
 
-#### 15.4 視覺 Bug 處理原則
-
-1. **先列症狀→根因清單**：每個症狀列出所有可能 CSS/行為源頭，不只修一個
-2. **同根因多症狀同步修**：修一個根因時，主動檢查同根因的其他症狀，不等用戶回報
-3. **盲目聽描述**：100% 貼合用戶描述處理，不擴大猜測。若懷疑其他元素也有問題，先 AskQuestion 確認
-4. **動詞→CSS 對照**：用戶說「變深/變亮」→ 查 color/opacity；「變大/縮小」→ 查 scale/w/h；「殘留」→ 查 :hover/:focus/:active
+禁止「再試一次然後又換一種方式」 — 這是 rabbit hole。
 
 ### 16. 失敗上限與卡住回報 (Failure Budget)
 
-**觸發**：同一問題連續失敗
+**觸發**（滿足任一即觸發）：
+1. 同一問題**累計 3 次修改**仍未解決
+2. **累計 6 次 tool call**（不限類型）仍無實質進展
 
-**規則**：
-- **2 次失敗 → 必須停下**，向使用者報告：
-  1. 我試過什麼（具體動作 + 結果）
-  2. 我卡在哪（具體阻擋點）
-  3. 建議下一步（手動介入？換策略？放棄？）
-- **禁止「再試一次然後又換一種方式」** — 這是 rabbit hole
+**規則**：觸發時，**立即停下**，向使用者報告：
+1. 我試過什麼（具體動作 + 結果）
+2. 我卡在哪（具體阻擋點）
+3. 建議下一步（手動介入？換策略？放棄？）
+
+**禁止「再試一次然後又換一種方式」** — 這是 rabbit hole。工具失敗（format error、返回空結果、被 block）和 code 修改次數分開累計，任何一個達標都該停下。
 
 ### 17. 改動分類揭露 (Change Classification Disclosure)
 
@@ -221,6 +254,21 @@ alwaysApply: true
 - Secondary 改動**必須在評分表內獨立列出**，等使用者明確同意才能做
 - 「順便修一下」這類詞**禁止** — 它會稀釋 review 焦點
 - 評分表 ≥7.5 分的門檻**只適用於 Primary 改動**；Secondary 改動需獨立評分並揭露
+
+### 18. Mobile Input 特殊性原則
+
+**觸發**：任何涉及 `<input>` / `<textarea>` 的鍵盤事件綁定（`onKeyDown`、`onKeyUp`、`onChange`）在提交前，必須同時驗證 iOS Safari 和 Android Chrome 上 soft keyboard 的行為是否一致。
+
+**已知 mobile input 時序差異**：
+- **iOS/Android `onKeyDown` 在 React controlled state 同步前觸發**：事件發生時 React state 可能仍是上一個值；`onChange` 才代表 React state 已同步
+- **IME composition 期間**：`onKeyDown`/`onKeyUp` 行為不一致，`onKeyDown` + `key === "Enter"` 在 iOS Safari 上不可靠
+- **軟體鍵盤 Enter 鍵**：iOS Safari 的「換行」按鈕在 `<input>` 上可能觸發 `key === "Enter"` 也可能不觸發
+
+**對應原則**：
+- 對 controlled input，**優先用 `onChange`** 作為值同步管道，不要依賴 `onKeyDown`/`onKeyUp` 裡讀 state
+- 若必須用 `onKeyDown`/`onKeyUp` 處理特定 key，**用 `onKeyUp`**（時序上更接近 React state commit 完成）
+- **禁用 `onKeyDown` 搭配 IME**，只用 `onChange` 或 `onKeyUp`
+- **Desktop browser 測試不足以發現 mobile input timing bug**，需要實機驗證
 
 ---
 
@@ -246,3 +294,5 @@ alwaysApply: true
 | 2026-07-15 | 第 15 條新增工具決策樹（瀏覽器互動 vs CDP 的取捨） |
 | 2026-07-16 | 大幅瘦身：刪除 § 11 失敗插樁除錯、簡化 § 15 為 4 子節、砍掉所有歷史故事、修正條文編號 |
 | 2026-07-16 | 新增 § 14 實作前完整讀取、§ 15.4 視覺 Bug 處理原則（針對「圈圈變深」修三次繞彎路教訓） |
+| 2026-07-16 | 新增 § 18 Mobile Input 特殊性原則（針對 IME 子任務按 Enter 未清除修四次繞彎路教訓）；§ 15.4 視覺 Bug 原則移入 § 15.3；§ 15.5 新增失敗上限（與 § 16 分工：§ 15.5 管 CDP/瀏覽器驗證，§ 16 管程式碼層次修改）；§ 15.3 失敗上限統一改為「連續 3 次」；更新生效紀錄格式 |
+| 2026-07-17 | § 15.3 重寫：新增「DOM 邊界定位」決策樹（空白/遮擋先確認屬於哪個節點再讀 CSS）；§ 15.5 新增驗證工具無效動作 2 次上傳；§ 16 改為雙觸發（3 次修改 或 6 次 tool call）；刪除重複 § 18（mobile input 已移至 § 15.4）；（針對「詳情面板右側空白」浪費 8+ tool calls 仍未定位根因的繞彎路教訓） |
