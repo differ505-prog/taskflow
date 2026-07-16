@@ -23,6 +23,7 @@ interface ProtectedUploadButtonProps {
   multiple?: boolean;
   className?: string;
   buttonText?: string;
+  buttonIcon?: React.ReactNode;
   maxSizeMB?: number;
 }
 
@@ -34,6 +35,7 @@ export function ProtectedUploadButton({
   multiple = true,
   className = "",
   buttonText = "添加附件",
+  buttonIcon,
   maxSizeMB,
 }: ProtectedUploadButtonProps) {
   const { user, isAdmin, isBeta, maxFileSizeMB } = useAuth();
@@ -160,7 +162,7 @@ export function ProtectedUploadButton({
       <button
         onClick={() => inputRef.current?.click()}
         disabled={isUploading}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[14px] font-medium transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+        className={`inline-flex items-center gap-2 rounded-xl text-[14px] font-medium transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${buttonIcon ? "p-2" : "px-4 py-2"}`}
         style={{
           background: isAdmin ? "var(--brand)" : "rgba(139,92,246,0.12)",
           color: isAdmin ? "white" : "#8B5CF6",
@@ -168,14 +170,13 @@ export function ProtectedUploadButton({
       >
         {isUploading ? (
           <Loader2 className="w-4 h-4 animate-spin" />
+        ) : buttonIcon ? (
+          buttonIcon
         ) : (
-          <Upload className="w-4 h-4" />
-        )}
-        {buttonText}
-        {!isAdmin && (
-          <span className="text-[11px] opacity-75">
-            (max {maxSizeMB ?? 5}MB)
-          </span>
+          <>
+            <Upload className="w-4 h-4" />
+            {buttonText}
+          </>
         )}
       </button>
 

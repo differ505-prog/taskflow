@@ -11,11 +11,10 @@ import {
   X, Plus, Repeat, Calendar, Mic, MicOff, Hash,
   Trash2, CheckCircle2, Circle, Tag as TagIcon,
   AlignLeft, Clock, Timer, ListChecks, Paperclip,
-  AlertCircle,
+  AlertCircle, Flag, ChevronDown,
 } from "lucide-react";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
 import TaskCommentsInline from "./TaskCommentsInline";
-import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
 import { TextWithLinks } from "./TextWithLinks";
 
 const RECURRENCE_OPTIONS = [
@@ -463,47 +462,8 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
           </div>
         </div>
 
-        {/* List + Priority + Attachments — 圖示化緊湊區 */}
+        {/* List + Priority + Attachments + Tags — 圖示化高頻區 */}
         <div className="rounded-2xl p-4 space-y-3" style={{ background: "var(--surface-muted)" }}>
-          {/* 優先級：艾森豪 Q1-Q4 旗子切換（4 級循環：低→中→高） */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>優先級</label>
-              <span
-                className="text-[10px] font-medium px-1.5 py-0.5 rounded-md"
-                style={{ background: "var(--surface-muted)", color: "var(--text-tertiary)" }}
-                title="艾森豪矩陣：區分重要與緊急，減少決策疲勞"
-              >
-                艾森豪
-              </span>
-            </div>
-
-            {/* 旗子四象限視覺圖譜 */}
-            <EisenhowerQuadrantGrid priority={priority} onChange={setPriority} />
-
-            {/* Q1 緊急狀態提示：priority=high 且 dueDate 在 24h 內時顯示 */}
-            {(() => {
-              const eisen = getEisenhowerVisual({
-                priority,
-                dueDate,
-              });
-              if (!eisen.isUrgent) return null;
-              return (
-                <div
-                  className="mt-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px]"
-                  style={{
-                    background: `${eisen.color}12`,
-                    color: eisen.color,
-                    border: `1px solid ${eisen.color}30`,
-                  }}
-                >
-                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span className="font-medium">艾森豪 Q1 · 24 小時內緊急（自動）</span>
-                </div>
-              );
-            })()}
-          </div>
-
           {/* 清單：緊湊下拉 */}
           <div>
             <label className="block mb-2 text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>清單</label>
@@ -513,27 +473,146 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             </select>
           </div>
 
-          {/* 附件：迴紋針按鈕 */}
-          <div className="flex items-center justify-between">
-            <label className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>附件</label>
-            <div className="flex items-center gap-2">
-              {attachments.length > 0 && (
-                <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>
-                  {attachments.length} 個
+          {/* 高頻操作列：優先級 + 標籤 + 附件 */}
+          <div className="flex items-center gap-2">
+            {/* 優先級：單一旗子按鈕 + 下拉 */}
+            <div className="relative">
+              <label className="block mb-1.5 text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>優先級</label>
+              <button
+                type="button"
+                onClick={() => {
+                  const menu = document.getElementById("priority-dropdown");
+                  if (menu) menu.classList.toggle("hidden");
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-colors"
+                style={{
+                  background: "var(--surface)",
+                  borderColor: "var(--border)",
+                  color: PRIORITY_CONFIG[priority].color,
+                }}
+                aria-label="選擇優先級"
+              >
+                <Flag className="w-4 h-4" fill="currentColor" />
+                <span className="text-[13px] font-medium">{PRIORITY_CONFIG[priority].label}</span>
+                <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+              </button>
+              {/* 下拉選單 */}
+              <div id="priority-dropdown" className="hidden absolute left-0 top-full mt-1 z-20 rounded-xl overflow-hidden min-w-[140px]" style={{ background: "var(--surface)", boxShadow: "var(--shadow-lg)", border: "1px solid var(--border)" }}>
+                {(["low", "medium", "high"] as Priority[]).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => { setPriority(p); document.getElementById("priority-dropdown")?.classList.add("hidden"); }}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-[var(--surface-hover)]"
+                  >
+                    <Flag className="w-4 h-4" fill="currentColor" style={{ color: PRIORITY_CONFIG[p].color }} />
+                    <span className="text-[13px]" style={{ color: "var(--text-primary)" }}>{PRIORITY_CONFIG[p].label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 標籤：圖示按鈕 + 計數 */}
+            <div className="flex-1">
+              <label className="block mb-1.5 text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>標籤</label>
+              <button
+                type="button"
+                onClick={() => {
+                  const panel = document.getElementById("tag-panel");
+                  if (panel) panel.classList.toggle("hidden");
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-colors w-full"
+                style={{ background: "var(--surface)", borderColor: "var(--border)", color: tags.length > 0 ? "var(--brand)" : "var(--text-tertiary)" }}
+                aria-label="管理標籤"
+              >
+                <TagIcon className="w-4 h-4" />
+                <span className="text-[13px] flex-1 text-left">
+                  {tags.length > 0 ? `${tags.length} 個標籤` : "新增標籤"}
                 </span>
-              )}
-              <ProtectedUploadButton
-                existingAttachments={attachments}
-                onRemoveAttachment={(attachment) => {
-                  setAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
-                }}
-                onFilesUploaded={(newAttachments) => {
-                  setAttachments((prev) => [...prev, ...newAttachments]);
-                }}
-                buttonText="迴紋針上傳"
-              />
+              </button>
+              {/* 標籤輸入面板 */}
+              <div id="tag-panel" className="hidden absolute left-0 top-full mt-1 z-20 rounded-xl p-3 min-w-[260px]" style={{ background: "var(--surface)", boxShadow: "var(--shadow-lg)", border: "1px solid var(--border)" }}>
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={(e) => { setTagInput(e.target.value); updateTagSuggestions(e.target.value); }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { e.preventDefault(); addTag(); }
+                    if (e.key === "Escape") { setShowSuggestions(false); }
+                  }}
+                  onFocus={() => { if (tagInput.trim()) updateTagSuggestions(tagInput); }}
+                  placeholder="新增標籤..." className="input w-full text-[13px] mb-2" maxLength={50} />
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="space-y-1 mb-2">
+                    {suggestions.map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => selectSuggestion(tag)}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 text-left rounded-lg transition-colors hover:bg-[var(--surface-hover)]"
+                      >
+                        <div className="w-2 h-2 rounded-full" style={{ background: tagColors[tag] || "#3B82F6" }} />
+                        <span className="text-[12px]" style={{ color: "var(--text-primary)" }}>{tag}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px]"
+                        style={{ background: `${tagColors[tag] || "#3B82F6"}20`, color: tagColors[tag] || "#3B82F6" }}
+                      >
+                        {tag}
+                        <button type="button" onClick={() => setTags(tags.filter((t) => t !== tag))} className="hover:text-red-500" aria-label={`移除標籤 ${tag}`}>
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 附件：僅圖示 */}
+            <div>
+              <label className="block mb-1.5 text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>附件</label>
+              <div className="flex items-center gap-2">
+                {attachments.length > 0 && (
+                  <span className="text-[11px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>
+                    {attachments.length}
+                  </span>
+                )}
+                <ProtectedUploadButton
+                  existingAttachments={attachments}
+                  onRemoveAttachment={(attachment) => setAttachments((prev) => prev.filter((a) => a.id !== attachment.id))}
+                  onFilesUploaded={(newAttachments) => setAttachments((prev) => [...prev, ...newAttachments])}
+                  buttonIcon={<Paperclip className="w-4 h-4" />}
+                />
+              </div>
             </div>
           </div>
+
+          {/* Q1 緊急狀態提示（保留但不佔用主要空間） */}
+          {(() => {
+            const eisen = getEisenhowerVisual({ priority, dueDate });
+            if (!eisen.isUrgent) return null;
+            return (
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px]"
+                style={{
+                  background: `${eisen.color}12`,
+                  color: eisen.color,
+                  border: `1px solid ${eisen.color}30`,
+                }}
+              >
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="font-medium">24 小時內緊急</span>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Status */}
@@ -633,85 +712,6 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             <div className="mt-3">
               <label className="block mb-1.5 text-[12px]" style={{ color: "var(--text-tertiary)" }}>結束日期（選填）</label>
               <input type="date" value={recurrenceEndDate} onChange={(e) => setRecurrenceEndDate(e.target.value)} className="input" />
-            </div>
-          )}
-        </div>
-
-        {/* Tags */}
-        <div>
-          <div className="flex items-center gap-1.5 mb-2">
-            <TagIcon className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
-            <label className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>標籤</label>
-          </div>
-          <div className="relative">
-            <div className="flex gap-2">
-              <input type="text" value={tagInput} onChange={(e) => { setTagInput(e.target.value); updateTagSuggestions(e.target.value); }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") { e.preventDefault(); addTag(); }
-                  if (e.key === "Escape") { setShowSuggestions(false); }
-                }}
-                onFocus={() => { if (tagInput.trim()) updateTagSuggestions(tagInput); }}
-                placeholder="新增標籤..." className="input flex-1 text-[13px]" maxLength={50} />
-            </div>
-
-            <AnimatePresence>
-              {showSuggestions && (
-                <motion.div
-                  className="absolute left-0 right-0 z-20 mt-1 rounded-xl overflow-hidden"
-                  style={{ background: "var(--surface)", boxShadow: "var(--shadow-lg)", border: "1px solid var(--border)" }}
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                >
-                  {suggestions.length > 0 ? suggestions.map((tag) => {
-                    const color = tagColors[tag] || "#3B82F6";
-                    return (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={() => selectSuggestion(tag)}
-                        className="w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-[var(--surface-hover)]"
-                      >
-                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
-                        <span className="text-[13px]" style={{ color: "var(--text-primary)" }}>{tag}</span>
-                      </button>
-                    );
-                  }) : tagInput.trim() ? (
-                    <button
-                      type="button"
-                      onClick={addTag}
-                      className="w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-[var(--surface-hover)]"
-                    >
-                      <Plus className="w-4 h-4" style={{ color: "var(--brand)" }} />
-                      <span className="text-[13px]" style={{ color: "var(--brand)" }}>建立新標籤「{tagInput.trim()}」</span>
-                    </button>
-                  ) : null}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-3">
-              {tags.map((tag) => {
-                const color = tagColors[tag] || "#3B82F6";
-                return (
-                  <span
-                    key={tag}
-                    className="tag-chip"
-                    style={{
-                      background: `${color}15`,
-                      color: color,
-                      border: `1px solid ${color}25`,
-                    }}
-                  >
-                    {tag}
-                    <button type="button" onClick={() => setTags(tags.filter((t) => t !== tag))} className="p-0.5 rounded-full hover:text-red-500" aria-label={`移除標籤 ${tag}`}>
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                );
-              })}
             </div>
           )}
         </div>
