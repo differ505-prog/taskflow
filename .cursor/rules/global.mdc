@@ -130,25 +130,7 @@ alwaysApply: true
 
 **💡 Better Option**：評估中發現明顯優於原需求的方案，必須主動揭露並標記，等你確認後才能執行。
 
-### 11. 失敗插樁除錯 (Instrumentation-First Debugging)
-
-**觸發**：同一問題累計修復 ≥ 3 次仍未解決
-
-**流程**：
-1. 停止盲目修改
-2. 依序插入觀測點：
-   - **事件入口**：確認操作真的有觸發程式碼
-   - **資料流邊界**：確認參數/Props 如預期
-   - **狀態變更點**：確認狀態真的有改
-   - **UI 重渲染點**：確認 state 改變反映到畫面
-3. 取得 runtime 證據後，精準定位只修那一層
-4. **修復後必須移除插樁代碼**，可在下一個 commit 內一併移除
-
-**取證策略**：
-- 桌面：console.log + Chrome DevTools
-- 手機/PWA：`window.alert()` 或 `document.title = '...'`
-
-### 12. 自動 Commit + Push
+### 11. 自動 Commit + Push
 
 - 完成修改、通過驗證後，自動 `git add` + `commit` + `push`
 - Commit message：中文、列出變更摘要
@@ -157,7 +139,7 @@ alwaysApply: true
   - `git reset --hard` / `git clean -fd`
   - 刪除檔案 / 覆寫 `.env` / 改寫資料庫 migration
 
-### 13. 驗證必讀結果
+### 12. 驗證必讀結果
 
 執行 `tsc --noEmit` / `npm run build` 等後，**必須讀取完整 stderr / exit code**：
 
@@ -166,138 +148,53 @@ alwaysApply: true
 
 禁止「跑完就當成功」「只看 exit 0 就 commit」。
 
-### 14. 最小變更原則 (Scope Discipline)
+### 13. 最小變更原則 (Scope Discipline)
 
 當你要求修 A 時，**只動 A**，不主動：
 - 抽共用 hook / 重命名變數 / 重排 import / reformat / 加新功能「順便做」
 
 任何擴大範圍的變更，必須先在評分表中揭露，等你明確同意後才能做。
 
-**執行提示**：當懷疑視覺問題有多個潛在根因時，先只改一個 class，改完立即驗證，再加下一個。嚴禁一次疊加多個修改。
+### 14. 實作前完整讀取 (Read-Before-Touch)
+
+修改任何複雜功能之前，**先完整讀取該檔案一次**（至少讀到目標區段），建立「檔案地圖」再動手編輯。不要用多輪 `Grep` 碎片化探索再慢慢拼湊理解。
+
+例外：簡單 query（查一個函式定義、找某個 props 用法）→ 直接 Grep 就夠。
 
 ### 15. Runtime 驗證分級 (Right Tool for the Job)
 
-**最高原則：最簡工具優先 (Cheapest Tool First)**
+**最高原則：最簡工具優先 (Cheapest Tool First)** — 除非明確需要 runtime 證據，否則不改用 CDP / 瀏覽器互動。
 
-> **除非明確需要 runtime 證據，否則不要啟動 CDP / 瀏覽器互動。**
-> 改 Tailwind class、加 component-local state、寫新 handler -- 程式碼看完 + lint 過即收工。
-> 留給使用者實際操作時自然發現問題，不要為了「我覺得應該驗證」而浪費 tool call。
-
-#### 15.1 觸發 Runtime 驗證的情境（才走 CDP / 瀏覽器）
+#### 15.1 觸發情境
 
 - ✅ 該走 CDP/瀏覽器：跨元件資料流、API 串接、Zustand selector 變更、持久化、CSS 計算值、佈局尺寸、runtime error
 - ✅ 該走瀏覽器互動：驗收真實 UX（transition、modal 開關、hover 視覺）
 - ✅ 該走 CDP 量測：視窗尺寸、flex/grid 屬性、scrollHeight、bounding rect
-
 - ❌ 不該走 CDP/瀏覽器：改 Tailwind class / inline style、加新 component-local state、加新 onClick/onChange handler、改 useEffect 邏輯但沒跨元件
 
-#### 15.2 Runtime 驗證成本意識
+#### 15.2 工具決策樹
 
-- CDP 1 個 evaluate 看 DOM 屬性 = **1 tool call**
-- 開瀏覽器截圖 = **1 tool call**
-- 完整還原「使用者操作流程」（點按鈕 → 等 modal → 點確認 → 等動畫）= **5-10 tool calls**
-- **能從程式碼直接讀出答案的事情（像是 `w-4` = 16px、`w-7` = 28px），不准用 CDP 量**
+| 場景 | 推薦工具 |
+|------|---------|
+| 程式碼讀完就能確定答案 | grep + Read + 程式碼 review |
+| 能從 DOM 推算（getBoundingClientRect、computed style） | CDP Runtime.evaluate 一次性量測 |
+| 視覺要看真實呈現（hover、modal、transition） | browser 互動 + screenshot |
+| 需要互動才能進入某狀態（登入、切換頁面、灌資料） | CDP Runtime.evaluate 直接操縱 state/localStorage |
+| 抓 console error / network 請求 | CDP Log.enable / Network.enable |
 
-#### 15.3 失敗上限（繼承 § 16）
+#### 15.3 失敗上限
 
-連續 2 次 CDP / 互動無收穫 → **立即停止**，向使用者報告：
+連續 2 次 CDP / 互動無收穫 → **立即停下**，報告：
 1. 我試過什麼（具體動作 + 結果）
-2. 我現在卡在哪（具體阻擋點）
-3. 建議下一步（換策略?手動介入?放棄?）
+2. 我卡在哪（具體阻擋點）
+3. 建議下一步
 
-**禁止**「再試一次然後又換一種方式」 -- 這是 rabbit hole。
+#### 15.4 視覺 Bug 處理原則
 
-#### 15.4 為什麼需要這條
-
-上輪「子任務勾選圈圈太小」改動：
-- 程式碼明確寫 `w-4 h-4`（16px）→ 改為 `w-7 h-7`（28px）
-- 我卻啟動 CDP 量當前尺寸 + 量改後尺寸 + 派發 React event 驗證可編輯
-- 浪費 8+ tool call，還撞到 Auto-review 攔截
-- **程式碼讀完就已經 100% 確認視覺結果，根本不需要 runtime**
-
-對比上上輪「收集箱捲到底被遮」bug：
-- 確實需要 runtime 看見遮擋才能確認 fix 有效 → CDP 是對的
-
-**兩種情境的差別**：前者是「預測改完會怎樣」（程式碼即答案），後者是「診斷為什麼這樣」（必須看見才能定位）。
-
-#### 15.5 症狀—根因多對應原則 (Multi-Root-Cause Mapping)
-
-**觸發**：用戶報告視覺 bug
-
-**問題**：視覺症狀（圈圈變深、按鈕殘留、顏色跑掉）**常有多個非互斥根因**，逐一修補等用戶回報是 rabbit hole。
-
-**規則**：
-1. 評分前**先輸出症狀 → 可能根因清單**,列出所有可能造成此症狀的 CSS / 行為源頭
-2. **每個根因必須獨立追蹤**,不能合併為一個 commit 偷渡
-3. 評分表中**Primary 改動必須同時修補所有非互斥根因**,一次到位
-
-**執行提示**：不要只列出根因，**還要預判每個根因的修復是否會破壞其他佈局**。例如：在 `grid` 容器內嵌套 `div` 會破壞格子結構，這是「修復本身帶來的新問題」，必須在實作前就想到。
-
-**範例 — 圈圈 tap 後變深**：
-
-| 症狀描述 | 可能根因 | 對應 CSS / WebKit 行為 | 修法 |
-|---------|---------|---------------------|------|
-| 圈圈變深 | WebKit tap-highlight | `-webkit-tap-highlight-color` | globals.css |
-| 圈圈變深 | :hover 偽類殘留 | `group-hover/sub:text-` | @media(hover:hover) |
-| 圈圈變深 | :focus-visible outline | `:focus-visible { outline }` | globals.css |
-| 圈圈變深 | :active 殘留 | `:active` 不會自動清除 | 不常見 |
-
-**驗收**：三個非互斥根因必須各自一個 commit 驗收，不可合併。
-
-#### 15.6 盲目聽描述,勿擴大猜測 (Stay Faithful to Description)
-
-**觸發**：用戶描述視覺症狀
-
-**規則**：
-- AI 必須 100% 貼合用戶描述處理,**不擴大猜測症狀範圍**
-- 看到截圖出現其他元素就以為那是 bug 源頭 → ❌ 違規
-- 若想擴大猜測,必須先用 AskQuestion 確認,**不可直接動手**
-
-**反面教材**(本次 iOS bug):
-- 用戶說「圈圈變深」,AI 看到截圖也有 × 號就以為是 × 按鈕 → 修錯
-- 正確做法:聽到「圈圈」就只處理圈圈,不要擴大到 × 按鈕
-- 若懷疑 × 也是問題,先問用戶確認
-
-#### 15.7 CSS 屬性 vs 症狀動詞對應表 (Verb-to-Property Mapping)
-
-**問題**：「變深」「變大」這類用戶描述的動詞,AI 必須對應到正確的 CSS 屬性,才能定位修復
-
-| 用戶描述的動詞 | 必須檢查的 CSS 屬性 | 範例 |
-|--------------|-----------------|------|
-| 變大 / 縮小 | scale / w / h | `hover:scale-110`、`w-[18px]` |
-| 變深 / 變亮 / 變色 | color / text- / bg- / border-/ opacity | `text-[#aaa]` → `text-[#666]` |
-| 變形 / 變圓 | rounded-/ shape | `rounded-none` → `rounded-full` |
-| 閃爍 | transition / animation | keyframe、duration |
-| 殘留 | 偽類殘留(:hover / :focus / :active) | `@media(hover:hover)` |
-| 浮現 / 出現 | opacity / display | `opacity-0` → `opacity-100` |
-
-**對應失敗的後果**:
-- 「變深」誤對應 `scale` → 找不到 class
-- 「變大」誤對應 `text-` → 找不到 class
-- 「殘留」不對應偽類 → 找錯方向
-
-#### 15.8 同根因多症狀預修原則 (Same-Root Multi-Symptom)
-
-**問題**：一個根因可能引發多個不同症狀(例:iOS :hover 殘留會讓「顏色變深」「按鈕浮現」「尺寸放大」三個症狀同時殘留)
-
-**規則**:
-- 修補一個根因時,**必須主動檢查同根因的其他症狀**
-- 不要等到用戶一一回報才修
-- 評分時若發現「同根因多症狀」必須揭露,且優先級≥被修的那個症狀
-
-**為什麼**：這次「圈圈變深」修了三次,直到第三次才發現「× 殘留」「label scale 殘留」其實也是同一 iOS :hover 殘留根因,**早該同步修**。
-
-#### 附錄：工具選擇決策樹（預設從最簡開始）
-
-| 場景 | 推薦工具 | 為何 |
-|------|---------|------|
-| 程式碼讀完就能確定答案（純 Tailwind / 純 inline style / 純 state 新增） | **grep + Read + 程式碼 review** | 0 tool call 浪費 |
-| 程式碼看不出來，但能從 DOM 推算（getBoundingClientRect、computed style） | `CDP Runtime.evaluate` 一次性量測 | 1 tool call 搞定 |
-| 視覺要看真實呈現（hover 效果、modal 開關、transition 動畫） | `browser_click / type / navigate` + screenshot | 必須看 |
-| 需要互動才能進入某狀態（登入、切換頁面、灌資料） | `CDP Runtime.evaluate` 直接操縱 state / localStorage | **不必走 UI 流程** |
-| 抓 console error / network 請求 | `CDP Log.enable` / `Network.enable` | 唯一管道 |
-
-**預設順序**：`程式碼 review` → `CDP 量測` → `瀏覽器互動`。**不預設走 CDP**。
+1. **先列症狀→根因清單**：每個症狀列出所有可能 CSS/行為源頭，不只修一個
+2. **同根因多症狀同步修**：修一個根因時，主動檢查同根因的其他症狀，不等用戶回報
+3. **盲目聽描述**：100% 貼合用戶描述處理，不擴大猜測。若懷疑其他元素也有問題，先 AskQuestion 確認
+4. **動詞→CSS 對照**：用戶說「變深/變亮」→ 查 color/opacity；「變大/縮小」→ 查 scale/w/h；「殘留」→ 查 :hover/:focus/:active
 
 ### 16. 失敗上限與卡住回報 (Failure Budget)
 
@@ -306,12 +203,9 @@ alwaysApply: true
 **規則**：
 - **2 次失敗 → 必須停下**，向使用者報告：
   1. 我試過什麼（具體動作 + 結果）
-  2. 我現在卡在哪（具體阻擋點，例如 Auto-review 拒絕、API 沒資料、頁面壞了）
-  3. 建議下一步（要我手動介入？換策略？放棄？）
-- **禁止「再試一次然後又換一種方式」** — 這是 rabbit hole，2 次內沒收穫就停下
-- 第 11 條的「3 次插樁」是「還沒定位時該用什麼方法」，**第 16 條是「失敗到什麼程度該停下」**，兩條不衝突
-
-**為什麼**：上輪我嘗試「塞 50 筆假任務到 localStorage」失敗，又嘗試「直接讀 localStorage」被 Auto-review 擋下。**兩次無效動作後才停下報告**，浪費 4 個 tool call。
+  2. 我卡在哪（具體阻擋點）
+  3. 建議下一步（手動介入？換策略？放棄？）
+- **禁止「再試一次然後又換一種方式」** — 這是 rabbit hole
 
 ### 17. 改動分類揭露 (Change Classification Disclosure)
 
@@ -327,8 +221,6 @@ alwaysApply: true
 - Secondary 改動**必須在評分表內獨立列出**，等使用者明確同意才能做
 - 「順便修一下」這類詞**禁止** — 它會稀釋 review 焦點
 - 評分表 ≥7.5 分的門檻**只適用於 Primary 改動**；Secondary 改動需獨立評分並揭露
-
-**為什麼**：上輪我移除 motion.div 的 `layout` prop（屬於良性最佳化）但沒在評分表揭露，使用者通過時其實只 OK 了「primary 改動」，這違反「最小變更」的初衷。
 
 ---
 
@@ -350,7 +242,7 @@ alwaysApply: true
 | 日期 | 變更 |
 |------|------|
 | 2026-07-15 | 簡化：23 條 → 14 條，刪除重複、統一門檻 7.5 分、移除 30 秒超時自動執行 |
-| 2026-07-15 | 新增 3 條：15 UI Bug 必看實證、16 失敗上限卡住回報、17 改動分類揭露（針對「收集箱被遮」bug 繞彎路教訓） |
-| 2026-07-15 | 第 15 條附錄「工具選擇決策樹」（瀏覽器互動 vs CDP 的取捨） |
-| 2026-07-15 | 第 15 條修憲：「UI Bug 必看實證」改為「Runtime 驗證分級」,新增最簡工具優先原則 + 不該走 CDP 的明確清單(針對「圈圈大小」改動浪費 CDP 的教訓) |
-| 2026-07-16 | 第 15 條新增 § 15.5~§ 15.8:症狀—根因多對應、盲目聽描述、動詞對應表、同根因多症狀預修(針對「圈圈變深」5 個 round 修三次繞彎路教訓) |
+| 2026-07-15 | 新增 3 條：15 Runtime 驗證分級、16 失敗上限卡住回報、17 改動分類揭露 |
+| 2026-07-15 | 第 15 條新增工具決策樹（瀏覽器互動 vs CDP 的取捨） |
+| 2026-07-16 | 大幅瘦身：刪除 § 11 失敗插樁除錯、簡化 § 15 為 4 子節、砍掉所有歷史故事、修正條文編號 |
+| 2026-07-16 | 新增 § 14 實作前完整讀取、§ 15.4 視覺 Bug 處理原則（針對「圈圈變深」修三次繞彎路教訓） |
