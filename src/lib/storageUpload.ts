@@ -196,13 +196,9 @@ function uploadWithProgress(
           let msg = `上傳失敗 (${xhr.status})`;
           try {
             const body = JSON.parse(xhr.responseText);
-            console.error("[storageUpload] 失敗 response body:", body);
             if (body?.message) msg = body.message;
           } catch {
-            console.error(
-              "[storageUpload] 失敗非 JSON response:",
-              xhr.responseText
-            );
+            // response body 不是 JSON,沿用 status code 訊息
           }
           reject(new Error(msg));
         }

@@ -433,10 +433,10 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
 
         {/* List + Priority + Attachments + Tags — 圖示化高頻區 */}
         <div className="rounded-2xl p-4 space-y-3" style={{ background: "var(--surface-muted)" }}>
-          {/* 高頻操作列：優先級 + 標籤 + 附件 */}
-          <div className="flex items-start gap-2 relative" style={{ zIndex: 30 }}>
-            {/* 優先級：艾森豪四象限 */}
-            <div>
+          {/* 高頻操作列：優先級 + 標籤 + 附件（grid-cols-12 強制比例，避免側欄擠壓） */}
+          <div className="grid grid-cols-12 gap-x-3 gap-y-3 items-start relative" style={{ zIndex: 30 }}>
+            {/* 優先級：艾森豪四象限（佔 12/7） */}
+            <div className="col-span-12 sm:col-span-7">
               <label className="block mb-2 text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>優先級</label>
               <EisenhowerQuadrantGrid priority={priority} onChange={setPriority} />
 
@@ -460,8 +460,8 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               })()}
             </div>
 
-            {/* 標籤：圖示按鈕 + 計數 */}
-            <div className="flex-1 relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setShowTagPanel(false); }}>
+            {/* 標籤：圖示按鈕 + 計數（佔 12/5） */}
+            <div className="col-span-12 sm:col-span-5 flex-1 relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setShowTagPanel(false); }}>
               <label className="block mb-1.5 text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>標籤</label>
               <button
                 type="button"
@@ -524,8 +524,8 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               )}
             </div>
 
-            {/* 附件：僅圖示 */}
-            <div>
+            {/* 附件：獨立一行,放在 EisenhowerGrid 下方 */}
+            <div className="col-span-12">
               <label className="block mb-1.5 text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>附件</label>
               <div className="flex items-center gap-2">
                 {attachments.length > 0 && (
@@ -539,6 +539,11 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
                   onFilesUploaded={(newAttachments) => setAttachments((prev) => [...prev, ...newAttachments])}
                   buttonIcon={<Paperclip className="w-4 h-4" />}
                 />
+                {attachments.length > 0 && (
+                  <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+                    點按鈕查看/刪除已上傳附件
+                  </span>
+                )}
               </div>
             </div>
           </div>
