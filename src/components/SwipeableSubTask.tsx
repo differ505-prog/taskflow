@@ -116,7 +116,7 @@ export function SwipeableSubTask({
             close();
           }
         }}
-        style={{ width: "100%", touchAction: "pan-y", background: "transparent" }}
+        style={{ width: "100%", touchAction: "pan-y", background: "transparent", pointerEvents: isOpen ? "auto" : "none" }}
       >
         {/* Checkbox */}
         <label className="flex-shrink-0 w-7 h-7 -m-1 flex items-center justify-center rounded-full cursor-pointer transition-transform [@media(hover:hover)]:hover:scale-110">
