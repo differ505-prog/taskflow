@@ -13,7 +13,7 @@ interface CellVisual {
   textColor: string;
   qLabel: string;
   subtitle: string;
-  mappedPriority: Priority;
+  visualKey: string;
 }
 
 const QUADRANTS: CellVisual[] = [
@@ -22,28 +22,28 @@ const QUADRANTS: CellVisual[] = [
     textColor: "var(--priority-high)",
     qLabel: "Q1/Q2",
     subtitle: "重要",
-    mappedPriority: "high",
+    visualKey: "high",
   },
   {
     label: "中",
     textColor: "var(--priority-medium)",
     qLabel: "Q3",
     subtitle: "次要",
-    mappedPriority: "medium",
+    visualKey: "medium",
   },
   {
     label: PRIORITY_CONFIG.low.label,
     textColor: "var(--priority-low)",
     qLabel: "Q4",
     subtitle: "可忽略",
-    mappedPriority: "low",
+    visualKey: "low",
   },
   {
     label: "不重要",
     textColor: "var(--text-tertiary)",
     qLabel: "Q4",
     subtitle: "不緊急",
-    mappedPriority: "low",
+    visualKey: "low-soft",
   },
 ];
 
@@ -64,7 +64,13 @@ const QUADRANTS: CellVisual[] = [
  * 點擊任意格 → 切換 priority
  */
 export function EisenhowerQuadrantGrid({ priority, onChange }: EisenhowerQuadrantGridProps) {
-  const isActive = (mapped: Priority) => priority === mapped;
+  const isActive = (visualKey: string) => {
+    if (visualKey === "low-soft") return priority === "low";
+    return priority === visualKey;
+  };
+  const handleClick = (visualKey: string) => {
+    onChange(visualKey === "low-soft" ? "low" : (visualKey as Priority));
+  };
 
   return (
     <div className="grid grid-cols-4 gap-1.5">
@@ -72,10 +78,10 @@ export function EisenhowerQuadrantGrid({ priority, onChange }: EisenhowerQuadran
         <button
           key={i}
           type="button"
-          onClick={() => onChange(q.mappedPriority)}
+          onClick={() => handleClick(q.visualKey)}
           className="rounded-xl p-2.5 text-left transition-all duration-150 active:scale-95"
           style={
-            isActive(q.mappedPriority)
+            isActive(q.visualKey)
               ? {
                   background: q.textColor,
                   color: "#fff",
@@ -89,12 +95,12 @@ export function EisenhowerQuadrantGrid({ priority, onChange }: EisenhowerQuadran
                 }
           }
           aria-label={`${q.label}優先（${q.qLabel}）`}
-          aria-pressed={isActive(q.mappedPriority)}
+          aria-pressed={isActive(q.visualKey)}
         >
           <div className="flex items-center justify-between mb-0.5">
             <Flag
               className="w-3.5 h-3.5"
-              fill={isActive(q.mappedPriority) ? "currentColor" : q.mappedPriority === "low" ? "none" : "currentColor"}
+              fill={isActive(q.visualKey) ? "currentColor" : q.visualKey === "low-soft" ? "none" : "currentColor"}
             />
             <span className="text-[9px] font-bold opacity-70">{q.qLabel}</span>
           </div>
@@ -103,7 +109,7 @@ export function EisenhowerQuadrantGrid({ priority, onChange }: EisenhowerQuadran
           </div>
           <div
             className="text-[9px]"
-            style={{ opacity: isActive(q.mappedPriority) ? 0.85 : 0.7 }}
+            style={{ opacity: isActive(q.visualKey) ? 0.85 : 0.7 }}
           >
             {q.subtitle}
           </div>

@@ -58,7 +58,6 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   const [recurrenceDaysOfWeek, setRecurrenceDaysOfWeek] = useState<number[]>(task.recurrence?.daysOfWeek || []);
   const [recurrenceEndDate, setRecurrenceEndDate] = useState(task.recurrence?.endDate || "");
   const [subTasks, setSubTasks] = useState<SubTask[]>(task.subTasks || []);
-  const [newSubTask, setNewSubTask] = useState("");
   const subtaskInputRef = useRef<HTMLInputElement>(null);
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -192,7 +191,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   };
 
   const addSubTask = () => {
-    const t = newSubTask.trim();
+    const t = subtaskInputRef.current?.value.trim() ?? "";
     if (!t) return;
     const newSub: SubTask = {
       id: `${Date.now()}-sub`,
@@ -202,8 +201,6 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     };
     const updated: SubTask[] = [...subTasks, newSub];
     setSubTasks(updated);
-    setNewSubTask("");
-    // 防止 IME composition 期間 state 未同步，DOM value 沒被 React 重繪覆蓋
     if (subtaskInputRef.current) subtaskInputRef.current.value = "";
     subtaskInputRef.current?.focus();
     // 自動儲存子任務變更
@@ -415,11 +412,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             <input
               ref={subtaskInputRef}
               type="text"
-              value={newSubTask}
-              onChange={(e) => setNewSubTask(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
-              onCompositionUpdate={(e) => setNewSubTask(e.currentTarget.value)}
-              onCompositionEnd={(e) => setNewSubTask(e.currentTarget.value)}
               placeholder="新增子任務..." className="input flex-1" style={{ fontSize: 13, padding: "8px 12px" }} />
             <button type="button" onClick={addSubTask} className="btn-ghost px-3" aria-label="新增子任務">
               <Plus className="w-4 h-4" />

@@ -62,13 +62,12 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
     const [y, m, d] = iso.split("-").map(Number);
     return `${m}/${d}`;
   };
-  const [newSubTask, setNewSubTask] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const titleRef = useRef<HTMLInputElement>(null);
   const subtaskInputRef = useRef<HTMLInputElement>(null);
 
-  // ─── Voice Input (Web Speech API) ──────────────────────────
+  // ─── Voice Input
   const handleVoiceInput = useCallback(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) return;
@@ -163,7 +162,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
     } else {
       setTitle(""); setDescription(""); setPriority("low"); setStatus("todo");
       setDueDate(""); setStartDate(""); setDueTime(""); setListId(currentListId); setTags([]);
-      setSubTaskInputs([]); setNewSubTask("");
+      setSubTaskInputs([]);
       setRecurrenceType("none"); setRecurrenceInterval(1);
       setRecurrenceDaysOfWeek([]); setRecurrenceEndDate("");
       setAttachments([]);
@@ -187,10 +186,9 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
   };
 
   const addSubTask = () => {
-    const t = newSubTask.trim();
+    const t = subtaskInputRef.current?.value.trim() ?? "";
     if (t) {
       setSubTaskInputs([...subTaskInputs, t]);
-      setNewSubTask("");
       if (subtaskInputRef.current) subtaskInputRef.current.value = "";
     }
   };
@@ -581,10 +579,8 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                   </div>
                 ))}
                 <div className="flex gap-2">
-                  <input ref={subtaskInputRef} type="text" value={newSubTask} onChange={(e) => setNewSubTask(e.target.value)}
+                  <input ref={subtaskInputRef} type="text"
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
-                    onCompositionUpdate={(e) => setNewSubTask(e.currentTarget.value)}
-                    onCompositionEnd={(e) => setNewSubTask(e.currentTarget.value)}
                     placeholder="新增子任務..." className="input flex-1" style={{ fontSize: 13, padding: "8px 12px" }} />
                   <button type="button" onClick={addSubTask} className="btn-ghost px-3" aria-label="新增子任務">
                     <Plus className="w-4 h-4" />
