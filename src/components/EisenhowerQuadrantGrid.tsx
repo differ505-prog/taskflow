@@ -65,7 +65,7 @@ const QUADRANTS: CellVisual[] = [
  */
 export function EisenhowerQuadrantGrid({ priority, onChange }: EisenhowerQuadrantGridProps) {
   const isActive = (visualKey: string) => {
-    if (visualKey === "low-soft") return priority === "low";
+    if (visualKey === "low-soft") return false;
     return priority === visualKey;
   };
   const handleClick = (visualKey: string) => {
