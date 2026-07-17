@@ -100,6 +100,7 @@ export interface Task {
   recurrence?: Recurrence;
   reminder?: string; // ISO datetime string
   isArchived: boolean;
+  completedAt?: string; // ISO datetime，任務被標記為完成時的時間戳
   focusMinutes: number; // total Pomodoro minutes logged
   order: number; // sort order within view
   createdBy?: string; // uid of the user who created this task (for shared lists)

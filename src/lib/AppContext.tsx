@@ -571,7 +571,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // 任務完成按鈕：直接切換 todo <-> done（跳過 in-progress）
     const newStatus: Task["status"] = task.status === "done" ? "todo" : "done";
     const updated = tasks.map((t) =>
-      t.id === id ? { ...t, status: newStatus, updatedAt: new Date().toISOString() } : t
+      t.id === id
+        ? {
+            ...t,
+            status: newStatus,
+            updatedAt: new Date().toISOString(),
+            completedAt: newStatus === "done" ? new Date().toISOString() : undefined,
+          }
+        : t
     );
     setTasks(updated);
     saveTasks(updated);
@@ -1258,6 +1265,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       void listSharedMembersFn(currentSharedListId);
     }
   }, [currentSharedListId, listSharedMembersFn]);
+
+  // ── 自動清理：完成超過 7 天的任務，釋放雲端空間 ──────────────
+  const COMPLETED_TASK_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+  useEffect(() => {
+    if (!tasks.length || !user) return;
+    const now = Date.now();
+    const toDelete = tasks.filter(
+      (t) => t.status === "done" && t.completedAt && now - new Date(t.completedAt).getTime() > COMPLETED_TASK_RETENTION_MS
+    );
+    if (!toDelete.length) return;
+    void (async () => {
+      for (const task of toDelete) {
+        await deleteTask(task.id);
+      }
+    })();
+  }, [tasks, user, deleteTask]);
 
   // ── 通知 ─────────────────────────────────────────────
   const requestNotificationPermission = useCallback(async (): Promise<boolean> => {
