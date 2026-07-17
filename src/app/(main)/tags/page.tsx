@@ -6,6 +6,7 @@ import { Task } from "@/lib/types";
 import { TAG_COLORS } from "@/lib/types";
 import { getTasks, saveTasks, getTagColors, saveTagColors, setTagColor, removeTagColor } from "@/lib/storage";
 import { useAuth } from "@/lib/AuthContext";
+import { useFeatureGate } from "@/lib/useFeatureGate";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface TagEntry {
@@ -18,6 +19,8 @@ export default function TagsPage() {
   const { isAdmin, isPro, isBeta } = useAuth();
   // 方案 X（向後相容）：beta 用戶繼續享有早期體驗
   const canCustomizeTags = isAdmin || isBeta || isPro;
+  // 關聯式標籤更新（PRO 守衛）：free 用戶無法一鍵批次改 tag 名稱
+  const renameGate = useFeatureGate("tag-rename");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [editingTag, setEditingTag] = useState<string | null>(null);
@@ -56,6 +59,8 @@ export default function TagsPage() {
   }, [tasks]);
 
   const handleRenameTag = (oldName: string) => {
+    // PRO 守衛：free 用戶繞過 UI 直接呼叫時也會被擋下（保險絲）
+    if (renameGate.locked) { renameGate.requestUnlock(); return; }
     if (!editInput.trim() || editInput.trim() === oldName) {
       setEditingTag(null);
       return;
@@ -407,13 +412,21 @@ export default function TagsPage() {
                           )}
                           <button
                             onClick={() => {
+                              if (renameGate.locked) { renameGate.requestUnlock(); return; }
                               setEditingTag(entry.name);
                               setEditInput(entry.name);
                             }}
-                            className="p-2 rounded-lg text-[var(--text-tertiary)] hover:text-[var(--brand)] hover:bg-[var(--brand-tint)] transition-all duration-150 active:scale-90"
-                            aria-label={`編輯標籤 ${entry.name}`}
+                            disabled={renameGate.locked}
+                            className="p-2 rounded-lg transition-all duration-150 active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed enabled:hover:text-[var(--brand)] enabled:hover:bg-[var(--brand-tint)]"
+                            style={{ color: "var(--text-tertiary)" }}
+                            aria-label={renameGate.locked ? `編輯標籤 ${entry.name}（PRO 專屬）` : `編輯標籤 ${entry.name}`}
+                            title={renameGate.locked ? "PRO 專屬：一鍵批次更新所有關聯任務" : undefined}
                           >
-                            <Edit3 className="w-4 h-4" aria-hidden="true" />
+                            {renameGate.locked ? (
+                              <Lock className="w-4 h-4" aria-hidden="true" />
+                            ) : (
+                              <Edit3 className="w-4 h-4" aria-hidden="true" />
+                            )}
                           </button>
                           <button
                             onClick={() => handleRemoveTag(entry.name)}

@@ -14,15 +14,20 @@ import { useAuth } from "@/lib/AuthContext";
  *    beta 用戶保留早期測試體驗，自訂顏色仍可用
  * 2. **早期退出**：loading 期間鎖定由 AuthContext 提供 roleConfig.canUpload 統一處理
  * 3. **沒有副作用**：不寫 useEffect、不依賴時序，呼叫即得答案
+ * 4. **Feature 名單獨鎖定**：每個 feature 可獨立判斷鎖定，不需要把整個 useFeatureGate 全部解鎖
  *
  * @example
- *   const { locked, reason, requestUnlock } = useFeatureGate();
- *   if (locked) return <UpgradeCTA onClick={requestUnlock} />;
+ *   const rename = useFeatureGate("tag-rename");
+ *   <button disabled={rename.locked} title={rename.locked ? "PRO 專屬" : ""}>
  *
  * @see src/lib/types.ts ROLE_CONFIGS
  * @see src/lib/AuthContext.tsx 角色優先級
  */
-export type ProFeature = "custom-tag-colors" | "stats-dashboard" | "global-rename" | "batch-operations";
+export type ProFeature =
+  | "custom-tag-colors"
+  | "stats-dashboard"
+  | "tag-rename"
+  | "batch-operations";
 
 export interface FeatureGateResult {
   /** 是否被鎖（free 用戶） */
@@ -36,12 +41,16 @@ export interface FeatureGateResult {
   closeUpgradeModal: () => void;
 }
 
-export function useFeatureGate(): FeatureGateResult {
+export function useFeatureGate(feature?: ProFeature): FeatureGateResult {
   const { user, isAdmin, isPro, isBeta, isFree } = useAuth();
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 
   // 多數決：admin ∪ pro ∪ beta = 全部解鎖（PRO 邊界實作採方案 X：向後相容，不影響 beta 體驗）
   const unlocked = isAdmin || isPro || isBeta;
+
+  // feature 存在但目前所有 feature 都用同一鎖定規則（admin ∪ pro ∪ beta）
+  // 未來若 feature 需要更細的鎖定（例如 batch 只限 PRO 排除 beta），在此擴充
+  void feature;
 
   const reason: FeatureGateResult["reason"] = !user
     ? "not-signed-in"
