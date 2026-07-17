@@ -171,9 +171,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [reloadKey, setReloadKey] = useState(0);
   const lastActiveWriteAtRef = useRef<Record<string, number>>({});
   const deletedTaskIdsRef = useRef<Set<string>>(new Set()); // 追蹤本地刪除，待 Firebase 確認後清除
+  const recentlyWrittenRef = useRef<Map<string, number>>(new Map()); // 追蹤本地剛寫入的 task，5 秒內不被 realtime 推送覆蓋
+  const RECENT_WRITE_WINDOW_MS = 5_000;
   const firstTasksLoadDone = useRef(false); // 跳過 subscribeTasks 初次空資料覆蓋
   const firstListsLoadDone = useRef(false); // 跳過 subscribeListsSync 初次空資料覆蓋
   const ACTIVE_THROTTLE_MS = 30_000;
+
+  // 標記 task 為「剛寫入」；realtime 推送的 fbTask 在窗內不會覆蓋本地版本
+  const markRecentlyWritten = useCallback((id: string) => {
+    recentlyWrittenRef.current.set(id, Date.now());
+  }, []);
+
+  // merge 時呼叫：判斷是否在寫入保護窗內，並順手做 lazy GC
+  const isWithinRecentWriteWindow = useCallback((id: string): boolean => {
+    const map = recentlyWrittenRef.current;
+    const now = Date.now();
+    // lazy GC：遍歷清掉過期項目（避免 map 累積）
+    for (const [tid, ts] of map) {
+      if (now - ts >= RECENT_WRITE_WINDOW_MS) map.delete(tid);
+    }
+    const ts = map.get(id);
+    return ts !== undefined && now - ts < RECENT_WRITE_WINDOW_MS;
+  }, []);
 
   // 同步 tasks 到 ref（給 Firebase listener 用，避免 stale closure）
   useEffect(() => {
@@ -249,9 +268,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const merged = fbTasks.map((fbT) => {
             fbIds.add(fbT.id);
             const local = localById.get(fbT.id);
-            // 本地 updatedAt 較新 → 保留本地（樂觀更新尚未被雲端推送覆蓋）
-            if (local && new Date(local.updatedAt).getTime() > new Date(fbT.updatedAt).getTime()) {
-              return local;
+            if (local) {
+              // 本地剛寫入（5 秒內）→ 一律保留本地，避免 supabase commit 前即時的回音 / 跨分頁 echo 覆蓋樂觀更新
+              if (isWithinRecentWriteWindow(fbT.id)) {
+                return local;
+              }
+              // 本地 updatedAt 較新 → 保留本地（樂觀更新尚未被雲端推送覆蓋）
+              if (new Date(local.updatedAt).getTime() > new Date(fbT.updatedAt).getTime()) {
+                return local;
+              }
             }
             return fbT;
           });
@@ -584,9 +609,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const updated = [task, ...tasks];
     setTasks(updated);
     saveTasks(updated);
+    markRecentlyWritten(id);
     if (user) batchSaveTasksFirebase(user.uid, [task]).catch((err) => console.warn("[SUP SYNC] 新增失敗:", err));
     return id;
-  }, [tasks, user]);
+  }, [tasks, user, markRecentlyWritten]);
 
   const updateTask = useCallback((id: string, updates: Partial<Task>) => {
     const updated = tasks.map((t) =>
@@ -594,11 +620,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
     setTasks(updated);
     saveTasks(updated);
+    markRecentlyWritten(id);
     if (user) {
       const task = updated.find((t) => t.id === id);
       if (task) batchSaveTasksFirebase(user.uid, [task]).catch((err) => console.warn("[SUP SYNC] 更新失敗:", err));
     }
-  }, [tasks, user]);
+  }, [tasks, user, markRecentlyWritten]);
 
   const deleteTask = useCallback(async (id: string) => {
     // Optimistic update：立即從 UI 移除
@@ -655,6 +682,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
     setTasks(updated);
     saveTasks(updated);
+    markRecentlyWritten(id);
     if (user) {
       const updatedTask = updated.find((t) => t.id === id);
       if (updatedTask) batchSaveTasksFirebase(user.uid, [updatedTask]).catch((err) => console.warn("[SUP SYNC] toggle 失敗:", err));
@@ -668,7 +696,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         void updateLastActive(user.uid);
       }
     }
-  }, [tasks, user]);
+  }, [tasks, user, markRecentlyWritten]);
 
   const archiveTask = useCallback((id: string) => updateTask(id, { isArchived: true }), [updateTask]);
   const unarchiveTask = useCallback((id: string) => updateTask(id, { isArchived: false }), [updateTask]);
