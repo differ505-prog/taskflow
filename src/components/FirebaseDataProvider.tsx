@@ -12,12 +12,12 @@
  *     再呼叫 forceReload() 讓 AppContext 重讀，達成多裝置同步
  *   → 使用者在 AppContext 寫入 localStorage 時，同步寫 Firestore
  *
- * Race condition 解法（pendingExpected 比對）：
- * - SyncWriter 寫 Firestore 前，把當前任務存進 module-level ref
- * - subscribeTasks 回調比較：若 Firestore 任務已包含期望的新任務，說明是自己寫的，跳過覆蓋
- * - 否則信任 Firestore（別的客戶端寫的）
+ * Race condition 解法（module-level isFirst + pendingExpected 比對）：
+ * - module-level isFirst guard：確保 Firebase 第一個舊 snapshot callback 不會覆蓋 localStorage
+ * - pendingExpected 比對：寫 Firestore 時存入期望狀態，回調時比對是否是自己寫的
+ * - 兩個機制獨立運作，互補覆蓋所有 race condition 場景
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useApp } from "@/lib/AppContext";
 import {
@@ -38,16 +38,12 @@ import {
   saveLists,
   saveHabits,
   savePomodoroSessions,
-  getTasks,
-  getLists,
-  getHabits,
 } from "@/lib/storage";
 import { Task, TaskList, Habit } from "@/lib/types";
 import { Unsubscribe } from "firebase/firestore";
 
-// ─── 期望狀態比對 ref ───────────────────────────────────────
-// 避免 SyncWriter 寫 Firestore 時，subscription 舊資料覆蓋 localStorage
-// 策略：寫 Firestore 前存期望狀態，回調時比對 Firestore 是否已包含新任務
+// ─── Module-level guards ─────────────────────────────────────
+// pendingExpected 比對：寫 Firestore 前存入期望狀態，回調時確認是否為自己寫的
 const pendingExpected = {
   tasks: null as Task[] | null,
   lists: null as TaskList[] | null,
@@ -74,6 +70,12 @@ export function FirebaseDataProvider({ children }: FirebaseDataProviderProps) {
   const prevUserId = useRef<string | undefined>(undefined);
   const userId = user?.uid;
 
+  // loaded：用 useRef + useState 確保 FirebaseDataProvider 的每個 Mount 實例
+  // 只有「真正第一次 Firestore callback」才被跳過。
+  // 不能用 module-level isFirstSnapshotCallback，因為 component re-render 時它已被其他實例設成 false。
+  const [loaded, setLoaded] = useState(false);
+  const loadedRef = useRef(false);
+
   // ─── 偵測使用者切換 ─────────────────────────────────────
   useEffect(() => {
     if (loading) return;
@@ -86,17 +88,38 @@ export function FirebaseDataProvider({ children }: FirebaseDataProviderProps) {
     unsubs.current.forEach((u) => u?.());
     unsubs.current = [];
 
+    // 重置 loaded（確保新用戶的第一次 Firestore callback 被保護）
+    setLoaded(false);
+    loadedRef.current = false;
+
+    // 清除 pendingExpected，避免殘留舊資料的期望狀態
+    pendingExpected.tasks = null;
+    pendingExpected.lists = null;
+    pendingExpected.habits = null;
+
     // Firestore → localStorage
     subscribeTasks(userId, (fsTasks) => {
+      // Guard 1: 真正第一次 Firestore callback（Mount 時的舊 snapshot），不寫入 localStorage
+      if (!loadedRef.current) {
+        loadedRef.current = true;
+        setLoaded(true);
+        return;
+      }
+      // Guard 2: 若 Firestore 已包含期望的新任務，說明是自己寫的，跳過覆蓋
       if (fsContainsExpected(fsTasks, pendingExpected.tasks)) {
         pendingExpected.tasks = null;
-        return; // 自己寫的 Firestore，跳過覆蓋 localStorage
+        return;
       }
       pendingExpected.tasks = null;
       saveTasks(fsTasks);
       forceReload();
     }).then((unsub) => { unsubs.current.push(unsub); }).catch(() => {});
     subscribeLists(userId, (fsLists) => {
+      if (!loadedRef.current) {
+        loadedRef.current = true;
+        setLoaded(true);
+        return;
+      }
       if (fsContainsExpected(fsLists, pendingExpected.lists)) {
         pendingExpected.lists = null;
         return;
@@ -106,6 +129,11 @@ export function FirebaseDataProvider({ children }: FirebaseDataProviderProps) {
       forceReload();
     }).then((unsub) => { unsubs.current.push(unsub); }).catch(() => {});
     subscribeHabits(userId, (fsHabits) => {
+      if (!loadedRef.current) {
+        loadedRef.current = true;
+        setLoaded(true);
+        return;
+      }
       if (fsContainsExpected(fsHabits, pendingExpected.habits)) {
         pendingExpected.habits = null;
         return;
@@ -152,9 +180,7 @@ export function SyncWriter({ userId }: { userId: string }) {
     );
     if (newTasks.length > 0) {
       pendingExpected.tasks = [...tasks];
-      saveTask(userId, newTasks[0]).then(() => {
-        // 任務寫入成功後，期望狀態在下次回調時自動清除
-      }).catch(() => {
+      saveTask(userId, newTasks[0]).catch(() => {
         pendingExpected.tasks = null;
       });
     }
