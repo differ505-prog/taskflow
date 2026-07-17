@@ -336,7 +336,7 @@ export function AttachmentItem({ attachment, onRemove, compact = false }: Attach
           href={attachment.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/5"
+          className="p-2 rounded-lg sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-black/5"
           style={{ color: "var(--text-tertiary)" }}
           title="預覽"
         >
@@ -349,7 +349,7 @@ export function AttachmentItem({ attachment, onRemove, compact = false }: Attach
         {onRemove && (
           <button
             onClick={onRemove}
-            className="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
+            className="p-2 rounded-lg sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-red-50"
             style={{ color: "var(--status-danger)" }}
             title="移除"
           >
