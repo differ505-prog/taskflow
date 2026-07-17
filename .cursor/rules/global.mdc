@@ -381,33 +381,10 @@ alwaysApply: true
 
 ---
 
-### 20. Mobile Input 特殊性原則
+### 20. ~~Mobile Input 特殊性原則（已併入 §15.4，刪除避免混淆）~~
 
-**觸發**：任何涉及 `<input>` / `<textarea>` 的鍵盤事件綁定（`onKeyDown`、`onKeyUp`、`onChange`）在提交前，必須同時驗證 iOS Safari 和 Android Chrome 上 soft keyboard 的行為是否一致。
-
-**已知 mobile input 時序差異**：
-- **iOS/Android `onKeyDown` 在 React controlled state 同步前觸發**：事件發生時 React state 可能仍是上一個值；`onChange` 才代表 React state 已同步
-- **IME composition 期間**：`onKeyDown`/`onKeyUp` 行為不一致，`onKeyDown` + `key === "Enter"` 在 iOS Safari 上不可靠
-- **軟體鍵盤 Enter 鍵**：iOS Safari 的「換行」按鈕在 `<input>` 上可能觸發 `key === "Enter"` 也可能不觸發
-
-**對應原則**：
-- 對 controlled input，**優先用 `onChange`** 作為值同步管道，不要依賴 `onKeyDown`/`onKeyUp` 裡讀 state
-- 若必須用 `onKeyDown`/`onKeyUp` 處理特定 key，**用 `onKeyUp`**（時序上更接近 React state commit 完成）
-- **禁用 `onKeyDown` 搭配 IME**，只用 `onChange` 或 `onKeyUp`
-- **Desktop browser 測試不足以發現 mobile input timing bug**，需要實機驗證
-
----
-
-## 【任務管理器專案專屬補充】
-
-- **任務狀態視覺化**：待辦/進行中/已完成三態需有清晰顏色與圖示
-- **日期與時間**：統一格式、相對時間（如「今天 18:00」）、時區處理
-- **響應式斷點**：桌機優先，平板/手機需可讀可用
-- **資料持久化**：LocalStorage / IndexedDB / 後端 API 需明確架構
-
----
-
-**【憲法優先級】**：本檔案規則優先級高於任何預設行為或單次指令細節。當後續指令與本憲法衝突時，需先與你確認是否覆寫。
+> 歷史編號保留：§20 原本是 Mobile Input 原則，因內容與 §15.4 完全重複而刪除本體。
+> 規範請查 §15.4，不要在此處新增內容。
 
 ---
 
@@ -428,8 +405,82 @@ alwaysApply: true
 
 ---
 
+### 24. 環境拓樸三角定位 (Environment Topology Triangulation First)
+
+**問題**：近 5 輪 bug fix 中，至少 3 輪根因被錯誤鎖定，因為我未先確認環境拓樸就直接讀代碼。
+
+**觸發**：任何涉及「雲端同步」「資料消失」「狀態跳回」「資料重複」的 bug。
+
+**規則**：
+
+1. **第一步用 `AskQuestion`**，固定三選一模板（不可換成自由問句）：
+   - ① 單機單分頁（localStorage / IndexedDB 即可，不會有競態）
+   - ② 單機多分頁（同一瀏覽器多 tab，共享 storage 但每 tab 有獨立 realtime subscription）
+   - ③ 多裝置同步（不同裝置登入同一帳號，需靠雲端 realtime 仲裁）
+2. **對照症狀反推拓樸**（給判斷線索，免去反覆問）：
+   - 症狀在「重新整理後消失 / 出現」→ 多分頁或多裝置（單機單分頁不會）
+   - 症狀在「兩個 tab 同時開著，A 改 B 看到」→ 多分頁
+   - 症狀只在「不同手機登入同帳號」復現 → 多裝置
+3. **不同拓樸對應根因完全不同**：
+   - 單機單分頁 → 多半是 state 邏輯 bug（**不該走 sync 防護**，加保護窗會浪費）
+   - 多分頁 / 多裝置 → 「本地樂觀更新 vs supabase realtime echo」時序競爭（套用 §26 類別 A）
+
+**違規計入 §16 失敗上限**：未確認拓樸直接改代碼 = 累計 1 次修改失敗（修錯目標高風險）。
+
+---
+
+### 25. 既有防護 pattern 對齊檢查 (Existing Guard Pattern Alignment)
+
+**問題**：Codebase 裡已有 `deletedTaskIdsRef`、`isWritingRef`、`firstTasksLoadDone` 等同類保護 pattern，但近幾輪又重新發明 `recentlyWrittenRef` / `pendingExpected` 等相似概念，散落多處。
+
+**觸發**：動手實作任何新防護邏輯（debounce / ref / flag / cooldown）。
+
+**規則**：
+
+1. **動手前先 `Grep` 5 個核心關鍵字**（精簡名單，便於記憶）：
+   ```
+   Ref | Flag | Cooldown | skipFirst | pending
+   ```
+2. **對齊三動作**（依序）：
+   - **找到完全相同** → 沿用既有命名 + 結構
+   - **找到 ≥80% 相似** → 評分表揭露「Better Option: 統一為單一機制」，**等你確認後**才能做
+   - **完全沒有** → 新增即可
+3. **統一門檻**：只在「同檔案 / 同模組 / 同資料流」內的相似 pattern 才建議合併（避免跨模組過度重構）
+
+**例外**：用戶明確說「獨立概念，不要合併」。
+
+---
+
+### 26. 反覆根因類別識別 (Recurring Root-Cause Class Identification)
+
+**問題**：近 5 輪 bug fix 中，至少 3 輪根因是同類（時序競爭），但無識別框架，每次從零推理。
+
+**觸發**：修 bug 前最後一道定位關卡（讀源碼 + 列根因表之後，進評分表之前）。
+
+**規則**：
+
+1. **先問：「這個根因是新類別，還是已知類別？」**
+2. **對照已知類別清單**（持續追加）：
+
+| 類別 | 名稱 | 典型症狀 | 標準修法 |
+|---|---|---|---|
+| **A** | 本地樂觀更新 vs supabase realtime commit 時序競爭 | 「第一次 tap 跳回原狀態、第二次才生效」（多分頁 / 多裝置） | 5 秒「最近寫入保護窗」+ 登錄表（見 §25） |
+| **B** | 祖先層 `overflow: hidden` 導致 flex child 高度塌縮 | 子層滾動容器高度只剩內容高度，無法滾動 | 祖先鏈移除 `overflow: hidden`，讓滾動容器在最內層 |
+| **C** | mobile IME `onKeyDown` 在 React controlled state 同步前觸發 | 輸入法選字後 Enter 沒清空、新增失敗 | 改 `onKeyUp` 或 `onChange`，見 §15.4 |
+| **D** | 純 Tailwind 改動卻啟 CDP 量 computed style | 浪費 tool call | §15.6 — 純樣式 0 tool call 上限 |
+| **E** | 多套同步層混用，修錯層（FirebaseDataProvider / SyncWriter / personalTaskSync） | 改了沒生效、白修一輪 | §23 — 先確認實際同步層 |
+| **F** | 「E 的一個子模式」首次空資料被雲端空快照覆蓋（firstTasksLoadDone pattern） | 新增後重整消失、再重整才出現 | skipFirst callback（屬 E 子類，優先確認 sync 層後套用） |
+
+3. **命中已知類別 → 直接套用標準修法，禁止重新推理**。評分表只寫「命中類別 X，套用修法」。
+4. **新類別 → 修完後主動追加**至本表（commit 內同步）。
+
+**違規計入 §16 失敗上限**：命中已知類別卻從零推理 = 累計 1 次修改失敗。
+
+---
+
 ## 【生效紀錄】
 
-| 日期 | 變更 |
-|------|------|
-| 2026-07-17 | 新增 § 23 同步層確認原則（針對「修了 FirebaseDataProvider 但實際同步層是 personalTaskSync」繞彎教訓） |
+| 日期 | 變更 | 自評分 |
+|------|------|--------|
+| 2026-07-17 | 新增 § 23 同步層確認原則（針對「修了 FirebaseDataProvider 但實際同步層是 personalTaskSync」繞彎教訓） | 9.0 |
+| 2026-07-18 | 新增 §24 環境拓樸三角定位 + §25 既有防護 pattern 對齊檢查 + §26 反覆根因類別識別（針對近 5 輪 bug fix 中 3 輪同類根因 + 2 輪修錯層的繞彎教訓）；§20 刪除本體僅保留歷史編號（內容已併入 §15.4） | **9.17**（§24: 9.2 / §25: 9.0 / §26: 9.3，第二輪優化後達標） |
