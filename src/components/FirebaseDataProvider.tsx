@@ -12,10 +12,10 @@
  *     再呼叫 forceReload() 讓 AppContext 重讀，達成多裝置同步
  *   → 使用者在 AppContext 寫入 localStorage 時，同步寫 Firestore
  *
- * Race condition 解法：
- * - SyncWriter 寫 Firestore 前，設定 skipNext 標記
- * - subscription 回調收到 Firestore 資料時，檢查 skipNext，若已標記則跳過寫入
- * - 避免 SyncWriter 寫入 Firestore 的同時，subscription 舊資料回調覆蓋 localStorage
+ * Race condition 解法（pendingExpected 比對）：
+ * - SyncWriter 寫 Firestore 前，把當前任務存進 module-level ref
+ * - subscribeTasks 回調比較：若 Firestore 任務已包含期望的新任務，說明是自己寫的，跳過覆蓋
+ * - 否則信任 Firestore（別的客戶端寫的）
  */
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/lib/AuthContext";
@@ -45,14 +45,23 @@ import {
 import { Task, TaskList, Habit } from "@/lib/types";
 import { Unsubscribe } from "firebase/firestore";
 
-// ─── Skip flag — module-level singleton ────────────────────────
-// SyncWriter 和 FirebaseDataProvider 透過此物件溝通
+// ─── 期望狀態比對 ref ───────────────────────────────────────
 // 避免 SyncWriter 寫 Firestore 時，subscription 舊資料覆蓋 localStorage
-const skipNext = {
-  tasks: false,
-  lists: false,
-  habits: false,
+// 策略：寫 Firestore 前存期望狀態，回調時比對 Firestore 是否已包含新任務
+const pendingExpected = {
+  tasks: null as Task[] | null,
+  lists: null as TaskList[] | null,
+  habits: null as Habit[] | null,
 };
+
+// 檢查 fsItems 是否已包含 expected 中所有新項目（即是自己寫的）
+function fsContainsExpected<T extends { id: string }>(
+  fsItems: T[],
+  expected: T[] | null
+): boolean {
+  if (!expected) return false;
+  return expected.every((e) => fsItems.some((f) => f.id === e.id));
+}
 
 interface FirebaseDataProviderProps {
   children: React.ReactNode;
@@ -79,17 +88,29 @@ export function FirebaseDataProvider({ children }: FirebaseDataProviderProps) {
 
     // Firestore → localStorage
     subscribeTasks(userId, (fsTasks) => {
-      if (skipNext.tasks) { skipNext.tasks = false; return; }
+      if (fsContainsExpected(fsTasks, pendingExpected.tasks)) {
+        pendingExpected.tasks = null;
+        return; // 自己寫的 Firestore，跳過覆蓋 localStorage
+      }
+      pendingExpected.tasks = null;
       saveTasks(fsTasks);
       forceReload();
     }).then((unsub) => { unsubs.current.push(unsub); }).catch(() => {});
     subscribeLists(userId, (fsLists) => {
-      if (skipNext.lists) { skipNext.lists = false; return; }
+      if (fsContainsExpected(fsLists, pendingExpected.lists)) {
+        pendingExpected.lists = null;
+        return;
+      }
+      pendingExpected.lists = null;
       saveLists(fsLists);
       forceReload();
     }).then((unsub) => { unsubs.current.push(unsub); }).catch(() => {});
     subscribeHabits(userId, (fsHabits) => {
-      if (skipNext.habits) { skipNext.habits = false; return; }
+      if (fsContainsExpected(fsHabits, pendingExpected.habits)) {
+        pendingExpected.habits = null;
+        return;
+      }
+      pendingExpected.habits = null;
       saveHabits(fsHabits);
       forceReload();
     }).then((unsub) => { unsubs.current.push(unsub); }).catch(() => {});
@@ -103,17 +124,11 @@ export function FirebaseDataProvider({ children }: FirebaseDataProviderProps) {
     };
   }, [userId, loading, forceReload]);
 
-  // ─── localStorage → Firestore 寫回（寫時同步）───────────
-  // 這部分由 AppContext 的包裝層在 dispatch action 時同步寫 Firestore
-  // 當前實作：在 Firebase 模式下，每次 CRUD 都即時寫 Firestore
-  // 見下方的 SyncWriter 元件
-
   return <>{children}</>;
 }
 
 /**
  * SyncWriter — 包在 AppContext 外，攔截所有寫入操作並同步到 Firestore
- * 使用方式：在 AppProvider 內 render 此元件
  */
 export function SyncWriter({ userId }: { userId: string }) {
   const { tasks, lists, habits } = useApp();
@@ -131,56 +146,53 @@ export function SyncWriter({ userId }: { userId: string }) {
       return;
     }
 
-    // 任務新增 / 更新
+    // 任務新增：寫 Firestore 前存入期望狀態
     const newTasks = tasks.filter(
       (t) => !prevTasks.current.find((pt) => pt.id === t.id)
     );
-    newTasks.forEach((t) => {
-      skipNext.tasks = true;
-      saveTask(userId, t).catch(() => { skipNext.tasks = false; });
-    });
-
-    // 個人任務刪除由 AppContext 的 deleteTask (Supabase) 統一處理，
-    // Firebase 刪除由 subscribeTasks 回調自動同步，不在這裡另外刪。
-    // 否則會造成雙寫/雙刪競爭：Firebase subscription 回調在刪除完成前觸發，
-    // 把舊資料寫回 localStorage，覆蓋本地刪除，刷新後又讀回 Firestore 的任務。
-    const deletedTasks = prevTasks.current.filter(
-      (pt) => !tasks.find((t) => t.id === pt.id)
-    );
-    // deletedTasks 的刪除由 AppContext.deleteTask → deleteTaskFirebase (Supabase) 處理
+    if (newTasks.length > 0) {
+      pendingExpected.tasks = [...tasks];
+      saveTask(userId, newTasks[0]).then(() => {
+        // 任務寫入成功後，期望狀態在下次回調時自動清除
+      }).catch(() => {
+        pendingExpected.tasks = null;
+      });
+    }
 
     // 清單新增
     const newLists = lists.filter(
       (l) => !prevLists.current.find((pl) => pl.id === l.id)
     );
-    newLists.forEach((l) => {
-      skipNext.lists = true;
-      saveList(userId, l).catch(() => { skipNext.lists = false; });
-    });
+    if (newLists.length > 0) {
+      pendingExpected.lists = [...lists];
+      saveList(userId, newLists[0]).catch(() => {
+        pendingExpected.lists = null;
+      });
+    }
 
     const deletedLists = prevLists.current.filter(
       (pl) => !lists.find((l) => l.id === pl.id)
     );
     deletedLists.forEach((l) => {
-      skipNext.lists = true;
-      fsDeleteList(userId, l.id).catch(() => { skipNext.lists = false; });
+      fsDeleteList(userId, l.id).catch(() => {});
     });
 
     // 習慣新增
     const newHabits = habits.filter(
       (h) => !prevHabits.current.find((ph) => ph.id === h.id)
     );
-    newHabits.forEach((h) => {
-      skipNext.habits = true;
-      saveHabit(userId, h).catch(() => { skipNext.habits = false; });
-    });
+    if (newHabits.length > 0) {
+      pendingExpected.habits = [...habits];
+      saveHabit(userId, newHabits[0]).catch(() => {
+        pendingExpected.habits = null;
+      });
+    }
 
     const deletedHabits = prevHabits.current.filter(
       (ph) => !habits.find((h) => h.id === ph.id)
     );
     deletedHabits.forEach((h) => {
-      skipNext.habits = true;
-      fsDeleteHabit(userId, h.id).catch(() => { skipNext.habits = false; });
+      fsDeleteHabit(userId, h.id).catch(() => {});
     });
 
     prevTasks.current = tasks;
