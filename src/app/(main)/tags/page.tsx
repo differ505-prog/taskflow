@@ -15,7 +15,9 @@ interface TagEntry {
 }
 
 export default function TagsPage() {
-  const { isAdmin, isBeta } = useAuth();
+  const { isAdmin, isPro, isBeta } = useAuth();
+  // 方案 X（向後相容）：beta 用戶繼續享有早期體驗
+  const canCustomizeTags = isAdmin || isBeta || isPro;
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [editingTag, setEditingTag] = useState<string | null>(null);
@@ -155,7 +157,7 @@ export default function TagsPage() {
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-5">
 
         {/* Freemium Hint */}
-        {!isAdmin && !isBeta && (
+        {!canCustomizeTags && (
           <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-[12px]" style={{ background: "var(--surface-muted)", color: "var(--text-tertiary)" }}>
             <Lock className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
             <span>免費用戶可使用標籤功能；自訂顏色為付費功能</span>
@@ -204,7 +206,7 @@ export default function TagsPage() {
                 </div>
 
                 {/* 顏色選擇 */}
-                {(isAdmin || isBeta) ? (
+                {canCustomizeTags ? (
                   <div className="mb-5">
                     <label className="block mb-2 text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>顏色</label>
                     <div className="flex flex-wrap gap-2">
@@ -243,12 +245,12 @@ export default function TagsPage() {
                     <span className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>預覽</span>
                     <span
                       className="pill text-[12px]"
-                      style={{
-                        background: (isAdmin || isBeta) ? `${newTagColor}20` : "var(--surface-muted)",
-                        color: (isAdmin || isBeta) ? newTagColor : "var(--text-secondary)",
-                        borderColor: (isAdmin || isBeta) ? newTagColor : "transparent",
-                        border: "1px solid",
-                      }}
+                    style={{
+                      background: canCustomizeTags ? `${newTagColor}20` : "var(--surface-muted)",
+                      color: canCustomizeTags ? newTagColor : "var(--text-secondary)",
+                      borderColor: canCustomizeTags ? newTagColor : "transparent",
+                      border: "1px solid",
+                    }}
                     >
                       {newTagName.trim()}
                     </span>
@@ -288,7 +290,7 @@ export default function TagsPage() {
             <ul className="space-y-2" role="list">
               {tagEntries.map((entry) => {
                 const tagColor = tagColors[entry.name] || TAG_COLORS[0];
-                const canCustomize = isAdmin || isBeta;
+                const canCustomize = isAdmin || isBeta || isPro;
                 return (
                   <li key={entry.name}>
                     <motion.div

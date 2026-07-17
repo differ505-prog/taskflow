@@ -10,7 +10,7 @@ import {
 import { createBrowserClient } from "@supabase/ssr";
 import { subscribeBetaUsers } from "@/lib/betaListFS";
 import { upsertProfile, getRole } from "@/lib/userProfiles";
-import { UserRole, ADMIN_EMAILS, ROLE_CONFIGS } from "@/lib/types";
+import { UserRole, ADMIN_EMAILS, PRO_EMAILS, ROLE_CONFIGS } from "@/lib/types";
 
 // ── Supabase client ──────────────────────────────────────────────
 const supabase = createBrowserClient(
@@ -41,6 +41,7 @@ interface AuthContextValue {
   canUpload: boolean;
   maxFileSizeMB: number;
   isAdmin: boolean;
+  isPro: boolean;
   isBeta: boolean;
   isFree: boolean;
   // ── Beta Cloud List ───────────────────────────────
@@ -62,6 +63,7 @@ const AuthContext = createContext<AuthContextValue>({
   canUpload: false,
   maxFileSizeMB: 0,
   isAdmin: false,
+  isPro: false,
   isBeta: false,
   isFree: true,
   betaUsers: [],
@@ -97,8 +99,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user?.uid]);
 
   // ── 計算當前角色 ──────────────────────────────────────
-  // 優先級：admin（env）> admin（資料庫）> beta（雲端名單）> beta（資料庫）> free
-  // 即使 Supabase 失敗，ADMIN_EMAILS 與 betaUsers 也能完整判斷角色
+  // 優先級：admin（env）> admin（資料庫）> pro（env）> pro（資料庫）> beta（雲端名單）> beta（資料庫）> free
+  // 即使 Supabase 失敗，ADMIN_EMAILS / PRO_EMAILS / betaUsers 也能完整判斷角色
   const role = (() => {
     if (!user?.email) return "free" as UserRole;
     const email = user.email.toLowerCase();
@@ -107,6 +109,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return "admin" as UserRole;
     }
     if (dbRole === "admin") return "admin" as UserRole;
+
+    if (PRO_EMAILS.map((e) => e.toLowerCase()).includes(email)) {
+      return "pro" as UserRole;
+    }
+    if (dbRole === "pro") return "pro" as UserRole;
 
     if (betaUsers.map((e) => e.toLowerCase()).includes(email)) {
       return "beta" as UserRole;
@@ -123,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ? Infinity
       : roleConfig.maxFileSizeMB;
   const isAdmin = role === "admin";
+  const isPro = role === "pro";
   const isBeta = role === "beta";
   const isFree = role === "free";
 
@@ -230,7 +238,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user, loading,
         signInWithGoogle, signInWithEmail, signUpWithEmail, signOut,
         role, roleConfig, canUpload, maxFileSizeMB,
-        isAdmin, isBeta, isFree,
+        isAdmin, isPro, isBeta, isFree,
         betaUsers, betaLoading,
         addBetaUser, removeBetaUser,
       }}

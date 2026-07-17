@@ -75,7 +75,7 @@ export interface Attachment {
 }
 
 // ─── User Roles & Permissions ───────────────────────────────────
-export type UserRole = "admin" | "beta" | "free";
+export type UserRole = "admin" | "pro" | "beta" | "free";
 
 export interface RoleConfig {
   label: string;
@@ -94,6 +94,14 @@ export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
     maxFileSizeMB: Infinity,
     badgeColor: "#3B82F6",
     badgeBg: "rgba(59, 130, 246, 0.12)",
+  },
+  pro: {
+    label: "PRO 用戶",
+    description: "完整權限：自訂標籤顏色、總覽儀表板、批次操作",
+    canUpload: true,
+    maxFileSizeMB: 50,
+    badgeColor: "#F59E0B",
+    badgeBg: "rgba(245, 158, 11, 0.12)",
   },
   beta: {
     label: "早期測試者",
@@ -116,6 +124,13 @@ export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
 // 管理員邮箱列表（完全由環境變數控制，不允許 hardcode）
 const ADMIN_EMAILS_ENV = process.env.NEXT_PUBLIC_ADMIN_EMAILS || "";
 export const ADMIN_EMAILS: string[] = ADMIN_EMAILS_ENV
+  .split(",")
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
+// PRO 用戶邮箱列表（環境變數控制，沿用 ADMIN_EMAILS 模式）
+const PRO_EMAILS_ENV = process.env.NEXT_PUBLIC_PRO_EMAILS || "";
+export const PRO_EMAILS: string[] = PRO_EMAILS_ENV
   .split(",")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);

@@ -11,7 +11,9 @@ import { motion, AnimatePresence } from "framer-motion";
 
 export function TagsPage() {
   const { tasks, updateTask } = useApp();
-  const { isAdmin, isBeta } = useAuth();
+  const { isAdmin, isPro, isBeta } = useAuth();
+  // 方案 X（向後相容）：beta 用戶繼續享有早期體驗，不破壞現狀
+  const canCustomizeTags = isAdmin || isBeta || isPro;
   const [isLoaded, setIsLoaded] = useState(false);
   const [editingTag, setEditingTag] = useState<string | null>(null);
   const [editInput, setEditInput] = useState("");
@@ -160,7 +162,7 @@ export function TagsPage() {
       </div>
 
       {/* Freemium Hint */}
-      {!isAdmin && !isBeta && (
+      {!canCustomizeTags && (
         <div
           className="flex items-center gap-2 px-4 py-3 rounded-xl text-[12px]"
           style={{ background: "var(--surface-muted)", color: "var(--text-tertiary)" }}
@@ -220,7 +222,7 @@ export function TagsPage() {
               </div>
 
               {/* 顏色選擇 */}
-              {(isAdmin || isBeta) ? (
+              {canCustomizeTags ? (
                 <div className="mb-5">
                   <label className="block mb-2 text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>顏色</label>
                   <div className="flex flex-wrap gap-2">
@@ -263,9 +265,9 @@ export function TagsPage() {
                   <span
                     className="pill text-[12px]"
                     style={{
-                      background: (isAdmin || isBeta) ? `${newTagColor}20` : "var(--surface-muted)",
-                      color: (isAdmin || isBeta) ? newTagColor : "var(--text-secondary)",
-                      borderColor: (isAdmin || isBeta) ? newTagColor : "transparent",
+                      background: canCustomizeTags ? `${newTagColor}20` : "var(--surface-muted)",
+                      color: canCustomizeTags ? newTagColor : "var(--text-secondary)",
+                      borderColor: canCustomizeTags ? newTagColor : "transparent",
                       border: "1px solid",
                     }}
                   >
