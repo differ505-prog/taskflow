@@ -168,6 +168,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const lastActiveWriteAtRef = useRef<Record<string, number>>({});
+  const deletedTaskIdsRef = useRef<Set<string>>(new Set()); // 追蹤本地刪除，待 Firebase 確認後清除
   const ACTIVE_THROTTLE_MS = 30_000;
 
   // 同步 tasks 到 ref（給 Firebase listener 用，避免 stale closure）
@@ -231,8 +232,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (fbUnsubRef.current) fbUnsubRef.current();
       subscribeTasks(user.uid, (fbTasks) => {
         if (fbSyncDebug) console.log("[SUP SYNC] tasks 推送:", fbTasks.length);
-        setTasks(fbTasks);
-        saveTasks(fbTasks);
+        // 過濾掉本地已刪除但 Firebase 還沒處理的任務（race condition guard）
+        const filtered = fbTasks.filter((t) => !deletedTaskIdsRef.current.has(t.id));
+        setTasks(filtered);
+        saveTasks(filtered);
       }).then((unsub) => {
         fbUnsubRef.current = unsub;
         if (fbSyncDebug) console.log("[SUP SYNC] 已訂閱 tasks uid:", user.uid);
@@ -560,8 +563,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const updated = tasks.filter((t) => t.id !== id);
     setTasks(updated);
     saveTasks(updated);
+    deletedTaskIdsRef.current.add(id);
     if (user) {
-      deleteTaskFirebase(user.uid, id).catch((err) => console.warn("[SUP SYNC] 刪除失敗:", err));
+      deleteTaskFirebase(user.uid, id)
+        .then(() => {
+          deletedTaskIdsRef.current.delete(id);
+        })
+        .catch((err) => {
+          deletedTaskIdsRef.current.delete(id);
+          console.warn("[SUP SYNC] 刪除失敗:", err);
+        });
     }
   }, [tasks, user]);
 
