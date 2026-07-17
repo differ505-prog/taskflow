@@ -169,6 +169,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [reloadKey, setReloadKey] = useState(0);
   const lastActiveWriteAtRef = useRef<Record<string, number>>({});
   const deletedTaskIdsRef = useRef<Set<string>>(new Set()); // 追蹤本地刪除，待 Firebase 確認後清除
+  const firstTasksLoadDone = useRef(false); // 跳過 subscribeTasks 初次空資料覆蓋
+  const firstListsLoadDone = useRef(false); // 跳過 subscribeListsSync 初次空資料覆蓋
   const ACTIVE_THROTTLE_MS = 30_000;
 
   // 同步 tasks 到 ref（給 Firebase listener 用，避免 stale closure）
@@ -231,6 +233,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (user) {
       if (fbUnsubRef.current) fbUnsubRef.current();
       subscribeTasks(user.uid, (fbTasks) => {
+        // 跳過第一次（空的初始資料），避免覆蓋本地尚未同步的任務
+        if (!firstTasksLoadDone.current) {
+          firstTasksLoadDone.current = true;
+          return;
+        }
         if (fbSyncDebug) console.log("[SUP SYNC] tasks 推送:", fbTasks.length);
         setTasks(fbTasks);
         saveTasks(fbTasks);
@@ -244,6 +251,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       //      listsUnsubRef.current?.();
       let lastCloudLists: TaskList[] = [];
       subscribeListsSync(user.uid, (fbLists) => {
+        // 跳過第一次（空的初始資料），避免覆蓋本地尚未同步的清單
+        if (!firstListsLoadDone.current) {
+          firstListsLoadDone.current = true;
+          return;
+        }
         if (fbSyncDebug) console.log("[SUP SYNC] lists 推送:", fbLists.length);
         // 去重：同名的預設清單只保留一份（保留固定 id 那份，合併任務）
         const deduped = dedupeDuplicateLists(fbLists);
