@@ -587,7 +587,7 @@ function ArchivedTasksView() {
                 background:
                   task.status === "done"
                     ? "var(--status-success)"
-                    : task.priority === "high"
+                    : task.priority === "urgent" || task.priority === "high"
                     ? "var(--status-danger)"
                     : task.priority === "medium"
                     ? "var(--status-warning)"

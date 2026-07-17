@@ -14,6 +14,7 @@ interface ParsedTask {
 // ─── Priority patterns (order matters — longer/more specific first) ──
 const PRIORITY_PATTERNS: Array<{ pattern: RegExp; priority: Priority }> = [
   { pattern: /\b(p0|p-)\b/i, priority: "high" },
+  { pattern: /\b非常重要\b|\b急要\b|\b超緊急\b/i, priority: "urgent" },
   { pattern: /\b優先\b.*高|\b高優先\b|\b很重要\b|\b緊急\b/i, priority: "high" },
   { pattern: /\b(p1|h)\b/i, priority: "high" },
   { pattern: /\b優先\b.*中|\b中優先\b/i, priority: "medium" },

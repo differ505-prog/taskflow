@@ -1,4 +1,7 @@
-export type Priority = "high" | "medium" | "low";
+export type Priority = "urgent" | "high" | "medium" | "low";
+// Eisenhower 四象限：Q1 為「重要且緊急」、Q2「重要不緊急」、Q3「緊急不重要」、Q4「不重要不緊急」
+// urgent 是用戶/系統顯式標記的「第一象限」，不再只由 24h 自動偵測
+export type EisenhowerQuadrant = "urgent" | "high" | "medium" | "low";
 export type TaskStatus = "todo" | "in-progress" | "done";
 
 // ─── Attachments ────────────────────────────────────────────────
@@ -180,6 +183,12 @@ export interface ViewCounts {
 
 // ─── Config Constants ──────────────────────────────────────────
 export const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; bg: string; dot: string }> = {
+  urgent: {
+    label: "緊急",
+    color: "text-red-700",
+    bg: "bg-red-100",
+    dot: "#D70015",
+  },
   high: {
     label: "高",
     color: "text-red-600",

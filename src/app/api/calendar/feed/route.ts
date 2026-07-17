@@ -34,7 +34,7 @@ function taskToVEVENT(task: Task): string {
     lines.push(`DESCRIPTION:${escapeICalText(task.description)}`);
   }
 
-  const priorityMap = { high: "1", medium: "5", low: "9" } as const;
+  const priorityMap = { urgent: "1", high: "2", medium: "5", low: "9" } as const;
   if (task.priority && task.priority !== "medium") {
     lines.push(`PRIORITY:${priorityMap[task.priority]}`);
   }

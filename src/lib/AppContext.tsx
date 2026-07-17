@@ -39,6 +39,7 @@ import {
   getOwnedSharedListIds,
 } from "./storage";
 import { deleteFile } from "./storageUpload";
+import { shouldMigrateToUrgent } from "./priority";
 import {
   createSharedList,
   updateSharedSnapshot,
@@ -400,7 +401,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // ── 任務排序（個人） ─────────────────────────────────────
   const getFilteredTasks = useCallback((): Task[] => {
-    const active = tasks.filter((t) => !t.isArchived);
+    // Lazy migration：把「priority=high 且 24h 內」的老任務自動升級為 urgent
+    // 同步寫回 store，保證下次讀取不會再跑這段
+    const nowForMigrate = new Date();
+    let migrated = false;
+    const migratedTasks = tasks.map((t) => {
+      if (shouldMigrateToUrgent(t, nowForMigrate)) {
+        migrated = true;
+        return { ...t, priority: "urgent" as const };
+      }
+      return t;
+    });
+    if (migrated) {
+      // 推到下一個 tick 避免遞迴 setState 警告
+      queueMicrotask(() => saveTasks(migratedTasks));
+    }
+
+    const active = migratedTasks.filter((t) => !t.isArchived);
     let result = active;
     const now = new Date();
     const localToday = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
@@ -432,7 +449,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (activeFilter.status)   result = result.filter((t) => t.status === activeFilter.status);
     if (activeFilter.tag)      result = result.filter((t) => t.tags.includes(activeFilter.tag!));
 
-    const priorityOrder = { high: 0, medium: 1, low: 2 };
+    const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
     return result.sort((a, b) => {
       // 置頂優先（排除已封存 / 已完成）
       if (!a.isArchived && a.status !== "done" && a.isPinned && !(b.isPinned && !b.isArchived && b.status !== "done")) return -1;

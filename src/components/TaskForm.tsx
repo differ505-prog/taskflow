@@ -367,7 +367,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                   </div>
                   <EisenhowerQuadrantGrid priority={priority} onChange={setPriority} />
 
-                  {/* Q1 自動偵測提示：當 dueDate 在 24h 內且 priority 非 high 時，建議升級 */}
+                  {/* Q1 自動偵測提示：當 dueDate 在 24h 內且 priority 非 high 時，建議升級為 urgent */}
                   {(() => {
                     if (!dueDate || priority === "high") return null;
                     const eisen = getEisenhowerVisual({ priority, dueDate });
@@ -378,7 +378,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                         <span>截止在 24 小時內，建議改為「高優先」自動升級 Q1</span>
                         <button
                           type="button"
-                          onClick={() => setPriority("high")}
+                          onClick={() => setPriority("urgent")}
                           className="ml-auto px-1.5 py-0.5 rounded text-[11px] font-medium transition-colors hover:opacity-80"
                           style={{ background: eisen.color, color: "#fff" }}
                         >

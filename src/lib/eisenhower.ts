@@ -8,12 +8,12 @@
  *   Q4: 低        （灰旗線框）                  → priority=low
  */
 
-import { Task, Priority } from "./types";
+import { Task, Priority, EisenhowerQuadrant } from "./types";
 
 /** Q1 緊急視窗大小（距離 dueDate 多少小時內算「緊急」） */
 export const EISENHOWER_URGENT_HOURS = 24;
 
-export type EisenhowerQuadrant = "urgent" | "high" | "medium" | "low";
+export type { EisenhowerQuadrant };
 
 export interface EisenhowerVisual {
   quadrant: EisenhowerQuadrant;
@@ -42,7 +42,17 @@ export function getEisenhowerVisual(
 ): EisenhowerVisual {
   const priority = task.priority;
 
-  // Q1 偵測：high 且 dueDate 在未來 24h 內（含已逾期）
+  // Q1 強制路徑：priority = "urgent"（用戶/系統顯式標記為第一象限，不受 24h 限制）
+  if (priority === "urgent") {
+    return {
+      quadrant: "urgent",
+      color: Q1_COLOR,
+      isUrgent: true,
+      label: "緊急",
+    };
+  }
+
+  // Q1 自動偵測：high 且 dueDate 在未來 24h 內（含已逾期）— 自動偵測到的 Q1 在顯示層昇為 urgent
   if (priority === "high" && task.dueDate) {
     const dueMs = parseDueDateMs(task.dueDate);
     if (dueMs !== null) {

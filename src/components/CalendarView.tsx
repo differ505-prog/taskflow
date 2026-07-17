@@ -372,7 +372,7 @@ function CalendarTaskItem({
           <div className="flex items-center gap-1">
             <div className="w-1.5 h-1.5 rounded-full" style={{ background: priorityColor }} />
             <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
-              {task.priority === "high" ? "高" : task.priority === "medium" ? "中" : "低"}
+              {task.priority === "urgent" ? "緊急" : task.priority === "high" ? "高" : task.priority === "medium" ? "中" : "低"}
             </span>
           </div>
           {task.dueTime && (
@@ -407,10 +407,11 @@ function getPriorityColor(priority: string): string {
 
 function getIndicatorBg(tasks: Task[]): string {
   // 根據任務優先級顯示不同顏色
+  const hasUrgent = tasks.some(t => t.priority === "urgent");
   const hasHigh = tasks.some(t => t.priority === "high");
   const hasMedium = tasks.some(t => t.priority === "medium");
-  
-  if (hasHigh) return "rgba(255, 59, 48, 0.15)";
+
+  if (hasUrgent || hasHigh) return "rgba(215, 0, 21, 0.18)";
   if (hasMedium) return "rgba(255, 149, 0, 0.15)";
   return "rgba(52, 199, 89, 0.15)";
 }

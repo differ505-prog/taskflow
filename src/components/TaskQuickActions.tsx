@@ -462,18 +462,19 @@ function PriorityPopoverContent({
   compact: boolean;
   onSelect: (p: Priority) => void;
 }) {
-  const options: Array<{ value: Priority; label: string; color: string }> = [
+  const options: Array<{ value: Priority; label: string; color: string; urgent?: boolean }> = [
+    { value: "urgent", label: "緊急", color: "#D70015", urgent: true },
     { value: "high", label: "高", color: "var(--priority-high)" },
     { value: "medium", label: "中", color: "var(--priority-medium)" },
     { value: "low", label: "低", color: "var(--priority-low)" },
   ];
 
   return (
-    <div className="p-1.5 w-[180px]">
+    <div className="p-1.5 w-[220px]">
       <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
         優先級
       </div>
-      <div className="grid grid-cols-3 gap-1 mt-0.5">
+      <div className="grid grid-cols-4 gap-1 mt-0.5">
         {options.map((opt) => {
           const isActive = current === opt.value;
           return (
@@ -485,11 +486,19 @@ function PriorityPopoverContent({
               aria-pressed={isActive}
               aria-label={`設定優先級為 ${opt.label}`}
             >
-              <Flag
-                className={compact ? "w-4 h-4" : "w-5 h-5"}
-                style={{ color: opt.color }}
-                fill={isActive ? "currentColor" : (opt.value === "low" ? "none" : "currentColor")}
-              />
+              {opt.urgent ? (
+                <Flag
+                  className={compact ? "w-4 h-4" : "w-5 h-5"}
+                  style={{ color: opt.color }}
+                  fill="currentColor"
+                />
+              ) : (
+                <Flag
+                  className={compact ? "w-4 h-4" : "w-5 h-5"}
+                  style={{ color: opt.color }}
+                  fill={isActive ? "currentColor" : (opt.value === "low" ? "none" : "currentColor")}
+                />
+              )}
               <span className="text-[11px] font-medium" style={{ color: isActive ? opt.color : "var(--text-secondary)" }}>
                 {opt.label}
               </span>
@@ -497,10 +506,16 @@ function PriorityPopoverContent({
           );
         })}
       </div>
-      {isUrgent && (
+      {isUrgent && current !== "urgent" && (
         <div className="mt-1.5 px-2 py-1.5 text-[11px] flex items-center gap-1.5 rounded-lg" style={{ background: "rgba(215,0,21,0.08)", color: "#D70015" }}>
           <AlertCircle className="w-3 h-3 flex-shrink-0" />
-          <span>24h 內到期，已標為緊急</span>
+          <span>24h 內到期，建議標為緊急</span>
+        </div>
+      )}
+      {current === "urgent" && (
+        <div className="mt-1.5 px-2 py-1.5 text-[11px] flex items-center gap-1.5 rounded-lg" style={{ background: "rgba(215,0,21,0.08)", color: "#D70015" }}>
+          <AlertCircle className="w-3 h-3 flex-shrink-0" />
+          <span>已標為緊急（艾森豪 Q1）</span>
         </div>
       )}
     </div>
