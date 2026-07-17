@@ -8,6 +8,7 @@ import { getTagColors } from "@/lib/storage";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Plus, Repeat, Calendar, Mic, MicOff, Hash, AlertCircle } from "lucide-react";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
+import { deleteFile } from "@/lib/storageUpload";
 import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
 import { getEisenhowerVisual } from "@/lib/eisenhower";
 
@@ -324,6 +325,11 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                 <ProtectedUploadButton
                   existingAttachments={attachments}
                   onRemoveAttachment={(attachment) => {
+                    if (attachment.storagePath) {
+                      deleteFile(attachment.storagePath).catch((err) => {
+                        console.warn("[TaskForm] Failed to delete attachment from storage:", err);
+                      });
+                    }
                     setAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
                   }}
                   onFilesUploaded={(newAttachments) => {

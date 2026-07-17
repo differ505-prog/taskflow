@@ -20,6 +20,7 @@ import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
 import { SwipeableSubTask } from "./SwipeableSubTask";
 import TaskCommentsInline from "./TaskCommentsInline";
 import { TextWithLinks } from "./TextWithLinks";
+import { deleteFile } from "@/lib/storageUpload";
 
 const RECURRENCE_OPTIONS = [
   { label: "不重複", value: "none" },
@@ -535,7 +536,14 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
                 )}
                 <ProtectedUploadButton
                   existingAttachments={attachments}
-                  onRemoveAttachment={(attachment) => setAttachments((prev) => prev.filter((a) => a.id !== attachment.id))}
+                  onRemoveAttachment={(attachment) => {
+                    if (attachment.storagePath) {
+                      deleteFile(attachment.storagePath).catch((err) => {
+                        console.warn("[TaskDetailPanel] Failed to delete attachment from storage:", err);
+                      });
+                    }
+                    setAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
+                  }}
                   onFilesUploaded={(newAttachments) => setAttachments((prev) => [...prev, ...newAttachments])}
                   buttonIcon={<Paperclip className="w-4 h-4" />}
                 />
