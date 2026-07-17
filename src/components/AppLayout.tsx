@@ -175,11 +175,11 @@ function AppLayoutInner() {
         <div className="flex-1 min-w-0 flex flex-col min-h-0">
           {renderView()}
         </div>
-        {/* Desktop: always render detail panel when selected, Mobile: conditional */}
-        {selectedTask && !isMobile && renderDetailPanel()}
-        {/* Mobile: full-screen overlay when task selected */}
-        {selectedTask && isMobile && renderDetailPanel()}
       </div>
+      {/* Desktop: detail panel as sibling → renders to the right via flex parent */}
+      {selectedTask && !isMobile && renderDetailPanel()}
+      {/* Mobile: full-screen overlay when task selected */}
+      {selectedTask && isMobile && renderDetailPanel()}
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50">

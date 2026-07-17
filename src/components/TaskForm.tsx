@@ -218,7 +218,8 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
       createdAt: initialData?.subTasks?.[i]?.createdAt || new Date().toISOString(),
     }));
     // 區間：未填截止日但有起始日 → 自動把截止日 = 起始日（單日任務）
-    const finalDueDate = dueDate || startDate || undefined;
+    // Today 視圖新建時：未填截止日 → 預設為今天（符合 Smart Defaults 原則）
+    const finalDueDate = dueDate || startDate || (currentView === "today" ? new Date().toISOString().split("T")[0] : undefined);
     onSubmit({
       title: title.trim(),
       description: description.trim() || undefined,
