@@ -223,12 +223,12 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
               {onOpenMobileSidebar && (
                 <button
                   onClick={onOpenMobileSidebar}
-                  className="flex md:hidden p-2 rounded-xl hover:bg-black/5 transition-colors -ml-2 press-effect touch-target"
-                  style={{ color: "var(--text-secondary)" }}
+                  className="flex md:hidden p-2.5 rounded-xl md:hidden press-effect touch-target flex-shrink-0"
+                  style={{ color: "var(--text-primary)", background: "var(--surface-muted)" }}
                   aria-label="開啟側邊欄"
                 >
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                    <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                    <path d="M2 4.5h14M2 9h14M2 13.5h14" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
                   </svg>
                 </button>
               )}
@@ -380,7 +380,7 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
         {/* Main Content — Desktop split layout, Mobile full-width */}
         <main className="flex-1 flex flex-col overflow-hidden md:flex-row">
           {/* Left: Task list — always compact */}
-          <div style={{ WebkitOverflowScrolling: "touch" }} className={`flex-1 overflow-y-auto overscroll-contain will-change-transform px-6 py-5 pb-[calc(96px+env(safe-area-inset-bottom,0px)+24px)] md:pb-5 ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}>
+          <div style={{ WebkitOverflowScrolling: "touch" }} className={`flex-1 overflow-y-auto overscroll-contain will-change-transform px-6 py-5 pb-[calc(72px+env(safe-area-inset-bottom,0px)+16px)] md:pb-5 ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}>
             {/* Viewer 唯讀提示 */}
             {isReadOnlyShared && (
               <div

@@ -65,17 +65,25 @@ export async function deleteTask(uid: string, taskId: string): Promise<void> {
 
 /**
  * 實時訂閱個人任務 — 任何設備寫入都會推送給所有訂閱者
+ * pendingDeletedIds: Set of task IDs that are being deleted locally (race condition guard)
  * 回傳清理函式
  */
 export async function subscribeTasks(
   uid: string,
-  onUpdate: (tasks: Task[]) => void
+  onUpdate: (tasks: Task[]) => void,
+  pendingDeletedIds?: Set<string>
 ): Promise<Unsubscribe> {
   if (!supabase) return () => {};
 
+  // 過濾本地正在刪除中的任務（避免 subscription 啟動時把已刪除的任務讀回來）
+  const filterDeleted = (tasks: Task[]) =>
+    pendingDeletedIds && pendingDeletedIds.size > 0
+      ? tasks.filter((t) => !pendingDeletedIds.has(t.id))
+      : tasks;
+
   // 初次載入
   const initial = await loadTasks(uid);
-  onUpdate(initial);
+  onUpdate(filterDeleted(initial));
 
   // Realtime 訂閱：監聽自己 uid 的 INSERT/UPDATE/DELETE
   const channel = supabase
@@ -86,7 +94,7 @@ export async function subscribeTasks(
       async () => {
         // 任何變動就重拉一次（單人資料量小，全量拉最簡單）
         const fresh = await loadTasks(uid);
-        onUpdate(fresh);
+        onUpdate(filterDeleted(fresh));
       }
     )
     .subscribe();

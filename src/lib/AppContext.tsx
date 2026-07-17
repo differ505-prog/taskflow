@@ -232,13 +232,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (fbUnsubRef.current) fbUnsubRef.current();
       subscribeTasks(user.uid, (fbTasks) => {
         if (fbSyncDebug) console.log("[SUP SYNC] tasks 推送:", fbTasks.length);
-        // 過濾掉本地已刪除但 Firebase 還沒處理的任務（race condition guard）
-        const filtered = fbTasks.filter((t) => !deletedTaskIdsRef.current.has(t.id));
-        setTasks(filtered);
+        setTasks(fbTasks);
         // pending delete 時跳過 localStorage 同步，避免 Firebase 推送舊資料覆蓋 localStorage
         if (deletedTaskIdsRef.current.size > 0) return;
-        saveTasks(filtered);
-      }).then((unsub) => {
+        saveTasks(fbTasks);
+      }, deletedTaskIdsRef.current).then((unsub) => {
         fbUnsubRef.current = unsub;
         if (fbSyncDebug) console.log("[SUP SYNC] 已訂閱 tasks uid:", user.uid);
       }).catch((err) => {
