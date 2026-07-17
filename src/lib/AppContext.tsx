@@ -117,7 +117,7 @@ interface AppContextValue {
   checkinHabit: (id: string, date: string, count?: number, note?: string) => void;
 
   // ── Quick Add ──────────────────────────────────────────
-  quickAdd: (input: string) => string | null;
+  quickAdd: (input: string, currentView?: string) => string | null;
 
   // ── 通知 ──────────────────────────────────────────────
   requestNotificationPermission: () => Promise<boolean>;
@@ -390,13 +390,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const getFilteredTasks = useCallback((): Task[] => {
     const active = tasks.filter((t) => !t.isArchived);
     let result = active;
-    const today = new Date().toISOString().split("T")[0];
-    const weekEnd = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
+    const now = new Date();
+    const localToday = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+    const weekEndDate = new Date(now.getTime() + 7 * 86400000);
+    const localWeekEnd = `${weekEndDate.getFullYear()}-${String(weekEndDate.getMonth()+1).padStart(2,"0")}-${String(weekEndDate.getDate()).padStart(2,"0")}`;
 
     if (currentView === "today") {
-      result = result.filter((t) => t.dueDate === today);
+      result = result.filter((t) => t.dueDate === localToday);
     } else if (currentView === "next7days") {
-      result = result.filter((t) => t.dueDate && t.dueDate >= today && t.dueDate <= weekEnd);
+      result = result.filter((t) => t.dueDate && t.dueDate >= localToday && t.dueDate <= localWeekEnd);
     } else if (currentView === "list" && currentListId) {
       result = result.filter((t) => t.listId === currentListId);
     } else if (currentView === "inbox") {
@@ -428,12 +430,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const viewCounts = useMemo(() => {
     const active = tasks.filter((t) => !t.isArchived);
-    const today = new Date().toISOString().split("T")[0];
-    const weekEnd = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
+    const now = new Date();
+    const localToday = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+    const weekEndDate = new Date(now.getTime() + 7 * 86400000);
+    const localWeekEnd = `${weekEndDate.getFullYear()}-${String(weekEndDate.getMonth()+1).padStart(2,"0")}-${String(weekEndDate.getDate()).padStart(2,"0")}`;
     return {
       inbox: active.filter((t) => !t.listId).length,
-      today: active.filter((t) => t.dueDate === today).length,
-      next7days: active.filter((t) => t.dueDate && t.dueDate >= today && t.dueDate <= weekEnd).length,
+      today: active.filter((t) => t.dueDate === localToday).length,
+      next7days: active.filter((t) => t.dueDate && t.dueDate >= localToday && t.dueDate <= localWeekEnd).length,
     };
   }, [tasks]);
 
@@ -1036,15 +1040,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [user, ownedSharedListIds, acceptedSharedListIds, myRoleByList]);
 
   // ── Quick Add（個人） ──────────────────────────────────
-  const quickAdd = useCallback((input: string): string | null => {
+  const quickAdd = useCallback((input: string, currentView?: string): string | null => {
     if (!input.trim()) return null;
     const parsed = parseNaturalLanguage(input);
+    const dueDate = parsed.dueDate ?? (currentView === "today" ? new Date().toLocaleDateString("en-CA") : undefined);
     return addTask({
       title: parsed.title,
       description: parsed.description,
       priority: parsed.priority,
       status: "todo",
-      dueDate: parsed.dueDate,
+      dueDate,
       dueTime: parsed.dueTime,
       tags: parsed.tags,
       listId: currentListId,
@@ -1349,11 +1354,11 @@ export function useApp() {
 // ─── helpers ─────────────────────────────────────────────────
 function computeHabitStreak(habit: Habit, checkins: Habit["checkins"]): number {
   if (checkins.length === 0) return 0;
-  const today = new Date().toISOString().split("T")[0];
+  const localToday = new Date().toISOString().split("T")[0];
   const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
   const doneDates = checkins.filter((c) => c.completed).map((c) => c.date).sort().reverse();
   if (doneDates.length === 0) return 0;
-  if (doneDates[0] !== today && doneDates[0] !== yesterday) return 0;
+  if (doneDates[0] !== localToday && doneDates[0] !== yesterday) return 0;
   let streak = 0;
   const dateSet = new Set(doneDates);
   const d = new Date(doneDates[0]);

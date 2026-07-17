@@ -156,12 +156,19 @@ export function parseNaturalLanguage(input: string): ParsedTask {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────
+// ⚠️ 用本地時區計算，避免 UTC offset 造成日期差一天
+function toLocalDateString(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
 function today(): string {
-  return new Date().toISOString().split("T")[0];
+  return toLocalDateString(new Date());
 }
 
 function addDays(n: number): string {
-  return new Date(Date.now() + n * 86400000).toISOString().split("T")[0];
+  return toLocalDateString(new Date(Date.now() + n * 86400000));
 }
 
 function nextWeekday(): string {
