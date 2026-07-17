@@ -20,6 +20,8 @@ import {
   Recurrence,
   SharedListSnapshot,
   DEFAULT_LIST_IDS,
+  migratePriority,
+  PRIORITY_RANK,
 } from "./types";
 import {
   getTasks,
@@ -39,7 +41,6 @@ import {
   getOwnedSharedListIds,
 } from "./storage";
 import { deleteFile } from "./storageUpload";
-import { shouldMigrateToUrgent } from "./priority";
 import {
   createSharedList,
   updateSharedSnapshot,
@@ -401,14 +402,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // ── 任務排序（個人） ─────────────────────────────────────
   const getFilteredTasks = useCallback((): Task[] => {
-    // Lazy migration：把「priority=high 且 24h 內」的老任務自動升級為 urgent
+    // Lazy migration：老 priority 值（urgent/high/medium/low）即時轉換成新 4 值（do-now/schedule/delegate/none）
     // 同步寫回 store，保證下次讀取不會再跑這段
-    const nowForMigrate = new Date();
     let migrated = false;
     const migratedTasks = tasks.map((t) => {
-      if (shouldMigrateToUrgent(t, nowForMigrate)) {
+      const newP = migratePriority(t.priority);
+      if (newP !== t.priority) {
         migrated = true;
-        return { ...t, priority: "urgent" as const };
+        return { ...t, priority: newP };
       }
       return t;
     });
@@ -449,14 +450,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (activeFilter.status)   result = result.filter((t) => t.status === activeFilter.status);
     if (activeFilter.tag)      result = result.filter((t) => t.tags.includes(activeFilter.tag!));
 
-    const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
     return result.sort((a, b) => {
       // 置頂優先（排除已封存 / 已完成）
       if (!a.isArchived && a.status !== "done" && a.isPinned && !(b.isPinned && !b.isArchived && b.status !== "done")) return -1;
       if (!b.isArchived && b.status !== "done" && b.isPinned && !(a.isPinned && !a.isArchived && a.status !== "done")) return 1;
       if (a.status === "done" && b.status !== "done") return 1;
       if (a.status !== "done" && b.status === "done") return -1;
-      const po = priorityOrder[a.priority] - priorityOrder[b.priority];
+      const po = PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
       if (po !== 0) return po;
       return a.order - b.order;
     });

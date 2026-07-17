@@ -34,7 +34,7 @@ const SEED_TASKS: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" |
   {
     title: "完成專案提案簡報",
     description: "整理本季 OKR 進度並製作成 15 分鐘簡報",
-    priority: "high",
+    priority: "schedule",
     status: "in-progress",
     dueDate: new Date(Date.now() + 86400000).toISOString().split("T")[0],
     tags: ["工作", "簡報"],
@@ -45,7 +45,7 @@ const SEED_TASKS: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" |
   },
   {
     title: "閱讀《原子習慣》第三章",
-    priority: "medium",
+    priority: "delegate",
     status: "todo",
     dueDate: new Date(Date.now() + 172800000).toISOString().split("T")[0],
     tags: ["閱讀"],
@@ -53,14 +53,14 @@ const SEED_TASKS: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" |
   {
     title: "預約牙醫洗牙",
     description: "半年一次的口腔檢查",
-    priority: "low",
+    priority: "none",
     status: "todo",
     dueDate: new Date(Date.now() + 604800000).toISOString().split("T")[0],
     tags: ["健康"],
   },
   {
     title: "每晚冥想 10 分鐘",
-    priority: "low",
+    priority: "none",
     status: "todo",
     tags: ["健康", "習慣"],
     recurrence: { pattern: "daily", interval: 1, completedCount: 0 },
@@ -587,9 +587,9 @@ function ArchivedTasksView() {
                 background:
                   task.status === "done"
                     ? "var(--status-success)"
-                    : task.priority === "urgent" || task.priority === "high"
+                    : task.priority === "do-now" || task.priority === "schedule"
                     ? "var(--status-danger)"
-                    : task.priority === "medium"
+                    : task.priority === "delegate"
                     ? "var(--status-warning)"
                     : "var(--text-tertiary)",
                 opacity: 0.6,

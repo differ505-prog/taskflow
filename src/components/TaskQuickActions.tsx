@@ -6,7 +6,7 @@ import { getEisenhowerVisual } from "@/lib/eisenhower";
 import { IconPopover } from "./IconPopover";
 import { getTagColors } from "@/lib/storage";
 import {
-  Flag, Tag as TagIcon, Paperclip, ListChecks, Plus, X,
+  Tag as TagIcon, Paperclip, ListChecks, Plus, X,
   AlertCircle, Image as ImageIcon, FileText, Pin,
 } from "lucide-react";
 
@@ -71,18 +71,14 @@ export function TaskQuickActions({
 
   return (
     <div className="flex items-center gap-1 flex-wrap">
-      {/* 旗子：四象限視覺（Q1=深紅+驚嘆號、Q2=紅、Q3=黃、Q4=綠） */}
+      {/* 旗子：四象限視覺（Q1=🔥深紅、Q2=🗓️橘紅、Q3=🤝黃、Q4=💤灰） */}
       {readOnly ? (
         <div
-          className={`${iconBtnBase} ${iconBtnSize} relative cursor-default`}
-          style={{ color: priorityColor }}
+          className={`${iconBtnBase} ${iconBtnSize} relative cursor-default flex flex-col items-center justify-center`}
           title={`優先級：${eisen.label}`}
-          aria-label={`優先級 ${eisen.label}${eisen.isUrgent ? "（緊急）" : ""}`}
+          aria-label={`優先級 ${eisen.label}${eisen.isUrgent ? "（24h 緊急）" : ""}`}
         >
-          <Flag
-            className={compact ? "w-3.5 h-3.5" : "w-4 h-4"}
-            fill={task.priority !== "low" || eisen.isUrgent ? "currentColor" : "none"}
-          />
+          <span className={compact ? "text-sm" : "text-base"} aria-hidden="true">{eisen.emoji}</span>
           {eisen.isUrgent && (
             <AlertCircle
               className="absolute -top-1 -right-1 drop-shadow-sm"
@@ -90,11 +86,11 @@ export function TaskQuickActions({
                 width: compact ? 10 : 12,
                 height: compact ? 10 : 12,
                 color: "#fff",
-                background: priorityColor,
+                background: eisen.colorHex,
                 borderRadius: "50%",
                 padding: 1,
               }}
-              fill={priorityColor}
+              fill={eisen.colorHex}
               strokeWidth={2.5}
             />
           )}
@@ -106,16 +102,12 @@ export function TaskQuickActions({
           trigger={
             <button
               onClick={() => {}} // IconPopover wrapper 處理開合，不 stopPropagation
-              className={`${iconBtnBase} ${iconBtnSize} relative`}
-              style={{ color: priorityColor }}
+              className={`${iconBtnBase} ${iconBtnSize} relative flex items-center justify-center`}
               title={`優先級：${eisen.label}（點擊選擇）`}
-              aria-label={`優先級 ${eisen.label}${eisen.isUrgent ? "（緊急）" : ""}`}
+              aria-label={`優先級 ${eisen.label}${eisen.isUrgent ? "（24h 緊急）" : ""}`}
               aria-haspopup="menu"
             >
-              <Flag
-                className={compact ? "w-3.5 h-3.5" : "w-4 h-4"}
-                fill={task.priority !== "low" || eisen.isUrgent ? "currentColor" : "none"}
-              />
+              <span className={compact ? "text-sm" : "text-base"} aria-hidden="true">{eisen.emoji}</span>
               {eisen.isUrgent && (
                 <AlertCircle
                   className="absolute -top-1 -right-1 drop-shadow-sm"
@@ -123,11 +115,11 @@ export function TaskQuickActions({
                     width: compact ? 10 : 12,
                     height: compact ? 10 : 12,
                     color: "#fff",
-                    background: priorityColor,
+                    background: eisen.colorHex,
                     borderRadius: "50%",
                     padding: 1,
                   }}
-                  fill={priorityColor}
+                  fill={eisen.colorHex}
                   strokeWidth={2.5}
                 />
               )}
@@ -462,17 +454,17 @@ function PriorityPopoverContent({
   compact: boolean;
   onSelect: (p: Priority) => void;
 }) {
-  const options: Array<{ value: Priority; label: string; color: string; urgent?: boolean }> = [
-    { value: "urgent", label: "緊急", color: "#D70015", urgent: true },
-    { value: "high", label: "高", color: "var(--priority-high)" },
-    { value: "medium", label: "中", color: "var(--priority-medium)" },
-    { value: "low", label: "低", color: "var(--priority-low)" },
+  const options: Array<{ value: Priority; label: string; emoji: string; color: string; urgent?: boolean }> = [
+    { value: "do-now",   label: "速辦", emoji: "🔥", color: "var(--priority-do-now)",   urgent: true  },
+    { value: "schedule", label: "排程", emoji: "🗓️", color: "var(--priority-schedule)" },
+    { value: "delegate", label: "轉交", emoji: "🤝", color: "var(--priority-delegate)" },
+    { value: "none",     label: "暫緩", emoji: "💤", color: "var(--priority-none)"     },
   ];
 
   return (
-    <div className="p-1.5 w-[220px]">
+    <div className="p-1.5 w-[240px]">
       <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
-        優先級
+        優先級（艾森豪四象限）
       </div>
       <div className="grid grid-cols-4 gap-1 mt-0.5">
         {options.map((opt) => {
@@ -486,19 +478,7 @@ function PriorityPopoverContent({
               aria-pressed={isActive}
               aria-label={`設定優先級為 ${opt.label}`}
             >
-              {opt.urgent ? (
-                <Flag
-                  className={compact ? "w-4 h-4" : "w-5 h-5"}
-                  style={{ color: opt.color }}
-                  fill="currentColor"
-                />
-              ) : (
-                <Flag
-                  className={compact ? "w-4 h-4" : "w-5 h-5"}
-                  style={{ color: opt.color }}
-                  fill={isActive ? "currentColor" : (opt.value === "low" ? "none" : "currentColor")}
-                />
-              )}
+              <span className={compact ? "text-base" : "text-lg"} aria-hidden="true">{opt.emoji}</span>
               <span className="text-[11px] font-medium" style={{ color: isActive ? opt.color : "var(--text-secondary)" }}>
                 {opt.label}
               </span>
@@ -506,16 +486,16 @@ function PriorityPopoverContent({
           );
         })}
       </div>
-      {isUrgent && current !== "urgent" && (
+      {isUrgent && current !== "do-now" && (
         <div className="mt-1.5 px-2 py-1.5 text-[11px] flex items-center gap-1.5 rounded-lg" style={{ background: "rgba(215,0,21,0.08)", color: "#D70015" }}>
           <AlertCircle className="w-3 h-3 flex-shrink-0" />
-          <span>24h 內到期，建議標為緊急</span>
+          <span>24h 內到期，建議改為「速辦」</span>
         </div>
       )}
-      {current === "urgent" && (
+      {current === "do-now" && (
         <div className="mt-1.5 px-2 py-1.5 text-[11px] flex items-center gap-1.5 rounded-lg" style={{ background: "rgba(215,0,21,0.08)", color: "#D70015" }}>
           <AlertCircle className="w-3 h-3 flex-shrink-0" />
-          <span>已標為緊急（艾森豪 Q1）</span>
+          <span>已標為「速辦」（艾森豪 Q1）</span>
         </div>
       )}
     </div>

@@ -40,8 +40,8 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
   const { lists, tasks, getTagCounts } = useApp();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  // 預設「低」＝第 4 象限（艾森豪矩陣：不重要不緊急，避免決策疲勞）
-  const [priority, setPriority] = useState<Priority>("low");
+  // 預設「暫緩」＝第 4 象限（艾森豪矩陣：避免決策疲勞，新任務預設最低優先）
+  const [priority, setPriority] = useState<Priority>("none");
   const [status, setStatus] = useState<TaskStatus>("todo");
   const [startDate, setStartDate] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -164,7 +164,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
       setRecurrenceDaysOfWeek(initialData.recurrence?.daysOfWeek || []);
       setRecurrenceEndDate(initialData.recurrence?.endDate || "");
     } else {
-      setTitle(""); setDescription(""); setPriority("low"); setStatus("todo");
+      setTitle(""); setDescription(""); setPriority("none"); setStatus("todo");
       setDueDate(currentView === "today" ? new Date().toISOString().split("T")[0] : ""); setStartDate(""); setDueTime(""); setListId(currentListId); setTags([]);
       setSubTaskInputs([]);
       setRecurrenceType("none"); setRecurrenceInterval(1);
@@ -367,18 +367,18 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                   </div>
                   <EisenhowerQuadrantGrid priority={priority} onChange={setPriority} />
 
-                  {/* Q1 自動偵測提示：當 dueDate 在 24h 內且 priority 非 high 時，建議升級為 urgent */}
+                  {/* Q1 自動偵測提示：當 dueDate 在 24h 內且 priority 為 schedule 時，建議升級為 do-now */}
                   {(() => {
-                    if (!dueDate || priority === "high") return null;
+                    if (!dueDate || priority === "do-now") return null;
                     const eisen = getEisenhowerVisual({ priority, dueDate });
                     if (!eisen.isUrgent) return null;
                     return (
                       <div className="mt-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px]" style={{ background: `${eisen.color}12`, color: eisen.color, border: `1px solid ${eisen.color}30` }}>
                         <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                        <span>截止在 24 小時內，建議改為「高優先」自動升級 Q1</span>
+                        <span>截止在 24 小時內，建議改為「速辦」</span>
                         <button
                           type="button"
-                          onClick={() => setPriority("urgent")}
+                          onClick={() => setPriority("do-now")}
                           className="ml-auto px-1.5 py-0.5 rounded text-[11px] font-medium transition-colors hover:opacity-80"
                           style={{ background: eisen.color, color: "#fff" }}
                         >

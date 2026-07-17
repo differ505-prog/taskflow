@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Priority, PRIORITY_CONFIG } from "@/lib/types";
-import { Flag } from "lucide-react";
+import { Priority } from "@/lib/types";
 
 interface EisenhowerQuadrantGridProps {
   priority: Priority;
@@ -11,112 +10,108 @@ interface EisenhowerQuadrantGridProps {
 
 interface CellVisual {
   label: string;
-  textColor: string;
+  emoji: string;
+  colorVar: string;
+  colorHex: string;
   qLabel: string;
   subtitle: string;
-  visualKey: string;
+  value: Priority;
 }
 
 const QUADRANTS: CellVisual[] = [
   {
-    label: PRIORITY_CONFIG.high.label,
-    textColor: "var(--priority-high)",
-    qLabel: "Q1/Q2",
-    subtitle: "重要",
-    visualKey: "high",
+    label: "速辦",
+    emoji: "🔥",
+    colorVar: "var(--priority-do-now)",
+    colorHex: "#D70015",
+    qLabel: "Q1",
+    subtitle: "立即做",
+    value: "do-now",
   },
   {
-    label: "中",
-    textColor: "var(--priority-medium)",
+    label: "排程",
+    emoji: "🗓️",
+    colorVar: "var(--priority-schedule)",
+    colorHex: "#F97316",
+    qLabel: "Q2",
+    subtitle: "計劃做",
+    value: "schedule",
+  },
+  {
+    label: "轉交",
+    emoji: "🤝",
+    colorVar: "var(--priority-delegate)",
+    colorHex: "#EAB308",
     qLabel: "Q3",
-    subtitle: "次要",
-    visualKey: "medium",
+    subtitle: "委派做",
+    value: "delegate",
   },
   {
-    label: PRIORITY_CONFIG.low.label,
-    textColor: "var(--priority-low)",
+    label: "暫緩",
+    emoji: "💤",
+    colorVar: "var(--priority-none)",
+    colorHex: "#9CA3AF",
     qLabel: "Q4",
     subtitle: "可忽略",
-    visualKey: "low",
-  },
-  {
-    label: "不重要",
-    textColor: "var(--text-tertiary)",
-    qLabel: "Q4",
-    subtitle: "不緊急",
-    visualKey: "low-soft",
+    value: "none",
   },
 ];
 
 /**
- * 艾森豪 4 象限旗子切換器（圖譜式 UI）
+ * 艾森豪 4 象限優先級切換器（艾森豪四象限視覺）
  *
- * 佈局：4 格橫排（艾森豪四象限視覺）
- *   ┌────┬────┬────┬────┐
- *   │ 高 │ 中 │ 低 │不重要│
- *   │Q1/Q2│ Q3 │ Q4 │ Q4 │
- *   └────┴────┴────┴────┘
+ * 佈局：4 格橫排（每格 = emoji + label + Q 標籤 + subtitle）
  *
- * - Q1/Q2（重要）→ high
- *   ‧ 24h 內到期的 high 會自動顯示 Q1 視覺（深紅 + 驚嘆號 badge），但 priority 值仍是 high
- *   ‧ 用戶可在 PriorityPopover 手動選「緊急」= 顯式標記為 Q1
- * - Q3 → medium
- * - Q4 → low（含「不重要不緊急」分支，視覺區分、邏輯同 low）
- *
- * 點擊任意格 → 切換 priority
+ * - 點擊任意格 → 切換 priority
+ * - schedule 且 dueDate 在 24h 內 → 視覺提升為 Q1（由 TaskForm / TaskDetailPanel 提示升級）
  */
 export function EisenhowerQuadrantGrid({ priority, onChange }: EisenhowerQuadrantGridProps) {
-  // visualState 追蹤目前 UI 亮哪格，與 priority 邏輯狀態分開
-  const [visualState, setVisualState] = useState<string>(priority);
+  const [visualState, setVisualState] = useState<Priority>(priority);
 
-  const isActive = (visualKey: string) => visualState === visualKey;
+  const isActive = (v: Priority) => visualState === v;
 
-  // 當 priority 從外部被更新時（如另一處修改了任務優先級），同步 visualState
   useEffect(() => { setVisualState(priority); }, [priority]);
 
-  const handleClick = (visualKey: string) => {
-    setVisualState(visualKey);
-    onChange(visualKey === "low-soft" ? "low" : (visualKey as Priority));
+  const handleClick = (v: Priority) => {
+    setVisualState(v);
+    onChange(v);
   };
 
   return (
     <div className="grid grid-cols-4 gap-1.5">
-      {QUADRANTS.map((q, i) => (
+      {QUADRANTS.map((q) => (
         <button
-          key={i}
+          key={q.value}
           type="button"
-          onClick={() => handleClick(q.visualKey)}
+          onClick={() => handleClick(q.value)}
           className="rounded-xl p-2.5 text-left transition-all duration-150 active:scale-95"
           style={
-            isActive(q.visualKey)
+            isActive(q.value)
               ? {
-                  background: q.textColor,
+                  background: q.colorVar,
                   color: "#fff",
                   boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
                   border: "1px solid transparent",
                 }
               : {
                   background: "var(--surface)",
-                  color: q.textColor,
+                  color: q.colorVar,
                   border: "1px solid var(--border)",
                 }
           }
-          aria-label={`${q.label}優先（${q.qLabel}）`}
-          aria-pressed={isActive(q.visualKey)}
+          aria-label={`${q.label}（${q.qLabel}）`}
+          aria-pressed={isActive(q.value)}
         >
           <div className="flex items-center justify-between mb-0.5">
-            <Flag
-              className="w-3.5 h-3.5"
-              fill={isActive(q.visualKey) ? "currentColor" : q.visualKey === "low-soft" ? "none" : "currentColor"}
-            />
+            <span className="text-base" aria-hidden="true">{q.emoji}</span>
             <span className="text-[9px] font-bold opacity-70">{q.qLabel}</span>
           </div>
           <div className="text-[11px] font-semibold leading-tight">
-            {q.label}優先
+            {q.label}
           </div>
           <div
             className="text-[9px]"
-            style={{ opacity: isActive(q.visualKey) ? 0.85 : 0.7 }}
+            style={{ opacity: isActive(q.value) ? 0.85 : 0.7 }}
           >
             {q.subtitle}
           </div>

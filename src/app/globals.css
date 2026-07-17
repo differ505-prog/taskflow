@@ -35,10 +35,11 @@
   --text-tertiary: #AEAEB2;
   --text-placeholder: #C7C7CC;
 
-  /* 優先級與狀態色 */
-  --priority-high: #FF3B30;
-  --priority-medium: #FF9500;
-  --priority-low: #34C759;
+  /* 優先級與狀態色（艾森豪四象限語意化：do-now/schedule/delegate/none） */
+  --priority-do-now: #D70015;
+  --priority-schedule: #F97316;
+  --priority-delegate: #EAB308;
+  --priority-none: #9CA3AF;
   --status-success: #34C759;
   --status-warning: #FF9500;
   --status-danger: #FF3B30;
@@ -82,9 +83,10 @@
   --border: rgba(255, 255, 255, 0.08);
   --border-hover: rgba(255, 255, 255, 0.16);
 
-  --priority-high: #FF6B6B;
-  --priority-medium: #FFB347;
-  --priority-low: #6BCB77;
+  --priority-do-now: #FF4D4D;
+  --priority-schedule: #FF9244;
+  --priority-delegate: #FFD93D;
+  --priority-none: #9CA3AF;
   --status-success: #6BCB77;
   --status-warning: #FFB347;
   --status-danger: #FF6B6B;

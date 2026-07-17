@@ -2,10 +2,13 @@
  * 艾森豪矩陣視覺輔助（純 UI 層，不動 Priority 型別與資料結構）
  *
  * 四象限：
- *   Q1: 高 + 緊急（深紅實心旗 + 驚嘆號 badge）  → 自動偵測：priority=high && dueDate 在 24h 內
- *   Q2: 高        （紅旗實心）                  → priority=high
- *   Q3: 中        （黃旗實心）                  → priority=medium
- *   Q4: 低        （灰旗線框）                  → priority=low
+ *   Q1: do-now   🔥 速辦（深紅實心 + 驚嘆號 badge）
+ *   Q2: schedule 🗓️ 排程（橘紅實心）
+ *   Q3: delegate 🤝 轉交（黃實心）
+ *   Q4: none     💤 暫緩（灰線框）
+ *
+ * 自動偵測規則：priority=schedule 且 dueDate 在 24h 內 → 視覺提升為 Q1（速辦）
+ * 顯式標記的 do-now 不受 24h 規則影響。
  */
 
 import { Task, Priority, EisenhowerQuadrant } from "./types";
@@ -17,18 +20,33 @@ export type { EisenhowerQuadrant };
 
 export interface EisenhowerVisual {
   quadrant: EisenhowerQuadrant;
-  /** CSS 變數或 hex 顏色，用於旗子、卡片左條等 */
+  /** 主色（CSS variable） */
   color: string;
-  /** 是否為「Q1 緊急」狀態（顯示驚嘆號 badge） */
+  /** Hex 色（calendar / stats 用） */
+  colorHex: string;
+  /** Emoji */
+  emoji: string;
+  /** 是否為「Q1 速辦」狀態（顯示驚嘆號 badge） */
   isUrgent: boolean;
   /** 標籤文字 */
   label: string;
 }
 
-const Q1_COLOR = "#D70015"; // 深紅（urgent）
-const Q2_COLOR = "var(--priority-high)"; // 紅
-const Q3_COLOR = "var(--priority-medium)"; // 黃
-const Q4_COLOR = "var(--priority-low)"; // 綠/低
+const Q1_COLOR = "var(--priority-do-now)";
+const Q1_HEX = "#D70015";
+const Q1_EMOJI = "🔥";
+
+const Q2_COLOR = "var(--priority-schedule)";
+const Q2_HEX = "#F97316";
+const Q2_EMOJI = "🗓️";
+
+const Q3_COLOR = "var(--priority-delegate)";
+const Q3_HEX = "#EAB308";
+const Q3_EMOJI = "🤝";
+
+const Q4_COLOR = "var(--priority-none)";
+const Q4_HEX = "#9CA3AF";
+const Q4_EMOJI = "💤";
 
 /**
  * 根據任務的 priority + dueDate 派生艾森豪象限視覺
@@ -42,40 +60,43 @@ export function getEisenhowerVisual(
 ): EisenhowerVisual {
   const priority = task.priority;
 
-  // Q1 強制路徑：priority = "urgent"（用戶/系統顯式標記為第一象限，不受 24h 限制）
-  if (priority === "urgent") {
+  // Q1 顯式：do-now（用戶/系統明確標記為「速辦」）
+  if (priority === "do-now") {
     return {
-      quadrant: "urgent",
+      quadrant: "do-now",
       color: Q1_COLOR,
+      colorHex: Q1_HEX,
+      emoji: Q1_EMOJI,
       isUrgent: true,
-      label: "緊急",
+      label: "速辦",
     };
   }
 
-  // Q1 自動偵測：high 且 dueDate 在未來 24h 內（含已逾期）— 自動偵測到的 Q1 在顯示層昇為 urgent
-  if (priority === "high" && task.dueDate) {
+  // Q1 自動偵測：schedule 且 dueDate 在未來 24h 內（含已逾期）
+  if (priority === "schedule" && task.dueDate) {
     const dueMs = parseDueDateMs(task.dueDate);
     if (dueMs !== null) {
       const diffMs = dueMs - now.getTime();
-      // 24h 內（含已逾期）：diffMs <= EISENHOWER_URGENT_HOURS * 3600 * 1000
       if (diffMs <= EISENHOWER_URGENT_HOURS * 3_600_000) {
         return {
-          quadrant: "urgent",
+          quadrant: "do-now",
           color: Q1_COLOR,
+          colorHex: Q1_HEX,
+          emoji: Q1_EMOJI,
           isUrgent: true,
-          label: "緊急",
+          label: "速辦",
         };
       }
     }
   }
 
   switch (priority) {
-    case "high":
-      return { quadrant: "high", color: Q2_COLOR, isUrgent: false, label: "高" };
-    case "medium":
-      return { quadrant: "medium", color: Q3_COLOR, isUrgent: false, label: "中" };
-    case "low":
-      return { quadrant: "low", color: Q4_COLOR, isUrgent: false, label: "低" };
+    case "schedule":
+      return { quadrant: "schedule", color: Q2_COLOR, colorHex: Q2_HEX, emoji: Q2_EMOJI, isUrgent: false, label: "排程" };
+    case "delegate":
+      return { quadrant: "delegate", color: Q3_COLOR, colorHex: Q3_HEX, emoji: Q3_EMOJI, isUrgent: false, label: "轉交" };
+    case "none":
+      return { quadrant: "none", color: Q4_COLOR, colorHex: Q4_HEX, emoji: Q4_EMOJI, isUrgent: false, label: "暫緩" };
   }
 }
 
@@ -85,12 +106,10 @@ export function getEisenhowerVisual(
  * - 若有 dueTime 則合併（假設本地時區）
  */
 function parseDueDateMs(dueDate: string): number | null {
-  // 純日期 YYYY-MM-DD：視為當天 23:59:59
   if (/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
     const [y, m, d] = dueDate.split("-").map(Number);
     return new Date(y, m - 1, d, 23, 59, 59).getTime();
   }
-  // 完整 ISO datetime
   const ms = new Date(dueDate).getTime();
   return Number.isNaN(ms) ? null : ms;
 }

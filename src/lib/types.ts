@@ -1,7 +1,65 @@
-export type Priority = "urgent" | "high" | "medium" | "low";
-// Eisenhower 四象限：Q1 為「重要且緊急」、Q2「重要不緊急」、Q3「緊急不重要」、Q4「不重要不緊急」
-// urgent 是用戶/系統顯式標記的「第一象限」，不再只由 24h 自動偵測
-export type EisenhowerQuadrant = "urgent" | "high" | "medium" | "low";
+/**
+ * 優先級 4 值（艾森豪四象限語意化）
+ * - do-now      速辦：立即處理（24h 內到期，或顯式標記）
+ * - schedule    排程：重要但未到期限，列入日程
+ * - delegate    轉交：可委派或併購的事
+ * - none        暫緩：低優先（保留而非刪除，避免決策疲勞）
+ *
+ * 設計原則：
+ * 1. 語意 > 抽象（do-now 比 urgent 更具行動指引）
+ * 2. 動詞命名：告訴用戶「下一步該做什麼」
+ * 3. 避免「緊急」誤用：用「速辦」對齊 do-now 含義，「緊急」僅是輔助視覺標記
+ */
+export type Priority = "do-now" | "schedule" | "delegate" | "none";
+
+/**
+ * Eisenhower 四象限：Q1 為「重要且緊急」、Q2「重要不緊急」、Q3「緊急不重要」、Q4「不重要不緊急」
+ * 與 Priority 同義，純視覺層（給 Q1 badge、自動偵測等用）
+ */
+export type EisenhowerQuadrant = "do-now" | "schedule" | "delegate" | "none";
+
+/**
+ * 老資料型別（向後相容，僅用於遷移判斷）
+ */
+/**
+ * 老資料型別（向後相容，僅用於遷移判斷）
+ */
+export type LegacyPriority = "urgent" | "high" | "medium" | "low";
+
+/**
+ * 老資料遷移對照表（lazy migration）
+ * urgent → do-now（兩者語意接近：「立即做」）
+ * high → schedule（語意：「重要但未到期限」）
+ * medium → delegate（語意：「可併購或委派」）
+ * low → none（語意：「暫緩」）
+ */
+export const LEGACY_PRIORITY_MAP: Record<LegacyPriority, Priority> = {
+  urgent: "do-now",
+  high: "schedule",
+  medium: "delegate",
+  low: "none",
+};
+
+/**
+ * Lazy migration：把舊 priority 值轉換成新值
+ * 對於無效值（null/undefined/未知字串），fallback 到 "none"
+ */
+export function migratePriority(p: unknown): Priority {
+  if (p === "do-now" || p === "schedule" || p === "delegate" || p === "none") return p;
+  if (p === "urgent" || p === "high" || p === "medium" || p === "low") return LEGACY_PRIORITY_MAP[p];
+  return "none";
+}
+
+/**
+ * 排序權重：do-now > schedule > delegate > none
+ */
+export const PRIORITY_RANK: Record<Priority, number> = {
+  "do-now": 0,
+  schedule: 1,
+  delegate: 2,
+  none: 3,
+};
+
 export type TaskStatus = "todo" | "in-progress" | "done";
 
 // ─── Attachments ────────────────────────────────────────────────
@@ -182,30 +240,59 @@ export interface ViewCounts {
 }
 
 // ─── Config Constants ──────────────────────────────────────────
-export const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; bg: string; dot: string }> = {
-  urgent: {
-    label: "緊急",
-    color: "text-red-700",
-    bg: "bg-red-100",
+
+/**
+ * Priority 顯示設定（艾森豪四象限視覺）
+ * - emoji 為主視覺（語意傳達：速辦/排程/轉交/暫緩）
+ * - color 為輔助（Calendar / Stats / 統一色塊）
+ * - dot 用於小尺寸場景（Badge 旁小圓點、Calendar 指示器）
+ */
+export interface PriorityDisplay {
+  label: string;
+  emoji: string;
+  color: string;
+  colorHex: string;
+  dot: string;
+  qLabel: string;
+  subtitle: string;
+}
+
+export const PRIORITY_CONFIG: Record<Priority, PriorityDisplay> = {
+  "do-now": {
+    label: "速辦",
+    emoji: "🔥",
+    color: "var(--priority-do-now)",
+    colorHex: "#D70015",
     dot: "#D70015",
+    qLabel: "Q1",
+    subtitle: "立即處理",
   },
-  high: {
-    label: "高",
-    color: "text-red-600",
-    bg: "bg-red-50",
-    dot: "#FF3B30",
+  schedule: {
+    label: "排程",
+    emoji: "🗓️",
+    color: "var(--priority-schedule)",
+    colorHex: "#F97316",
+    dot: "#F97316",
+    qLabel: "Q2",
+    subtitle: "排入日程",
   },
-  medium: {
-    label: "中",
-    color: "text-amber-600",
-    bg: "bg-amber-50",
-    dot: "#FF9500",
+  delegate: {
+    label: "轉交",
+    emoji: "🤝",
+    color: "var(--priority-delegate)",
+    colorHex: "#EAB308",
+    dot: "#EAB308",
+    qLabel: "Q3",
+    subtitle: "可委派",
   },
-  low: {
-    label: "低",
-    color: "text-emerald-600",
-    bg: "bg-emerald-50",
-    dot: "#34C759",
+  none: {
+    label: "暫緩",
+    emoji: "💤",
+    color: "var(--priority-none)",
+    colorHex: "#9CA3AF",
+    dot: "#9CA3AF",
+    qLabel: "Q4",
+    subtitle: "留著就好",
   },
 };
 

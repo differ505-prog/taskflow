@@ -87,8 +87,9 @@ function taskToVEVENT(task: Task): string {
     lines.push(`DESCRIPTION:${escapeICalText(task.description)}`);
   }
 
-  const priorityMap = { urgent: "1", high: "2", medium: "5", low: "9" } as const;
-  if (task.priority && task.priority !== "medium") {
+  // RFC 5545 PRIORITY: 1=highest, 9=lowest, 5=normal (medium)
+  const priorityMap = { "do-now": "1", schedule: "3", delegate: "5", none: "9" } as const;
+  if (task.priority && task.priority !== "delegate") {
     lines.push(`PRIORITY:${priorityMap[task.priority]}`);
   }
 

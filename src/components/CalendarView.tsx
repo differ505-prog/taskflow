@@ -67,7 +67,7 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
     if (!trimmed) return;
     addTask({
       title: trimmed,
-      priority: "medium",
+      priority: "delegate",
       status: "todo",
       startDate: dateStr,
       dueDate: dateStr,
@@ -372,7 +372,7 @@ function CalendarTaskItem({
           <div className="flex items-center gap-1">
             <div className="w-1.5 h-1.5 rounded-full" style={{ background: priorityColor }} />
             <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
-              {task.priority === "urgent" ? "緊急" : task.priority === "high" ? "高" : task.priority === "medium" ? "中" : "低"}
+              {task.priority === "do-now" ? "速辦" : task.priority === "schedule" ? "排程" : task.priority === "delegate" ? "轉交" : "暫緩"}
             </span>
           </div>
           {task.dueTime && (
@@ -398,18 +398,18 @@ function CalendarTaskItem({
 
 function getPriorityColor(priority: string): string {
   switch (priority) {
-    case "high": return "#FF3B30";
-    case "medium": return "#FF9500";
-    case "low": return "#34C759";
-    default: return "#AEAEB2";
+    case "do-now": return "#D70015";
+    case "schedule": return "#F97316";
+    case "delegate": return "#EAB308";
+    default: return "#9CA3AF";
   }
 }
 
 function getIndicatorBg(tasks: Task[]): string {
   // 根據任務優先級顯示不同顏色
-  const hasUrgent = tasks.some(t => t.priority === "urgent");
-  const hasHigh = tasks.some(t => t.priority === "high");
-  const hasMedium = tasks.some(t => t.priority === "medium");
+  const hasUrgent = tasks.some(t => t.priority === "do-now");
+  const hasHigh = tasks.some(t => t.priority === "schedule");
+  const hasMedium = tasks.some(t => t.priority === "delegate");
 
   if (hasUrgent || hasHigh) return "rgba(215, 0, 21, 0.18)";
   if (hasMedium) return "rgba(255, 149, 0, 0.15)";

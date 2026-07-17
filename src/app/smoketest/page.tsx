@@ -47,7 +47,7 @@ function makeTask(title: string): Task {
   return {
     id: `t_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     title,
-    priority: "medium",
+    priority: "delegate",
     status: "todo",
     createdAt: now,
     updatedAt: now,

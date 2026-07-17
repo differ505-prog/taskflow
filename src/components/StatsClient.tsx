@@ -32,7 +32,7 @@ export default function StatsClient() {
     const overdue = tasks.filter(
       (t) => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== "done"
     ).length;
-    const highPriority = tasks.filter((t) => (t.priority === "high" || t.priority === "urgent") && t.status !== "done").length;
+    const highPriority = tasks.filter((t) => (t.priority === "schedule" || t.priority === "do-now") && t.status !== "done").length;
 
     const completionRate = total > 0 ? Math.round((done / total) * 100) : 0;
     const today = new Date().toISOString().split("T")[0];
@@ -188,10 +188,10 @@ export default function StatsClient() {
           </h2>
           <div className="space-y-2">
             {[
-              { label: "緊急", count: tasks.filter((t) => t.priority === "urgent").length, color: "#D70015" },
-              { label: "高優先", count: tasks.filter((t) => t.priority === "high").length, color: "var(--priority-high)" },
-              { label: "中優先", count: tasks.filter((t) => t.priority === "medium").length, color: "var(--priority-medium)" },
-              { label: "低優先", count: tasks.filter((t) => t.priority === "low").length, color: "var(--priority-low)" },
+              { label: "速辦", count: tasks.filter((t) => t.priority === "do-now").length, color: "#D70015" },
+              { label: "排程", count: tasks.filter((t) => t.priority === "schedule").length, color: "#F97316" },
+              { label: "轉交", count: tasks.filter((t) => t.priority === "delegate").length, color: "#EAB308" },
+              { label: "暫緩", count: tasks.filter((t) => t.priority === "none").length, color: "#9CA3AF" },
             ].map(({ label, count, color }) => {
               const total = tasks.length || 1;
               const pct = Math.round((count / total) * 100);

@@ -13,14 +13,17 @@ interface ParsedTask {
 
 // ─── Priority patterns (order matters — longer/more specific first) ──
 const PRIORITY_PATTERNS: Array<{ pattern: RegExp; priority: Priority }> = [
-  { pattern: /\b(p0|p-)\b/i, priority: "high" },
-  { pattern: /\b非常重要\b|\b急要\b|\b超緊急\b/i, priority: "urgent" },
-  { pattern: /\b優先\b.*高|\b高優先\b|\b很重要\b|\b緊急\b/i, priority: "high" },
-  { pattern: /\b(p1|h)\b/i, priority: "high" },
-  { pattern: /\b優先\b.*中|\b中優先\b/i, priority: "medium" },
-  { pattern: /\b(p2|m)\b/i, priority: "medium" },
-  { pattern: /\b優先\b.*低|\b低優先\b|\b有空再\b/i, priority: "low" },
-  { pattern: /\b(p3|l)\b/i, priority: "low" },
+  { pattern: /\b(p0|p-)\b/i, priority: "do-now" },
+  { pattern: /\b非常重要\b|\b急要\b|\b超緊急\b|\b緊急\b/i, priority: "do-now" },
+  { pattern: /\b優先\b.*高|\b高優先\b|\b很重要\b/i, priority: "schedule" },
+  { pattern: /\b(p1|h)\b/i, priority: "schedule" },
+  { pattern: /\b排程\b|\b排入\b.*日程/i, priority: "schedule" },
+  { pattern: /\b優先\b.*中|\b中優先\b/i, priority: "delegate" },
+  { pattern: /\b(p2|m)\b/i, priority: "delegate" },
+  { pattern: /\b轉交\b|\b委派\b|\b併購\b/i, priority: "delegate" },
+  { pattern: /\b優先\b.*低|\b低優先\b|\b有空再\b/i, priority: "none" },
+  { pattern: /\b暫緩\b|\b緩\b/i, priority: "none" },
+  { pattern: /\b(p3|l)\b/i, priority: "none" },
 ];
 
 // ─── Date / Time patterns ───────────────────────────────────
@@ -76,7 +79,7 @@ const REMINDER_PATTERNS = [
 // ─── Main parser ─────────────────────────────────────────────
 export function parseNaturalLanguage(input: string): ParsedTask {
   let text = input.trim();
-  let priority: Priority = "medium";
+  let priority: Priority = "delegate";
   let dueDate: string | undefined;
   let dueTime: string | undefined;
   let recurrence: Recurrence | undefined;
