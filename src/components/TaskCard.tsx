@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { Task, SubTask, Priority } from "@/lib/types";
 import { TaskQuickActions } from "./TaskQuickActions";
 import TaskCommentsInline from "./TaskCommentsInline";
+import TaskCommentsDrawer from "./TaskCommentsDrawer";
 import { getEisenhowerVisual } from "@/lib/eisenhower";
 import { format, isToday, isTomorrow, isPast, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
@@ -16,7 +17,7 @@ import {
   CheckCircle2, Circle, Clock, Tag as TagIcon,
   Trash2, Edit3, Archive, Repeat, Plus, Trash,
   AlertCircle, Timer, ListChecks, Paperclip,
-  ChevronDown, ChevronRight,
+  ChevronDown, ChevronRight, ExternalLink,
 } from "lucide-react";
 
 interface TaskCardProps {
@@ -131,6 +132,7 @@ export function TaskCard({
   const [isDeleting, setIsDeleting] = useState(false);
   const [showSubTaskInput, setShowSubTaskInput] = useState(false);
   const [tagColors, setTagColors] = useState<Record<string, string>>({});
+  const [commentsDrawerOpen, setCommentsDrawerOpen] = useState(false);
 
   useEffect(() => {
     setTagColors(getTagColors());
@@ -436,7 +438,26 @@ export function TaskCard({
       )}
 
           {/* Comments */}
-          <TaskCommentsInline taskId={task.id} />
+          <div className="relative">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setCommentsDrawerOpen(true); }}
+              className="absolute right-0 top-0 z-10 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] transition-all duration-200 hover:bg-black/5 active:scale-95"
+              style={{ color: "var(--text-tertiary)" }}
+              aria-label="開啟留言面板"
+              title="於留言面板開啟"
+            >
+              <ExternalLink className="w-3 h-3" />
+              面板
+            </button>
+            <TaskCommentsInline taskId={task.id} />
+          </div>
+          <TaskCommentsDrawer
+            taskId={task.id}
+            taskTitle={task.title}
+            open={commentsDrawerOpen}
+            onClose={() => setCommentsDrawerOpen(false)}
+          />
 
           {/* Bottom action bar: edit/delete/archive */}
           <div

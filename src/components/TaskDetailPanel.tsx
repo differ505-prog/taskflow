@@ -11,7 +11,7 @@ import {
   X, Plus, Repeat, Calendar, Mic, MicOff, Hash,
   Trash2, CheckCircle2, Circle, Tag as TagIcon,
   AlignLeft, Clock, Timer, ListChecks, Paperclip,
-  AlertCircle, Flag, ChevronDown, Pin,
+  AlertCircle, Flag, ChevronDown, Pin, ExternalLink,
 } from "lucide-react";
 import { sortSubTasks } from "@/utils/subtaskSort";
 import { ListChipPicker } from "./ListChipPicker";
@@ -19,6 +19,7 @@ import { ProtectedUploadButton } from "./ProtectedUploadButton";
 import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
 import { SwipeableSubTask } from "./SwipeableSubTask";
 import TaskCommentsInline from "./TaskCommentsInline";
+import TaskCommentsDrawer from "./TaskCommentsDrawer";
 import { TextWithLinks } from "./TextWithLinks";
 import { deleteFile } from "@/lib/storageUpload";
 
@@ -69,6 +70,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   const [hasChanges, setHasChanges] = useState(false);
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
   const [showTagPanel, setShowTagPanel] = useState(false);
+  const [commentsDrawerOpen, setCommentsDrawerOpen] = useState(false);
 
   useEffect(() => {
     setTagColors(getTagColors());
@@ -669,7 +671,26 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
         </div>
 
         {/* Comments */}
-        <TaskCommentsInline taskId={task.id} />
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setCommentsDrawerOpen(true)}
+            className="absolute right-0 top-0 z-10 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] transition-all duration-200 hover:bg-black/5 active:scale-95"
+            style={{ color: "var(--text-tertiary)" }}
+            aria-label="開啟留言面板"
+            title="於留言面板開啟"
+          >
+            <ExternalLink className="w-3 h-3" />
+            面板
+          </button>
+          <TaskCommentsInline taskId={task.id} />
+        </div>
+        <TaskCommentsDrawer
+          taskId={task.id}
+          taskTitle={task.title}
+          open={commentsDrawerOpen}
+          onClose={() => setCommentsDrawerOpen(false)}
+        />
       </div>
     </div>
   );
