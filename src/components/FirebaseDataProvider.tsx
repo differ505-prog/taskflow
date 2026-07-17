@@ -11,6 +11,11 @@
  *   → Firebase 登入後，從 Firestore 拉取資料寫入 localStorage，
  *     再呼叫 forceReload() 讓 AppContext 重讀，達成多裝置同步
  *   → 使用者在 AppContext 寫入 localStorage 時，同步寫 Firestore
+ *
+ * Race condition 解法：
+ * - SyncWriter 寫 Firestore 前，設定 skipNext 標記
+ * - subscription 回調收到 Firestore 資料時，檢查 skipNext，若已標記則跳過寫入
+ * - 避免 SyncWriter 寫入 Firestore 的同時，subscription 舊資料回調覆蓋 localStorage
  */
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/lib/AuthContext";
@@ -40,6 +45,15 @@ import {
 import { Task, TaskList, Habit } from "@/lib/types";
 import { Unsubscribe } from "firebase/firestore";
 
+// ─── Skip flag — module-level singleton ────────────────────────
+// SyncWriter 和 FirebaseDataProvider 透過此物件溝通
+// 避免 SyncWriter 寫 Firestore 時，subscription 舊資料覆蓋 localStorage
+const skipNext = {
+  tasks: false,
+  lists: false,
+  habits: false,
+};
+
 interface FirebaseDataProviderProps {
   children: React.ReactNode;
 }
@@ -65,14 +79,17 @@ export function FirebaseDataProvider({ children }: FirebaseDataProviderProps) {
 
     // Firestore → localStorage
     subscribeTasks(userId, (fsTasks) => {
+      if (skipNext.tasks) { skipNext.tasks = false; return; }
       saveTasks(fsTasks);
       forceReload();
     }).then((unsub) => { unsubs.current.push(unsub); }).catch(() => {});
     subscribeLists(userId, (fsLists) => {
+      if (skipNext.lists) { skipNext.lists = false; return; }
       saveLists(fsLists);
       forceReload();
     }).then((unsub) => { unsubs.current.push(unsub); }).catch(() => {});
     subscribeHabits(userId, (fsHabits) => {
+      if (skipNext.habits) { skipNext.habits = false; return; }
       saveHabits(fsHabits);
       forceReload();
     }).then((unsub) => { unsubs.current.push(unsub); }).catch(() => {});
@@ -118,7 +135,10 @@ export function SyncWriter({ userId }: { userId: string }) {
     const newTasks = tasks.filter(
       (t) => !prevTasks.current.find((pt) => pt.id === t.id)
     );
-    newTasks.forEach((t) => saveTask(userId, t).catch(() => {}));
+    newTasks.forEach((t) => {
+      skipNext.tasks = true;
+      saveTask(userId, t).catch(() => { skipNext.tasks = false; });
+    });
 
     // 個人任務刪除由 AppContext 的 deleteTask (Supabase) 統一處理，
     // Firebase 刪除由 subscribeTasks 回調自動同步，不在這裡另外刪。
@@ -133,23 +153,35 @@ export function SyncWriter({ userId }: { userId: string }) {
     const newLists = lists.filter(
       (l) => !prevLists.current.find((pl) => pl.id === l.id)
     );
-    newLists.forEach((l) => saveList(userId, l).catch(() => {}));
+    newLists.forEach((l) => {
+      skipNext.lists = true;
+      saveList(userId, l).catch(() => { skipNext.lists = false; });
+    });
 
     const deletedLists = prevLists.current.filter(
       (pl) => !lists.find((l) => l.id === pl.id)
     );
-    deletedLists.forEach((l) => fsDeleteList(userId, l.id).catch(() => {}));
+    deletedLists.forEach((l) => {
+      skipNext.lists = true;
+      fsDeleteList(userId, l.id).catch(() => { skipNext.lists = false; });
+    });
 
     // 習慣新增
     const newHabits = habits.filter(
       (h) => !prevHabits.current.find((ph) => ph.id === h.id)
     );
-    newHabits.forEach((h) => saveHabit(userId, h).catch(() => {}));
+    newHabits.forEach((h) => {
+      skipNext.habits = true;
+      saveHabit(userId, h).catch(() => { skipNext.habits = false; });
+    });
 
     const deletedHabits = prevHabits.current.filter(
       (ph) => !habits.find((h) => h.id === ph.id)
     );
-    deletedHabits.forEach((h) => fsDeleteHabit(userId, h.id).catch(() => {}));
+    deletedHabits.forEach((h) => {
+      skipNext.habits = true;
+      fsDeleteHabit(userId, h.id).catch(() => { skipNext.habits = false; });
+    });
 
     prevTasks.current = tasks;
     prevLists.current = lists;
