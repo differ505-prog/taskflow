@@ -193,13 +193,14 @@ alwaysApply: true
 | 變形 / 變圓 | rounded- / shape |
 | 閃爍 | transition / animation |
 | 殘留 | 偽類殘留 (:hover / :focus / :active) |
-| **空白未利用 / 內容被遮** | **flex/grid 父層 grow/shrink 設定、min-width、justify-content、是否有相鄰 siblings** |
+| **空白未利用 / 內容被遮** | **flex/grid 父層 grow/shrink/min-width**；**父層或祖先層是否有 `overflow: hidden/auto/scroll`**（這會造成 flex child 高度塌縮，滾動容器必須在最內層且祖先鏈不能有 `overflow: hidden`）；是否有相鄰 siblings |
 
 **決策樹**：
 1. **視覺症狀在哪個 DOM 節點？** → 先確認節點邊界，再確認空白/遮擋在節點內還是外
 2. **空白在節點內** → 讀該節點的 padding / 內部子項 flex 設定
 3. **空白在節點外（siblings 之間或父層邊界）** → 讀父層 flex/grid 佈局（flex-grow/flex-shrink/min-width/justify-content）
-4. **確認後再讀 CSS**，避免在錯誤的 DOM 子樹裡讀幾百行
+4. **⚠️ 祖先層 `overflow: hidden/auto/scroll` 陷阱**：從症狀節點往上查到根節點，若任何祖先有 `overflow: hidden`，立刻懷疑這是 flex 高度塌縮的根本原因，優先於其他 flex 調整
+5. **確認後再讀 CSS**，避免在錯誤的 DOM 子樹裡讀幾百行
 
 #### 15.4 Mobile Input 特殊性原則
 
@@ -424,5 +425,6 @@ alwaysApply: true
 | 2026-07-17 | 睡前修憲：新增 § 15.6 Runtime 驗證成本上限（純樣式 0 tool call / Component state 2 / 跨元件 3）、新增 § 18 症狀定性確認（症狀描述時必須 Read 源碼 + 列根因表 + AskQuestion 三角定位）；原 § 18 Mobile Input 改為 § 20（針對「圈圈變深修三次」「漢堡看不到猜根因」「純 Tailwind 改動卻啟 CDP」三類繞彎路教訓） |
 | 2026-07-17 | 修憲後優化（v2 自評分 8.65→9.25）：§ 15.6 加「分類判定法三題清單」+「超上限報告格式」+「模糊詞不算明確要求例外」；§ 18 加「根因表強制 markdown 模板」+「三項 trivial 例外」（typo / 用戶指認 / 已附 runtime 證據）；兩條都加「違規計入 § 16 失敗上限」 |
 | 2026-07-17 | 新增修憲自評分機制：每次改動 `.cursor/rules/*.mdc` 後必須對改動本身自評分（滿分 10），< 9 分進行一輪優化後再次評分；trivial 條文修正（typo / 編號修正 / 1-2 行重排）免評分；自評分結果必須寫入生效紀錄並 commit |
+| 2026-07-17 | § 15.3 決策樹加第 4 步「祖先層 overflow 陷阱」（針對「P1-1 flex 高度塌縮修四次才命中真正根因」教訓）；同步更新根因表「空白/內容被遮」行 |
 | 2026-07-17 | 新增 § 21 優化清單維護公約（備注隨進度更新、刪改前確認、只增不刪）、§ 22 推進回合觸發條件；原 § 20 Mobile Input 改為 § 23；自評分 8.8，無需二輪 |
 | 2026-07-17 | 新增 § 16b 首次失敗即停問診（同一問題修完一次後仍無改善時，立即停下提問或要求資料，不盲目繼續） |
