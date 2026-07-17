@@ -4,6 +4,8 @@ import { useMemo } from "react";
 import { Task, Priority } from "@/lib/types";
 import { TaskQuickActions } from "./TaskQuickActions";
 import { TextWithLinks } from "./TextWithLinks";
+import { Clock } from "lucide-react";
+import { getDeadlineStatus } from "@/lib/deadlineEngine";
 import {
   CheckCircle2, Circle, ChevronDown, ChevronRight,
 } from "lucide-react";
@@ -38,6 +40,7 @@ export function TaskListItem({
   const sortedSubTasks = sortSubTasks(subTasks);
   const isDone = task.status === "done";
   const { isCollapsed, isAutoCollapsing, toggle } = useSubTaskCollapse(task.id, subTasks);
+  const deadlineStatus = getDeadlineStatus(task.dueDate, task.dueTime, isDone);
 
   const doneCount = useMemo(
     () => subTasks.filter((s) => s.status === "done").length,
@@ -106,6 +109,19 @@ export function TaskListItem({
             />
           )}
         </div>
+
+        {/* 死線引擎：截止緊迫警示（帕金森定律視覺化） */}
+        {deadlineStatus && (
+          <div
+            className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md"
+            style={{ background: `${deadlineStatus.colorVar}15`, color: deadlineStatus.colorVar }}
+            title={deadlineStatus.tooltip}
+            aria-label={`截止警示:${deadlineStatus.text}`}
+          >
+            <Clock className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+            <span>{deadlineStatus.text}</span>
+          </div>
+        )}
 
         {/* Sub-task header — chevron + 計數（永遠顯示，點 chevron 摺疊/展開） */}
         {subTasks.length > 0 && (

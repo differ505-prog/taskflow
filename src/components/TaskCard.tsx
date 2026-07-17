@@ -10,6 +10,7 @@ import { zhTW } from "date-fns/locale";
 import { haptic } from "@/lib/haptics";
 import { getFileIcon } from "@/lib/storageUpload";
 import { getTagColors } from "@/lib/storage";
+import { getDeadlineStatus } from "@/lib/deadlineEngine";
 import { useSubTaskCollapse } from "@/utils/useSubTaskCollapse";
 import {
   CheckCircle2, Circle, Clock, Tag as TagIcon,
@@ -138,6 +139,8 @@ export function TaskCard({
 
   const dueInfo = getDueDateInfo(task.dueDate, task.startDate);
   const isDone = task.status === "done";
+  // 死線引擎：當 dueInfo 為 null 或為非緊急情況時,優先用 deadlineStatus 給予視覺警示
+  const deadlineStatus = getDeadlineStatus(task.dueDate, task.dueTime, isDone);
   const subTasks = task.subTasks || [];
   const completedSubTasks = subTasks.filter((s) => s.status === "done").length;
   const attachmentCount = task.attachments?.length || 0;
@@ -276,19 +279,31 @@ export function TaskCard({
           {(dueInfo || task.tags.length > 0) && (
             <div className="flex flex-wrap items-center gap-1.5 mt-2">
               {dueInfo && (
-                <span
-                  className="pill-muted text-[11px] py-0.5"
-                  style={
-                    dueInfo.isOverdue && !isDone
-                      ? { background: "rgba(255,59,48,0.08)", color: "var(--status-danger)" }
-                      : dueInfo.isToday
-                      ? { background: "var(--brand-tint)", color: "var(--brand)" }
-                      : {}
-                  }
-                >
-                  <Clock className="w-3 h-3 flex-shrink-0" />
-                  {dueInfo.isOverdue && !isDone && "逾期 "}{dueInfo.text}
-                </span>
+                deadlineStatus ? (
+                  <span
+                    className="pill-muted text-[11px] py-0.5"
+                    style={{ background: `${deadlineStatus.colorVar}15`, color: deadlineStatus.colorVar, border: `1px solid ${deadlineStatus.colorVar}30` }}
+                    title={deadlineStatus.tooltip}
+                    aria-label={`截止警示:${deadlineStatus.text}`}
+                  >
+                    <Clock className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+                    {deadlineStatus.text}
+                  </span>
+                ) : (
+                  <span
+                    className="pill-muted text-[11px] py-0.5"
+                    style={
+                      dueInfo.isOverdue && !isDone
+                        ? { background: "rgba(255,59,48,0.08)", color: "var(--status-danger)" }
+                        : dueInfo.isToday
+                        ? { background: "var(--brand-tint)", color: "var(--brand)" }
+                        : {}
+                    }
+                  >
+                    <Clock className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+                    {dueInfo.isOverdue && !isDone && "逾期 "}{dueInfo.text}
+                  </span>
+                )
               )}
               {task.tags.slice(0, 2).map((tag) => {
                 const color = tagColors[tag] || "#3B82F6";
