@@ -68,6 +68,7 @@ import { SharedMember, MemberRole } from "./sharedSync";
 import { parseNaturalLanguage } from "./nlp";
 import { useAuth } from "./AuthContext";
 import { updateLastActive } from "@/lib/userProfiles";
+import { triggerWebhook } from "./useWebhook";
 
 interface AppContextValue {
   // ── 資料 ──────────────────────────────────────────────
@@ -161,6 +162,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [lists, setLists] = useState<TaskList[]>([]);
   const [habits, setHabits] = useState<Habit[]>([]);
   const [todayFocusMinutes, setTodayFocusMinutes] = useState(0);
+  // ── Webhook outbound：當 tasks/habits/lists 變動時,debounce 500ms 觸發單次 batch 事件 ──
+  const lastEmittedSizesRef = useRef({ tasks: 0, habits: 0, lists: 0 });
   const [currentView, setCurrentViewState] = useState<AppView>("inbox");
   const [currentListId, setCurrentListId] = useState<string | undefined>(undefined);
   const [currentSharedListId, setCurrentSharedListIdState] = useState<string | undefined>(undefined);
@@ -413,6 +416,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
     setAcceptedSharedListIds(acceptedIds);
   }, [isLoaded, reloadKey]);
+
+  // ── Webhook outbound：當 tasks/habits/lists 任一變動,debounce 500ms 發一次 batch payload ──
+  useEffect(() => {
+    if (!isLoaded) return;
+    const last = lastEmittedSizesRef.current;
+    if (
+      last.tasks === tasks.length &&
+      last.habits === habits.length &&
+      last.lists === lists.length
+    ) {
+      return; // 無變動,免觸發
+    }
+    lastEmittedSizesRef.current = { tasks: tasks.length, habits: habits.length, lists: lists.length };
+    triggerWebhook({
+      timestamp: new Date().toISOString(),
+      event: "batch",
+      source: user?.uid ?? "anonymous",
+      data: {
+        taskCount: tasks.length,
+        habitCount: habits.length,
+        listCount: lists.length,
+        // 節錄最近 5 筆任務標題（避免 payload 太大拖累 Zapier）
+        recentTaskTitles: tasks.slice(-5).map((t) => ({ id: t.id, title: t.title, status: t.status })),
+      },
+    });
+  }, [isLoaded, tasks, habits, lists, user]);
 
   useEffect(() => {
     if (!isLoaded || !user) return;
