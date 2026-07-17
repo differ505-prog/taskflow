@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Priority } from "@/lib/types";
+import { Info } from "lucide-react";
+import { EISENHOWER_URGENT_HOURS } from "@/lib/eisenhower";
 
 interface EisenhowerQuadrantGridProps {
   priority: Priority;
@@ -15,6 +17,8 @@ interface CellVisual {
   colorHex: string;
   qLabel: string;
   subtitle: string;
+  /** 中文解釋彩蛋（hover (i) tooltip） */
+  caption: string;
   value: Priority;
 }
 
@@ -26,6 +30,7 @@ const QUADRANTS: CellVisual[] = [
     colorHex: "#D70015",
     qLabel: "Q1",
     subtitle: "立即做",
+    caption: `重要且緊急,立即處理。${EISENHOWER_URGENT_HOURS}小時內到期的「排程」任務會自動升至此象限。`,
     value: "do-now",
   },
   {
@@ -35,6 +40,7 @@ const QUADRANTS: CellVisual[] = [
     colorHex: "#F97316",
     qLabel: "Q2",
     subtitle: "計劃做",
+    caption: "重要但不緊急,預先安排時間處理,避免升級為 Q1 緊急。",
     value: "schedule",
   },
   {
@@ -44,6 +50,7 @@ const QUADRANTS: CellVisual[] = [
     colorHex: "#EAB308",
     qLabel: "Q3",
     subtitle: "委派做",
+    caption: "緊急但不重要,適合轉交他人。建議在備註標明接手人。",
     value: "delegate",
   },
   {
@@ -53,6 +60,7 @@ const QUADRANTS: CellVisual[] = [
     colorHex: "#9CA3AF",
     qLabel: "Q4",
     subtitle: "可忽略",
+    caption: "既不緊急也不重要,勇於說不。可考慮封存或刪除。",
     value: "none",
   },
 ];
@@ -84,7 +92,7 @@ export function EisenhowerQuadrantGrid({ priority, onChange }: EisenhowerQuadran
           key={q.value}
           type="button"
           onClick={() => handleClick(q.value)}
-          className="rounded-xl p-2.5 text-left transition-all duration-150 active:scale-95"
+          className="group relative rounded-xl p-2.5 text-left transition-all duration-150 active:scale-95"
           style={
             isActive(q.value)
               ? {
@@ -115,6 +123,29 @@ export function EisenhowerQuadrantGrid({ priority, onChange }: EisenhowerQuadran
           >
             {q.subtitle}
           </div>
+
+          {/* 中文解釋彩蛋：hover (i) tooltip */}
+          <span
+            role="img"
+            aria-label={q.caption}
+            className="absolute bottom-1 right-1 inline-flex items-center justify-center w-4 h-4 rounded-full opacity-50 hover:opacity-100 focus-within:opacity-100 transition-opacity"
+            tabIndex={0}
+          >
+            <Info className="w-3 h-3" aria-hidden="true" />
+          </span>
+          {/* Tooltip 容器 */}
+          <span
+            className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 px-2.5 py-2 rounded-lg text-[10.5px] leading-relaxed w-48 pointer-events-none opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 text-center"
+            style={{
+              background: "var(--surface-elevated)",
+              color: "var(--text-secondary)",
+              boxShadow: "var(--shadow-md)",
+              border: "1px solid var(--border)",
+            }}
+            role="tooltip"
+          >
+            {q.caption}
+          </span>
         </button>
       ))}
     </div>

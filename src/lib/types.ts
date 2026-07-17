@@ -193,7 +193,7 @@ export interface TaskFilter {
   view?: AppView;
 }
 
-export type AppView = "inbox" | "today" | "next7days" | "all" | "calendar" | "habits" | "tags" | "list" | "stats" | "shared" | "archived" | "pinned";
+export type AppView = "inbox" | "today" | "next7days" | "all" | "calendar" | "habits" | "tags" | "list" | "stats" | "shared" | "archived" | "pinned" | "quadrant";
 
 export interface Tag {
   id: string;
@@ -252,6 +252,11 @@ export interface ViewCounts {
   inbox: number;
   today: number;
   next7days: number;
+  // Eisenhower 四象限計數（用於 Sidebar / Quadrant Radar 視圖）
+  q1: number; // 速辦 (do-now)
+  q2: number; // 排程 (schedule)
+  q3: number; // 轉交 (delegate)
+  q4: number; // 暫緩 (none)
 }
 
 // ─── Config Constants ──────────────────────────────────────────

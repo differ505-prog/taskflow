@@ -148,7 +148,7 @@ interface AppContextValue {
 
   // ── 工具 ─────────────────────────────────────────────
   getFilteredTasks: () => Task[];
-  viewCounts: { inbox: number; today: number; next7days: number };
+  viewCounts: { inbox: number; today: number; next7days: number; q1: number; q2: number; q3: number; q4: number };
   getListTaskCount: (listId: string) => number;
   getTagCounts: () => Record<string, number>;
 }
@@ -514,6 +514,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       inbox: active.filter((t) => !t.listId).length,
       today: active.filter((t) => t.dueDate === localToday).length,
       next7days: active.filter((t) => t.dueDate && t.dueDate >= localToday && t.dueDate <= localWeekEnd).length,
+      // Eisenhower 四象限計數 — 使用既有 priority 字段(已包含自動 Q1 提升規則由 getEisenhowerVisual 處理)
+      // 視圖層渲染時呼叫 getEisenhowerVisual 取實時象限
+      q1: active.filter((t) => t.priority === "do-now").length,
+      q2: active.filter((t) => t.priority === "schedule").length,
+      q3: active.filter((t) => t.priority === "delegate").length,
+      q4: active.filter((t) => t.priority === "none").length,
     };
   }, [tasks]);
 

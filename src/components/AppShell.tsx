@@ -28,6 +28,7 @@ const VIEW_LABELS: Record<AppView, string> = {
   shared: "共用清單",
   archived: "已封存",
   pinned: "置頂",
+  quadrant: "Quadrant Radar",
 };
 
 const SEED_TASKS: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order">[] = [

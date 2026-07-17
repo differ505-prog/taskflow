@@ -11,6 +11,7 @@ import { CalendarView } from "@/components/CalendarView";
 import { HabitsPage } from "@/components/HabitsPage";
 import StatsClient from "@/components/StatsClient";
 import { TagsPage } from "@/components/TagsPage";
+import { QuadrantRadarView } from "@/components/QuadrantRadarView";
 import { PomodoroTimer } from "@/components/PomodoroTimer";
 import { BottomNavigation } from "@/components/BottomNavigation";
 import { UserMenu } from "@/components/UserMenu";
@@ -155,6 +156,8 @@ function AppLayoutInner() {
         return <TagsPage />;
       case "stats":
         return <StatsClient />;
+      case "quadrant":
+        return <QuadrantRadarView onTaskSelect={(id) => setSelectedTaskId(id)} />;
       default:
         return (
           <AppShell
