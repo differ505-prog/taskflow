@@ -8,6 +8,7 @@ import { getTasks, saveTasks, getTagColors, saveTagColors, setTagColor, removeTa
 import { useAuth } from "@/lib/AuthContext";
 import { useFeatureGate } from "@/lib/useFeatureGate";
 import { motion, AnimatePresence } from "framer-motion";
+import { UpgradeModal } from "@/components/UpgradeModal";
 
 interface TagEntry {
   name: string;
@@ -445,6 +446,13 @@ export default function TagsPage() {
           </section>
         )}
       </main>
+
+      {/* PRO 升級 Modal（本地 state 由 useFeatureGate 管理） */}
+      <UpgradeModal
+        isOpen={renameGate.upgradeModalOpen}
+        onClose={renameGate.closeUpgradeModal}
+        feature="tag-rename"
+      />
     </div>
   );
 }

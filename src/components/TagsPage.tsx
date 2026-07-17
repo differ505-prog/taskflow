@@ -9,6 +9,7 @@ import { getTagColors, saveTagColors, getOrphanTags, saveOrphanTags } from "@/li
 import { useAuth } from "@/lib/AuthContext";
 import { useFeatureGate } from "@/lib/useFeatureGate";
 import { motion, AnimatePresence } from "framer-motion";
+import { UpgradeModal } from "@/components/UpgradeModal";
 
 export function TagsPage() {
   const { tasks, updateTask } = useApp();
@@ -383,6 +384,13 @@ export function TagsPage() {
           })}
         </div>
       )}
+
+      {/* PRO 升級 Modal（本地 state 由 useFeatureGate 管理） */}
+      <UpgradeModal
+        isOpen={renameGate.upgradeModalOpen}
+        onClose={renameGate.closeUpgradeModal}
+        feature="tag-rename"
+      />
     </div>
   );
 }
