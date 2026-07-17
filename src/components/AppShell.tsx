@@ -297,11 +297,11 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
               <input
                 key={quickAddKey}
                 ref={quickAddRef}
-                type="search"
+                type="text"
                 value={quickAddInput}
                 onChange={(e) => setQuickAddInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") handleQuickAdd();
+                  if (e.key === "Enter") { e.preventDefault(); handleQuickAdd(); }
                   if (e.key === "Escape") { setQuickAddInput(""); quickAddRef.current?.blur(); }
                 }}
                 onFocus={() => setQuickAddHint(true)}
@@ -348,11 +348,11 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
                   <Zap className="absolute left-3.5 w-4 h-4 pointer-events-none" style={{ color: "var(--text-tertiary)" }} />
                   <input
                     ref={sharedQuickAddRef}
-                    type="search"
+                    type="text"
                     value={sharedQuickAddInput}
                     onChange={(e) => setSharedQuickAddInput(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") handleSharedQuickAdd();
+                      if (e.key === "Enter") { e.preventDefault(); handleSharedQuickAdd(); }
                       if (e.key === "Escape") { setSharedQuickAddInput(""); sharedQuickAddRef.current?.blur(); }
                     }}
                     placeholder="新增任務至共用清單..."
@@ -378,9 +378,9 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
       </header>
 
         {/* Main Content — Desktop split layout, Mobile full-width */}
-        <main className="flex-1 flex flex-col overflow-hidden md:flex-row">
+        <main className="flex-shrink-0 h-full md:flex-1 md:h-auto md:flex md:flex-row overflow-hidden">
           {/* Left: Task list — always compact */}
-          <div style={{ WebkitOverflowScrolling: "touch" }} className={`flex-1 min-h-0 overflow-y-auto overscroll-contain will-change-transform px-6 py-5 pb-[calc(72px+env(safe-area-inset-bottom,0px)+16px)] md:pb-5 ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}>
+          <div style={{ WebkitOverflowScrolling: "touch" }} className={`flex-1 min-h-0 h-full overflow-y-auto overscroll-contain will-change-transform px-6 py-5 pb-[calc(72px+env(safe-area-inset-bottom,0px)+16px)] md:pb-5 md:h-auto md:flex-shrink-0 ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}>
             {/* Viewer 唯讀提示 */}
             {isReadOnlyShared && (
               <div
@@ -472,7 +472,7 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--text-tertiary)" }} />
-                      <input type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="搜尋..." className="input pl-9 pr-4" style={{ fontSize: 13, paddingTop: 7, paddingBottom: 7, width: 140 }} />
+                      <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }} placeholder="搜尋..." className="input pl-9 pr-4" style={{ fontSize: 13, paddingTop: 7, paddingBottom: 7, width: 140 }} />
                     </div>
                     <div className="flex items-center gap-0.5 p-1 rounded-xl" style={{ background: "rgba(0,0,0,0.04)" }}>
                       <button onClick={() => setViewMode("list")} className="p-1.5 rounded-lg transition-all duration-150" style={viewMode === "list" ? { background: "var(--surface)", boxShadow: "var(--shadow-xs)", color: "var(--text-primary)" } : { color: "var(--text-tertiary)" }} aria-label="列表檢視">

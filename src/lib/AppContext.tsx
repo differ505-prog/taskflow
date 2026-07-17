@@ -548,10 +548,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [tasks, user]);
 
   const deleteTask = useCallback(async (id: string) => {
-    // 刪除任務時，一併清理 Firebase Storage 中的附件
+    // Optimistic update：立即從 UI 移除
     const task = tasks.find((t) => t.id === id);
-    if (task?.attachments && task.attachments.length > 0) {
-      // 異步刪除附件，不阻塞任務刪除
+    if (!task) return;
+
+    // 刪除任務時，一併清理 Firebase Storage 中的附件
+    if (task.attachments && task.attachments.length > 0) {
       for (const attachment of task.attachments) {
         if (attachment.storagePath) {
           deleteFile(attachment.storagePath).catch((err) => {
@@ -560,18 +562,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
     }
-    const updated = tasks.filter((t) => t.id !== id);
+
+    // 立即 optimistic remove
+    deletedTaskIdsRef.current.add(id);
+    const previousTasks = tasks;
+    const updated = previousTasks.filter((t) => t.id !== id);
     setTasks(updated);
     saveTasks(updated);
-    deletedTaskIdsRef.current.add(id);
+
     if (user) {
       deleteTaskFirebase(user.uid, id)
-        .then(() => {
+        .finally(() => {
           deletedTaskIdsRef.current.delete(id);
         })
         .catch((err) => {
+          // 失敗時 rollback
           deletedTaskIdsRef.current.delete(id);
-          console.warn("[SUP SYNC] 刪除失敗:", err);
+          setTasks(previousTasks);
+          saveTasks(previousTasks);
+          console.warn("[SUP SYNC] 刪除失敗，已 rollback:", err);
         });
     }
   }, [tasks, user]);
