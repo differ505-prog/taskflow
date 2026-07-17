@@ -38,14 +38,15 @@ export function ProtectedUploadButton({
   buttonIcon,
   maxSizeMB,
 }: ProtectedUploadButtonProps) {
-  const { user, isAdmin, isBeta, maxFileSizeMB } = useAuth();
+  const { user, isAdmin, isPro, isBeta, maxFileSizeMB } = useAuth();
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Free 用戶：完全不顯示上傳按鈕
-  const hasUploadAccess = isAdmin || isBeta;
+  // 注意：後端 DB (0011 migration) 是最終真理，前端僅做 UX 層
+  const hasUploadAccess = isAdmin || isPro || isBeta;
   const effectiveMaxSize = isAdmin ? Infinity : (maxSizeMB ?? maxFileSizeMB ?? 5) * 1024 * 1024;
 
   if (!hasUploadAccess) {

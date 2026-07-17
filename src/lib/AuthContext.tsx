@@ -25,6 +25,8 @@ export interface AuthUser {
   email: string | null;
   displayName: string | null;
   photoURL?: string | null; // OAuth avatar
+  // Supabase raw_user_meta_data（DB 端 RBAC 來源：admin/pro 用 metadata 標記）
+  metadata?: Record<string, unknown>;
 }
 
 // ── Context value ───────────────────────────────────────────────
@@ -99,20 +101,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user?.uid]);
 
   // ── 計算當前角色 ──────────────────────────────────────
-  // 優先級：admin（env）> admin（資料庫）> pro（env）> pro（資料庫）> beta（雲端名單）> beta（資料庫）> free
+  // 優先級：admin（env）> admin（metadata）> admin（db）> pro（env）> pro（metadata）> pro（db）> beta（雲端名單）> beta（db）> free
+  // metadata (DB 端的 raw_user_meta_data) 與 DB role 都會反映到 DB RBAC (0011 migration)
   // 即使 Supabase 失敗，ADMIN_EMAILS / PRO_EMAILS / betaUsers 也能完整判斷角色
   const role = (() => {
     if (!user?.email) return "free" as UserRole;
     const email = user.email.toLowerCase();
+    const isAdminMeta = user.metadata?.is_admin === true || user.metadata?.is_admin === "true";
+    const isProMeta = user.metadata?.is_pro === true || user.metadata?.is_pro === "true";
 
     if (ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email)) {
       return "admin" as UserRole;
     }
+    if (isAdminMeta) return "admin" as UserRole;
     if (dbRole === "admin") return "admin" as UserRole;
 
     if (PRO_EMAILS.map((e) => e.toLowerCase()).includes(email)) {
       return "pro" as UserRole;
     }
+    if (isProMeta) return "pro" as UserRole;
     if (dbRole === "pro") return "pro" as UserRole;
 
     if (betaUsers.map((e) => e.toLowerCase()).includes(email)) {
@@ -146,6 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: u.email ?? null,
           displayName: u.user_metadata?.full_name ?? u.email?.split("@")[0] ?? null,
           photoURL: u.user_metadata?.avatar_url ?? null,
+          metadata: (u.user_metadata as Record<string, unknown>) ?? {},
         };
         setUser(authUser);
         void upsertProfile({
@@ -169,6 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email: u.email ?? null,
             displayName: u.user_metadata?.full_name ?? u.email?.split("@")[0] ?? null,
             photoURL: u.user_metadata?.avatar_url ?? null,
+            metadata: (u.user_metadata as Record<string, unknown>) ?? {},
           };
           setUser(authUser);
           setDbRole(null); // 重置，等待 fetch
