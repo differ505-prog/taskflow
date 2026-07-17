@@ -180,7 +180,12 @@ export function SyncWriter({ userId }: { userId: string }) {
     );
     if (newTasks.length > 0) {
       pendingExpected.tasks = [...tasks];
-      saveTask(userId, newTasks[0]).catch(() => {
+      const timer = setTimeout(() => { pendingExpected.tasks = null; }, 5000);
+      saveTask(userId, newTasks[0]).then(() => {
+        clearTimeout(timer);
+        pendingExpected.tasks = null;
+      }).catch(() => {
+        clearTimeout(timer);
         pendingExpected.tasks = null;
       });
     }
@@ -191,7 +196,12 @@ export function SyncWriter({ userId }: { userId: string }) {
     );
     if (newLists.length > 0) {
       pendingExpected.lists = [...lists];
-      saveList(userId, newLists[0]).catch(() => {
+      const timer = setTimeout(() => { pendingExpected.lists = null; }, 5000);
+      saveList(userId, newLists[0]).then(() => {
+        clearTimeout(timer);
+        pendingExpected.lists = null;
+      }).catch(() => {
+        clearTimeout(timer);
         pendingExpected.lists = null;
       });
     }
@@ -209,7 +219,12 @@ export function SyncWriter({ userId }: { userId: string }) {
     );
     if (newHabits.length > 0) {
       pendingExpected.habits = [...habits];
-      saveHabit(userId, newHabits[0]).catch(() => {
+      const timer = setTimeout(() => { pendingExpected.habits = null; }, 5000);
+      saveHabit(userId, newHabits[0]).then(() => {
+        clearTimeout(timer);
+        pendingExpected.habits = null;
+      }).catch(() => {
+        clearTimeout(timer);
         pendingExpected.habits = null;
       });
     }
