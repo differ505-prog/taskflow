@@ -297,7 +297,7 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
               <input
                 key={quickAddKey}
                 ref={quickAddRef}
-                type="text"
+                type="search"
                 value={quickAddInput}
                 onChange={(e) => setQuickAddInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -348,7 +348,7 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
                   <Zap className="absolute left-3.5 w-4 h-4 pointer-events-none" style={{ color: "var(--text-tertiary)" }} />
                   <input
                     ref={sharedQuickAddRef}
-                    type="text"
+                    type="search"
                     value={sharedQuickAddInput}
                     onChange={(e) => setSharedQuickAddInput(e.target.value)}
                     onKeyDown={(e) => {
@@ -380,7 +380,7 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
         {/* Main Content — Desktop split layout, Mobile full-width */}
         <main className="flex-1 flex flex-col overflow-hidden md:flex-row">
           {/* Left: Task list — always compact */}
-          <div style={{ WebkitOverflowScrolling: "touch" }} className={`flex-1 overflow-y-auto overscroll-contain will-change-transform px-6 py-5 pb-[calc(72px+env(safe-area-inset-bottom,0px)+16px)] md:pb-5 ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}>
+          <div style={{ WebkitOverflowScrolling: "touch" }} className={`flex-1 min-h-0 overflow-y-auto overscroll-contain will-change-transform px-6 py-5 pb-[calc(72px+env(safe-area-inset-bottom,0px)+16px)] md:pb-5 ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}>
             {/* Viewer 唯讀提示 */}
             {isReadOnlyShared && (
               <div
