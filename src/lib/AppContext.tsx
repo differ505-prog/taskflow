@@ -241,7 +241,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         if (fbSyncDebug) console.log("[SUP SYNC] tasks 推送:", fbTasks.length);
-        setTasks(fbTasks);
+        // Merge 而非覆蓋：本地剛寫入（Firestore 還沒同步抵達）時，本地版本優先
+        // 避免樂觀更新被雲端舊快照蓋回去（子任務 toggle / 任務狀態切換 第一次 tap 看似跳回）
+        setTasks((prev) => {
+          const localById = new Map(prev.map((t) => [t.id, t]));
+          const fbIds = new Set<string>();
+          const merged = fbTasks.map((fbT) => {
+            fbIds.add(fbT.id);
+            const local = localById.get(fbT.id);
+            // 本地 updatedAt 較新 → 保留本地（樂觀更新尚未被雲端推送覆蓋）
+            if (local && new Date(local.updatedAt).getTime() > new Date(fbT.updatedAt).getTime()) {
+              return local;
+            }
+            return fbT;
+          });
+          // 補回雲端尚未收到的本地任務（剛新增的）
+          const localOnly = prev.filter((t) => !fbIds.has(t.id));
+          return [...merged, ...localOnly];
+        });
         saveTasks(fbTasks);
       }, deletedTaskIdsRef.current).then((unsub) => {
         fbUnsubRef.current = unsub;

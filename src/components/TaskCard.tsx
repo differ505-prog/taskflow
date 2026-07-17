@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { Task, SubTask, Priority } from "@/lib/types";
 import { TaskQuickActions } from "./TaskQuickActions";
 import TaskCommentsInline from "./TaskCommentsInline";
@@ -10,10 +10,12 @@ import { zhTW } from "date-fns/locale";
 import { haptic } from "@/lib/haptics";
 import { getFileIcon } from "@/lib/storageUpload";
 import { getTagColors } from "@/lib/storage";
+import { useSubTaskCollapse } from "@/utils/useSubTaskCollapse";
 import {
   CheckCircle2, Circle, Clock, Tag as TagIcon,
   Trash2, Edit3, Archive, Repeat, Plus, Trash,
   AlertCircle, Timer, ListChecks, Paperclip,
+  ChevronDown, ChevronRight,
 } from "lucide-react";
 
 interface TaskCardProps {
@@ -139,6 +141,15 @@ export function TaskCard({
   const subTasks = task.subTasks || [];
   const completedSubTasks = subTasks.filter((s) => s.status === "done").length;
   const attachmentCount = task.attachments?.length || 0;
+  const { isCollapsed, isAutoCollapsing, toggle: toggleSubTaskCollapse } = useSubTaskCollapse(task.id, subTasks);
+  // 計算排序後的子任務（TaskCard 原本未排序，加上一致性）
+  const sortedSubTasks = useMemo(() => {
+    return [...subTasks].sort((a, b) => {
+      if (a.status === "done" && b.status !== "done") return 1;
+      if (a.status !== "done" && b.status === "done") return -1;
+      return 0;
+    });
+  }, [subTasks]);
 
   const handleToggleStatus = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -325,21 +336,38 @@ export function TaskCard({
             </p>
           )}
 
-          {/* Sub-tasks — always expanded */}
-          {subTasks.length > 0 && (
-            <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
-                  子任務 ({completedSubTasks}/{subTasks.length})
-                </span>
-                {completedSubTasks === subTasks.length && isDone && (
-                  <span className="text-[11px] font-medium" style={{ color: "var(--status-success)" }}>
-                    ✓ 全部完成
-                  </span>
-                )}
-              </div>
+{/* Sub-tasks — 摺疊控制 */}
+      {subTasks.length > 0 && (
+        <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); toggleSubTaskCollapse(); }}
+            className="flex items-center gap-1.5 mb-2 w-full text-left"
+            aria-expanded={!isCollapsed}
+            aria-label={isCollapsed ? `展開 ${subTasks.length} 項子任務` : `摺疊 ${subTasks.length} 項子任務`}
+          >
+            {isCollapsed ? (
+              <ChevronRight className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} aria-hidden="true" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} aria-hidden="true" />
+            )}
+            <span className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
+              子任務 ({completedSubTasks}/{subTasks.length})
+            </span>
+            {completedSubTasks === subTasks.length && (
+              <span className="text-[11px] font-medium ml-1" style={{ color: "var(--status-success)" }}>
+                ✓ 全部完成
+              </span>
+            )}
+            {isAutoCollapsing && !isCollapsed && (
+              <span className="ml-auto text-[10px]" style={{ color: "var(--text-tertiary)" }}>（3 秒後自動摺疊）</span>
+            )}
+          </button>
+
+          {!isCollapsed && (
+            <>
               <div className="pl-1 space-y-0.5">
-                {subTasks.map((sub) => (
+                {sortedSubTasks.map((sub) => (
                   <SubTaskItem
                     key={sub.id}
                     sub={sub}
@@ -387,8 +415,10 @@ export function TaskCard({
                   新增子任務
                 </button>
               )}
-            </div>
+            </>
           )}
+        </div>
+      )}
 
           {/* Comments */}
           <TaskCommentsInline taskId={task.id} />

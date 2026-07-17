@@ -1,10 +1,11 @@
 "use client";
 
+import { useMemo } from "react";
 import { Task, Priority } from "@/lib/types";
 import { TaskQuickActions } from "./TaskQuickActions";
 import { TextWithLinks } from "./TextWithLinks";
 import {
-  CheckCircle2, Circle,
+  CheckCircle2, Circle, ChevronDown, ChevronRight,
 } from "lucide-react";
 
 interface TaskListItemProps {
@@ -20,6 +21,7 @@ interface TaskListItemProps {
 }
 
 import { sortSubTasks } from "@/utils/subtaskSort";
+import { useSubTaskCollapse } from "@/utils/useSubTaskCollapse";
 
 export function TaskListItem({
   task,
@@ -35,6 +37,12 @@ export function TaskListItem({
   const subTasks = task.subTasks || [];
   const sortedSubTasks = sortSubTasks(subTasks);
   const isDone = task.status === "done";
+  const { isCollapsed, isAutoCollapsing, toggle } = useSubTaskCollapse(task.id, subTasks);
+
+  const doneCount = useMemo(
+    () => subTasks.filter((s) => s.status === "done").length,
+    [subTasks],
+  );
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -99,8 +107,36 @@ export function TaskListItem({
           )}
         </div>
 
-        {/* Sub-task titles with quick-check */}
+        {/* Sub-task header — chevron + 計數（永遠顯示，點 chevron 摺疊/展開） */}
         {subTasks.length > 0 && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); toggle(); }}
+            className="mt-1.5 flex items-center gap-1 text-[11px] font-medium transition-colors hover:opacity-80"
+            style={{ color: "var(--text-tertiary)" }}
+            aria-expanded={!isCollapsed}
+            aria-label={isCollapsed ? `展開 ${subTasks.length} 項子任務` : `摺疊 ${subTasks.length} 項子任務`}
+          >
+            {isCollapsed ? (
+              <ChevronRight className="w-3 h-3" aria-hidden="true" />
+            ) : (
+              <ChevronDown className="w-3 h-3" aria-hidden="true" />
+            )}
+            <span>子任務 {doneCount}/{subTasks.length}</span>
+            {isCollapsed && doneCount === subTasks.length && (
+              <span className="ml-1 inline-flex items-center gap-0.5 text-[var(--status-success)]">
+                <CheckCircle2 className="w-3 h-3" aria-hidden="true" />
+                全部完成
+              </span>
+            )}
+            {isAutoCollapsing && !isCollapsed && (
+              <span className="ml-1 text-[10px] opacity-60">（3 秒後自動摺疊）</span>
+            )}
+          </button>
+        )}
+
+        {/* Sub-task titles with quick-check — 只在展開時渲染 */}
+        {!isCollapsed && subTasks.length > 0 && (
           <ul className="mt-1.5 flex flex-col gap-1">
             {sortedSubTasks.map((sub) => (
               <li
