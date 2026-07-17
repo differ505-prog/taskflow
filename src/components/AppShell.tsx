@@ -149,7 +149,7 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
     setQuickAddInput("");
     setQuickAddKey((k) => k + 1);
     quickAddRef.current?.blur();
-  }, [quickAdd, quickAddInput]);
+  }, [quickAdd, quickAddInput, currentListId]);
 
   const handleSharedQuickAdd = useCallback(() => {
     if (!sharedQuickAddInput.trim() || !currentSharedListId) return;
