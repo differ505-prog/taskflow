@@ -22,7 +22,7 @@ import { AnimatePresence, motion } from "framer-motion";
 
 // ─── Inner app (has access to useApp) ───────────────────────
 function AppLayoutInner() {
-  const { currentView, currentListId, currentSharedListId, addList, updateList, deleteList, setCurrentView, setCurrentSharedList, removeAcceptedSharedList, viewCounts, tasks, checkIncomingShareLink } = useApp();
+  const { currentView, currentListId, currentSharedListId, addList, updateList, deleteList, setCurrentView, setCurrentSharedList, removeAcceptedSharedList, viewCounts, tasks, checkIncomingShareLink, lists } = useApp();
   const { user } = useAuth();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isListFormOpen, setIsListFormOpen] = useState(false);
@@ -185,7 +185,11 @@ function AppLayoutInner() {
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50">
         <BottomNavigation
           currentView={currentView}
-          onNavigate={handleNavigate}
+          currentListId={currentListId ?? null}
+          lists={lists}
+          onNavigate={(v) => setCurrentView(v)}
+          onSelectList={(id) => setCurrentView("list", id)}
+          onOpenSidebar={() => setIsMobileSidebarOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           todayCount={viewCounts.today}
         />

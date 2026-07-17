@@ -3,9 +3,9 @@
 import { useState, useCallback } from "react";
 import {
   Inbox, Sun, CalendarDays, Layers, Tag, BarChart3, CalendarRange,
-  Settings,
+  Settings, List as ListIcon,
 } from "lucide-react";
-import { AppView } from "@/lib/types";
+import { AppView, TaskList } from "@/lib/types";
 import { haptic } from "@/lib/haptics";
 
 interface BottomNavItem {
@@ -30,12 +30,16 @@ const MORE_ITEMS: BottomNavItem[] = [
 
 interface BottomNavigationProps {
   currentView: AppView;
+  currentListId: string | null;
+  lists: TaskList[];
   onNavigate: (view: AppView) => void;
+  onSelectList: (listId: string) => void;
+  onOpenSidebar: () => void;
   onOpenSettings: () => void;
   todayCount?: number;
 }
 
-export function BottomNavigation({ currentView, onNavigate, onOpenSettings, todayCount = 0 }: BottomNavigationProps) {
+export function BottomNavigation({ currentView, currentListId, lists, onNavigate, onSelectList, onOpenSidebar, onOpenSettings, todayCount = 0 }: BottomNavigationProps) {
   const [moreOpen, setMoreOpen] = useState(false);
 
   const handleTap = useCallback((view: AppView) => {
@@ -104,7 +108,7 @@ export function BottomNavigation({ currentView, onNavigate, onOpenSettings, toda
       </nav>
 
       {/* More popover */}
-      {moreOpen && <MorePopover onItem={handleMoreItem} onSettings={handleSettings} currentView={currentView} onClose={() => setMoreOpen(false)} />}
+      {moreOpen && <MorePopover onItem={handleMoreItem} onSettings={handleSettings} onSelectList={onSelectList} onOpenSidebar={onOpenSidebar} currentView={currentView} currentListId={currentListId} lists={lists} onClose={() => setMoreOpen(false)} />}
     </>
   );
 }
@@ -119,10 +123,14 @@ function MoreIcon() {
   );
 }
 
-function MorePopover({ onItem, onSettings, currentView, onClose }: {
+function MorePopover({ onItem, onSettings, onSelectList, onOpenSidebar, currentView, currentListId, lists, onClose }: {
   onItem: (v: AppView) => void;
   onSettings: () => void;
+  onSelectList: (listId: string) => void;
+  onOpenSidebar: () => void;
   currentView: AppView;
+  currentListId: string | null;
+  lists: TaskList[];
   onClose: () => void;
 }) {
   return (
@@ -134,6 +142,28 @@ function MorePopover({ onItem, onSettings, currentView, onClose }: {
         role="menu"
         aria-label="更多選項"
       >
+        {/* 清單 section */}
+        {lists.length > 0 && (
+          <>
+            <div className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+              我的清單
+            </div>
+            {lists.map((list) => (
+              <button
+                key={list.id}
+                className="flex items-center gap-3 px-5 py-3 text-[14px] font-medium w-full text-left transition-colors"
+                style={{ color: currentListId === list.id ? "var(--brand)" : "var(--text-primary)" }}
+                onClick={() => { onSelectList(list.id); onClose(); }}
+                role="menuitem"
+              >
+                <span className="text-base">{list.icon}</span>
+                {list.name}
+              </button>
+            ))}
+            <div style={{ height: "1px", background: "var(--border)" }} />
+          </>
+        )}
+
         {MORE_ITEMS.map((item) => (
           <button
             key={item.view}

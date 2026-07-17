@@ -223,7 +223,7 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
               {onOpenMobileSidebar && (
                 <button
                   onClick={onOpenMobileSidebar}
-                  className="flex md:hidden p-2.5 rounded-xl md:hidden press-effect touch-target flex-shrink-0"
+                  className="flex md:hidden p-2.5 rounded-xl press-effect touch-target flex-shrink-0"
                   style={{ color: "var(--text-primary)", background: "var(--surface-muted)" }}
                   aria-label="開啟側邊欄"
                 >
