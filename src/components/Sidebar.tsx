@@ -84,37 +84,41 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
 
         {/* Main views */}
         <div className="pt-1 pb-2">
-          {mainNavItems.map((item) => (
-            <button
-              key={item.view}
-              onClick={() => setCurrentView(item.view)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-150 group"
-              style={
-                isActive(item.view)
-                  ? { background: "var(--brand-tint)", color: "var(--brand)" }
-                  : { color: "var(--text-secondary)" }
-              }
-            >
-              <span className="flex-shrink-0" style={isActive(item.view) ? { color: "var(--brand)" } : {}}>
-                {item.icon}
-              </span>
-              <span className="flex-1 text-left">{item.label}</span>
-              {item.badge && (
-                <span
-                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md flex-shrink-0 mr-1"
-                  style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
-                  title={item.view === "inbox" ? "Getting Things Done：清空大腦工作記憶，降低認知負載" : undefined}
-                >
-                  {item.badge}
+          {mainNavItems.map((item) => {
+            const active = isActive(item.view);
+            const isInbox = item.view === "inbox";
+            return (
+              <button
+                key={item.view}
+                onClick={() => setCurrentView(item.view)}
+                className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-150 group ${isInbox && active ? "inbox-active-glow" : ""}`}
+                style={
+                  active
+                    ? { background: "var(--brand-tint)", color: "var(--brand)" }
+                    : { color: "var(--text-secondary)" }
+                }
+              >
+                <span className="flex-shrink-0" style={active ? { color: "var(--brand)" } : {}}>
+                  {item.icon}
                 </span>
-              )}
-              {(item.count !== undefined || item.badge) && (
-                <span className="text-[12px] flex-shrink-0" style={{ opacity: 0.5 }}>
-                  {item.count}
-                </span>
-              )}
-            </button>
-          ))}
+                <span className="flex-1 text-left">{item.label}</span>
+                {item.badge && (
+                  <span
+                    className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md flex-shrink-0 mr-1"
+                    style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+                    title={item.view === "inbox" ? "Getting Things Done：清空大腦工作記憶，降低認知負載" : undefined}
+                  >
+                    {item.badge}
+                  </span>
+                )}
+                {(item.count !== undefined || item.badge) && (
+                  <span className="text-[12px] flex-shrink-0" style={{ opacity: 0.5 }}>
+                    {item.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
 
           {/* Pinned */}
           <button

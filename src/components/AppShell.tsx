@@ -458,7 +458,10 @@ export function AppShell({
                 )}
               </>
             ) : displayTasks.length === 0 ? (
-              <EmptyState onAddTask={() => setIsFormOpen(true)} />
+              <EmptyState
+                onAddTask={() => setIsFormOpen(true)}
+                variant={currentView === "inbox" ? "inbox" : "general"}
+              />
             ) : (
               <>
                 {/* Toolbar */}

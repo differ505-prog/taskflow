@@ -299,6 +299,57 @@
     background: rgba(59, 130, 246, 0.14);
   }
 
+  /* ── Brain Dump / Inbox Active Glow ─────────────────────
+   * GTD 核心入口：active 時多一道柔光環與呼吸效果,
+   * 視覺上區隔「目前所在」與其他 nav item。
+   * 僅適用於 Inbox 按鈕 (Sidebar 內),其他 nav 不加。 */
+  .inbox-active-glow {
+    box-shadow:
+      0 0 0 1px rgba(79, 106, 245, 0.20),
+      0 0 12px rgba(79, 106, 245, 0.18);
+    animation: inbox-pulse 2.4s ease-in-out infinite;
+  }
+
+  [data-theme="dark"] .inbox-active-glow {
+    box-shadow:
+      0 0 0 1px rgba(107, 138, 255, 0.30),
+      0 0 16px rgba(107, 138, 255, 0.28);
+    animation-name: inbox-pulse-dark;
+  }
+
+  @keyframes inbox-pulse {
+    0%, 100% {
+      box-shadow:
+        0 0 0 1px rgba(79, 106, 245, 0.20),
+        0 0 12px rgba(79, 106, 245, 0.18);
+    }
+    50% {
+      box-shadow:
+        0 0 0 1px rgba(79, 106, 245, 0.30),
+        0 0 20px rgba(79, 106, 245, 0.30);
+    }
+  }
+
+  @keyframes inbox-pulse-dark {
+    0%, 100% {
+      box-shadow:
+        0 0 0 1px rgba(107, 138, 255, 0.30),
+        0 0 16px rgba(107, 138, 255, 0.28);
+    }
+    50% {
+      box-shadow:
+        0 0 0 1px rgba(107, 138, 255, 0.40),
+        0 0 24px rgba(107, 138, 255, 0.40);
+    }
+  }
+
+  /* Reduced motion：尊重使用者偏好 */
+  @media (prefers-reduced-motion: reduce) {
+    .inbox-active-glow {
+      animation: none;
+    }
+  }
+
   /* 灰色版 Pill — 用於次要 meta 資訊 */
   .pill-muted {
     display: inline-flex;
