@@ -19,10 +19,12 @@ import { FirebaseDataProvider, SyncWriter } from "@/components/FirebaseDataProvi
 import { ShareListModal } from "@/components/ShareListModal";
 import { TaskList, SharedListSnapshot } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
+import { useFeatureGate } from "@/lib/useFeatureGate";
+import { UpgradeModal } from "@/components/UpgradeModal";
 
 // ─── Inner app (has access to useApp) ───────────────────────
 function AppLayoutInner() {
-  const { currentView, currentListId, currentSharedListId, addList, updateList, deleteList, setCurrentView, setCurrentSharedList, removeAcceptedSharedList, viewCounts, tasks, checkIncomingShareLink, lists } = useApp();
+  const { currentView, currentListId, currentSharedListId, addList, updateList, deleteList, setCurrentView, setCurrentSharedList, removeAcceptedSharedList, viewCounts, tasks, checkIncomingShareLink, lists, toggleTaskStatus, deleteTask } = useApp();
   const { user } = useAuth();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isListFormOpen, setIsListFormOpen] = useState(false);
@@ -33,11 +35,57 @@ function AppLayoutInner() {
   const [showSharedLists, setShowSharedLists] = useState(false);
   const [incomingShareData, setIncomingShareData] = useState<{ sharedListId: string; snapshot: SharedListSnapshot } | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  // ── 批次多選模式（PRO 守衛）───────────────────────
+  const batchGate = useFeatureGate("batch-operations");
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchSelectedIds, setBatchSelectedIds] = useState<Set<string>>(() => new Set());
+  const toggleBatchSelect = (id: string) => {
+    setBatchSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const enterBatchMode = (firstSelectedId?: string) => {
+    // PRO 守衛：free 用戶嘗試進入批次模式 → 觸發 UpgradeModal
+    if (batchGate.locked) { batchGate.requestUnlock(); return; }
+    setBatchMode(true);
+    if (firstSelectedId) {
+      setBatchSelectedIds((prev) => new Set(prev).add(firstSelectedId));
+    }
+  };
+  const exitBatchMode = () => {
+    setBatchMode(false);
+    setBatchSelectedIds(new Set());
+  };
+
+  // 批次標記完成 / 刪除
+  const handleBatchComplete = async () => {
+    for (const id of batchSelectedIds) {
+      const t = tasks.find((x) => x.id === id);
+      if (t && t.status !== "done") toggleTaskStatus(id);
+    }
+    exitBatchMode();
+  };
+  const handleBatchDelete = async () => {
+    if (!confirm(`確定要刪除 ${batchSelectedIds.size} 項任務嗎?`)) return;
+    for (const id of batchSelectedIds) {
+      deleteTask(id);
+    }
+    exitBatchMode();
+  };
   const [isMobile, setIsMobile] = useState(false);
 
   // Bug fix: clear task selection when switching lists or views
   useEffect(() => {
     setSelectedTaskId(null);
+  }, [currentView, currentListId, currentSharedListId]);
+
+  // 切換清單/視圖時自動退出批次模式,避免殘留
+  useEffect(() => {
+    exitBatchMode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentView, currentListId, currentSharedListId]);
 
   // Detect mobile viewport
@@ -120,6 +168,13 @@ function AppLayoutInner() {
             onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
             onOpenShareModal={(list, listTasks) => setShareModalList({ list, tasks: listTasks })}
             userMenu={<UserMenu />}
+            batchMode={batchMode}
+            batchSelectedIds={batchSelectedIds}
+            onEnterBatchMode={enterBatchMode}
+            onToggleBatchSelect={toggleBatchSelect}
+            onExitBatchMode={exitBatchMode}
+            onBatchComplete={handleBatchComplete}
+            onBatchDelete={handleBatchDelete}
           />
         );
     }
@@ -249,6 +304,13 @@ function AppLayoutInner() {
         onClose={() => { setShowSharedLists(false); setIncomingShareData(null); }}
         listToShare={null}
         incomingShareData={incomingShareData}
+      />
+
+      {/* PRO 升級 Modal — 批次操作守衛 */}
+      <UpgradeModal
+        isOpen={batchGate.upgradeModalOpen}
+        onClose={batchGate.closeUpgradeModal}
+        feature="batch-operations"
       />
     </div>
   );

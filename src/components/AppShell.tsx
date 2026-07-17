@@ -12,7 +12,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Search, X, LayoutGrid, List,
   Plus, Archive, Zap, ChevronRight, Timer,
-  Share2, Shield, RotateCcw, Trash2,
+  Share2, Shield, RotateCcw, Trash2, CheckCheck,
 } from "lucide-react";
 
 const VIEW_LABELS: Record<AppView, string> = {
@@ -90,9 +90,23 @@ interface AppShellProps {
   onOpenMobileSidebar?: () => void;
   onOpenShareModal?: (list: TaskList, tasks: Task[]) => void;
   userMenu?: React.ReactNode;
+  // ── 批次多選模式（PRO 專屬）─────────────────────
+  batchMode?: boolean;
+  batchSelectedIds?: Set<string>;
+  onEnterBatchMode?: (firstSelectedId?: string) => void;
+  onToggleBatchSelect?: (id: string) => void;
+  onExitBatchMode?: () => void;
+  onBatchComplete?: () => void;
+  onBatchDelete?: () => void;
 }
 
-export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenListForm, onEditList, onDeleteList, onOpenPomodoro, onOpenMobileSidebar, onOpenShareModal, userMenu }: AppShellProps) {
+export function AppShell({
+  selectedTaskId, onSelectTask, onOpenSettings, onOpenListForm,
+  onEditList, onDeleteList, onOpenPomodoro, onOpenMobileSidebar,
+  onOpenShareModal, userMenu,
+  batchMode = false, batchSelectedIds, onEnterBatchMode, onToggleBatchSelect,
+  onExitBatchMode, onBatchComplete, onBatchDelete,
+}: AppShellProps) {
   const {
     tasks, currentView, currentListId, currentSharedListId, sharedLists,
     lists,
@@ -501,6 +515,10 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
                           onUpdateTags={(id, tags) => updateTask(id, { tags })}
                           onTogglePin={(id) => updateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
                           allTags={Object.keys(getTagCounts())}
+                          batchMode={batchMode}
+                          batchSelected={!!batchSelectedIds?.has(task.id)}
+                          onLongPress={() => onEnterBatchMode?.(task.id)}
+                          onBatchToggle={() => onToggleBatchSelect?.(task.id)}
                         />
                       </motion.div>
                     ))}
@@ -532,6 +550,66 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
         <Plus className="w-6 h-6" strokeWidth={2.5} />
       </button>
       )}
+
+      {/* 批次動作列（PRO 專屬,僅在 batchMode 顯示） */}
+      <AnimatePresence>
+        {batchMode && (
+          <motion.div
+            key="batch-bar"
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+            className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] md:bottom-6 md:px-0"
+            role="region"
+            aria-label="批次動作"
+          >
+            <div
+              className="max-w-2xl mx-auto rounded-2xl px-4 py-3 flex items-center gap-2"
+              style={{
+                background: "var(--surface-elevated)",
+                boxShadow: "var(--shadow-xl)",
+                backdropFilter: "blur(20px)",
+              }}
+            >
+              <button
+                onClick={onExitBatchMode}
+                className="p-2 rounded-xl hover:bg-black/5 transition-colors"
+                style={{ color: "var(--text-tertiary)" }}
+                aria-label="退出批次模式"
+              >
+                <X className="w-5 h-5" aria-hidden="true" />
+              </button>
+              <span
+                className="text-[13px] font-medium flex-1 min-w-0 truncate"
+                style={{ color: "var(--text-primary)" }}
+              >
+                已選 {batchSelectedIds?.size ?? 0} 項
+              </span>
+              <button
+                onClick={onBatchComplete}
+                disabled={!batchSelectedIds || batchSelectedIds.size === 0}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12.5px] font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-95"
+                style={{ background: "rgba(34, 197, 94, 0.12)", color: "#16A34A" }}
+                aria-label="批次標記完成"
+              >
+                <CheckCheck className="w-4 h-4" aria-hidden="true" />
+                <span className="hidden sm:inline">標記完成</span>
+              </button>
+              <button
+                onClick={onBatchDelete}
+                disabled={!batchSelectedIds || batchSelectedIds.size === 0}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12.5px] font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-95"
+                style={{ background: "rgba(220, 38, 38, 0.12)", color: "#DC2626" }}
+                aria-label="批次刪除"
+              >
+                <Trash2 className="w-4 h-4" aria-hidden="true" />
+                <span className="hidden sm:inline">刪除</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

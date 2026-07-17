@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { Task, Priority } from "@/lib/types";
 import { TaskQuickActions } from "./TaskQuickActions";
 import { TextWithLinks } from "./TextWithLinks";
@@ -20,6 +20,11 @@ interface TaskListItemProps {
   onUpdateTags?: (id: string, tags: string[]) => void;
   onTogglePin?: (id: string) => void;
   allTags?: string[];
+  // 批次多選模式（PRO 專屬）
+  batchMode?: boolean;
+  batchSelected?: boolean;
+  onLongPress?: () => void; // 長按 600ms 進入批次模式
+  onBatchToggle?: () => void; // 在批次模式下點擊,切換勾選
 }
 
 import { sortSubTasks } from "@/utils/subtaskSort";
@@ -35,6 +40,10 @@ export function TaskListItem({
   onUpdateTags,
   onTogglePin,
   allTags = [],
+  batchMode = false,
+  batchSelected = false,
+  onLongPress,
+  onBatchToggle,
 }: TaskListItemProps) {
   const subTasks = task.subTasks || [];
   const sortedSubTasks = sortSubTasks(subTasks);
@@ -49,7 +58,45 @@ export function TaskListItem({
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (batchMode && onBatchToggle) { onBatchToggle(); return; }
     onToggleStatus(task.id);
+  };
+
+  // ── 長按偵測：pointerdown 起算 600ms → 觸發 onLongPress ──────
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFiredRef = useRef(false);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (!onLongPress) return;
+    longPressFiredRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      longPressFiredRef.current = true;
+      onLongPress();
+    }, 600);
+    // 記錄起始 pointerId 以便後續 cancel
+    (e.currentTarget as HTMLElement).dataset.pointerId = String(e.pointerId);
+  };
+  const handlePointerUp = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+  const handlePointerLeave = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  // 主體點擊 — 若長按已觸發,則吃掉這次 click 避免雙重操作
+  const handleClick = () => {
+    if (longPressFiredRef.current) {
+      longPressFiredRef.current = false;
+      return;
+    }
+    if (batchMode && onBatchToggle) { onBatchToggle(); return; }
+    onClick();
   };
 
   return (
@@ -58,11 +105,18 @@ export function TaskListItem({
         flex items-start gap-2.5 px-3 py-3 rounded-2xl cursor-pointer
         transition-all duration-150 group select-none
         ${isSelected ? "bg-[var(--brand-tint)] shadow-sm" : "hover:bg-[var(--surface-hover)]"}
+        ${batchSelected ? "ring-2 ring-[var(--brand)] bg-[var(--brand-tint)]/40" : ""}
+        ${batchMode ? "active:scale-[0.98]" : ""}
         ${isDone ? "opacity-60" : ""}
       `}
-      onClick={onClick}
+      onClick={handleClick}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerLeave}
+      onPointerCancel={handlePointerUp}
       role="button"
       aria-label={`任務: ${task.title}`}
+      aria-pressed={batchSelected}
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
