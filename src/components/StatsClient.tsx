@@ -2,10 +2,11 @@
 
 import { useMemo, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { BarChart3, CheckCircle2, Clock, AlertCircle, TrendingUp } from "lucide-react";
+import { BarChart3, CheckCircle2, Clock, AlertCircle, TrendingUp, Lock, Sparkles } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { Task } from "@/lib/types";
 import { getTasks } from "@/lib/storage";
+import { useAuth } from "@/lib/AuthContext";
 
 function useTaskStats() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -21,7 +22,9 @@ function useTaskStats() {
 }
 
 export default function StatsClient() {
+  const { isAdmin, isPro, isBeta, isFree } = useAuth();
   const { tasks, isLoaded } = useTaskStats();
+  const isLocked = isFree;
 
   const stats = useMemo(() => {
     if (!isLoaded) return null;
@@ -49,6 +52,62 @@ export default function StatsClient() {
     );
   }
 
+  // PRO 守衛：free 用戶看到升級 CTA
+  if (isLocked) {
+    return (
+      <div className="min-h-screen">
+        {/* Header */}
+        <header className="sticky top-0 z-40 glass">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-3 h-16">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-tint)" }}>
+                <BarChart3 className="w-4 h-4" style={{ color: "var(--brand)" }} aria-hidden="true" />
+              </div>
+              <h1 className="text-[17px] font-semibold text-[var(--text-primary)]">統計</h1>
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+            className="card px-8 py-16 text-center"
+            role="region"
+            aria-label="PRO 升級提示"
+          >
+            <div
+              className="w-16 h-16 mx-auto mb-6 rounded-2xl flex items-center justify-center"
+              style={{ background: "rgba(245, 158, 11, 0.12)" }}
+            >
+              <Lock className="w-7 h-7" style={{ color: "#F59E0B" }} aria-hidden="true" />
+            </div>
+            <h2 className="text-[20px] font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
+              統計儀表板是 PRO 專屬功能
+            </h2>
+            <p className="text-[14px] mb-6 max-w-md mx-auto" style={{ color: "var(--text-secondary)" }}>
+              解鎖任務完成率、優先級分布、狀態分析等深度洞察,助你掌握工作節奏。
+            </p>
+            <button
+              type="button"
+              disabled
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-[14px] font-medium opacity-60 cursor-not-allowed"
+              style={{ background: "rgba(245, 158, 11, 0.12)", color: "#F59E0B" }}
+              aria-label="升級 PRO（敬請期待）"
+            >
+              <Sparkles className="w-4 h-4" aria-hidden="true" />
+              升級 PRO
+            </button>
+            <p className="mt-6 text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+              完整數據分析、即將推出
+            </p>
+          </motion.div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -59,6 +118,20 @@ export default function StatsClient() {
               <BarChart3 className="w-4 h-4" style={{ color: "var(--brand)" }} aria-hidden="true" />
             </div>
             <h1 className="text-[17px] font-semibold text-[var(--text-primary)]">統計</h1>
+            {/* PRO 專屬標示（admin ∪ pro ∪ beta） */}
+            {!isFree && (
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide"
+                style={{
+                  background: isPro ? "rgba(245, 158, 11, 0.12)" : "var(--surface-muted)",
+                  color: isPro ? "#F59E0B" : "var(--text-tertiary)",
+                }}
+                aria-label={isPro ? "PRO 用戶專屬" : isAdmin ? "創辦人" : "早期測試者"}
+              >
+                <Sparkles className="w-3 h-3" aria-hidden="true" />
+                {isPro ? "PRO" : isAdmin ? "Admin" : "Beta"}
+              </span>
+            )}
           </div>
         </div>
       </header>
