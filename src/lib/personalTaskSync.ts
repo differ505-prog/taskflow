@@ -65,20 +65,20 @@ export async function deleteTask(uid: string, taskId: string): Promise<void> {
 
 /**
  * 實時訂閱個人任務 — 任何設備寫入都會推送給所有訂閱者
- * pendingDeletedIds: Set of task IDs that are being deleted locally (race condition guard)
+ * deletedIdsRef: Set of task IDs being deleted. Handler reads .size each time (live ref).
  * 回傳清理函式
  */
 export async function subscribeTasks(
   uid: string,
   onUpdate: (tasks: Task[]) => void,
-  pendingDeletedIds?: Set<string>
+  deletedIdsRef?: Set<string>
 ): Promise<Unsubscribe> {
   if (!supabase) return () => {};
 
-  // 過濾本地正在刪除中的任務（避免 subscription 啟動時把已刪除的任務讀回來）
+  // 動態過濾：每次 realtime callback 讀取最新的 .size，避免快照僵化
   const filterDeleted = (tasks: Task[]) =>
-    pendingDeletedIds && pendingDeletedIds.size > 0
-      ? tasks.filter((t) => !pendingDeletedIds.has(t.id))
+    deletedIdsRef && deletedIdsRef.size > 0
+      ? tasks.filter((t) => !deletedIdsRef.has(t.id))
       : tasks;
 
   // 初次載入
@@ -92,7 +92,6 @@ export async function subscribeTasks(
       "postgres_changes",
       { event: "*", schema: "public", table: TABLE, filter: `owner_uid=eq.${uid}` },
       async () => {
-        // 任何變動就重拉一次（單人資料量小，全量拉最簡單）
         const fresh = await loadTasks(uid);
         onUpdate(filterDeleted(fresh));
       }

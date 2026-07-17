@@ -232,8 +232,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (fbUnsubRef.current) fbUnsubRef.current();
       subscribeTasks(user.uid, (fbTasks) => {
         if (fbSyncDebug) console.log("[SUP SYNC] tasks 推送:", fbTasks.length);
-        // pending delete 時跳過所有同步，避免 Firebase 推送舊資料覆蓋本地 state
-        if (deletedTaskIdsRef.current.size > 0) return;
         setTasks(fbTasks);
         saveTasks(fbTasks);
       }, deletedTaskIdsRef.current).then((unsub) => {

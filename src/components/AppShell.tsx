@@ -377,10 +377,10 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
         </div>
       </header>
 
-        {/* Main Content — Desktop split layout, Mobile full-width */}
-        <main className="flex-shrink-0 h-full md:flex-1 md:h-auto md:flex md:flex-row overflow-hidden">
-          {/* Left: Task list — always compact */}
-          <div style={{ WebkitOverflowScrolling: "touch" }} className={`flex-1 min-h-0 h-full overflow-y-auto overscroll-contain will-change-transform px-6 py-5 pb-[calc(72px+env(safe-area-inset-bottom,0px)+16px)] md:pb-5 md:h-auto md:flex-shrink-0 ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}>
+        {/* Main Content — Mobile scrolls via <main>, Desktop split layout */}
+        <main className="flex-1 min-w-0 overflow-y-auto overscroll-contain will-change-transform h-full md:flex md:flex-row md:overflow-hidden md:h-auto">
+          {/* Left: Task list — scroll container with bottom padding for mobile nav */}
+          <div style={{ WebkitOverflowScrolling: "touch" }} className={`flex-1 min-h-0 px-6 py-5 pb-[calc(72px+env(safe-area-inset-bottom,0px)+16px)] md:pb-5 ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}>
             {/* Viewer 唯讀提示 */}
             {isReadOnlyShared && (
               <div
@@ -516,6 +516,7 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
         onSubmit={handleSubmit}
         initialData={editingTask}
         currentListId={currentListId}
+        currentView={currentView}
       />
 
       {/* FAB — Mobile only, hidden in shared list view and when task selected */}

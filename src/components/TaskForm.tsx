@@ -18,6 +18,8 @@ interface TaskFormProps {
   onSubmit: (data: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order">) => void;
   initialData?: Task | null;
   currentListId?: string;
+  /** 當前視圖：新增任務時預設日期的參考 */
+  currentView?: string;
   onDeleteAttachment?: (attachment: Attachment) => void;
 }
 
@@ -34,7 +36,7 @@ const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
 
 const SELECT_ARROW = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23999' strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E";
 
-export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId, onDeleteAttachment }: TaskFormProps) {
+export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId, currentView, onDeleteAttachment }: TaskFormProps) {
   const { lists, tasks, getTagCounts } = useApp();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -163,7 +165,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
       setRecurrenceEndDate(initialData.recurrence?.endDate || "");
     } else {
       setTitle(""); setDescription(""); setPriority("low"); setStatus("todo");
-      setDueDate(""); setStartDate(""); setDueTime(""); setListId(currentListId); setTags([]);
+      setDueDate(currentView === "today" ? new Date().toISOString().split("T")[0] : ""); setStartDate(""); setDueTime(""); setListId(currentListId); setTags([]);
       setSubTaskInputs([]);
       setRecurrenceType("none"); setRecurrenceInterval(1);
       setRecurrenceDaysOfWeek([]); setRecurrenceEndDate("");
@@ -283,6 +285,9 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.preventDefault();
+                    }}
                     placeholder="輸入任務名稱"
                     className={`input pr-12 ${errors.title ? "input-error" : ""}`}
                     aria-invalid={!!errors.title}
