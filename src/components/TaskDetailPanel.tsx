@@ -11,7 +11,7 @@ import {
   X, Plus, Repeat, Calendar, Mic, MicOff, Hash,
   Trash2, CheckCircle2, Circle, Tag as TagIcon,
   AlignLeft, Clock, Timer, ListChecks, Paperclip,
-  AlertCircle, Flag, ChevronDown,
+  AlertCircle, Flag, ChevronDown, Pin,
 } from "lucide-react";
 import { sortSubTasks } from "@/utils/subtaskSort";
 import { ListChipPicker } from "./ListChipPicker";
@@ -326,6 +326,16 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={() => updateTask(task.id, { isPinned: !task.isPinned })}
+              className="p-2 rounded-xl hover:bg-black/5 transition-colors"
+              style={{ color: task.isPinned ? "var(--brand)" : "var(--text-tertiary)" }}
+              title={task.isPinned ? "取消置頂" : "置頂此任務"}
+              aria-label={task.isPinned ? "取消置頂" : "置頂"}
+              aria-pressed={task.isPinned}
+            >
+              <Pin className="w-4 h-4" fill={task.isPinned ? "currentColor" : "none"} />
+            </button>
+            <button
               onClick={handleDelete}
               className="p-2 rounded-xl hover:bg-red-50 transition-colors"
               style={{ color: "var(--status-danger)" }}
@@ -407,18 +417,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             </label>
             <span className="ml-auto text-[11px]" style={{ color: "var(--text-tertiary)" }}>自動儲存</span>
           </div>
-          {sortSubTasks(subTasks).map((sub) => (
-            <SwipeableSubTask
-              key={sub.id}
-              sub={sub}
-              isEditing={editingSubId === sub.id}
-              onToggle={() => toggleSubTask(sub.id)}
-              onEdit={() => setEditingSubId(sub.id)}
-              onEditCommit={(title) => commitEditSubTask(sub.id, title)}
-              onDelete={() => deleteSubTask(sub.id)}
-            />
-          ))}
-          <div className="flex gap-2 mt-3">
+          <div className="flex gap-2 mb-3">
             <input
               ref={subtaskInputRef}
               type="text"
@@ -430,6 +429,17 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               <Plus className="w-4 h-4" />
             </button>
           </div>
+          {sortSubTasks(subTasks).map((sub) => (
+            <SwipeableSubTask
+              key={sub.id}
+              sub={sub}
+              isEditing={editingSubId === sub.id}
+              onToggle={() => toggleSubTask(sub.id)}
+              onEdit={() => setEditingSubId(sub.id)}
+              onEditCommit={(title) => commitEditSubTask(sub.id, title)}
+              onDelete={() => deleteSubTask(sub.id)}
+            />
+          ))}
         </div>
 
         {/* List + Priority + Attachments + Tags — 圖示化高頻區 */}

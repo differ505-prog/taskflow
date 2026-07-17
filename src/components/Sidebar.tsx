@@ -8,6 +8,7 @@ import {
   Plus, ChevronDown, ChevronRight, CheckCircle2,
   BarChart3, Timer, Heart, Settings, Archive,
   MoreHorizontal, Edit3, Trash2, X, Share2, Users,
+  Pin,
 } from "lucide-react";
 
 interface NavItem {
@@ -47,6 +48,7 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
   ];
 
   const archivedCount = tasks.filter((t) => t.isArchived).length;
+  const pinnedCount = tasks.filter((t) => t.isPinned && !t.isArchived && t.status !== "done").length;
 
   const bottomNavItems: NavItem[] = [
     { view: "habits", label: "習慣打卡", icon: <Heart className="w-[18px] h-[18px]" /> },
@@ -112,6 +114,28 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
               )}
             </button>
           ))}
+
+          {/* Pinned */}
+          <button
+            onClick={() => setCurrentView("pinned")}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-150 group"
+            style={
+              isActive("pinned")
+                ? { background: "var(--brand-tint)", color: "var(--brand)" }
+                : { color: "var(--text-secondary)" }
+            }
+            title="跨清單收集所有置頂任務"
+          >
+            <span className="flex-shrink-0" style={isActive("pinned") ? { color: "var(--brand)" } : {}}>
+              <Pin className="w-[18px] h-[18px]" />
+            </span>
+            <span className="flex-1 text-left">置頂</span>
+            {pinnedCount > 0 && (
+              <span className="text-[12px] flex-shrink-0" style={{ opacity: 0.5 }}>
+                {pinnedCount}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Divider */}

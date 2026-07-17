@@ -15,6 +15,7 @@ interface TaskListItemProps {
   onToggleSubTask?: (taskId: string, subId: string) => void;
   onUpdatePriority?: (id: string, p: Priority) => void;
   onUpdateTags?: (id: string, tags: string[]) => void;
+  onTogglePin?: (id: string) => void;
   allTags?: string[];
 }
 
@@ -28,6 +29,7 @@ export function TaskListItem({
   onToggleSubTask,
   onUpdatePriority,
   onUpdateTags,
+  onTogglePin,
   allTags = [],
 }: TaskListItemProps) {
   const subTasks = task.subTasks || [];
@@ -84,13 +86,14 @@ export function TaskListItem({
             {task.title}
           </h3>
 
-          {/* 右上角：旗子 / 標籤 / 附件 / 子任務 圖示區 */}
-          {(onUpdatePriority || onUpdateTags) && (
+          {/* 右上角：旗子 / 圖釘 / 標籤 / 附件 / 子任務 圖示區 */}
+          {(onUpdatePriority || onUpdateTags || onTogglePin) && (
             <TaskQuickActions
               task={task}
               compact
               onUpdatePriority={(p) => onUpdatePriority?.(task.id, p)}
               onUpdateTags={(tags) => onUpdateTags?.(task.id, tags)}
+              onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
               allTags={allTags}
             />
           )}

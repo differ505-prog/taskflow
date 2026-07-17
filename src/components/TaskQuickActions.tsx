@@ -7,13 +7,15 @@ import { IconPopover } from "./IconPopover";
 import { getTagColors } from "@/lib/storage";
 import {
   Flag, Tag as TagIcon, Paperclip, ListChecks, Plus, X,
-  AlertCircle, Image as ImageIcon, FileText,
+  AlertCircle, Image as ImageIcon, FileText, Pin,
 } from "lucide-react";
 
 interface TaskQuickActionsProps {
   task: Task;
   onUpdatePriority: (p: Priority) => void;
   onUpdateTags: (tags: string[]) => void;
+  /** 釘選/取消釘選 */
+  onTogglePin?: () => void;
   /** 標籤的候選名單（已存在任務的全集） */
   allTags?: string[];
   compact?: boolean;
@@ -27,6 +29,7 @@ export function TaskQuickActions({
   task,
   onUpdatePriority,
   onUpdateTags,
+  onTogglePin,
   allTags = [],
   compact = false,
   readOnly = false,
@@ -134,6 +137,26 @@ export function TaskQuickActions({
               strokeWidth={2.5}
             />
           )}
+        </button>
+      )}
+
+      {/* 圖釘：置頂（旗子之後、標籤之前） */}
+      {onTogglePin && !readOnly && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onTogglePin();
+          }}
+          className={`${iconBtnBase} ${iconBtnSize} relative`}
+          style={{ color: task.isPinned ? "var(--brand)" : "var(--text-tertiary)" }}
+          title={task.isPinned ? "取消置頂" : "置頂此任務"}
+          aria-label={task.isPinned ? "取消置頂" : "置頂"}
+          aria-pressed={task.isPinned}
+        >
+          <Pin
+            className={compact ? "w-3.5 h-3.5" : "w-4 h-4"}
+            fill={task.isPinned ? "currentColor" : "none"}
+          />
         </button>
       )}
 

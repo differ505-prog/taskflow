@@ -415,6 +415,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       result = result.filter((t) => t.listId === currentListId);
     } else if (currentView === "inbox") {
       result = result.filter((t) => !t.listId);
+    } else if (currentView === "pinned") {
+      result = result.filter((t) => t.isPinned);
     }
 
     if (searchQuery.trim()) {
@@ -432,6 +434,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const priorityOrder = { high: 0, medium: 1, low: 2 };
     return result.sort((a, b) => {
+      // 置頂優先（排除已封存 / 已完成）
+      if (!a.isArchived && a.status !== "done" && a.isPinned && !(b.isPinned && !b.isArchived && b.status !== "done")) return -1;
+      if (!b.isArchived && b.status !== "done" && b.isPinned && !(a.isPinned && !a.isArchived && a.status !== "done")) return 1;
       if (a.status === "done" && b.status !== "done") return 1;
       if (a.status !== "done" && b.status === "done") return -1;
       const po = priorityOrder[a.priority] - priorityOrder[b.priority];

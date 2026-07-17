@@ -27,6 +27,7 @@ const VIEW_LABELS: Record<AppView, string> = {
   stats: "統計",
   shared: "共用清單",
   archived: "已封存",
+  pinned: "置頂",
 };
 
 const SEED_TASKS: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order">[] = [
@@ -498,6 +499,7 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
                           onToggleSubTask={toggleSubTask}
                           onUpdatePriority={(id, p) => updateTask(id, { priority: p })}
                           onUpdateTags={(id, tags) => updateTask(id, { tags })}
+                          onTogglePin={(id) => updateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
                           allTags={Object.keys(getTagCounts())}
                         />
                       </motion.div>

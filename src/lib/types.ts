@@ -100,6 +100,7 @@ export interface Task {
   recurrence?: Recurrence;
   reminder?: string; // ISO datetime string
   isArchived: boolean;
+  isPinned?: boolean; // 置頂（全域排序加權）
   completedAt?: string; // ISO datetime，任務被標記為完成時的時間戳
   focusMinutes: number; // total Pomodoro minutes logged
   order: number; // sort order within view
@@ -116,7 +117,7 @@ export interface TaskFilter {
   view?: AppView;
 }
 
-export type AppView = "inbox" | "today" | "next7days" | "all" | "calendar" | "habits" | "tags" | "list" | "stats" | "shared" | "archived";
+export type AppView = "inbox" | "today" | "next7days" | "all" | "calendar" | "habits" | "tags" | "list" | "stats" | "shared" | "archived" | "pinned";
 
 export interface Tag {
   id: string;
