@@ -378,7 +378,7 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
       </header>
 
         {/* Main Content — Mobile scrolls via <main>, Desktop split layout */}
-        <main className="flex-1 min-w-0 overflow-y-auto overscroll-contain will-change-transform h-full md:flex md:flex-row md:overflow-hidden md:h-auto">
+        <main className="flex-1 min-w-0 flex flex-col overflow-y-auto overscroll-contain will-change-transform h-full md:flex-row md:overflow-hidden">
           {/* Left: Task list — scroll container with bottom padding for mobile nav */}
           <div style={{ WebkitOverflowScrolling: "touch" }} className={`flex-1 min-h-0 px-6 py-5 pb-[calc(72px+env(safe-area-inset-bottom,0px)+16px)] md:pb-5 ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}>
             {/* Viewer 唯讀提示 */}

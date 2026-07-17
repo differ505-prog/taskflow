@@ -120,10 +120,14 @@ export function SyncWriter({ userId }: { userId: string }) {
     );
     newTasks.forEach((t) => saveTask(userId, t).catch(() => {}));
 
+    // 個人任務刪除由 AppContext 的 deleteTask (Supabase) 統一處理，
+    // Firebase 刪除由 subscribeTasks 回調自動同步，不在這裡另外刪。
+    // 否則會造成雙寫/雙刪競爭：Firebase subscription 回調在刪除完成前觸發，
+    // 把舊資料寫回 localStorage，覆蓋本地刪除，刷新後又讀回 Firestore 的任務。
     const deletedTasks = prevTasks.current.filter(
       (pt) => !tasks.find((t) => t.id === pt.id)
     );
-    deletedTasks.forEach((t) => fsDeleteTask(userId, t.id).catch(() => {}));
+    // deletedTasks 的刪除由 AppContext.deleteTask → deleteTaskFirebase (Supabase) 處理
 
     // 清單新增
     const newLists = lists.filter(

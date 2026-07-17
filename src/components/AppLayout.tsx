@@ -170,9 +170,9 @@ function AppLayoutInner() {
         />
       </div>
 
-      {/* Main content */}
-      <div className="flex-1 min-w-0 overflow-hidden md:flex pb-[calc(60px+env(safe-area-inset-bottom,0px)+12px)] md:pb-0">
-        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+      {/* Main content — flex column, AppShell scrolls within */}
+      <div className="flex-1 min-w-0 flex flex-col pb-[calc(60px+env(safe-area-inset-bottom,0px)+12px)] md:pb-0">
+        <div className="flex-1 min-w-0 flex flex-col min-h-0">
           {renderView()}
         </div>
         {/* Desktop: always render detail panel when selected, Mobile: conditional */}

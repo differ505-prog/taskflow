@@ -176,7 +176,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
     setErrors({});
     const t = setTimeout(() => titleRef.current?.focus(), 120);
     return () => clearTimeout(t);
-  }, [isOpen, initialData]);
+  }, [isOpen, initialData, currentView, currentListId]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape" && isOpen) onClose(); };
