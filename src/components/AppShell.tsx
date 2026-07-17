@@ -175,7 +175,9 @@ export function AppShell({ selectedTaskId, onSelectTask, onOpenSettings, onOpenL
   };
 
   const filteredTasks = getFilteredTasks();
-  const displayTasks = showCompleted || currentView === "today" || currentView === "next7days"
+  // 用戶主動點了「已完成」狀態標籤時，強制顯示已完成（忽略 showCompleted 開關）
+  const explicitlyShowingDone = activeFilter.status === "done";
+  const displayTasks = showCompleted || explicitlyShowingDone || currentView === "today" || currentView === "next7days"
     ? filteredTasks
     : filteredTasks.filter((t) => t.status !== "done");
 
