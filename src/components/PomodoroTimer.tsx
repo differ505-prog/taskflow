@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useApp } from "@/lib/AppContext";
+import { useZenFlowContext } from "@/lib/ZenFlowContext";
 import { Task } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Play, Pause, RotateCcw, Coffee, Target, Settings2,
-  X, CheckCircle2, Timer,
+  X, CheckCircle2, Timer, SkipForward, Music,
 } from "lucide-react";
 
 interface PomodoroTimerProps {
@@ -24,7 +25,9 @@ type TimerType = "focus" | "break" | "long-break";
 
 export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
   const { tasks, todayFocusMinutes } = useApp();
-  const [state, setState] = useState<TimerState>("idle");
+  const { state: zenState, play, pause, next } = useZenFlowContext();
+
+  const [timerState, setTimerState] = useState<TimerState>("idle");
   const [type, setType] = useState<TimerType>("focus");
   const [secondsLeft, setSecondsLeft] = useState(FOCUS_MINUTES * 60);
   const [selectedTaskId, setSelectedTaskId] = useState<string | undefined>(undefined);
@@ -42,33 +45,39 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
   const activeTasks = tasks.filter((t) => !t.isArchived && t.status !== "done");
 
   const handleStart = useCallback(() => {
-    setState("running");
-  }, []);
+    setTimerState("running");
+    // Auto-play music when focus session starts
+    if (type === "focus" && !zenState.isPlaying) {
+      play();
+    }
+  }, [type, zenState.isPlaying, play]);
 
   const handlePause = useCallback(() => {
-    setState("paused");
+    setTimerState("paused");
   }, []);
 
   const handleReset = useCallback(() => {
-    setState("idle");
+    setTimerState("idle");
     setSecondsLeft(totalSeconds);
-  }, [totalSeconds]);
+    pause();
+  }, [totalSeconds, pause]);
 
   const handleComplete = useCallback(() => {
-    setState("idle");
+    setTimerState("idle");
     setSecondsLeft(type === "focus" ? FOCUS_MINUTES * 60 : type === "break" ? SHORT_BREAK_MINUTES * 60 : LONG_BREAK_MINUTES * 60);
+
     if (type === "focus") {
+      pause(); // Stop music when focus ends
       setCompletedSessions((s) => {
-        const next = s + 1;
-        if (next % SESSIONS_BEFORE_LONG_BREAK === 0) {
+        const next_ = s + 1;
+        if (next_ % SESSIONS_BEFORE_LONG_BREAK === 0) {
           setType("long-break");
-          return next;
+          return next_;
         } else {
           setType("break");
-          return next;
+          return next_;
         }
       });
-      // Notify
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
         new Notification("VibeList 番茄鐘", {
           body: `專注時間結束！休息一下吧 🌿`,
@@ -76,12 +85,13 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
         });
       }
     } else {
+      // Break ended → go back to focus
       setType("focus");
     }
-  }, [type]);
+  }, [type, pause]);
 
   useEffect(() => {
-    if (state === "running") {
+    if (timerState === "running") {
       intervalRef.current = setInterval(() => {
         setSecondsLeft((s) => {
           if (s <= 1) {
@@ -97,11 +107,11 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [state, handleComplete]);
+  }, [timerState, handleComplete]);
 
   const cycleType = (newType: TimerType) => {
     setType(newType);
-    setState("idle");
+    setTimerState("idle");
     setSecondsLeft(newType === "focus" ? FOCUS_MINUTES * 60 : newType === "break" ? SHORT_BREAK_MINUTES * 60 : LONG_BREAK_MINUTES * 60);
   };
 
@@ -120,7 +130,7 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
         initial={{ scale: 0.95, y: 10 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.95, y: 10 }}
-        className="w-full max-w-sm rounded-3xl p-8 text-center space-y-6"
+        className="w-full max-w-sm rounded-3xl p-8 text-center space-y-5"
         style={{ background: "var(--surface-elevated)", boxShadow: "var(--shadow-lg)" }}
       >
         {/* Type selector */}
@@ -206,7 +216,7 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
             <RotateCcw className="w-5 h-5" />
           </button>
           <button
-            onClick={state === "running" ? handlePause : handleStart}
+            onClick={timerState === "running" ? handlePause : handleStart}
             className="w-16 h-16 rounded-full flex items-center justify-center text-white transition-all hover:scale-105 active:scale-95"
             style={{
               background: type === "focus" ? "var(--brand)" : "var(--status-success)",
@@ -214,16 +224,52 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
                 ? "0 4px 20px rgba(79,106,245,0.4)"
                 : "0 4px 20px rgba(52,199,89,0.4)",
             }}
-            aria-label={state === "running" ? "暫停" : "開始"}
+            aria-label={timerState === "running" ? "暫停" : "開始"}
           >
-            {state === "running" ? (
+            {timerState === "running" ? (
               <Pause className="w-7 h-7" />
             ) : (
               <Play className="w-7 h-7 ml-0.5" />
             )}
           </button>
-          <div className="w-11" /> {/* Spacer */}
+          <div className="w-11" />
         </div>
+
+        {/* Music bar — only show during focus */}
+        {type === "focus" && (
+          <div
+            className="flex items-center gap-3 px-4 py-3 rounded-2xl"
+            style={{ background: "var(--surface-muted)" }}
+          >
+            <Music className="w-4 h-4 flex-shrink-0" style={{ color: "var(--brand)" }} />
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-[12px] font-medium truncate" style={{ color: "var(--text-primary)" }}>
+                {zenState.currentTrack?.title ?? "等待載入..."}
+              </p>
+              <p className="text-[10px] truncate" style={{ color: "var(--text-tertiary)" }}>
+                OmniSonic · 85 BPM
+              </p>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => zenState.isPlaying ? pause() : play()}
+                className="p-1.5 rounded-lg transition-colors"
+                style={{ color: "var(--text-secondary)" }}
+                aria-label={zenState.isPlaying ? "靜音" : "播放"}
+              >
+                {zenState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={next}
+                className="p-1.5 rounded-lg transition-colors"
+                style={{ color: "var(--text-tertiary)" }}
+                aria-label="下一首"
+              >
+                <SkipForward className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Link to task */}
         <div>

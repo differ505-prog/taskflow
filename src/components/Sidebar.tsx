@@ -26,6 +26,7 @@ interface SidebarProps {
   onEditList?: (list: TaskList) => void;
   onDeleteList?: (id: string) => void;
   onOpenPomodoro?: () => void;
+  onOpenZenFlow?: () => void;
   onOpenShareModal?: (list: TaskList, tasks: import("@/lib/types").Task[]) => void;
   onOpenSharedLists?: () => void;
   onOpenSharedList?: (sharedId: string) => void;
@@ -34,7 +35,7 @@ interface SidebarProps {
 
 const LIST_ICONS = ["📋", "💼", "🏠", "🏃", "📚", "💡", "🎯", "🌟", "💰", "🏥", "✈️", "🎨", "🍽️", "🛠️", "📱", "💻"];
 
-export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditList, onDeleteList, onOpenPomodoro, onOpenShareModal, onOpenSharedLists, onOpenSharedList, onLeaveSharedList }: SidebarProps) {
+export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditList, onDeleteList, onOpenPomodoro, onOpenZenFlow, onOpenShareModal, onOpenSharedLists, onOpenSharedList, onLeaveSharedList }: SidebarProps) {
   const { currentView, currentListId, currentSharedListId, setCurrentView, viewCounts, lists, sharedLists, getListTaskCount, tasks } = useApp();
   const [listsExpanded, setListsExpanded] = useState(true);
   const [showListMenu, setShowListMenu] = useState<string | null>(null);
@@ -315,6 +316,7 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
       <div className="p-2 border-t space-y-1" style={{ borderColor: "var(--border)" }}>
         <button
           title="心流專注模式 — 深度工作背景音樂"
+          onClick={onOpenZenFlow}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-150"
           style={{ color: "var(--brand)" }}
         >

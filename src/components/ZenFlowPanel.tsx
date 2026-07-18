@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useZenFlow } from "@/lib/useZenFlow";
+import { useState } from "react";
+import { useZenFlowContext } from "@/lib/ZenFlowContext";
 import {
   Play,
   Pause,
@@ -22,34 +22,17 @@ function formatTime(seconds: number) {
 }
 
 interface ZenFlowPanelProps {
-  omnisonicUrl: string;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-export function ZenFlowPanel({ omnisonicUrl }: ZenFlowPanelProps) {
+export function ZenFlowPanel({ isOpen, onClose }: ZenFlowPanelProps) {
   const [expanded, setExpanded] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
 
-  const {
-    state,
-    play,
-    pause,
-    next,
-    previous,
-    seekTo,
-    setVolume,
-    toggleMute,
-  } = useZenFlow(omnisonicUrl);
+  const { state, play, pause, next, previous, seekTo, setVolume, toggleMute } = useZenFlowContext();
+  const { isPlaying, currentTrack, nextTrack, currentTime, duration, volume, error } = state;
 
-  const { isLoading, isPlaying, currentTrack, nextTrack, currentTime, duration, volume, error, playlist } = state;
-
-  // Auto-resume on mount if there are tracks
-  useEffect(() => {
-    if (!isLoading && playlist.length > 0 && !currentTrack) {
-      // do nothing — wait for user to press play
-    }
-  }, [isLoading, playlist, currentTrack]);
-
-  if (dismissed || isLoading || !currentTrack) return null;
+  if (!isOpen || !currentTrack) return null;
 
   const progress = duration > 0 ? currentTime / duration : 0;
 
@@ -57,6 +40,11 @@ export function ZenFlowPanel({ omnisonicUrl }: ZenFlowPanelProps) {
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = (e.clientX - rect.left) / rect.width;
     seekTo(ratio * duration);
+  };
+
+  const handleClose = () => {
+    pause();
+    onClose();
   };
 
   return (
@@ -80,12 +68,12 @@ export function ZenFlowPanel({ omnisonicUrl }: ZenFlowPanelProps) {
             <div className="flex items-center gap-2 min-w-0">
               <Music className="w-4 h-4 flex-shrink-0" style={{ color: "var(--brand)" }} />
               <span className="text-[12px] font-medium truncate" style={{ color: "var(--brand)" }}>
-                CEO Deep Focus · 85 BPM
+                OmniSonic · 85 BPM
               </span>
             </div>
             <div className="flex items-center gap-1">
               <button
-                onClick={() => setDismissed(true)}
+                onClick={handleClose}
                 className="p-1.5 rounded-lg transition-colors"
                 style={{ color: "var(--text-tertiary)" }}
                 aria-label="關閉播放器"
@@ -220,7 +208,7 @@ export function ZenFlowPanel({ omnisonicUrl }: ZenFlowPanelProps) {
         </div>
       )}
 
-      {/* Mini bar — always visible when not dismissed */}
+      {/* Mini bar */}
       <div
         className="w-full flex items-center gap-3 px-4 py-2.5 rounded-t-xl"
         style={{
@@ -290,46 +278,5 @@ export function ZenFlowPanel({ omnisonicUrl }: ZenFlowPanelProps) {
         </button>
       </div>
     </div>
-  );
-}
-
-// ─── ZenFlow toggle button for Sidebar ────────────────────────────────
-interface ZenFlowToggleProps {
-  omnisonicUrl: string;
-  onOpen?: () => void;
-}
-
-export function ZenFlowToggle({ omnisonicUrl }: ZenFlowToggleProps) {
-  const [hasTracks, setHasTracks] = useState(false);
-  const [isActive, setIsActive] = useState(false);
-
-  useEffect(() => {
-    if (!omnisonicUrl) return;
-    let cancelled = false;
-    fetch(`${omnisonicUrl}/api/zenflow/tracks`)
-      .then((r) => r.json())
-      .then((data: { tracks: unknown[] }) => {
-        if (!cancelled) setHasTracks(data.tracks?.length > 0);
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [omnisonicUrl]);
-
-  if (!omnisonicUrl || !hasTracks) return null;
-
-  return (
-    <button
-      title="心流專注模式"
-      onClick={() => setIsActive((v) => !v)}
-      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-150"
-      style={
-        isActive
-          ? { background: "var(--brand-tint)", color: "var(--brand)" }
-          : { color: "var(--text-secondary)" }
-      }
-    >
-      <Music className="w-[18px] h-[18px] flex-shrink-0" />
-      <span className="flex-1 text-left">心流專注</span>
-    </button>
   );
 }
