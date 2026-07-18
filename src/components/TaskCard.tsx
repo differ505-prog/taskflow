@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Task, SubTask, Priority } from "@/lib/types";
 import { TaskQuickActions } from "./TaskQuickActions";
 import TaskCommentsInline from "./TaskCommentsInline";
@@ -145,16 +145,10 @@ export function TaskCard({
   const deadlineStatus = getDeadlineStatus(task.dueDate, task.dueTime, isDone);
   const subTasks = task.subTasks || [];
   const completedSubTasks = subTasks.filter((s) => s.status === "done").length;
+  const todoSubTasks = subTasks.filter((s) => s.status !== "done");
+  const doneSubTasks = subTasks.filter((s) => s.status === "done");
   const attachmentCount = task.attachments?.length || 0;
-  const { isCollapsed, isAutoCollapsing, toggle: toggleSubTaskCollapse } = useSubTaskCollapse(task.id, subTasks);
-  // 計算排序後的子任務（TaskCard 原本未排序，加上一致性）
-  const sortedSubTasks = useMemo(() => {
-    return [...subTasks].sort((a, b) => {
-      if (a.status === "done" && b.status !== "done") return 1;
-      if (a.status !== "done" && b.status === "done") return -1;
-      return 0;
-    });
-  }, [subTasks]);
+  const { isCollapsed: isDoneCollapsed, toggle: toggleDoneCollapse } = useSubTaskCollapse(task.id, subTasks);
 
   const handleToggleStatus = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -353,38 +347,20 @@ export function TaskCard({
             </p>
           )}
 
-{/* Sub-tasks — 摺疊控制 */}
+{/* Sub-tasks — 分兩群組：未完成永遠展開，已完成預設折疊 */}
       {subTasks.length > 0 && (
         <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); toggleSubTaskCollapse(); }}
-            className="flex items-center gap-1.5 mb-2 w-full text-left"
-            aria-expanded={!isCollapsed}
-            aria-label={isCollapsed ? `展開 ${subTasks.length} 項子任務` : `摺疊 ${subTasks.length} 項子任務`}
-          >
-            {isCollapsed ? (
-              <ChevronRight className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} aria-hidden="true" />
-            ) : (
-              <ChevronDown className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} aria-hidden="true" />
-            )}
-            <span className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
-              子任務 ({completedSubTasks}/{subTasks.length})
-            </span>
-            {completedSubTasks === subTasks.length && (
-              <span className="text-[11px] font-medium ml-1" style={{ color: "var(--status-success)" }}>
-                ✓ 全部完成
-              </span>
-            )}
-            {isAutoCollapsing && !isCollapsed && (
-              <span className="ml-auto text-[10px]" style={{ color: "var(--text-tertiary)" }}>（3 秒後自動摺疊）</span>
-            )}
-          </button>
-
-          {!isCollapsed && (
-            <>
+          {/* 未完成群組（永遠展開） */}
+          {todoSubTasks.length > 0 && (
+            <div className="mb-2">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <ListChecks className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} aria-hidden="true" />
+                <span className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                  子任務 ({completedSubTasks}/{subTasks.length})
+                </span>
+              </div>
               <div className="pl-1 space-y-0.5">
-                {sortedSubTasks.map((sub) => (
+                {todoSubTasks.map((sub) => (
                   <SubTaskItem
                     key={sub.id}
                     sub={sub}
@@ -393,13 +369,57 @@ export function TaskCard({
                   />
                 ))}
               </div>
+            </div>
+          )}
 
-              {/* Add sub-task */}
+          {/* 已完成群組（獨立可折疊，預設折疊） */}
+          {doneSubTasks.length > 0 && (
+            <div className={todoSubTasks.length > 0 ? "mt-2 pt-2 border-t border-dashed" : ""} style={{ borderColor: "var(--border)" }}>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); toggleDoneCollapse(); }}
+                className="flex items-center gap-1.5 w-full text-left"
+                aria-expanded={!isDoneCollapsed}
+                aria-label={isDoneCollapsed ? `展開 ${doneSubTasks.length} 項已完成子任務` : `摺疊 ${doneSubTasks.length} 項已完成子任務`}
+              >
+                {isDoneCollapsed ? (
+                  <ChevronRight className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} aria-hidden="true" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} aria-hidden="true" />
+                )}
+                <span className="text-[12px] font-medium" style={{ color: "var(--text-tertiary)" }}>
+                  已完成 ({doneSubTasks.length})
+                </span>
+                {todoSubTasks.length === 0 && (
+                  <span className="text-[11px] font-medium ml-1" style={{ color: "var(--status-success)" }}>
+                    ✓ 全部完成
+                  </span>
+                )}
+              </button>
+
+              {!isDoneCollapsed && (
+                <div className="pl-1 space-y-0.5 mt-1.5">
+                  {doneSubTasks.map((sub) => (
+                    <SubTaskItem
+                      key={sub.id}
+                      sub={sub}
+                      onToggle={() => onToggleSubTask?.(task.id, sub.id)}
+                      onDelete={() => onDeleteSubTask?.(task.id, sub.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 新增子任務（永遠在底部顯示，與折疊狀態無關） */}
+          {onAddSubTask && (
+            <div className="mt-2">
               {showSubTaskInput ? (
                 <form
                   onSubmit={(e) => { e.preventDefault(); handleSubTaskSubmit(); }}
                   onClick={(e) => e.stopPropagation()}
-                  className="flex items-center gap-2 mt-2"
+                  className="flex items-center gap-2"
                 >
                   <input
                     type="text"
@@ -425,14 +445,14 @@ export function TaskCard({
               ) : (
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowSubTaskInput(true); }}
-                  className="flex items-center gap-1.5 text-[12px] hover:underline transition-colors mt-2"
+                  className="flex items-center gap-1.5 text-[12px] hover:underline transition-colors"
                   style={{ color: "var(--text-tertiary)" }}
                 >
                   <Plus className="w-3.5 h-3.5" />
                   新增子任務
                 </button>
               )}
-            </>
+            </div>
           )}
         </div>
       )}

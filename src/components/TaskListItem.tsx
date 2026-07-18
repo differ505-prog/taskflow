@@ -7,7 +7,7 @@ import { TextWithLinks } from "./TextWithLinks";
 import { Clock } from "lucide-react";
 import { getDeadlineStatus } from "@/lib/deadlineEngine";
 import {
-  CheckCircle2, Circle, ChevronDown, ChevronRight,
+  CheckCircle2, Circle, ChevronDown, ChevronRight, ListChecks,
 } from "lucide-react";
 
 interface TaskListItemProps {
@@ -48,12 +48,14 @@ export function TaskListItem({
   const subTasks = task.subTasks || [];
   const sortedSubTasks = sortSubTasks(subTasks);
   const isDone = task.status === "done";
-  const { isCollapsed, isAutoCollapsing, toggle } = useSubTaskCollapse(task.id, subTasks);
+  const { isCollapsed: isDoneCollapsed, toggle: toggleDoneCollapse } = useSubTaskCollapse(task.id, subTasks);
   const deadlineStatus = getDeadlineStatus(task.dueDate, task.dueTime, isDone);
 
+  const todoSubTasks = sortedSubTasks.filter((s) => s.status !== "done");
+  const doneSubTasks = sortedSubTasks.filter((s) => s.status === "done");
   const doneCount = useMemo(
-    () => subTasks.filter((s) => s.status === "done").length,
-    [subTasks],
+    () => doneSubTasks.length,
+    [doneSubTasks],
   );
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
@@ -177,77 +179,124 @@ export function TaskListItem({
           </div>
         )}
 
-        {/* Sub-task header — chevron + 計數（永遠顯示，點 chevron 摺疊/展開） */}
+        {/* Sub-task 分群組渲染：未完成永遠展開，已完成預設折疊 */}
         {subTasks.length > 0 && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); toggle(); }}
-            className="mt-1.5 flex items-center gap-1 text-[11px] font-medium transition-colors hover:opacity-80"
-            style={{ color: "var(--text-tertiary)" }}
-            aria-expanded={!isCollapsed}
-            aria-label={isCollapsed ? `展開 ${subTasks.length} 項子任務` : `摺疊 ${subTasks.length} 項子任務`}
-          >
-            {isCollapsed ? (
-              <ChevronRight className="w-3 h-3" aria-hidden="true" />
-            ) : (
-              <ChevronDown className="w-3 h-3" aria-hidden="true" />
-            )}
-            <span>子任務 {doneCount}/{subTasks.length}</span>
-            {isCollapsed && doneCount === subTasks.length && (
-              <span className="ml-1 inline-flex items-center gap-0.5 text-[var(--status-success)]">
-                <CheckCircle2 className="w-3 h-3" aria-hidden="true" />
-                全部完成
-              </span>
-            )}
-            {isAutoCollapsing && !isCollapsed && (
-              <span className="ml-1 text-[10px] opacity-60">（3 秒後自動摺疊）</span>
-            )}
-          </button>
-        )}
-
-        {/* Sub-task titles with quick-check — 只在展開時渲染 */}
-        {!isCollapsed && subTasks.length > 0 && (
-          <ul className="mt-1.5 flex flex-col gap-1">
-            {sortedSubTasks.map((sub) => (
-              <li
-                key={sub.id}
-                className={`flex items-center gap-2 group/sub ${sub.status === "done" ? "opacity-40" : ""}`}
-              >
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleSubTask?.(task.id, sub.id);
-                  }}
-                  className="flex-shrink-0 -m-1.5 p-1 rounded-full transition-transform hover:scale-110"
-                  aria-label={sub.status === "done" ? "標記未完成" : "標記完成"}
-                >
-                  {sub.status === "done" ? (
-                    <CheckCircle2 className="w-[18px] h-[18px] text-[var(--status-success)]" />
-                  ) : (
-                    <Circle className="w-[18px] h-[18px] text-[var(--text-tertiary)] group-hover/sub:text-[var(--text-secondary)]" />
+          <div className="mt-1.5 space-y-1">
+            {/* 未完成群組（永遠展開） */}
+            {todoSubTasks.length > 0 && (
+              <div>
+                <div className="flex items-center gap-1 mb-1">
+                  <ListChecks className="w-3 h-3" style={{ color: "var(--text-tertiary)" }} aria-hidden="true" />
+                  <span className="text-[11px] font-medium" style={{ color: "var(--text-tertiary)" }}>
+                    子任務 {doneCount}/{subTasks.length}
+                  </span>
+                  {doneCount === subTasks.length && (
+                    <span className="ml-1 inline-flex items-center gap-0.5 text-[var(--status-success)]">
+                      <CheckCircle2 className="w-3 h-3" aria-hidden="true" />
+                      全部完成
+                    </span>
                   )}
-                </button>
-                <span
-                  className="text-[12px] truncate min-w-0 flex-1 break-words"
-                  style={{
-                    color: sub.status === "done" ? "var(--text-tertiary)" : "var(--text-secondary)",
-                    textDecoration: sub.status === "done" ? "line-through" : "none",
-                    wordBreak: "break-word",
-                    overflowWrap: "anywhere",
-                  }}
-                  title={sub.title}
+                </div>
+                <ul className="flex flex-col gap-1">
+                  {todoSubTasks.map((sub) => (
+                    <li
+                      key={sub.id}
+                      className={`flex items-center gap-2 group/sub ${sub.status === "done" ? "opacity-40" : ""}`}
+                    >
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleSubTask?.(task.id, sub.id);
+                        }}
+                        className="flex-shrink-0 -m-1.5 p-1 rounded-full transition-transform hover:scale-110"
+                        aria-label={sub.status === "done" ? "標記未完成" : "標記完成"}
+                      >
+                        <Circle className="w-[18px] h-[18px] text-[var(--text-tertiary)] group-hover/sub:text-[var(--text-secondary)]" />
+                      </button>
+                      <span
+                        className="text-[12px] truncate min-w-0 flex-1 break-words"
+                        style={{
+                          color: "var(--text-secondary)",
+                          wordBreak: "break-word",
+                          overflowWrap: "anywhere",
+                        }}
+                        title={sub.title}
+                      >
+                        <TextWithLinks
+                          text={sub.title}
+                          linkStyle={{
+                            color: "var(--brand)",
+                            textDecoration: "underline",
+                          }}
+                        />
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* 已完成群組（獨立可折疊，預設折疊） */}
+            {doneSubTasks.length > 0 && (
+              <div className={todoSubTasks.length > 0 ? "pt-1.5 border-t border-dashed" : ""} style={{ borderColor: "var(--border)" }}>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); toggleDoneCollapse(); }}
+                  className="flex items-center gap-1 text-[11px] font-medium transition-colors hover:opacity-80"
+                  style={{ color: "var(--text-tertiary)" }}
+                  aria-expanded={!isDoneCollapsed}
+                  aria-label={isDoneCollapsed ? `展開 ${doneSubTasks.length} 項已完成子任務` : `摺疊 ${doneSubTasks.length} 項已完成子任務`}
                 >
-                  <TextWithLinks
-                    text={sub.title}
-                    linkStyle={{
-                      color: "var(--brand)",
-                      textDecoration: "underline",
-                    }}
-                  />
-                </span>
-              </li>
-            ))}
-          </ul>
+                  {isDoneCollapsed ? (
+                    <ChevronRight className="w-3 h-3" aria-hidden="true" />
+                  ) : (
+                    <ChevronDown className="w-3 h-3" aria-hidden="true" />
+                  )}
+                  <span>已完成 ({doneSubTasks.length})</span>
+                </button>
+
+                {!isDoneCollapsed && (
+                  <ul className="mt-1 flex flex-col gap-1">
+                    {doneSubTasks.map((sub) => (
+                      <li
+                        key={sub.id}
+                        className="flex items-center gap-2 group/sub opacity-40"
+                      >
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleSubTask?.(task.id, sub.id);
+                          }}
+                          className="flex-shrink-0 -m-1.5 p-1 rounded-full transition-transform hover:scale-110"
+                          aria-label={sub.status === "done" ? "標記未完成" : "標記完成"}
+                        >
+                          <CheckCircle2 className="w-[18px] h-[18px] text-[var(--status-success)]" />
+                        </button>
+                        <span
+                          className="text-[12px] truncate min-w-0 flex-1 break-words"
+                          style={{
+                            color: "var(--text-tertiary)",
+                            textDecoration: "line-through",
+                            wordBreak: "break-word",
+                            overflowWrap: "anywhere",
+                          }}
+                          title={sub.title}
+                        >
+                          <TextWithLinks
+                            text={sub.title}
+                            linkStyle={{
+                              color: "var(--brand)",
+                              textDecoration: "underline",
+                            }}
+                          />
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
