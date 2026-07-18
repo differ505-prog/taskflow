@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useApp } from "@/lib/AppContext";
 import { useAuth } from "@/lib/AuthContext";
 import {
@@ -11,13 +11,14 @@ import { motion } from "framer-motion";
 import {
   Moon, Sun, Bell, Download, Upload, Trash2, Info,
   ChevronRight, X, CheckCircle2, AlertCircle, FileText,
-  CalendarDays, Shield, UserPlus, UserMinus, Crown, Sparkles, Zap,
+  CalendarDays, Shield, UserPlus, UserMinus, Crown, Sparkles, Zap, Copy,
 } from "lucide-react";
 import { getTasks } from "@/lib/storage";
 import { downloadICal } from "@/lib/ical";
 import { useWebhookSettings, triggerWebhook } from "@/lib/useWebhook";
 import { ROLE_CONFIGS, UserRole } from "@/lib/types";
 import { getConfettiEnabled, setConfettiEnabled, previewConfetti } from "@/lib/confetti";
+import { toast } from "sonner";
 
 interface SettingsPageProps {
   isOpen: boolean;
@@ -39,6 +40,39 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
   const [webhookDraft, setWebhookDraft] = useState("");
   const [webhookTestMsg, setWebhookTestMsg] = useState<string | null>(null);
   const [webhookSaved, setWebhookSaved] = useState(false);
+
+  // ── Webcal URL（動態，base URL + /api/calendar/webcal）─────
+  const [webcalUrlCopied, setWebcalUrlCopied] = useState(false);
+  const getWebcalUrl = useCallback((): string => {
+    if (typeof window === "undefined") return "";
+    return `${window.location.origin}/api/calendar/webcal`;
+  }, []);
+
+  const handleCopyWebcalUrl = useCallback(async () => {
+    const url = getWebcalUrl();
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    setWebcalUrlCopied(true);
+    toast.success("Webcal 連結已複製！");
+    setTimeout(() => setWebcalUrlCopied(false), 2500);
+  }, [getWebcalUrl]);
+
+  const handleOpenWebcalGoogle = useCallback(() => {
+    const url = getWebcalUrl();
+    window.open(
+      `https://calendar.google.com/calendar/r/settings/addcalendar?splash=2&url=${encodeURIComponent(url)}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  }, [getWebcalUrl]);
 
   // ── Confetti 慶祝動畫設定 ──
   const [confettiEnabled, setConfettiEnabledState] = useState(true);
@@ -688,7 +722,77 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
               日曆同步
             </h3>
             <div className="space-y-3">
-              {/* Download .ics */}
+              {/* ── Webcal 動態訂閱（新）── */}
+              <div
+                className="p-4 rounded-xl space-y-3"
+                style={{ background: "var(--surface-muted)", border: "1px solid var(--border)" }}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(52,199,89,0.1)" }}>
+                    <CalendarDays className="w-5 h-5" style={{ color: "#34C759" }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>
+                      日曆訂閱（自動同步）
+                    </p>
+                    <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>
+                      複製連結到 Google Calendar / Apple Calendar，自動同步最新任務
+                    </p>
+                  </div>
+                </div>
+
+                {/* URL 顯示 + 複製 */}
+                <div
+                  className="flex items-center gap-2 p-3 rounded-xl"
+                  style={{ background: "var(--surface-elevated)", border: "1px solid var(--border)" }}
+                >
+                  <span
+                    className="flex-1 text-[11px] truncate font-mono"
+                    style={{ color: "var(--text-secondary)" }}
+                    title={getWebcalUrl()}
+                  >
+                    {getWebcalUrl() || "載入中..."}
+                  </span>
+                  <button
+                    onClick={handleCopyWebcalUrl}
+                    className="p-1.5 rounded-lg hover:bg-black/5 transition-colors flex-shrink-0"
+                    title="複製連結"
+                  >
+                    {webcalUrlCopied ? (
+                      <span className="text-[11px] font-medium" style={{ color: "var(--status-success)" }}>已複製 ✓</span>
+                    ) : (
+                      <Copy className="w-4 h-4" style={{ color: "var(--text-tertiary)" }} />
+                    )}
+                  </button>
+                </div>
+
+                {/* 一鍵加入按鈕 */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleOpenWebcalGoogle}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-medium transition-all active:scale-97"
+                    style={{ background: "rgba(52,199,89,0.1)", color: "#34C759" }}
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-2-8v-4l3 3-3 3v-2H7v-4h3z" fill="currentColor"/>
+                    </svg>
+                    加入 Google Calendar
+                  </button>
+                  <button
+                    onClick={handleCopyWebcalUrl}
+                    className="flex-shrink-0 px-3 py-2.5 rounded-xl text-[12px] font-medium transition-all active:scale-97"
+                    style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+                  >
+                    {webcalUrlCopied ? "已複製 ✓" : "複製連結"}
+                  </button>
+                </div>
+
+                <p className="text-[10.5px]" style={{ color: "var(--text-tertiary)" }}>
+                  需要登入帳號，連結含個人識別，請勿外流
+                </p>
+              </div>
+
+              {/* ── 下載 .ics 檔案（維持現有）── */}
               <button
                 onClick={() => {
                   downloadICal(getTasks(), "VibeList 任務");

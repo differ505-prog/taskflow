@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Task, Priority, TaskStatus, Recurrence, Attachment } from "@/lib/types";
 import { PRIORITY_CONFIG } from "@/lib/types";
 import { useApp } from "@/lib/AppContext";
-import { getTagColors } from "@/lib/storage";
+import { getTagColors, getOrphanTags } from "@/lib/storage";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Plus, Repeat, Calendar, Mic, MicOff, Hash, AlertCircle } from "lucide-react";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
@@ -112,27 +112,44 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
     }
   }, []);
 
-  // Tag auto-complete logic
+  // ── Smart Tag Autocomplete ──────────────────────────────
+  // 核心：debounce 避免高頻過濾 + orphan tags（未附於任務的標籤）
   const updateTagSuggestions = useCallback((input: string) => {
     const trimmed = input.trim();
-    if (!trimmed) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-    // 支持 # 前綴或純文字匹配
+    // 查詢正規化：去掉 # 前綴後比對
     const query = trimmed.startsWith("#") ? trimmed.slice(1).toLowerCase() : trimmed.toLowerCase();
-    const counts = getTagCounts();
-    const allTags = Object.keys(counts).filter((tag) => {
-      // 排除已選的標籤
-      if (tags.includes(tag)) return false;
-      // 匹配：去掉 # 前綴後比對
-      const normalized = tag.startsWith("#") ? tag.slice(1) : tag;
-      return normalized.toLowerCase().includes(query);
-    }).sort((a, b) => (counts[b] || 0) - (counts[a] || 0)); // 按使用頻率排序
 
-    setSuggestions(allTags.slice(0, 5)); // 最多顯示 5 個
-    setShowSuggestions(allTags.length > 0 || query.length > 0);
+    // 取得所有候選標籤（含 orphan tags）
+    const counts = getTagCounts();
+    const orphanTags = (typeof window !== "undefined") ? getOrphanTags() : [];
+    const allCandidates: { tag: string; count: number }[] = [
+      // 任務中的標籤（以 count 降冪）
+      ...Object.entries(counts)
+        .filter(([tag]) => !tags.includes(tag))
+        .map(([tag, count]) => ({ tag, count })),
+      // Orphan tags（從未附於任務，以字母排序，避免排太前面）
+      ...orphanTags
+        .filter((t) => !tags.includes(t))
+        .map((t) => ({ tag: t, count: 0 })),
+    ];
+
+    // 過濾匹配
+    const filtered = query
+      ? allCandidates.filter(({ tag }) => {
+          const normalized = tag.startsWith("#") ? tag.slice(1) : tag;
+          return normalized.toLowerCase().includes(query);
+        })
+      : allCandidates;
+
+    // 排序：頻率高 > 頻率低；orphan tags (count=0) 排在後面
+    filtered.sort((a, b) => {
+      if (a.count !== b.count) return b.count - a.count;
+      return a.tag.localeCompare(b.tag);
+    });
+
+    setSuggestions(filtered.map((f) => f.tag).slice(0, 6));
+    // 空白時也顯示（最近使用的標籤建議）
+    setShowSuggestions(filtered.length > 0);
     setHighlightedIndex(-1);
   }, [tags, getTagCounts]);
 
