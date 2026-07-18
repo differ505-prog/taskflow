@@ -346,11 +346,11 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               <Trash2 className="w-4 h-4" />
             </button>
             <button
-              onClick={handleSave}
+              onClick={() => { handleSave(); onClose?.(); }}
               disabled={!hasChanges || !title.trim()}
               className="btn-primary text-[13px] py-2 px-4 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              儲存
+              完成 ✓
             </button>
           </div>
         </div>
