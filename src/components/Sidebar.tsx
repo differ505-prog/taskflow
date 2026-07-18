@@ -8,7 +8,7 @@ import {
   Plus, ChevronDown, ChevronRight, CheckCircle2,
   BarChart3, Timer, Heart, Settings, Archive,
   MoreHorizontal, Edit3, Trash2, X, Share2, Users,
-  Pin, Gauge,
+  Pin, Gauge, Music,
 } from "lucide-react";
 
 interface NavItem {
@@ -313,12 +313,20 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
 
       {/* Bottom actions */}
       <div className="p-2 border-t space-y-1" style={{ borderColor: "var(--border)" }}>
+        <button
+          title="心流專注模式 — 深度工作背景音樂"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-150"
+          style={{ color: "var(--brand)" }}
+        >
+          <Music className="w-[18px] h-[18px]" />
+          心流專注
+        </button>
         {onOpenPomodoro && (
           <button
             title="番茄工作法 (Pomodoro Technique)"
             onClick={onOpenPomodoro}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-150"
-            style={{ color: "var(--brand)" }}
+            style={{ color: "var(--text-secondary)" }}
           >
             <Timer className="w-[18px] h-[18px]" />
             番茄鐘

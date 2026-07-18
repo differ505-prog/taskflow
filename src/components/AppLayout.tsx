@@ -13,6 +13,7 @@ import StatsClient from "@/components/StatsClient";
 import { TagsPage } from "@/components/TagsPage";
 import { QuadrantRadarView } from "@/components/QuadrantRadarView";
 import { PomodoroTimer } from "@/components/PomodoroTimer";
+import { ZenFlowPanel } from "@/components/ZenFlowPanel";
 import { BottomNavigation } from "@/components/BottomNavigation";
 import { UserMenu } from "@/components/UserMenu";
 import { AuthGate } from "@/components/AuthGate";
@@ -315,6 +316,11 @@ function AppLayoutInner() {
         isOpen={batchGate.upgradeModalOpen}
         onClose={batchGate.closeUpgradeModal}
         feature="batch-operations"
+      />
+
+      {/* ZenFlow 心流專注播放器 */}
+      <ZenFlowPanel
+        omnisonicUrl={process.env.NEXT_PUBLIC_OMNISONIC_URL ?? ""}
       />
     </div>
   );
