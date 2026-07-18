@@ -13,6 +13,7 @@ import { getFileIcon } from "@/lib/storageUpload";
 import { getTagColors } from "@/lib/storage";
 import { getDeadlineStatus } from "@/lib/deadlineEngine";
 import { useSubTaskCollapse } from "@/utils/useSubTaskCollapse";
+import { fireTaskDoneConfetti } from "@/lib/confetti";
 import {
   CheckCircle2, Circle, Clock, Tag as TagIcon,
   Trash2, Edit3, Archive, Repeat, Plus, Trash,
@@ -150,11 +151,16 @@ export function TaskCard({
   const attachmentCount = task.attachments?.length || 0;
   const { isCollapsed: isDoneCollapsed, toggle: toggleDoneCollapse } = useSubTaskCollapse(task.id, subTasks);
 
-  const handleToggleStatus = useCallback((e: React.MouseEvent) => {
+  const handleToggleStatus = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     haptic("success");
+    const wasNotDone = !isDone;
     onToggleStatus(task.id);
-  }, [onToggleStatus, task.id]);
+    // 只有「從未完成 → 完成」轉場才觸發慶祝動畫
+    if (wasNotDone) {
+      fireTaskDoneConfetti(e.currentTarget);
+    }
+  }, [onToggleStatus, task.id, isDone]);
 
   const handleEdit = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
