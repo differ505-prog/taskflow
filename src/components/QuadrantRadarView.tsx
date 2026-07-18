@@ -24,6 +24,8 @@ import { Task, Priority } from "@/lib/types";
 import { getEisenhowerVisual, EISENHOWER_URGENT_HOURS } from "@/lib/eisenhower";
 import { Info } from "lucide-react";
 import { TextWithLinks } from "./TextWithLinks";
+import { CheckCircle2, Circle } from "lucide-react";
+import { fireTaskDoneConfetti, playTaskDoneSound } from "@/lib/confetti";
 
 interface QuadrantCardProps {
   quadrant: "do-now" | "schedule" | "delegate" | "none";
@@ -33,13 +35,24 @@ interface QuadrantCardProps {
   colorHex: string;
   tasks: Task[];
   onTaskClick: (taskId: string) => void;
+  onToggleStatus: (taskId: string) => void;
 }
 
-function QuadrantCard({ quadrant, emoji, label, caption, colorHex, tasks, onTaskClick }: QuadrantCardProps) {
+function QuadrantCard({ quadrant, emoji, label, caption, colorHex, tasks, onTaskClick, onToggleStatus }: QuadrantCardProps) {
   const count = tasks.length;
   // 顯示前 5 項未完成任務
   const visible = tasks.filter((t) => t.status !== "done").slice(0, 5);
   const doneCount = tasks.length - visible.length;
+
+  const handleCheckboxClick = (e: React.MouseEvent, taskId: string, isDone: boolean) => {
+    e.stopPropagation();
+    const wasNotDone = !isDone;
+    onToggleStatus(taskId);
+    if (wasNotDone) {
+      fireTaskDoneConfetti(e.currentTarget as HTMLElement | null);
+      playTaskDoneSound();
+    }
+  };
 
   return (
     <div
@@ -116,9 +129,21 @@ function QuadrantCard({ quadrant, emoji, label, caption, colorHex, tasks, onTask
               <li key={task.id}>
                 <button
                   onClick={() => onTaskClick(task.id)}
-                  className="w-full text-left px-2.5 py-2 rounded-xl text-[12.5px] leading-snug hover:bg-black/5 transition-colors flex items-start gap-1.5"
+                  className="w-full text-left px-2.5 py-2 rounded-xl text-[12.5px] leading-snug hover:bg-black/5 transition-colors flex items-start gap-2"
                   style={{ color: "var(--text-primary)" }}
                 >
+                  {/* 檢核框 */}
+                  <button
+                    onClick={(e) => handleCheckboxClick(e, task.id, task.status === "done")}
+                    className="flex-shrink-0 mt-0.5 transition-transform hover:scale-110 z-10"
+                    aria-label={task.status === "done" ? "標記未完成" : "標記完成"}
+                  >
+                    {task.status === "done" ? (
+                      <CheckCircle2 className="w-[15px] h-[15px] text-[var(--status-success)]" />
+                    ) : (
+                      <Circle className="w-[15px] h-[15px] text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]" />
+                    )}
+                  </button>
                   <span
                     className="w-1 self-stretch rounded-full flex-shrink-0"
                     style={{ background: colorHex }}
@@ -150,7 +175,7 @@ interface QuadrantRadarViewProps {
 }
 
 export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
-  const { tasks } = useApp();
+  const { tasks, toggleTaskStatus } = useApp();
 
   // 用 getEisenhowerVisual 取每個任務的即時象限（含 24h 自動提升 schedule → do-now）
   const grouped = useMemo(() => {
@@ -207,6 +232,7 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
             colorHex="#D70015"
             tasks={grouped["do-now"]}
             onTaskClick={onTaskSelect}
+            onToggleStatus={toggleTaskStatus}
           />
 
           {/* Q2: 排程（右上） */}
@@ -218,6 +244,7 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
             colorHex="#F97316"
             tasks={grouped["schedule"]}
             onTaskClick={onTaskSelect}
+            onToggleStatus={toggleTaskStatus}
           />
 
           {/* Q3: 轉交（左下） */}
@@ -229,6 +256,7 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
             colorHex="#EAB308"
             tasks={grouped["delegate"]}
             onTaskClick={onTaskSelect}
+            onToggleStatus={toggleTaskStatus}
           />
 
           {/* Q4: 暫緩（右下） */}
@@ -240,6 +268,7 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
             colorHex="#9CA3AF"
             tasks={grouped["none"]}
             onTaskClick={onTaskSelect}
+            onToggleStatus={toggleTaskStatus}
           />
         </div>
       </main>
