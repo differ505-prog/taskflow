@@ -29,7 +29,7 @@ interface TaskListItemProps {
 
 import { sortSubTasks } from "@/utils/subtaskSort";
 import { useSubTaskCollapse } from "@/utils/useSubTaskCollapse";
-import { fireTaskDoneConfetti } from "@/lib/confetti";
+import { fireTaskDoneConfetti, playTaskDoneSound } from "@/lib/confetti";
 
 export function TaskListItem({
   task,
@@ -67,6 +67,7 @@ export function TaskListItem({
     // 只有「從未完成 → 完成」轉場才觸發慶祝動畫
     if (wasNotDone) {
       fireTaskDoneConfetti(e.currentTarget);
+      playTaskDoneSound();
     }
   };
 

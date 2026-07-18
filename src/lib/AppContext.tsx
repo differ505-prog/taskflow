@@ -69,6 +69,7 @@ import { parseNaturalLanguage } from "./nlp";
 import { useAuth } from "./AuthContext";
 import { updateLastActive } from "@/lib/userProfiles";
 import { triggerWebhook } from "./useWebhook";
+import { toast } from "sonner";
 
 interface AppContextValue {
   // ── 資料 ──────────────────────────────────────────────
@@ -174,6 +175,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [reloadKey, setReloadKey] = useState(0);
   const lastActiveWriteAtRef = useRef<Record<string, number>>({});
   const deletedTaskIdsRef = useRef<Set<string>>(new Set()); // 追蹤本地刪除，待 Firebase 確認後清除
+  const previousTasksRef = useRef<Task[]>([]); // 儲存最近刪除前的快照，用於 Undo
   const recentlyWrittenRef = useRef<Map<string, number>>(new Map()); // 追蹤本地剛寫入的 task，5 秒內不被 realtime 推送覆蓋
   const RECENT_WRITE_WINDOW_MS = 5_000;
   const firstTasksLoadDone = useRef(false); // 跳過 subscribeTasks 初次空資料覆蓋
@@ -662,8 +664,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [tasks, user, markRecentlyWritten]);
 
+  // ── Soft Delete + Undo ────────────────────────────────
+  const UNDO_WINDOW_MS = 5_000;
+
+  const undoDelete = useCallback((taskId: string) => {
+    const previous = previousTasksRef.current;
+    const task = previous.find((t) => t.id === taskId);
+    if (!task) return;
+    const updated = [task, ...tasks];
+    setTasks(updated);
+    saveTasks(updated);
+    if (user) batchSaveTasksFirebase(user.uid, [task]).catch((err) => console.warn("[SUP SYNC] undo 寫入失敗:", err));
+    toast.success(`已恢復「${task.title}」`);
+  }, [tasks, user]);
+
   const deleteTask = useCallback(async (id: string) => {
-    // Optimistic update：立即從 UI 移除
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
 
@@ -678,27 +693,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // 立即 optimistic remove
+    // 儲存快照用於 Undo
+    previousTasksRef.current = tasks;
+    // 立即從 UI 移除（optimistic）
     deletedTaskIdsRef.current.add(id);
-    const previousTasks = tasks;
-    const updated = previousTasks.filter((t) => t.id !== id);
+    const updated = tasks.filter((t) => t.id !== id);
     setTasks(updated);
     saveTasks(updated);
 
-    if (user) {
-      deleteTaskFirebase(user.uid, id)
-        .finally(() => {
-          deletedTaskIdsRef.current.delete(id);
-        })
-        .catch((err) => {
-          // 失敗時 rollback
-          deletedTaskIdsRef.current.delete(id);
-          setTasks(previousTasks);
-          saveTasks(previousTasks);
-          console.warn("[SUP SYNC] 刪除失敗，已 rollback:", err);
-        });
-    }
-  }, [tasks, user]);
+    // 顯示 Toast，5 秒後自動真正刪除
+    toast.success(
+      <div className="flex items-center gap-3">
+        <span className="flex-1">已刪除「{task.title}」</span>
+        <button
+          onClick={() => undoDelete(id)}
+          className="flex items-center gap-1 px-3 py-1 rounded-lg text-[13px] font-medium transition-all hover:scale-[1.05] active:scale-[0.97]"
+          style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+        >
+          ↩️ 復原
+        </button>
+      </div>,
+      { duration: UNDO_WINDOW_MS + 500, id }
+    );
+
+    // 5 秒後真正刪除（若未 Undo）
+    setTimeout(() => {
+      if (deletedTaskIdsRef.current.has(id)) {
+        deletedTaskIdsRef.current.delete(id);
+        if (user) {
+          deleteTaskFirebase(user.uid, id).catch((err) => {
+            console.warn("[SUP SYNC] 延後刪除失敗:", err);
+          });
+        }
+      }
+    }, UNDO_WINDOW_MS);
+  }, [tasks, user, undoDelete]);
 
   const toggleTaskStatus = useCallback((id: string) => {
     const task = tasks.find((t) => t.id === id);

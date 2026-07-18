@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Sparkles, Lock, ArrowRight } from "lucide-react";
 import type { ProFeature } from "@/lib/useFeatureGate";
+import { track } from "@/lib/analytics";
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -46,6 +48,13 @@ const FEATURE_COPY: Record<ProFeature, { title: string; description: string }> =
  */
 export function UpgradeModal({ isOpen, onClose, feature }: UpgradeModalProps) {
   const copy = feature ? FEATURE_COPY[feature] : null;
+
+  // Painted Door 埋點：modal 打開時記錄一次
+  useEffect(() => {
+    if (isOpen && feature) {
+      track("painted_door_clicked", { feature, timestamp: Date.now() });
+    }
+  }, [isOpen, feature]);
 
   return (
     <AnimatePresence>

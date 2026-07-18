@@ -13,7 +13,7 @@ import { getFileIcon } from "@/lib/storageUpload";
 import { getTagColors } from "@/lib/storage";
 import { getDeadlineStatus } from "@/lib/deadlineEngine";
 import { useSubTaskCollapse } from "@/utils/useSubTaskCollapse";
-import { fireTaskDoneConfetti } from "@/lib/confetti";
+import { fireTaskDoneConfetti, playTaskDoneSound } from "@/lib/confetti";
 import {
   CheckCircle2, Circle, Clock, Tag as TagIcon,
   Trash2, Edit3, Archive, Repeat, Plus, Trash,
@@ -159,6 +159,7 @@ export function TaskCard({
     // 只有「從未完成 → 完成」轉場才觸發慶祝動畫
     if (wasNotDone) {
       fireTaskDoneConfetti(e.currentTarget);
+      playTaskDoneSound();
     }
   }, [onToggleStatus, task.id, isDone]);
 

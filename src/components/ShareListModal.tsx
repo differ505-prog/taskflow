@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { toast } from "sonner";
 import { useApp } from "@/lib/AppContext";
 import { useAuth } from "@/lib/AuthContext";
 import { TaskList, Task, SharedListSnapshot } from "@/lib/types";
@@ -278,11 +279,11 @@ export function ShareListModal({ isOpen, onClose, listToShare, listTasks, incomi
 
   const handleKick = useCallback(async (email: string) => {
     if (!sharedListId) return;
-    if (!window.confirm(`確定要移除「${email}」嗎？對方會立刻失去存取權限。`)) return;
+    toast.success(`已移除成員「${email}」，對方將立即失去存取權限。`);
     try {
       await kickFromSharedList(sharedListId, email);
     } catch (err: any) {
-      alert(err?.message || "移除失敗");
+      toast.error(err?.message || "移除失敗");
     }
   }, [sharedListId, kickFromSharedList]);
 
@@ -291,7 +292,7 @@ export function ShareListModal({ isOpen, onClose, listToShare, listTasks, incomi
     try {
       await changeSharedMemberRole(sharedListId, email, role);
     } catch (err: any) {
-      alert(err?.message || "變更角色失敗");
+      toast.error(err?.message || "變更角色失敗");
     }
   }, [sharedListId, changeSharedMemberRole]);
 

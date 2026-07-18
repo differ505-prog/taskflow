@@ -22,6 +22,7 @@ import { TaskList, SharedListSnapshot } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
 import { useFeatureGate } from "@/lib/useFeatureGate";
 import { UpgradeModal } from "@/components/UpgradeModal";
+import { ToastProvider } from "@/components/ToastProvider";
 
 // ─── Inner app (has access to useApp) ───────────────────────
 function AppLayoutInner() {
@@ -327,6 +328,7 @@ function AppWithFirebase() {
     <FirebaseDataProvider>
       {/* SyncWriter: writes localStorage changes → Firestore */}
       {user && <SyncWriter userId={user.uid} />}
+      <ToastProvider />
       <AppLayoutInner />
     </FirebaseDataProvider>
   );

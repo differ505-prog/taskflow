@@ -21,17 +21,32 @@
 import confetti from "canvas-confetti";
 
 const STORAGE_KEY = "taskflow_confetti_enabled";
+const SOUND_STORAGE_KEY = "taskflow_confetti_sound_enabled";
 
-function getEnabled(): boolean {
+// ─── Sound synthesis (Web Audio API) ─────────────────────────
+function getSoundEnabled(): boolean {
   if (typeof window === "undefined") return false;
   try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    // 預設啟用（null → true）
+    const stored = window.localStorage.getItem(SOUND_STORAGE_KEY);
     return stored === null ? true : stored === "true";
   } catch {
     return true;
   }
 }
+
+function _getConfettiEnabled(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    return stored === null ? true : stored === "true";
+  } catch {
+    return true;
+  }
+}
+function getEnabled(): boolean { return _getConfettiEnabled(); }
+
+/** 供 SettingsPage 讀取目前開關狀態 */
+export function getConfettiEnabled(): boolean { return _getConfettiEnabled(); }
 
 function prefersReducedMotion(): boolean {
   if (typeof window === "undefined") return false;
@@ -39,6 +54,55 @@ function prefersReducedMotion(): boolean {
 }
 
 const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"];
+
+/**
+ * 播放清脆完成音效（Web Audio API 即時合成，無需外部音檔）
+ * 音色：上行的 C5→E5→G5 和弦，短促清脆，符合福格模型的正向回饋
+ */
+export function playTaskDoneSound(): void {
+  if (typeof window === "undefined") return;
+  if (!getSoundEnabled()) return;
+  if (prefersReducedMotion()) return;
+
+  try {
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+
+    // 三音符和弦：C5(523Hz) + E5(659Hz) + G5(784Hz)，每個間隔 60ms
+    const notes = [523.25, 659.25, 783.99];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.type = "sine";
+      osc.frequency.value = freq;
+
+      const startTime = ctx.currentTime + i * 0.06;
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.18, startTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25);
+
+      osc.start(startTime);
+      osc.stop(startTime + 0.25);
+    });
+  } catch {
+    // 音效失敗靜默忽略
+  }
+}
+
+export function setConfettiSoundEnabled(enabled: boolean): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(SOUND_STORAGE_KEY, String(enabled));
+  } catch {
+    // 寫入失敗靜默忽略
+  }
+}
+
+export function getConfettiSoundEnabled(): boolean {
+  return getSoundEnabled();
+}
 
 /**
  * 從指定 DOM 元素位置向外發射組合式慶祝動畫
@@ -153,10 +217,6 @@ export function setConfettiEnabled(enabled: boolean): void {
   } catch {
     // 寫入失敗靜默忽略
   }
-}
-
-export function getConfettiEnabled(): boolean {
-  return getEnabled();
 }
 
 /**
