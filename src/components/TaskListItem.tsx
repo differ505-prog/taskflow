@@ -29,6 +29,7 @@ interface TaskListItemProps {
 
 import { sortSubTasks } from "@/utils/subtaskSort";
 import { useSubTaskCollapse } from "@/utils/useSubTaskCollapse";
+import { fireTaskDoneConfetti } from "@/lib/confetti";
 
 export function TaskListItem({
   task,
@@ -58,10 +59,15 @@ export function TaskListItem({
     [doneSubTasks],
   );
 
-  const handleCheckboxClick = (e: React.MouseEvent) => {
+  const handleCheckboxClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     if (batchMode && onBatchToggle) { onBatchToggle(); return; }
+    const wasNotDone = !isDone;
     onToggleStatus(task.id);
+    // 只有「從未完成 → 完成」轉場才觸發慶祝動畫
+    if (wasNotDone) {
+      fireTaskDoneConfetti(e.currentTarget);
+    }
   };
 
   // ── 長按偵測：pointerdown 起算 600ms → 觸發 onLongPress ──────
