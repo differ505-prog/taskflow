@@ -327,6 +327,24 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             </h2>
           </div>
           <div className="flex items-center gap-2">
+            {/* 獨立完成按鈕：隨時可點擊，直接標記為已完成 */}
+            <button
+              onClick={() => {
+                setStatus("done");
+                updateTask(task.id, { status: "done" });
+                onClose?.();
+              }}
+              className="p-2 rounded-xl hover:bg-green-50 transition-colors"
+              style={{ color: status === "done" ? "var(--status-success)" : "var(--text-tertiary)" }}
+              title={status === "done" ? "已完成" : "標記完成"}
+              aria-label={status === "done" ? "已完成" : "標記完成"}
+            >
+              {status === "done" ? (
+                <CheckCircle2 className="w-5 h-5" />
+              ) : (
+                <Circle className="w-5 h-5" />
+              )}
+            </button>
             <button
               onClick={() => updateTask(task.id, { isPinned: !task.isPinned })}
               className="p-2 rounded-xl hover:bg-black/5 transition-colors"
