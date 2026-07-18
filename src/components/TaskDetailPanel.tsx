@@ -364,11 +364,36 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               <Trash2 className="w-4 h-4" />
             </button>
             <button
-              onClick={() => { handleSave(); onClose?.(); }}
-              disabled={!hasChanges || !title.trim()}
+              onClick={() => {
+                const newStatus: TaskStatus = status === "done" ? "todo" : "done";
+                setStatus(newStatus);
+                updateTask(task.id, {
+                  title: title.trim(),
+                  description: description.trim() || undefined,
+                  priority,
+                  status: newStatus,
+                  startDate: startDate || undefined,
+                  dueDate: dueDate || startDate || undefined,
+                  dueTime: dueTime || undefined,
+                  listId,
+                  tags,
+                  subTasks,
+                  recurrence: recurrenceType !== "none" ? {
+                    pattern: recurrenceType as Recurrence["pattern"],
+                    interval: recurrenceInterval,
+                    completedCount: task.recurrence?.completedCount || 0,
+                    daysOfWeek: recurrenceType === "weekly" ? recurrenceDaysOfWeek : undefined,
+                    endDate: recurrenceEndDate || undefined,
+                  } : undefined,
+                  attachments,
+                });
+                setHasChanges(false);
+                onClose?.();
+              }}
+              disabled={!title.trim()}
               className="btn-primary text-[13px] py-2 px-4 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              完成 ✓
+              {status === "done" ? "重開" : "完成"} ✓
             </button>
           </div>
         </div>
