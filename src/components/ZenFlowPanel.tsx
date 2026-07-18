@@ -201,6 +201,13 @@ export function ZenFlowPanel({ omnisonicUrl }: ZenFlowPanelProps) {
             />
           </div>
 
+          {/* Attribution */}
+          <div className="text-center">
+            <p className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>
+              取自 OmniSonic · 85 BPM · CEO Deep Focus
+            </p>
+          </div>
+
           {/* Next track */}
           {nextTrack && (
             <div className="flex items-center gap-2 text-[11px]" style={{ color: "var(--text-tertiary)" }}>
@@ -254,7 +261,7 @@ export function ZenFlowPanel({ omnisonicUrl }: ZenFlowPanelProps) {
             {currentTrack.title}
           </p>
           <p className="text-[11px] truncate" style={{ color: "var(--text-tertiary)" }}>
-            CEO Deep Focus · 85 BPM
+            OmniSonic · 85 BPM
           </p>
         </div>
 
