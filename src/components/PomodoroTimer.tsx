@@ -243,31 +243,49 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
           >
             <Music className="w-4 h-4 flex-shrink-0" style={{ color: "var(--brand)" }} />
             <div className="flex-1 min-w-0 text-left">
-              <p className="text-[12px] font-medium truncate" style={{ color: "var(--text-primary)" }}>
-                {zenState.currentTrack?.title ?? "等待載入..."}
-              </p>
-              <p className="text-[10px] truncate" style={{ color: "var(--text-tertiary)" }}>
-                OmniSonic · 85 BPM
-              </p>
+              {zenState.error ? (
+                <p className="text-[12px] truncate" style={{ color: "var(--status-danger)" }}>
+                  無法載入音樂
+                </p>
+              ) : zenState.isLoading ? (
+                <p className="text-[12px] truncate" style={{ color: "var(--text-tertiary)" }}>
+                  等待載入...
+                </p>
+              ) : !zenState.currentTrack ? (
+                <p className="text-[12px] truncate" style={{ color: "var(--text-tertiary)" }}>
+                  未設定音樂服務
+                </p>
+              ) : (
+                <>
+                  <p className="text-[12px] font-medium truncate" style={{ color: "var(--text-primary)" }}>
+                    {zenState.currentTrack.title}
+                  </p>
+                  <p className="text-[10px] truncate" style={{ color: "var(--text-tertiary)" }}>
+                    OmniSonic · 85 BPM
+                  </p>
+                </>
+              )}
             </div>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => zenState.isPlaying ? pause() : play()}
-                className="p-1.5 rounded-lg transition-colors"
-                style={{ color: "var(--text-secondary)" }}
-                aria-label={zenState.isPlaying ? "靜音" : "播放"}
-              >
-                {zenState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-              </button>
-              <button
-                onClick={next}
-                className="p-1.5 rounded-lg transition-colors"
-                style={{ color: "var(--text-tertiary)" }}
-                aria-label="下一首"
-              >
-                <SkipForward className="w-4 h-4" />
-              </button>
-            </div>
+            {zenState.currentTrack && !zenState.error && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => zenState.isPlaying ? pause() : play()}
+                  className="p-1.5 rounded-lg transition-colors"
+                  style={{ color: "var(--text-secondary)" }}
+                  aria-label={zenState.isPlaying ? "靜音" : "播放"}
+                >
+                  {zenState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={next}
+                  className="p-1.5 rounded-lg transition-colors"
+                  style={{ color: "var(--text-tertiary)" }}
+                  aria-label="下一首"
+                >
+                  <SkipForward className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         )}
 
