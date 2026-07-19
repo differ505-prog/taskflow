@@ -639,7 +639,15 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
               {/* Import */}
               <div>
                 <p className="text-[12px] font-medium mb-2" style={{ color: "var(--text-secondary)" }}>匯入資料</p>
-                <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImportJSON} id="import-json-input" />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  aria-hidden="true"
+                  tabIndex={-1}
+                  className="hidden"
+                  onChange={handleImportJSON}
+                />
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="w-full flex items-center justify-between p-4 rounded-xl transition-colors hover:bg-black/5"
