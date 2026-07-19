@@ -378,6 +378,16 @@ export function ZenFlowProvider({ children, omnisonicBaseUrl }: { children: Reac
     emit();
   }, [emit, destroy]);
 
+  // Shuffle helper (Fisher-Yates)
+  const shuffleArray = <T,>(arr: T[]): T[] => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
+
   // ── Init: fetch track list ────────────────────────────────
 
   useEffect(() => {
@@ -392,15 +402,16 @@ export function ZenFlowProvider({ children, omnisonicBaseUrl }: { children: Reac
       .then((r) => r.json())
       .then((data: { tracks: ZenFlowTrack[] }) => {
         if (cancelled) return;
-        const tracks = data.tracks ?? [];
+        const tracks = shuffleArray(data.tracks ?? []);
+        const startIdx = Math.floor(Math.random() * tracks.length);
         playlistRef.current = tracks;
         setState((prev) => ({
           ...prev,
           isLoading: false,
           playlist: tracks,
-          currentTrack: tracks[0] ?? null,
-          nextTrack: tracks[1] ?? null,
-          duration: tracks[0]?.durationSeconds ?? 0,
+          currentTrack: tracks[startIdx] ?? null,
+          nextTrack: tracks[(startIdx + 1) % tracks.length] ?? null,
+          duration: tracks[startIdx]?.durationSeconds ?? 0,
         }));
       })
       .catch(() => {

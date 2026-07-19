@@ -1,0 +1,435 @@
+---
+description: 系統憲法 - 全域設計與工程最高原則 (任務管理器專案)
+globs: **/*
+alwaysApply: true
+---
+
+# 系統憲法 (System Constitution)
+
+> 設計基調:功能極簡 × 視覺優雅 × 工程嚴謹
+>
+> 本專案產業定位:**類似 TickTick 的任務管理網站**
+> 遠端倉庫: https://github.com/differ505-prog/taskflow
+
+作為本專案的首席架構師與頂級 UI/UX 設計師,在生成或修改任何程式碼時,必須嚴格遵守以下 **「Stripe 骨架 × Apple 皮膚 × Vercel/Google 工程基準」** 的最高原則。
+
+---
+
+## 【設計與美學原則】
+
+### 1. Stripe 資訊邏輯 (Functional Minimalism)
+
+使用網格與卡片系統,確保排版層級分明、邏輯清晰。對任務管理這類資訊密集型產品,需特別注意:
+
+- 任務列表、分類、標籤、優先級需有明確視覺層級
+- 卡片間距統一尺度 (4/8/12/16/24 px)
+- 資料分組透過留白或極輕陰影，而非實線
+
+### 2. Apple 極簡視覺 (Aesthetic Skin)
+
+- **極致留白 (Negative Space)**：內容區塊周圍保留充足呼吸空間
+- **消除實體邊框**：用柔和陰影 (`shadow-sm`/`shadow-md`) 或毛玻璃效果 (`backdrop-blur`)
+- **字體對比清晰**：標題與內文有明確 size/weight 對比
+- **內文顏色**：統一使用高雅深灰（`text-slate-700` 或 `text-neutral-800`），絕不使用 `#000`
+- **強制語意換行**：使用 Tailwind `text-balance` 或 `text-pretty`
+
+### 3. 色彩紀律 (Color Memory Lock)
+
+- **從不自己發明色碼**，全部從已定義 Token 選用
+- 必須將確認的品牌色定義為 Tailwind 配置（如 `bg-brand`）或 CSS 變數
+- 品牌色 (`brand`) 僅用於 **CTA 按鈕**或**關鍵狀態**（警示、完成）
+- **嚴禁大面積塗抹品牌色**（如背景、Header 大面積填色）
+
+**預設色票：**
+- `brand`: 主品牌色（預設 `#3B82F6` 藍）
+- `brand-foreground`: 品牌色按鈕文字（白）
+- `priority-high/medium/low`: 任務優先級
+- `success/warning/danger`: 狀態色
+- `surface/surface-muted/border`: 中性層級
+
+### 4. 高級微互動 (Refined Micro-interactions)
+
+所有狀態切換需平滑過渡：
+
+- 基準：`transition-all duration-200 ease-out`
+- hover：`scale-[1.02]` 或 `-translate-y-0.5`
+- active：`scale-[0.98]`
+- **絕不超過 300ms**
+
+---
+
+## 【工程與資安原則】
+
+### 5. DRY 原則與模組化 (Vercel 架構)
+
+- 生成新區塊前，**先掃描 Codebase** 找可複用元件
+- 嚴禁創造功能重疊的冗餘區塊
+- 元件拆分粒度：容器/展示/互動/資料四層分離
+- 優先抽取為 Hooks / Utils，而非複製貼上
+
+### 6. 語意化 HTML 與 SEO (Google 標準)
+
+- 嚴格使用語意標籤：`<main>` / `<nav>` / `<article>` / `<section>` / `<aside>`
+- **H1 只能有一個**（每頁），依序使用 H2/H3，不可跳級
+- 所有圖片**強制加上有意義的 `alt` 屬性**
+- 圖片務必設定明確 `width` / `height` 避免 CLS
+
+### 7. 防禦性 UI 與排版溢出防堵
+
+必須預判並處理以下邊界情境：
+
+- **文字過長截斷**：`truncate` / `line-clamp-N` / `break-words`
+- **圖片載入失敗 Fallback**：`onError` 切換至佔位圖
+- **Empty State**：必須設計圖示 + 提示文案 + 主要 CTA
+- **流體排版**：容器使用 `max-w-full`，子元素 `min-w-0` 避免 Grid/Flex 撐破
+- **並排元素防溢出**：`flex-wrap` 換行，或局部橫向滑動 (`overflow-x-auto` + 隱藏捲軸)
+- **全域禁橫向捲軸**：確保 `<html>` / `<body>` 沒有水平 overflow
+
+### 8. API 資安防禦 (Security First)
+
+- **嚴禁 Hardcode API Key**
+- 必須使用 `.env.local` 並加入 `.gitignore`
+- 優先透過後端代理隱藏金鑰
+- 前端變數以 `NEXT_PUBLIC_` 標示
+
+### 9. 內容鎖定與排版解耦
+
+- 嚴禁在優化排版時，**擅自增刪、改寫或縮減長篇正文與知識內容**
+- 徹底落實 **資料與視圖分離**（Data-View Separation）
+- 在**確保內容一字不漏**的前提下，擁有「視覺排版絕對權限」
+
+---
+
+## 【協作與流程原則】
+
+### 10. 方案評分表 (Pre-Execution Scorecard)
+
+**觸發**：任何「修改/改進/新增/修復/調整」請求
+
+**流程**：
+1. 輸出評分表（≥3 個候選，門檻 7.5 分）
+2. 標記首選
+3. 等你回覆「OK」/「換 X」/「做下去」後執行
+
+**評分格式**（嚴格遵守，不接受散文式）：
+
+```
+| 候選 | 評分 | 說明 |
+| A.   | 6.5  | 取捨理由... |
+| B.   | 8.5  | 首選...     |
+| C.   | 7.0  | 淘汰理由... |
+
+✅ 首選 B (8.5): 原因...
+⚠️ 所有方案未達 7.5，原因: ...
+```
+
+**例外不評分**：
+- 1-2 行 typo / 註解 / format 修正
+- 純查詢 / 閱讀 / 解釋任務
+- 你明確說「直接做」/「做下去」
+
+**💡 Better Option**：評估中發現明顯優於原需求的方案，必須主動揭露並標記，等你確認後才能執行。
+
+### 11. 自動 Commit + Push
+
+- 完成修改、通過驗證後，自動 `git add` + `commit` + `push`
+- Commit message：中文、列出變更摘要
+- **危險動作需你口頭確認**（永遠不自動執行）：
+  - `git push --force` / `--force-with-lease`
+  - `git reset --hard` / `git clean -fd`
+  - 刪除檔案 / 覆寫 `.env` / 改寫資料庫 migration
+
+### 12. 驗證必讀結果
+
+執行 `tsc --noEmit` / `npm run build` 等後，**必須讀取完整 stderr / exit code**：
+
+- ✅ `tsc: clean / build: success`
+- ❌ `tsc: N errors / build: failed`
+
+禁止「跑完就當成功」「只看 exit 0 就 commit」。
+
+### 13. 最小變更原則 (Scope Discipline)
+
+當你要求修 A 時，**只動 A**，不主動：
+- 抽共用 hook / 重命名變數 / 重排 import / reformat / 加新功能「順便做」
+
+任何擴大範圍的變更，必須先在評分表中揭露，等你明確同意後才能做。
+
+### 14. 實作前完整讀取 (Read-Before-Touch)
+
+修改任何複雜功能之前，**先完整讀取該檔案一次**（至少讀到目標區段），建立「檔案地圖」再動手編輯。不要用多輪 `Grep` 碎片化探索再慢慢拼湊理解。
+
+例外：簡單 query（查一個函式定義、找某個 props 用法）→ 直接 Grep 就夠。
+
+### 15. Runtime 驗證分級 (Right Tool for the Job)
+
+**最高原則：最簡工具優先 (Cheapest Tool First)** — 除非明確需要 runtime 證據，否則不改用 CDP / 瀏覽器互動。
+
+#### 15.1 觸發情境
+
+- ✅ 該走 CDP/瀏覽器：跨元件資料流、API 串接、Zustand selector 變更、持久化、CSS 計算值、佈局尺寸、runtime error
+- ✅ 該走瀏覽器互動：驗收真實 UX（transition、modal 開關、hover 視覺）
+- ✅ 該走 CDP 量測：視窗尺寸、flex/grid 屬性、scrollHeight、bounding rect
+- ❌ 不該走 CDP/瀏覽器：改 Tailwind class / inline style、加新 component-local state、加新 onClick/onChange handler、改 useEffect 邏輯但沒跨元件
+
+#### 15.2 工具決策樹
+
+| 場景 | 推薦工具 |
+|------|---------|
+| 程式碼讀完就能確定答案 | grep + Read + 程式碼 review |
+| 能從 DOM 推算（getBoundingClientRect、computed style） | CDP Runtime.evaluate 一次性量測 |
+| 視覺要看真實呈現（hover、modal、transition） | browser 互動 + screenshot |
+| 需要互動才能進入某狀態（登入、切換頁面、灌資料） | CDP Runtime.evaluate 直接操縱 state/localStorage |
+| 抓 console error / network 請求 | CDP Log.enable / Network.enable |
+
+#### 15.3 視覺/佈局 Bug 第一刀：定位 DOM 邊界
+
+**視覺症狀（空白、遮擋、變形、殘留）出現時，第一個動作不是讀 CSS，而是定位空白/遮擋屬於哪個 DOM 節點。**
+
+| 用戶描述的動詞 | 必須檢查的 CSS 屬性 |
+|---|---|
+| 變大 / 縮小 | scale / w / h |
+| 變深 / 變亮 / 變色 | color / text- / bg- / border- / opacity |
+| 變形 / 變圓 | rounded- / shape |
+| 閃爍 | transition / animation |
+| 殘留 | 偽類殘留 (:hover / :focus / :active) |
+| **空白未利用 / 內容被遮** | **flex/grid 父層 grow/shrink/min-width**；**父層或祖先層是否有 `overflow: hidden/auto/scroll`**（這會造成 flex child 高度塌縮，滾動容器必須在最內層且祖先鏈不能有 `overflow: hidden`）；是否有相鄰 siblings |
+
+**決策樹**：
+1. **視覺症狀在哪個 DOM 節點？** → 先確認節點邊界，再確認空白/遮擋在節點內還是外
+2. **空白在節點內** → 讀該節點的 padding / 內部子項 flex 設定
+3. **空白在節點外（siblings 之間或父層邊界）** → 讀父層 flex/grid 佈局（flex-grow/flex-shrink/min-width/justify-content）
+4. **⚠️ 祖先層 `overflow: hidden/auto/scroll` 陷阱**：從症狀節點往上查到根節點，若任何祖先有 `overflow: hidden`，立刻懷疑這是 flex 高度塌縮的根本原因，優先於其他 flex 調整
+5. **確認後再讀 CSS**，避免在錯誤的 DOM 子樹裡讀幾百行
+
+#### 15.4 Mobile Input 特殊性原則
+
+**觸發**：任何涉及 `<input>` / `<textarea>` 的鍵盤事件綁定（`onKeyDown`、`onKeyUp`、`onChange`）在提交前，必須同時驗證 iOS Safari 和 Android Chrome 上 soft keyboard 的行為是否一致。
+
+**已知 mobile input 時序差異**：
+- **iOS/Android `onKeyDown` 在 React controlled state 同步前觸發**：`e.target.value` 或 React state 在 `onKeyDown` 時可能仍是上一個值；`onChange` 才代表 React state 已同步
+- **IME composition 期間**：`onKeyDown`/`onKeyUp` 行為不一致，`onKeyDown` + `key === "Enter"` 在 iOS Safari 上不可靠
+- **軟體鍵盤 Enter 鍵**：iOS Safari 的「換行」按鈕在 `<input>` 上可能觸發 `key === "Enter"` 也可能不觸發
+
+**對應原則**：
+- 對 controlled input，**優先用 `onChange`** 作為值同步管道，不要依賴 `onKeyDown`/`onKeyUp` 裡讀 state
+- 若必須用 `onKeyDown`/`onKeyUp` 處理特定 key，**用 `onKeyUp`**（時序上更接近 React state commit 完成）
+- IME 相關行為：**禁用 `onKeyDown` 搭配 IME**，只用 `onChange` 或 `onKeyUp`
+- **Desktop browser 測試不足以發現 mobile input timing bug**，需要實機驗證
+
+#### 15.5 失敗上限
+
+**所有驗證工具**（CDP、browser 互動、subagent）累計 **2 次無效動作**（工具 format 錯誤、工具返回空結果、指令被 block）→ **立即停下報告**，不要換同類工具重試。
+
+累計 **3 次嘗試仍未定位根因** → **立即停下**，報告：
+1. 我試過什麼（具體動作 + 結果）
+2. 我卡在哪（具體阻擋點）
+3. 建議下一步
+
+禁止「再試一次然後又換一種方式」 — 這是 rabbit hole。
+
+#### 15.6 Runtime 驗證成本上限 (Tool Call Budget)
+
+**問題**：上輪「圈圈大小」純 Tailwind 改動（w-4 → w-7）卻啟動 CDP 量測 + 量改後 + 派發 React event，浪費 8+ tool call 並撞到 Auto-review 攔截。**程式碼讀完就 100% 確認視覺結果，根本不需要 runtime**。
+
+**規則**：
+
+| 改動類型 | Runtime 驗證上限 | 必須驗證 |
+|---|---|---|
+| 純樣式（Tailwind / inline style / 純 CSS） | **0 tool call** | 用戶截圖確認即可 |
+| Component-local state / handler / ref | **2 tool call** | console.log + 用戶確認 |
+| 跨元件 / Zustand selector / API / RLS | **3 tool call** | CDP + 完整流程測試 |
+
+**分類判定法**（避免界線模糊）：
+- **問 1**：這個改動影響幾個元件？1 個 → state；2+ → 跨元件
+- **問 2**：這個改動讀寫 Zustand store 或 call API？yes → 跨元件
+- **問 3**：純 Tailwind / 純 CSS / 純 inline style？yes → 純樣式
+- 三題都簡單 → 對應 tier 上限
+
+**禁止**：
+- 「我覺得應該驗證一下」→ 不算理由
+- 純樣式改動用 CDP 量 computed style → **禁止**
+- 同一症狀累計超過上限 → **立即停止**，向使用者報告
+
+**超上限報告格式**（強制）：
+1. 已用 <N> tool call 量測了 X / Y / Z
+2. 結論:<找到根因 / 仍未定位>
+3. 建議:繼續(<剩餘額度>) / 換策略 / 手動介入
+
+**唯一例外**：用戶明確說「請驗證」「幫我確認有效」「跑一次 CDP」時，才升級驗證 tier。**模糊詞如「看一下」「試試看」不算明確要求**。
+
+**違規計入 §16 失敗上限**：純樣式改動卻啟 CDP 1 次 = 累計 1 次 tool call 失敗。
+
+### 16. 失敗上限與卡住回報 (Failure Budget)
+
+**觸發**（滿足任一即觸發）：
+1. 同一問題**累計 3 次修改**仍未解決
+2. **累計 6 次 tool call**（不限類型）仍無實質進展
+
+**規則**：觸發時，**立即停下**，向使用者報告：
+1. 我試過什麼（具體動作 + 結果）
+2. 我卡在哪（具體阻擋點）
+3. 建議下一步（手動介入？換策略？放棄？）
+
+**禁止「再試一次然後又換一種方式」** — 這是 rabbit hole。工具失敗（format error、返回空結果、被 block）和 code 修改次數分開累計，任何一個達標都該停下。
+
+### 16b. 首次失敗即停問診 (Early Stuck Intervention)
+
+**問題**：同一問題修完一次後仍沒解決時，繼續悶頭修容易繞遠路，尤其面對 iOS/Android 特殊行為時，我缺乏實機環境難以驗證，繼續修只是浪費次數。
+
+**觸發**：同一問題**第一次修復後仍無改善**
+
+**規則**：
+1. **立即停下，不繼續盲目修改**
+2. **主動提問或要求資料**，而不是假設自己知道根因：
+   - 「你在什麼設備/環境下測試的？（iOS Safari / Android Chrome / 桌面 Chrome）」
+   - 「可以截一張現在的畫面給我嗎？」
+   - 「你能幫我開 DevTools Console 看有沒有紅色錯誤訊息嗎？」
+   - 「具體症狀是什麼——任務完全沒出現，還是出現但位置錯了？」
+3. **用 `AskQuestion` 提供結構化選項**，不要只發開放式問題
+
+**例外不適用**（可直接再試）：
+- 用戶已提供明確 runtime 證據（截圖 + 標註 + DevTools 數據）
+- 純 CSS/Tailwind 樣式問題且有明確根因
+- 用戶明確說「再試一次」
+
+### 17. 改動分類揭露 (Change Classification Disclosure)
+
+**觸發**：任何提交（commit/PR）
+
+**要求**：在評分表或 commit message 中，每個改動必須標記為：
+
+- 🟢 **Primary** — 直接解決使用者提出的問題
+- 🟡 **Secondary** — 良性最佳化、附帶改進、副作用小但非主訴
+- 🔴 **Risky** — 改動商業邏輯、API、State、Schema（需特別強調）
+
+**規則**：
+- Secondary 改動**必須在評分表內獨立列出**，等使用者明確同意才能做
+- 「順便修一下」這類詞**禁止** — 它會稀釋 review 焦點
+- 評分表 ≥7.5 分的門檻**只適用於 Primary 改動**；Secondary 改動需獨立評分並揭露
+
+### 18. 症狀定性確認 (Symptom Triangulation)
+
+**觸發**：用戶描述視覺症狀時（變深、變大、殘留、看不到、點不動等）
+
+**問題**：症狀描述含糊時，AI 推測根因容易修錯目標。上輪「圈圈變深」修了 3 次才發現 × 按鈕也是同根因；「漢堡按鈕看不到」基於截圖推測修 className，但無 runtime 證據確認是渲染了但被遮 vs 真的沒渲染。
+
+**規則**：
+
+1. **第一步：`Read` 對應元件源碼**，**不修改**
+2. **第二步：列出所有可能根因表**（強制模板）：
+   | 症狀描述 | 可能根因 | 對應 CSS / WebKit 行為 | 修法方向 |
+   |---|---|---|---|
+   | <用戶描述的動詞> | <根因 1> | <對應屬性> | <對應方案> |
+   | | <根因 2> | ... | ... |
+   | | <根因 3> | ... | ... |
+   - 至少列 3 個根因,**不可只列 1 個就動手**
+3. **第三步：用 `AskQuestion` 三角定位**：
+   - 症狀具體在哪個元素？（圈圈 / × 按鈕 / 容器 / 整體）
+   - 是否包含其他症狀？
+   - 觸發條件是 tap / scroll / focus / 進入頁面？
+   - 環境是 DevTools 模擬 or 實機？
+4. **確認後才進評分表**
+
+**禁止**：
+- 基於單一描述就猜根因直接改代碼
+- 看到截圖出現某元素就以為是 bug 源頭（除非用戶明確說）
+- 圖像 vs 代碼「看起來矛盾」時硬猜（必須 runtime 確認）
+
+**例外不適用**（trivial 症狀免走 §18）：
+- 純 typo / 註解 / format 修正
+- 用戶明確指認元素：「這個 × 按鈕變深」「這個圈圈點不動」
+- 已附 runtime 證據（截圖 + 標註 + DevTools 數據）
+
+**違規計入 §16 失敗上限**：跳過根因表直接改代碼 = 累計 1 次修改失敗。
+
+### 21. 優化清單維護公約 (Optimization Ledger Maintenance)
+
+**用途**：`優化清單.md` 是專案待辦問題的單一事實來源（SSOT），需保持與現實同步。
+
+**規則**：
+
+1. **隨進度更新**：當問題有新線索、根因定位、或修復完成時，主動更新該問題的「備注」欄位
+2. **修完測試失敗，立即更新狀態**：用戶測試後若問題仍存在，**立即**將狀態改為「❌ 失敗，待定位」+ 備注寫明「用戶在 [設備/瀏覽器] 仍復現：[具體症狀]」，**不再寫「✅ 已修復」**，直到真正解決
+3. **失敗後主動探索新可能性**：修完一次失敗，不要重複查同一個根因，換一個完全不同的切入方向（查不同檔案、問不同假設、用 CDP/瀏覽器 runtime 取證），每次失敗後都要在備注裡寫明「已試過：X，下次試：Y」
+4. **刪改前確認**：任何**刪除問題、變更問題描述、或改變優先級**的動作，需先口頭向你確認
+5. **只增不刪**：原則上問題只進「已完成」區，不從檔案中抹去；廢除項目才真正刪除
+6. **推進時機**：當你說「推進優化清單」時，主動對每個問題報告最新狀態（已解決 / 有新線索 / 卡住）
+
+**優化清單.md 格式**：
+
+```markdown
+## 待實作功能
+| 優先級 | 功能 | 備注（跟進時更新） | 狀態 |
+
+## 已解決問題
+（每個問題留一列，附上解決方式和 commit hash）
+```
+
+**例外**：1-2 個字以內的 typo 修正、格式美化，無需確認。
+
+---
+
+### 22. 推進回合觸發條件
+
+當你說「推進優化清單」時，執行以下流程：
+
+1. 讀取 `優化清單.md`
+2. 對每個未解決問題報告：當前狀態 + 是否有新發現
+3. 對有明確根因的問題，附上「修一下？」的選項
+4. 等你選擇後再動手
+
+---
+
+### 20. ~~Mobile Input 特殊性原則（已併入 §15.4，刪除避免混淆）~~
+
+**觸發**：任何涉及 `<input>` / `<textarea>` 的鍵盤事件綁定（`onKeyDown`、`onKeyUp`、`onChange`）在提交前，必須同時驗證 iOS Safari 和 Android Chrome 上 soft keyboard 的行為是否一致。
+
+**已知 mobile input 時序差異**：
+- **iOS/Android `onKeyDown` 在 React controlled state 同步前觸發**：事件發生時 React state 可能仍是上一個值；`onChange` 才代表 React state 已同步
+- **IME composition 期間**：`onKeyDown`/`onKeyUp` 行為不一致，`onKeyDown` + `key === "Enter"` 在 iOS Safari 上不可靠
+- **軟體鍵盤 Enter 鍵**：iOS Safari 的「換行」按鈕在 `<input>` 上可能觸發 `key === "Enter"` 也可能不觸發
+
+**對應原則**：
+- 對 controlled input，**優先用 `onChange`** 作為值同步管道，不要依賴 `onKeyDown`/`onKeyUp` 裡讀 state
+- 若必須用 `onKeyDown`/`onKeyUp` 處理特定 key，**用 `onKeyUp`**（時序上更接近 React state commit 完成）
+- **禁用 `onKeyDown` 搭配 IME**，只用 `onChange` 或 `onKeyUp`
+- **Desktop browser 測試不足以發現 mobile input timing bug**，需要實機驗證
+
+---
+
+## 【任務管理器專案專屬補充】
+
+- **任務狀態視覺化**：待辦/進行中/已完成三態需有清晰顏色與圖示
+- **日期與時間**：統一格式、相對時間（如「今天 18:00」）、時區處理
+- **響應式斷點**：桌機優先，平板/手機需可讀可用
+- **資料持久化**：LocalStorage / IndexedDB / 後端 API 需明確架構
+
+---
+
+**【憲法優先級】**：本檔案規則優先級高於任何預設行為或單次指令細節。當後續指令與本憲法衝突時，需先與你確認是否覆寫。
+
+---
+
+### 23. 同步層確認原則 (Identify Actual Sync Layer First)
+
+**問題**：本專案同時存在多套同步機會（Firebase Realtime / Supabase Realtime / SyncWriter / migrateLocalToSupabase），第一輪修了 `FirebaseDataProvider/SyncWriter`，但真正寫入是 `personalTaskSync` → 白修一輪。
+
+**觸發**：任何涉及「資料同步」「雲端寫入」「跨設備同步」「realtime」「訂閱」的問題或修改。
+
+**規則**：
+1. **先搜尋所有 sync 相關檔案**：用 `Grep` 掃 `subscribe`、`batchSave`、`realtime`、`SyncWriter`、`FirebaseDataProvider`，列出所有同步機制
+2. **確認哪個模組真正處理你要修的功能**：從 `addTask` / `addList` / `deleteTask` 等操作觸發的 call stack 往上追，不是看 `AppLayout` 有沒有引用
+3. **只有確認了正確的 sync 檔案後**，才開始閱讀該檔並制定修復方案
+
+**典型錯誤**：「看到 `FirebaseDataProvider` 在用，就以為它是實際寫入層」。
+
+**例外**（直接定位）：用戶已明確說「問題在 XXX 檔」或已提供具體 call stack。
+
+---
+
+## 【生效紀錄】
+
+| 日期 | 變更 |
+|------|------|
+| 2026-07-17 | 新增 § 23 同步層確認原則（針對「修了 FirebaseDataProvider 但實際同步層是 personalTaskSync」繞彎教訓） |
