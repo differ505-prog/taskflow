@@ -6,8 +6,9 @@ import { PRIORITY_CONFIG } from "@/lib/types";
 import { useApp } from "@/lib/AppContext";
 import { getTagColors, getOrphanTags } from "@/lib/storage";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Plus, Repeat, Calendar, Mic, MicOff, Hash, AlertCircle } from "lucide-react";
+import { X, Plus, Repeat, Calendar, Mic, MicOff, Hash, AlertCircle, Sparkles } from "lucide-react";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
+import { ProGhostButton } from "./ProGhostButton";
 import { deleteFile } from "@/lib/storageUpload";
 import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
 import { getEisenhowerVisual } from "@/lib/eisenhower";
@@ -329,6 +330,12 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                 </div>
                 {errors.title && <p className="mt-1.5 text-[12px]" style={{ color: "var(--status-danger)" }}>{errors.title}</p>}
               </div>
+
+              {/* AI 自動任務拆解（PRO 幽靈按鈕） */}
+              <ProGhostButton feature="ai-task-decompose" variant="inline" className="mb-4">
+                <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>AI 拆解</span>
+              </ProGhostButton>
 
               {/* Description */}
               <div>

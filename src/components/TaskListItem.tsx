@@ -30,6 +30,8 @@ interface TaskListItemProps {
 import { sortSubTasks } from "@/utils/subtaskSort";
 import { useSubTaskCollapse } from "@/utils/useSubTaskCollapse";
 import { fireTaskDoneConfetti, playTaskDoneSound } from "@/lib/confetti";
+import { useAuth } from "@/lib/AuthContext";
+import { ProGhostButton } from "./ProGhostButton";
 
 export function TaskListItem({
   task,
@@ -51,6 +53,8 @@ export function TaskListItem({
   const isDone = task.status === "done";
   const { isCollapsed: isDoneCollapsed, toggle: toggleDoneCollapse } = useSubTaskCollapse(task.id, subTasks);
   const deadlineStatus = getDeadlineStatus(task.dueDate, task.dueTime, isDone);
+  const { isAdmin, isPro, isBeta } = useAuth();
+  const dominoUnlocked = isAdmin || isPro || isBeta;
 
   const todoSubTasks = sortedSubTasks.filter((s) => s.status !== "done");
   const doneSubTasks = sortedSubTasks.filter((s) => s.status === "done");
@@ -202,6 +206,16 @@ export function TaskListItem({
                       <CheckCircle2 className="w-3 h-3" aria-hidden="true" />
                       全部完成
                     </span>
+                  )}
+                  {!dominoUnlocked && todoSubTasks.length > 1 && (
+                    <ProGhostButton
+                      feature="domino-tasks"
+                      variant="inline"
+                      className="ml-1 px-1.5 py-0.5 rounded-md text-[10px]"
+                      title="Domino Tasks · 完成前置後漸進解鎖（PRO 專屬）"
+                    >
+                      <span>Domino</span>
+                    </ProGhostButton>
                   )}
                 </div>
                 <ul className="flex flex-col gap-1">

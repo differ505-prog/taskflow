@@ -27,7 +27,12 @@ export type ProFeature =
   | "custom-tag-colors"
   | "stats-dashboard"
   | "tag-rename"
-  | "batch-operations";
+  | "batch-operations"
+  | "cloud-attachments"
+  | "ai-task-decompose"
+  | "karma-mode"
+  | "domino-tasks"
+  | "storage-overflow";
 
 export interface FeatureGateResult {
   /** 是否被鎖（free 用戶） */

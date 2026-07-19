@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { Attachment } from "@/lib/types";
 import { Upload, Lock, AlertCircle, CheckCircle2, X, Image, FileText, Loader2 } from "lucide-react";
 import { uploadFile, formatFileSize, getFileIcon, UploadProgress } from "@/lib/storageUpload";
+import { track } from "@/lib/analytics";
 
 interface UploadItem {
   id: string;
@@ -51,10 +52,17 @@ export function ProtectedUploadButton({
 
   if (!hasUploadAccess) {
     return (
-      <div className={`flex items-center gap-2 text-[12px] ${className}`} style={{ color: "var(--text-tertiary)" }}>
-        <Lock className="w-3.5 h-3.5" />
-        <span>上傳功能僅對早期測試者開放</span>
-      </div>
+      <button
+        type="button"
+        onClick={() => track("painted_door_clicked", { feature: "cloud-attachments" })}
+        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium transition-all hover:scale-[1.02] active:scale-[0.98] ${className}`}
+        style={{ background: "var(--surface-muted)", color: "var(--text-secondary)" }}
+        title="雲端檔案上傳 · PRO 專屬"
+        aria-label="雲端檔案上傳（PRO 專屬）"
+      >
+        <Lock className="w-3.5 h-3.5" aria-hidden="true" />
+        <span>{buttonIcon ? "雲端上傳" : "添加附件（PRO）"}</span>
+      </button>
     );
   }
 

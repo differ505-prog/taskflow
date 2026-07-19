@@ -12,6 +12,7 @@ import {
   Moon, Sun, Bell, Download, Upload, Trash2, Info,
   ChevronRight, X, CheckCircle2, AlertCircle, FileText,
   CalendarDays, Shield, UserPlus, UserMinus, Crown, Sparkles, Zap, Copy,
+  Heart, Lock, Package,
 } from "lucide-react";
 import { getTasks } from "@/lib/storage";
 import { TemplateMarketplace } from "./TemplateMarketplace";
@@ -21,6 +22,7 @@ import { ROLE_CONFIGS, UserRole } from "@/lib/types";
 import { getConfettiEnabled, setConfettiEnabled, previewConfetti } from "@/lib/confetti";
 import { toast } from "sonner";
 import { isComposingKey } from "@/utils/imeGuard";
+import { ProGhostButton } from "./ProGhostButton";
 
 interface SettingsPageProps {
   isOpen: boolean;
@@ -306,6 +308,57 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                   {opt.label}
                 </button>
               ))}
+            </div>
+          </section>
+
+          {/* PRO 功能（幽靈按鈕埋點） */}
+          <section>
+            <h3 className="text-[12px] font-semibold uppercase tracking-widest mb-3 flex items-center gap-2" style={{ color: "var(--text-tertiary)" }}>
+              <Crown className="w-3.5 h-3.5" aria-hidden="true" />
+              PRO 功能搶先看
+            </h3>
+            <div className="space-y-2">
+              {/* Karma Mode 開關（幽靈） */}
+              <div className="card px-4 py-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: "rgba(244, 63, 94, 0.10)" }}
+                  >
+                    <Heart className="w-4 h-4" style={{ color: "#F43F5E" }} aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>Karma Mode</p>
+                    <p className="text-[12px] truncate" style={{ color: "var(--text-tertiary)" }}>
+                      心靈還債引擎 · 拖延會扣信用血條
+                    </p>
+                  </div>
+                </div>
+                <ProGhostButton feature="karma-mode" variant="inline" title="啟用 Karma Mode（PRO 專屬）">
+                  <span>啟用</span>
+                </ProGhostButton>
+              </div>
+
+              {/* 儲存空間管理（幽靈） */}
+              <div className="card px-4 py-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: "var(--brand-tint)" }}
+                  >
+                    <Package className="w-4 h-4" style={{ color: "var(--brand)" }} aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>加大儲存空間</p>
+                    <p className="text-[12px] truncate" style={{ color: "var(--text-tertiary)" }}>
+                      ZIP 備份、大檔清理、滿載加購
+                    </p>
+                  </div>
+                </div>
+                <ProGhostButton feature="storage-overflow" variant="inline" title="管理儲存空間（PRO 專屬）">
+                  <span>管理</span>
+                </ProGhostButton>
+              </div>
             </div>
           </section>
 

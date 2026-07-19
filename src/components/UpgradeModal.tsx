@@ -30,6 +30,26 @@ const FEATURE_COPY: Record<ProFeature, { title: string; description: string }> =
     title: "批次操作",
     description: "選取多個任務一次完成搬移、標記、刪除等操作。",
   },
+  "cloud-attachments": {
+    title: "雲端檔案與富文本評論",
+    description: "S3 拖曳上傳附件,搭配富文本格式撰寫任務註解與協作留言。",
+  },
+  "ai-task-decompose": {
+    title: "AI 自動任務拆解",
+    description: "輸入大專案,AI 自動切分為具體可執行的子任務與時間估算。",
+  },
+  "karma-mode": {
+    title: "Karma Mode · 心靈還債引擎",
+    description: "信用血條會因拖延而扣血;完成任務累積 Karma,維持你的信用節奏。",
+  },
+  "domino-tasks": {
+    title: "Domino Tasks · 漸進式專案解鎖",
+    description: "未完成的子任務保持毛玻璃模糊,完成前置任務後自動解鎖後續步驟。",
+  },
+  "storage-overflow": {
+    title: "加大儲存空間",
+    description: "提供 ZIP 備份、大檔清理與加購空間,告別滿載焦慮。",
+  },
 };
 
 /**
