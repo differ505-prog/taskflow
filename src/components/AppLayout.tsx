@@ -254,6 +254,7 @@ function AppLayoutInner() {
           onSelectList={(id) => setCurrentView("list", id)}
           onOpenSidebar={() => setIsMobileSidebarOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenPomodoro={() => setIsPomodoroOpen(true)}
           todayCount={viewCounts.today}
         />
       </div>

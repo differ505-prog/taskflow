@@ -5,7 +5,7 @@ import { useApp } from "@/lib/AppContext";
 import { Task } from "@/lib/types";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, ChevronDown, ChevronRight as ChevronRightSm } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 interface CalendarViewProps {
@@ -19,6 +19,8 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [draggingTask, setDraggingTask] = useState<string | null>(null);
   const [quickAddTitle, setQuickAddTitle] = useState("");
+  // 已完成任務摺疊：key = `${dateStr}`,value = 是否展開（未存 = 已折疊）
+  const [doneExpanded, setDoneExpanded] = useState<Record<string, boolean>>({});
   const quickAddInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -302,19 +304,56 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
                   </div>
                   <p className="text-[13px]" style={{ color: "var(--text-tertiary)" }}>這天沒有任務</p>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  {selectedDateTasks.map((task) => (
-                    <CalendarTaskItem
-                      key={task.id}
-                      task={task}
-                      isSelected={selectedTaskId === task.id}
-                      onClick={() => onSelectTask(task.id)}
-                      onToggleStatus={() => toggleTaskStatus(task.id)}
-                    />
-                  ))}
-                </div>
-              )}
+              ) : (() => {
+                const todo = selectedDateTasks.filter((t) => t.status !== "done");
+                const done = selectedDateTasks.filter((t) => t.status === "done");
+                const isDoneOpen = !!doneExpanded[selectedDate];
+                return (
+                  <div className="space-y-2">
+                    {todo.map((task) => (
+                      <CalendarTaskItem
+                        key={task.id}
+                        task={task}
+                        isSelected={selectedTaskId === task.id}
+                        onClick={() => onSelectTask(task.id)}
+                        onToggleStatus={() => toggleTaskStatus(task.id)}
+                      />
+                    ))}
+                    {done.length > 0 && (
+                      <div className={todo.length > 0 ? "pt-2 border-t border-dashed" : ""} style={{ borderColor: "var(--border)" }}>
+                        <button
+                          type="button"
+                          onClick={() => setDoneExpanded((prev) => ({ ...prev, [selectedDate]: !prev[selectedDate] }))}
+                          className="flex items-center gap-1 text-[11px] font-medium transition-colors hover:opacity-80"
+                          style={{ color: "var(--text-tertiary)" }}
+                          aria-expanded={isDoneOpen}
+                          aria-label={isDoneOpen ? `摺疊 ${done.length} 項已完成任務` : `展開 ${done.length} 項已完成任務`}
+                        >
+                          {isDoneOpen ? (
+                            <ChevronDown className="w-3 h-3" aria-hidden="true" />
+                          ) : (
+                            <ChevronRightSm className="w-3 h-3" aria-hidden="true" />
+                          )}
+                          <span>已完成 ({done.length})</span>
+                        </button>
+                        {isDoneOpen && (
+                          <div className="mt-2 space-y-2">
+                            {done.map((task) => (
+                              <CalendarTaskItem
+                                key={task.id}
+                                task={task}
+                                isSelected={selectedTaskId === task.id}
+                                onClick={() => onSelectTask(task.id)}
+                                onToggleStatus={() => toggleTaskStatus(task.id)}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </motion.div>
         )}

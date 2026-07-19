@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Task, Priority, TaskStatus, Recurrence, SubTask, Attachment } from "@/lib/types";
 import { PRIORITY_CONFIG } from "@/lib/types";
 import { useApp } from "@/lib/AppContext";
+import { useAuth } from "@/lib/AuthContext";
 import { getTagColors } from "@/lib/storage";
 import { getEisenhowerVisual } from "@/lib/eisenhower";
 import { AnimatePresence, motion } from "framer-motion";
@@ -11,9 +12,10 @@ import {
   X, Plus, Repeat, Calendar, Mic, MicOff, Hash,
   Trash2, CheckCircle2, Circle, Tag as TagIcon,
   AlignLeft, Clock, Timer, ListChecks, Paperclip,
-  AlertCircle, Flag, ChevronDown, Pin, ExternalLink,
+  AlertCircle, Flag, ChevronDown, ChevronRight, Pin, ExternalLink,
 } from "lucide-react";
 import { sortSubTasks } from "@/utils/subtaskSort";
+import { useSubTaskCollapse } from "@/utils/useSubTaskCollapse";
 import { ListChipPicker } from "./ListChipPicker";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
 import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
@@ -43,6 +45,9 @@ const SELECT_ARROW = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
 
 export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   const { updateTask, deleteTask, lists, getTagCounts } = useApp();
+  const { user } = useAuth();
+  const collapseScope = user?.uid ?? "anon";
+  const { isCollapsed: isDoneCollapsed, toggle: toggleDoneCollapse } = useSubTaskCollapse(task.id, task.subTasks || [], collapseScope);
 
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || "");
@@ -474,17 +479,60 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               <Plus className="w-4 h-4" />
             </button>
           </div>
-          {sortSubTasks(subTasks).map((sub) => (
-            <SwipeableSubTask
-              key={sub.id}
-              sub={sub}
-              isEditing={editingSubId === sub.id}
-              onToggle={() => toggleSubTask(sub.id)}
-              onEdit={() => setEditingSubId(sub.id)}
-              onEditCommit={(title) => commitEditSubTask(sub.id, title)}
-              onDelete={() => deleteSubTask(sub.id)}
-            />
-          ))}
+          {(() => {
+            const sorted = sortSubTasks(subTasks);
+            const todoSubs = sorted.filter((s) => s.status !== "done");
+            const doneSubs = sorted.filter((s) => s.status === "done");
+            return (
+              <>
+                {todoSubs.map((sub) => (
+                  <SwipeableSubTask
+                    key={sub.id}
+                    sub={sub}
+                    isEditing={editingSubId === sub.id}
+                    onToggle={() => toggleSubTask(sub.id)}
+                    onEdit={() => setEditingSubId(sub.id)}
+                    onEditCommit={(title) => commitEditSubTask(sub.id, title)}
+                    onDelete={() => deleteSubTask(sub.id)}
+                  />
+                ))}
+                {doneSubs.length > 0 && (
+                  <div className="mt-1.5 pt-1.5 border-t border-dashed" style={{ borderColor: "var(--border)" }}>
+                    <button
+                      type="button"
+                      onClick={toggleDoneCollapse}
+                      className="flex items-center gap-1 text-[11px] font-medium transition-colors hover:opacity-80"
+                      style={{ color: "var(--text-tertiary)" }}
+                      aria-expanded={!isDoneCollapsed}
+                      aria-label={isDoneCollapsed ? `展開 ${doneSubs.length} 項已完成子任務` : `摺疊 ${doneSubs.length} 項已完成子任務`}
+                    >
+                      {isDoneCollapsed ? (
+                        <ChevronRight className="w-3 h-3" aria-hidden="true" />
+                      ) : (
+                        <ChevronDown className="w-3 h-3" aria-hidden="true" />
+                      )}
+                      <span>已完成 ({doneSubs.length})</span>
+                    </button>
+                    {!isDoneCollapsed && (
+                      <div className="mt-1 flex flex-col gap-0.5">
+                        {doneSubs.map((sub) => (
+                          <SwipeableSubTask
+                            key={sub.id}
+                            sub={sub}
+                            isEditing={editingSubId === sub.id}
+                            onToggle={() => toggleSubTask(sub.id)}
+                            onEdit={() => setEditingSubId(sub.id)}
+                            onEditCommit={(title) => commitEditSubTask(sub.id, title)}
+                            onDelete={() => deleteSubTask(sub.id)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {/* List + Priority + Attachments + Tags — 圖示化高頻區 */}

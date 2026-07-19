@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import {
   Inbox, Sun, CalendarDays, Layers, Tag, BarChart3, CalendarRange,
-  Settings, List as ListIcon,
+  Settings, List as ListIcon, Timer,
 } from "lucide-react";
 import { AppView, TaskList } from "@/lib/types";
 import { haptic } from "@/lib/haptics";
@@ -36,10 +36,11 @@ interface BottomNavigationProps {
   onSelectList: (listId: string) => void;
   onOpenSidebar: () => void;
   onOpenSettings: () => void;
+  onOpenPomodoro?: () => void;
   todayCount?: number;
 }
 
-export function BottomNavigation({ currentView, currentListId, lists, onNavigate, onSelectList, onOpenSidebar, onOpenSettings, todayCount = 0 }: BottomNavigationProps) {
+export function BottomNavigation({ currentView, currentListId, lists, onNavigate, onSelectList, onOpenSidebar, onOpenSettings, onOpenPomodoro, todayCount = 0 }: BottomNavigationProps) {
   const [moreOpen, setMoreOpen] = useState(false);
 
   const handleTap = useCallback((view: AppView) => {
@@ -57,6 +58,12 @@ export function BottomNavigation({ currentView, currentListId, lists, onNavigate
     setMoreOpen(false);
     onNavigate(view);
   }, [onNavigate]);
+
+  const handlePomodoro = useCallback(() => {
+    haptic("selection");
+    setMoreOpen(false);
+    onOpenPomodoro?.();
+  }, [onOpenPomodoro]);
 
   const handleSettings = useCallback(() => {
     haptic("selection");
@@ -108,7 +115,7 @@ export function BottomNavigation({ currentView, currentListId, lists, onNavigate
       </nav>
 
       {/* More popover */}
-      {moreOpen && <MorePopover onItem={handleMoreItem} onSettings={handleSettings} onSelectList={onSelectList} onOpenSidebar={onOpenSidebar} currentView={currentView} currentListId={currentListId} lists={lists} onClose={() => setMoreOpen(false)} />}
+      {moreOpen && <MorePopover onItem={handleMoreItem} onPomodoro={onOpenPomodoro ? handlePomodoro : undefined} onSettings={handleSettings} onSelectList={onSelectList} onOpenSidebar={onOpenSidebar} currentView={currentView} currentListId={currentListId} lists={lists} onClose={() => setMoreOpen(false)} />}
     </>
   );
 }
@@ -123,8 +130,9 @@ function MoreIcon() {
   );
 }
 
-function MorePopover({ onItem, onSettings, onSelectList, onOpenSidebar, currentView, currentListId, lists, onClose }: {
+function MorePopover({ onItem, onPomodoro, onSettings, onSelectList, onOpenSidebar, currentView, currentListId, lists, onClose }: {
   onItem: (v: AppView) => void;
+  onPomodoro?: () => void;
   onSettings: () => void;
   onSelectList: (listId: string) => void;
   onOpenSidebar: () => void;
@@ -142,6 +150,22 @@ function MorePopover({ onItem, onSettings, onSelectList, onOpenSidebar, currentV
         role="menu"
         aria-label="更多選項"
       >
+        {/* 蕃茄鐘：手機版主要入口，放在清單上方 */}
+        {onPomodoro && (
+          <>
+            <button
+              className="flex items-center gap-3 px-5 py-3.5 text-[14px] font-medium w-full text-left transition-colors hover:bg-[var(--surface-hover)]"
+              style={{ color: "var(--brand)" }}
+              onClick={onPomodoro}
+              role="menuitem"
+            >
+              <Timer className="w-[22px] h-[22px]" />
+              蕃茄計時
+            </button>
+            <div style={{ height: "1px", background: "var(--border)" }} />
+          </>
+        )}
+
         {/* 清單 section */}
         {lists.length > 0 && (
           <>
