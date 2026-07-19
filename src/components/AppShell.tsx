@@ -416,15 +416,15 @@ export function AppShell({
             ) : (
               <>
                 {/* Toolbar */}
-                <div className="flex items-center justify-between gap-4 mb-4 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 overflow-x-auto scrollbar-hide pb-1 touch-scroll">
+                <div className="flex items-center justify-between gap-2 sm:gap-4 mb-4 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 overflow-x-auto scrollbar-hide pb-1 touch-scroll min-w-0 flex-1">
                     {["全部", "待辦", "進行中", "已完成"].map((label, i) => {
                       const statuses = ["all", "todo", "in-progress", "done"] as const;
                       const val = statuses[i];
                       const isActive = activeFilter.status === val || (val === "all" && !activeFilter.status);
                       const count = val === "all" ? filteredTasks.length : filteredTasks.filter((t) => t.status === val).length;
                       return (
-                        <button key={val} onClick={() => setActiveFilter({ ...activeFilter, status: val === "all" ? undefined : val as any })} className="flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all duration-150"
+                        <button key={val} onClick={() => setActiveFilter({ ...activeFilter, status: val === "all" ? undefined : val as any })} className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 rounded-full text-[12px] font-medium transition-all duration-150"
                           style={isActive ? { background: "var(--text-primary)", color: "var(--surface)" } : { background: "rgba(0,0,0,0.04)", color: "var(--text-secondary)" }}>
                           {label} <span style={{ opacity: 0.5 }}>{count}</span>
                         </button>
@@ -432,7 +432,7 @@ export function AppShell({
                     })}
                     {/* 顯示完成按鈕 — 所有視圖通用 */}
                     {tasks.some((t) => t.status === "done" && !t.isArchived) && (
-                      <button onClick={() => { setShowCompleted(!showCompleted); setActiveFilter({ ...activeFilter, status: undefined }); }} className="flex-shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all duration-150"
+                      <button onClick={() => { setShowCompleted(!showCompleted); setActiveFilter({ ...activeFilter, status: undefined }); }} className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 rounded-full text-[12px] font-medium transition-all duration-150"
                         style={!showCompleted ? { background: "var(--brand-tint)", color: "var(--brand)" } : { background: "rgba(0,0,0,0.04)", color: "var(--text-tertiary)" }}>
                         <Archive className="w-3 h-3" />
                         {showCompleted ? "隱藏完成" : "顯示完成"}
@@ -440,7 +440,7 @@ export function AppShell({
                     )}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <div className="relative">
+                    <div className="relative hidden sm:block">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--text-tertiary)" }} />
                       <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }} placeholder="搜尋任務 / 子任務 / 標籤..." className="input pl-9 pr-4" style={{ fontSize: 13, paddingTop: 7, paddingBottom: 7, width: 220 }} />
                     </div>
