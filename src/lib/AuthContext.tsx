@@ -34,6 +34,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInWithApple: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -56,8 +57,9 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   loading: true,
-  signInWithGoogle: async () => {},
-  signInWithEmail: async () => {},
+    signInWithGoogle: async () => {},
+    signInWithApple: async () => {},
+    signInWithEmail: async () => {},
   signUpWithEmail: async () => {},
   signOut: async () => {},
   role: "free",
@@ -224,6 +226,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
+  const signInWithApple = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "apple",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+    if (error) throw error;
+  };
+
   const signInWithEmail = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
@@ -245,7 +257,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user, loading,
-        signInWithGoogle, signInWithEmail, signUpWithEmail, signOut,
+        signInWithGoogle, signInWithApple, signInWithEmail, signUpWithEmail, signOut,
         role, roleConfig, canUpload, maxFileSizeMB,
         isAdmin, isPro, isBeta, isFree,
         betaUsers, betaLoading,
