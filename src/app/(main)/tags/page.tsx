@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { useFeatureGate } from "@/lib/useFeatureGate";
 import { motion, AnimatePresence } from "framer-motion";
 import { UpgradeModal } from "@/components/UpgradeModal";
+import { TagsPageSkeleton } from "@/components/Skeleton";
 import { isComposingKey } from "@/utils/imeGuard";
 
 interface TagEntry {
@@ -126,11 +127,7 @@ export default function TagsPage() {
   };
 
   if (!isLoaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="spinner" role="status" aria-label="載入中" />
-      </div>
-    );
+    return <TagsPageSkeleton />;
   }
 
   return (

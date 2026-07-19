@@ -70,6 +70,7 @@ import { useAuth } from "./AuthContext";
 import { updateLastActive } from "@/lib/userProfiles";
 import { triggerWebhook } from "./useWebhook";
 import { toast } from "sonner";
+import { AppShellSkeleton } from "@/components/Skeleton";
 
 interface AppContextValue {
   // ── 資料 ──────────────────────────────────────────────
@@ -1527,7 +1528,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     clearEditingActivity,
   };
 
-  if (!isLoaded) return null;
+  if (!isLoaded) return <AppShellSkeleton />;
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useApp } from "@/lib/AppContext";
+import { TagsPageSkeleton } from "./Skeleton";
 import { Tags as TagsIcon, Plus, Trash2, Edit3, X, Check, Lock } from "lucide-react";
 import { Task } from "@/lib/types";
 import { TAG_COLORS } from "@/lib/types";
@@ -134,11 +135,7 @@ export function TagsPage() {
   };
 
   if (!isLoaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="spinner" role="status" />
-      </div>
-    );
+    return <TagsPageSkeleton />;
   }
 
   return (
