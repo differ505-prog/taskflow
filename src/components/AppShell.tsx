@@ -491,7 +491,7 @@ export function AppShell({
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--text-tertiary)" }} />
-                      <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }} placeholder="搜尋..." className="input pl-9 pr-4" style={{ fontSize: 13, paddingTop: 7, paddingBottom: 7, width: 140 }} />
+                      <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }} placeholder="搜尋任務 / 子任務 / 標籤..." className="input pl-9 pr-4" style={{ fontSize: 13, paddingTop: 7, paddingBottom: 7, width: 220 }} />
                     </div>
                     <div className="flex items-center gap-0.5 p-1 rounded-xl" style={{ background: "rgba(0,0,0,0.04)" }}>
                       <button onClick={() => setViewMode("list")} className="p-1.5 rounded-lg transition-all duration-150" style={viewMode === "list" ? { background: "var(--surface)", boxShadow: "var(--shadow-xs)", color: "var(--text-primary)" } : { color: "var(--text-tertiary)" }} aria-label="列表檢視">

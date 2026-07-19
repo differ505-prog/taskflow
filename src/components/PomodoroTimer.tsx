@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useApp } from "@/lib/AppContext";
 import { useZenFlowContext } from "@/lib/ZenFlowContext";
 import { Task } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Play, Pause, RotateCcw, Coffee, Target,
-  X, CheckCircle2, Timer,
+  X, CheckCircle2, Timer, Search,
 } from "lucide-react";
 
 interface PomodoroTimerProps {
@@ -32,6 +32,10 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
   const [secondsLeft, setSecondsLeft] = useState(FOCUS_MINUTES * 60);
   const [selectedTaskId, setSelectedTaskId] = useState<string | undefined>(undefined);
   const [completedSessions, setCompletedSessions] = useState(0);
+  const [taskSearch, setTaskSearch] = useState("");
+  const [taskMenuOpen, setTaskMenuOpen] = useState(false);
+  const taskSearchRef = useRef<HTMLInputElement>(null);
+  const taskMenuRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const totalSeconds = type === "focus"
@@ -43,6 +47,35 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
   const progress = (totalSeconds - secondsLeft) / totalSeconds;
 
   const activeTasks = tasks.filter((t) => !t.isArchived && t.status !== "done");
+  const filteredTasks = useMemo(() => {
+    const q = taskSearch.trim().toLowerCase();
+    if (!q) return activeTasks.slice(0, 50);
+    return activeTasks
+      .filter(
+        (t) =>
+          t.title.toLowerCase().includes(q) ||
+          t.tags.some((tag) => tag.toLowerCase().includes(q))
+      )
+      .slice(0, 50);
+  }, [activeTasks, taskSearch]);
+  const selectedTask = useMemo(
+    () => activeTasks.find((t) => t.id === selectedTaskId),
+    [activeTasks, selectedTaskId]
+  );
+
+  useEffect(() => {
+    if (!taskMenuOpen) return;
+    const onClickOutside = (e: MouseEvent) => {
+      if (
+        taskMenuRef.current &&
+        !taskMenuRef.current.contains(e.target as Node)
+      ) {
+        setTaskMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [taskMenuOpen]);
 
   const handleStart = useCallback(() => {
     setTimerState("running");
@@ -255,25 +288,103 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
           </div>
         )}
 
-        {/* Link to task */}
-        <div>
-          <select
-            value={selectedTaskId || ""}
-            onChange={(e) => setSelectedTaskId(e.target.value || undefined)}
-            className="input text-center"
+        {/* Link to task — 可搜尋 combobox */}
+        <div className="relative" ref={taskMenuRef}>
+          <button
+            type="button"
+            onClick={() => {
+              setTaskMenuOpen((v) => !v);
+              if (!taskMenuOpen) {
+                requestAnimationFrame(() => taskSearchRef.current?.focus());
+              }
+            }}
+            className="input text-center flex items-center justify-center gap-2 truncate"
             style={{ fontSize: 13 }}
+            aria-haspopup="listbox"
+            aria-expanded={taskMenuOpen}
           >
-            <option value="">不綁定任務</option>
-            {activeTasks.map((t) => (
-              <option key={t.id} value={t.id}>{t.title}</option>
-            ))}
-          </select>
-          {todayFocusMinutes > 0 && (
-            <p className="text-[12px] mt-2" style={{ color: "var(--text-tertiary)" }}>
-              今日累計專注 {todayFocusMinutes} 分鐘
-            </p>
-          )}
+            <Search className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-tertiary)" }} aria-hidden="true" />
+            <span className="truncate">
+              {selectedTask ? selectedTask.title : "綁定任務（點擊搜尋）"}
+            </span>
+            {selectedTask && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => { e.stopPropagation(); setSelectedTaskId(undefined); }}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); setSelectedTaskId(undefined); } }}
+                className="ml-auto p-0.5 rounded hover:bg-black/5"
+                aria-label="清除綁定"
+              >
+                <X className="w-3 h-3" style={{ color: "var(--text-tertiary)" }} />
+              </span>
+            )}
+          </button>
+
+          <AnimatePresence>
+            {taskMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.12 }}
+                className="absolute left-0 right-0 mt-1.5 rounded-xl overflow-hidden shadow-lg z-10"
+                style={{ background: "var(--surface-elevated)", border: "1px solid var(--border)", maxHeight: 260 }}
+              >
+                <div className="p-2 sticky top-0 z-[1]" style={{ background: "var(--surface-elevated)", borderBottom: "1px solid var(--border)" }}>
+                  <input
+                    ref={taskSearchRef}
+                    type="text"
+                    value={taskSearch}
+                    onChange={(e) => setTaskSearch(e.target.value)}
+                    placeholder="搜尋任務..."
+                    className="input w-full"
+                    style={{ fontSize: 13, paddingTop: 6, paddingBottom: 6 }}
+                    onKeyDown={(e) => { if (e.key === "Escape") setTaskMenuOpen(false); }}
+                  />
+                </div>
+                <ul role="listbox" className="overflow-y-auto" style={{ maxHeight: 200 }}>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedTaskId(undefined); setTaskMenuOpen(false); setTaskSearch(""); }}
+                      className="w-full px-3 py-2 text-left text-[13px] transition-colors hover:bg-black/5"
+                      style={{ color: "var(--text-tertiary)" }}
+                    >
+                      不綁定任務
+                    </button>
+                  </li>
+                  {filteredTasks.length === 0 ? (
+                    <li className="px-3 py-4 text-center text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+                      找不到符合「{taskSearch}」的任務
+                    </li>
+                  ) : (
+                    filteredTasks.map((t) => (
+                      <li key={t.id}>
+                        <button
+                          type="button"
+                          onClick={() => { setSelectedTaskId(t.id); setTaskMenuOpen(false); setTaskSearch(""); }}
+                          className="w-full px-3 py-2 text-left text-[13px] truncate transition-colors hover:bg-[var(--surface-hover)]"
+                          style={{ color: "var(--text-primary)" }}
+                          role="option"
+                          aria-selected={t.id === selectedTaskId}
+                          title={t.title}
+                        >
+                          {t.title}
+                        </button>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
+        {todayFocusMinutes > 0 && (
+          <p className="text-[12px] mt-2" style={{ color: "var(--text-tertiary)" }}>
+            今日累計專注 {todayFocusMinutes} 分鐘
+          </p>
+        )}
 
         {/* Close */}
         <button

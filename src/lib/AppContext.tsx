@@ -516,7 +516,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         (t) =>
           t.title.toLowerCase().includes(q) ||
           t.description?.toLowerCase().includes(q) ||
-          t.tags.some((tag) => tag.toLowerCase().includes(q))
+          t.tags.some((tag) => tag.toLowerCase().includes(q)) ||
+          t.subTasks?.some((s) => s.title.toLowerCase().includes(q))
       );
     }
     if (activeFilter.priority) result = result.filter((t) => t.priority === activeFilter.priority);
