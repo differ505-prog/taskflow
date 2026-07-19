@@ -13,6 +13,7 @@ import {
   deleteTaskComment,
   TaskComment,
 } from "@/lib/taskCommentsFS";
+import { isComposingKey } from "@/utils/imeGuard";
 
 interface Props {
   taskId: string;
@@ -156,6 +157,7 @@ export default function TaskCommentsInline({ taskId }: Props) {
           onChange={(e) => setContent(e.target.value)}
           onKeyDown={(e) => {
             // Enter 直接送出；Shift+Enter 換行
+            if (isComposingKey(e)) return;
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               handleSubmit();

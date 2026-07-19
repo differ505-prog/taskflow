@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { useFeatureGate } from "@/lib/useFeatureGate";
 import { motion, AnimatePresence } from "framer-motion";
 import { UpgradeModal } from "@/components/UpgradeModal";
+import { isComposingKey } from "@/utils/imeGuard";
 
 interface TagEntry {
   name: string;
@@ -204,7 +205,7 @@ export default function TagsPage() {
                     type="text"
                     value={newTagName}
                     onChange={(e) => setNewTagName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleCreateTag(); if (e.key === "Escape") setShowCreateModal(false); }}
+                    onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === "Enter") handleCreateTag(); if (e.key === "Escape") setShowCreateModal(false); }}
                     placeholder="輸入標籤名稱"
                     className="input w-full"
                     maxLength={50}
@@ -315,6 +316,7 @@ export default function TagsPage() {
                               value={editInput}
                               onChange={(e) => setEditInput(e.target.value)}
                               onKeyDown={(e) => {
+                                if (isComposingKey(e)) return;
                                 if (e.key === "Enter") handleRenameTag(entry.name);
                                 if (e.key === "Escape") setEditingTag(null);
                               }}

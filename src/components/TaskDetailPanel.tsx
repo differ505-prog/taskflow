@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { sortSubTasks } from "@/utils/subtaskSort";
 import { useSubTaskCollapse } from "@/utils/useSubTaskCollapse";
+import { isComposingKey } from "@/utils/imeGuard";
 import { ListChipPicker } from "./ListChipPicker";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
 import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
@@ -473,7 +474,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               type="text"
               value={subtaskInputValue}
               onChange={(e) => setSubtaskInputValue(e.target.value)}
-              onKeyUp={(e) => { if (e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
+              onKeyUp={(e) => { if (!isComposingKey(e) && e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
               placeholder="新增子任務..." className="input flex-1" style={{ fontSize: 13, padding: "8px 12px" }} />
             <button type="button" onClick={addSubTask} className="btn-ghost px-3" aria-label="新增子任務">
               <Plus className="w-4 h-4" />
@@ -588,6 +589,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
                     value={tagInput}
                     onChange={(e) => { setTagInput(e.target.value); updateTagSuggestions(e.target.value); }}
                     onKeyDown={(e) => {
+                      if (isComposingKey(e)) return;
                       if (e.key === "Enter") { e.preventDefault(); addTag(); }
                       if (e.key === "Escape") { setShowSuggestions(false); }
                     }}

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { Trash2, CheckCircle2, Circle } from "lucide-react";
 import { SubTask } from "@/lib/types";
 import { TextWithLinks } from "./TextWithLinks";
+import { isComposingKey } from "@/utils/imeGuard";
 
 interface SwipeableSubTaskProps {
   sub: SubTask;
@@ -54,6 +55,7 @@ export function SwipeableSubTask({
           defaultValue={sub.title}
           onBlur={(e) => onEditCommit(e.target.value)}
           onKeyDown={(e) => {
+            if (isComposingKey(e)) return;
             if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
             if (e.key === "Escape") { onEditCommit(sub.title); }
           }}

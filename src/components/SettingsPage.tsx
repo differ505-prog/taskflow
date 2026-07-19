@@ -19,6 +19,7 @@ import { useWebhookSettings, triggerWebhook } from "@/lib/useWebhook";
 import { ROLE_CONFIGS, UserRole } from "@/lib/types";
 import { getConfettiEnabled, setConfettiEnabled, previewConfetti } from "@/lib/confetti";
 import { toast } from "sonner";
+import { isComposingKey } from "@/utils/imeGuard";
 
 interface SettingsPageProps {
   isOpen: boolean;
@@ -450,7 +451,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                       type="email"
                       value={newBetaEmail}
                       onChange={(e) => setNewBetaEmail(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleAddBetaUser()}
+                      onKeyDown={(e) => { if (!isComposingKey(e) && e.key === "Enter") handleAddBetaUser(); }}
                       placeholder="輸入用戶 Email"
                       className="input flex-1 text-[13px]"
                       style={{ padding: "10px 12px" }}

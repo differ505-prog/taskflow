@@ -16,6 +16,7 @@ import {
   deleteTaskComment,
   TaskComment,
 } from "@/lib/taskCommentsFS";
+import { isComposingKey } from "@/utils/imeGuard";
 
 interface Props {
   taskId: string;
@@ -199,6 +200,7 @@ export default function TaskCommentsDrawer({ taskId, taskTitle, open, onClose }:
             value={content}
             onChange={(e) => setContent(e.target.value)}
             onKeyDown={(e) => {
+              if (isComposingKey(e)) return;
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
                 handleSubmit();

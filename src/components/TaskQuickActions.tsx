@@ -5,6 +5,7 @@ import { Task, Priority } from "@/lib/types";
 import { getEisenhowerVisual } from "@/lib/eisenhower";
 import { IconPopover } from "./IconPopover";
 import { getTagColors } from "@/lib/storage";
+import { isComposingKey } from "@/utils/imeGuard";
 import {
   Tag as TagIcon, Paperclip, ListChecks, Plus, X,
   AlertCircle, Image as ImageIcon, FileText, Pin,
@@ -349,6 +350,7 @@ function TagPopoverContent({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
+                if (isComposingKey(e)) return;
                 if (e.key === "Enter") {
                   e.preventDefault();
                   onAdd(input.trim());

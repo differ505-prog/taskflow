@@ -14,6 +14,7 @@ import {
   Plus, Archive, Zap, ChevronRight, Timer,
   Share2, Shield, RotateCcw, Trash2, CheckCheck,
 } from "lucide-react";
+import { isComposingKey } from "@/utils/imeGuard";
 
 const VIEW_LABELS: Record<AppView, string> = {
   inbox: "收集箱",
@@ -317,6 +318,7 @@ export function AppShell({
                 value={quickAddInput}
                 onChange={(e) => setQuickAddInput(e.target.value)}
                 onKeyDown={(e) => {
+                  if (isComposingKey(e)) return;
                   if (e.key === "Enter") { e.preventDefault(); handleQuickAdd(); }
                   if (e.key === "Escape") { setQuickAddInput(""); quickAddRef.current?.blur(); }
                 }}
@@ -368,6 +370,7 @@ export function AppShell({
                     value={sharedQuickAddInput}
                     onChange={(e) => setSharedQuickAddInput(e.target.value)}
                     onKeyDown={(e) => {
+                      if (isComposingKey(e)) return;
                       if (e.key === "Enter") { e.preventDefault(); handleSharedQuickAdd(); }
                       if (e.key === "Escape") { setSharedQuickAddInput(""); sharedQuickAddRef.current?.blur(); }
                     }}

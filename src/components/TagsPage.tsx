@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { useFeatureGate } from "@/lib/useFeatureGate";
 import { motion, AnimatePresence } from "framer-motion";
 import { UpgradeModal } from "@/components/UpgradeModal";
+import { isComposingKey } from "@/utils/imeGuard";
 
 export function TagsPage() {
   const { tasks, updateTask } = useApp();
@@ -218,6 +219,7 @@ export function TagsPage() {
                   value={newTagName}
                   onChange={(e) => setNewTagName(e.target.value)}
                   onKeyDown={(e) => {
+                    if (isComposingKey(e)) return;
                     if (e.key === "Enter") handleCreateTag();
                     if (e.key === "Escape") setShowCreateModal(false);
                   }}
@@ -326,6 +328,7 @@ export function TagsPage() {
                         value={editInput}
                         onChange={(e) => setEditInput(e.target.value)}
                         onKeyDown={(e) => {
+                          if (isComposingKey(e)) return;
                           if (e.key === "Enter") handleRename(entry.name, editInput);
                           if (e.key === "Escape") setEditingTag(null);
                         }}

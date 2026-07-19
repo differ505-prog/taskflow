@@ -11,6 +11,7 @@ import { ProtectedUploadButton } from "./ProtectedUploadButton";
 import { deleteFile } from "@/lib/storageUpload";
 import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
 import { getEisenhowerVisual } from "@/lib/eisenhower";
+import { isComposingKey, isComposingSubmit } from "@/utils/imeGuard";
 
 interface TaskFormProps {
   isOpen: boolean;
@@ -216,6 +217,8 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
   };
 
   const handleSubmit = (e: React.FormEvent) => {
+    // 擋 IME composition 期間的 Enter：keyDown 攔不住，因為有些瀏覽器在 form submit 才 fire
+    if (isComposingSubmit(e)) return;
     e.preventDefault();
     if (!title.trim()) { setErrors({ title: "必填" }); titleRef.current?.focus(); return; }
     let recurrence: Recurrence | undefined;
@@ -304,6 +307,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     onKeyDown={(e) => {
+                      if (isComposingKey(e)) return;
                       if (e.key === "Enter") e.preventDefault();
                     }}
                     placeholder="輸入任務名稱"
@@ -501,6 +505,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                       <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--text-tertiary)" }} aria-hidden="true" />
                       <input type="text" value={tagInput} onChange={(e) => { setTagInput(e.target.value); updateTagSuggestions(e.target.value); }}
                         onKeyDown={(e) => {
+                          if (isComposingKey(e)) return;
                           if (e.key === "Enter") {
                             e.preventDefault();
                             if (highlightedIndex >= 0 && suggestions[highlightedIndex]) {
@@ -613,7 +618,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                   <input ref={subtaskInputRef} type="text"
                     value={subtaskInputValue}
                     onChange={(e) => setSubtaskInputValue(e.target.value)}
-                    onKeyUp={(e) => { if (e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
+                    onKeyUp={(e) => { if (!isComposingKey(e) && e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
                     placeholder="新增子任務..." className="input flex-1" style={{ fontSize: 13, padding: "8px 12px" }} />
                   <button type="button" onClick={addSubTask} className="btn-ghost px-3" aria-label="新增子任務">
                     <Plus className="w-4 h-4" />
