@@ -618,7 +618,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                   <input ref={subtaskInputRef} type="text"
                     value={subtaskInputValue}
                     onChange={(e) => setSubtaskInputValue(e.target.value)}
-                    onKeyUp={(e) => { if (!isComposingKey(e) && e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
+                    onKeyDown={(e) => { if (!isComposingKey(e) && e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
                     placeholder="新增子任務..." className="input flex-1" style={{ fontSize: 13, padding: "8px 12px" }} />
                   <button type="button" onClick={addSubTask} className="btn-ghost px-3" aria-label="新增子任務">
                     <Plus className="w-4 h-4" />

@@ -5,9 +5,16 @@
  * 再觸發 compositionEnd 把中文字 commit 進 input。若 keyDown 處理函式此時
  * 就執行「送出表單/建立任務」動作，會在中文還沒進到 state 之前就誤觸發。
  *
+ * 重要（基於 Mac Chrome 注音實測）：
+ *   監聽 onKeyUp 是錯的！
+ *   - keyDown 時：isComposing=true  ← 可以可靠攔
+ *   - compositionEnd 觸發
+ *   - keyUp 時：isComposing=false  ← 永遠擋不住
+ *   所以 Enter 提交邏輯一定要掛 onKeyDown，不要用 onKeyUp。
+ *
  * 用法（keyDown handler）：
  *   onKeyDown={(e) => {
- *     if (isComposingEvent(e)) return;
+ *     if (isComposingKey(e)) return;
  *     if (e.key === "Enter") handleSubmit();
  *   }}
  *
