@@ -112,7 +112,7 @@ interface AppContextValue {
   completeRecurringAndClone: (taskId: string) => void;
 
   // ── 清單 CRUD ──────────────────────────────────────────
-  addList: (data: Omit<TaskList, "id" | "createdAt" | "updatedAt" | "order">) => void;
+  addList: (data: Omit<TaskList, "id" | "createdAt" | "updatedAt" | "order">) => string;
   updateList: (id: string, updates: Partial<TaskList>) => void;
   deleteList: (id: string) => void;
 
@@ -846,7 +846,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [tasks]);
 
   // ── 清單 CRUD ────────────────────────────────────────────
-  const addList = useCallback((data: Omit<TaskList, "id" | "createdAt" | "updatedAt" | "order">) => {
+  const addList = useCallback((data: Omit<TaskList, "id" | "createdAt" | "updatedAt" | "order">): string => {
     const newList: TaskList = {
       ...data, id: generateId(),
       createdAt: new Date().toISOString(),
@@ -857,6 +857,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setLists(updated);
     saveLists(updated);
     if (user) batchSaveListsFirebase(user.uid, [newList]).catch(console.warn);
+    return newList.id;
   }, [lists, user]);
 
   const updateList = useCallback((id: string, updates: Partial<TaskList>) => {

@@ -14,6 +14,7 @@ import {
   CalendarDays, Shield, UserPlus, UserMinus, Crown, Sparkles, Zap, Copy,
 } from "lucide-react";
 import { getTasks } from "@/lib/storage";
+import { TemplateMarketplace } from "./TemplateMarketplace";
 import { downloadICal } from "@/lib/ical";
 import { useWebhookSettings, triggerWebhook } from "@/lib/useWebhook";
 import { ROLE_CONFIGS, UserRole } from "@/lib/types";
@@ -604,6 +605,13 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                   </button>
                 </>
               )}
+            </div>
+          </section>
+
+          {/* Templates */}
+          <section>
+            <div className="card p-4">
+              <TemplateMarketplace embedded />
             </div>
           </section>
 

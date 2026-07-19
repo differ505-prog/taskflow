@@ -1,0 +1,179 @@
+{
+  "version": 1,
+  "description": "TaskFlow 內建範本 — 一鍵建立常用工作流，每組範本會建立一個專屬清單 + 4 個範本任務。",
+  "templates": [
+    {
+      "id": "freelancer-invoice",
+      "name": "自由工作者 · 結案請款 SOP",
+      "description": "結案當下 5 個必做步驟，避免尾款被拖",
+      "icon": "💼",
+      "color": "#3B82F6",
+      "tags": ["工作"],
+      "tasks": [
+        {
+          "title": "彙整交付項目與驗收證明",
+          "description": "彙整當期交付檔案、驗收 email / Slack 截圖，建立資料夾交付給客戶。",
+          "priority": "do-now",
+          "subTasks": [
+            { "title": "確認所有交付檔案版本一致" },
+            { "title": "彙整客戶驗收 email 或對話紀錄" },
+            { "title": "打包成單一資料夾並上傳雲端" }
+          ]
+        },
+        {
+          "title": "寄送請款單與發票",
+          "description": "依合約金額開立發票 / 請款單，註明匯款帳戶與期限。",
+          "priority": "do-now"
+        },
+        {
+          "title": "Email 催收 + 設定 14 天後提醒",
+          "description": "寄出請款 email 後第 14 天若未收款，主動追蹤。",
+          "priority": "schedule",
+          "offsetDays": 14
+        },
+        {
+          "title": "更新財務表並備份",
+          "description": "記錄至 Notion / Excel 月報；發票影本留存 5 年。",
+          "priority": "delegate"
+        }
+      ]
+    },
+    {
+      "id": "ecommerce-returns",
+      "name": "電商賣家 · 退換貨 SOP",
+      "description": "處理退換貨流程 4 步驟，避免平台糾紛",
+      "icon": "📦",
+      "color": "#F97316",
+      "tags": ["工作"],
+      "tasks": [
+        {
+          "title": "確認退貨原因並分類",
+          "description": "瑕疵 / 尺寸不合 / 買錯 — 三類分流對應不同處理。",
+          "priority": "do-now",
+          "subTasks": [
+            { "title": "瑕疵品拍照存證" },
+            { "title": "瑕疵品登錄報廢清單" }
+          ]
+        },
+        {
+          "title": "回覆客戶退換貨申請",
+          "description": "24h 內回覆；附上退貨地址與寄件須知。",
+          "priority": "do-now"
+        },
+        {
+          "title": "退款或補寄",
+          "description": "收到退貨後 3 日內完成退款或補寄；保留物流單據。",
+          "priority": "schedule"
+        },
+        {
+          "title": "案例彙整與優化提案",
+          "description": "月底統計退換貨原因 Top 3，提案改善商品頁 / 描述 / 尺寸表。",
+          "priority": "delegate"
+        }
+      ]
+    },
+    {
+      "id": "indie-launch",
+      "name": "獨立開發者 · Launch Checklist",
+      "description": "Side project 上線前 4 大必做，避免週末 debug",
+      "icon": "🚀",
+      "color": "#22C55E",
+      "tags": ["工作"],
+      "tasks": [
+        {
+          "title": "錯誤監控 + Log 基礎建設",
+          "description": "Sentry / LogRocket 串接；error rate alert 設到 Slack。",
+          "priority": "do-now",
+          "subTasks": [
+            { "title": "Sentry SDK 接入前端" },
+            { "title": "Server log 接 CloudWatch / Logtail" }
+          ]
+        },
+        {
+          "title": "客服管道 + FAQ",
+          "description": "信箱 / Discord / IG DM 至少一個；FAQ 至少 5 題。",
+          "priority": "do-now"
+        },
+        {
+          "title": "退場機制 (退款 / 帳號刪除)",
+          "description": "Stripe / 帳號刪除流程實測一次；留審計 log。",
+          "priority": "schedule"
+        },
+        {
+          "title": "啟動前一日 Sleep Tracker",
+          "description": "前一天 22:00 強制休息；起飛當天零 commit window。",
+          "priority": "schedule"
+        }
+      ]
+    },
+    {
+      "id": "student-finals-week",
+      "name": "學生 · 期末週衝刺",
+      "description": "期末考前 4 天排程，搭配番茄鐘不爆肝",
+      "icon": "🎓",
+      "color": "#8B5CF6",
+      "tags": ["學習"],
+      "tasks": [
+        {
+          "title": "彙整所有考試 / 報告截止日",
+          "description": "統一寫成清單，依日期排序；高難度優先。",
+          "priority": "do-now"
+        },
+        {
+          "title": "每日番茄鐘 6 × 50min",
+          "description": "上午 3 顆、下午 3 顆；每顆中間休息 10 分鐘。",
+          "priority": "schedule",
+          "subTasks": [
+            { "title": "建立番茄鐘任務標籤 #study" },
+            { "title": "設定每日 21:00 自動停止" }
+          ]
+        },
+        {
+          "title": "考前一夜 checklist",
+          "description": "證件、2B 鉛筆、計算機、手機靜音、鬧鐘雙備援。",
+          "priority": "schedule"
+        },
+        {
+          "title": "考後一日補眠 + 反思",
+          "description": "睡到自然醒；晚上寫下這次讀書方法哪邊可改進。",
+          "priority": "none"
+        }
+      ]
+    },
+    {
+      "id": "engineer-code-review",
+      "name": "工程師 · Code Review Checklist",
+      "description": "每個 PR 必看 4 個面向，避免技術債累積",
+      "icon": "👀",
+      "color": "#06B6D4",
+      "tags": ["工作"],
+      "tasks": [
+        {
+          "title": "功能性檢查",
+          "description": "實際跑一次 PR 描述的場景；邊界條件至少測 3 組。",
+          "priority": "do-now",
+          "subTasks": [
+            { "title": "正常輸入路徑" },
+            { "title": "空值 / null / undefined" },
+            { "title": "錯誤輸入路徑" }
+          ]
+        },
+        {
+          "title": "可維護性檢查",
+          "description": "命名、抽象、耦合度、註解是否解釋「為什麼」而非「做什麼」。",
+          "priority": "schedule"
+        },
+        {
+          "title": "效能與資安檢查",
+          "description": "N+1 query / memory leak / SQL injection / XSS / sensitive log。",
+          "priority": "do-now"
+        },
+        {
+          "title": "測試覆蓋率",
+          "description": "新邏輯必須有 unit test；critical path 至少 80% 覆蓋。",
+          "priority": "schedule"
+        }
+      ]
+    }
+  ]
+}
