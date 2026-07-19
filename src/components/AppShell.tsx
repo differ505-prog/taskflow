@@ -455,26 +455,33 @@ export function AppShell({
                   </div>
                 </div>
 
-                {/* Task list — always compact */}
+                {/* Task list — always compact (mobile: swipe left = 完成/刪除; desktop: 用 TaskDetailPanel) */}
                 <div className="flex flex-col gap-1">
                   <AnimatePresence mode="popLayout">
                     {displayTasks.map((task) => (
                       <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
-                        <TaskListItem
-                          task={task}
-                          isSelected={task.id === selectedTaskId}
-                          onClick={() => handleSelectTask(task.id)}
-                          onToggleStatus={toggleTaskStatus}
-                          onToggleSubTask={toggleSubTask}
-                          onUpdatePriority={(id, p) => updateTask(id, { priority: p })}
-                          onUpdateTags={(id, tags) => updateTask(id, { tags })}
-                          onTogglePin={(id) => updateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
-                          allTags={Object.keys(getTagCounts())}
-                          batchMode={batchMode}
-                          batchSelected={!!batchSelectedIds?.has(task.id)}
-                          onLongPress={() => onEnterBatchMode?.(task.id)}
-                          onBatchToggle={() => onToggleBatchSelect?.(task.id)}
-                        />
+                        <TaskSwipeWrapper
+                          taskId={task.id}
+                          isDone={task.status === "done"}
+                          onComplete={() => updateTask(task.id, { status: task.status === "done" ? "todo" : "done" })}
+                          onDelete={(id) => deleteTask(id)}
+                        >
+                          <TaskListItem
+                            task={task}
+                            isSelected={task.id === selectedTaskId}
+                            onClick={() => handleSelectTask(task.id)}
+                            onToggleStatus={toggleTaskStatus}
+                            onToggleSubTask={toggleSubTask}
+                            onUpdatePriority={(id, p) => updateTask(id, { priority: p })}
+                            onUpdateTags={(id, tags) => updateTask(id, { tags })}
+                            onTogglePin={(id) => updateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
+                            allTags={Object.keys(getTagCounts())}
+                            batchMode={batchMode}
+                            batchSelected={!!batchSelectedIds?.has(task.id)}
+                            onLongPress={() => onEnterBatchMode?.(task.id)}
+                            onBatchToggle={() => onToggleBatchSelect?.(task.id)}
+                          />
+                        </TaskSwipeWrapper>
                       </motion.div>
                     ))}
                   </AnimatePresence>
