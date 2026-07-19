@@ -9,8 +9,8 @@ import { getTagColors } from "@/lib/storage";
 import { getEisenhowerVisual } from "@/lib/eisenhower";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  X, Plus, Repeat, Calendar, Mic, MicOff, Hash,
-  Trash2, CheckCircle2, Circle, Tag as TagIcon,
+  X, Repeat, Calendar, Mic, MicOff, Hash,
+  Trash2, Check, CheckCircle2, Circle, Tag as TagIcon,
   AlignLeft, Clock, Timer, ListChecks, Paperclip,
   AlertCircle, Flag, ChevronDown, ChevronRight, Pin, ExternalLink,
 } from "lucide-react";
@@ -555,8 +555,8 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               onChange={(e) => setSubtaskInputValue(e.target.value)}
               onKeyDown={(e) => { if (!isComposingKey(e) && e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
               placeholder="新增子任務..." className="input flex-1" style={{ fontSize: 13, padding: "8px 12px" }} />
-            <button type="button" onClick={addSubTask} className="btn-ghost px-3" aria-label="新增子任務">
-              <Plus className="w-4 h-4" />
+            <button type="button" onClick={addSubTask} className="btn-ghost px-3" aria-label="新增子任務（送出）">
+              <Check className="w-4 h-4" />
             </button>
           </div>
           {(() => {

@@ -110,25 +110,27 @@ export function EisenhowerQuadrantGrid({ priority, onChange }: EisenhowerQuadran
           aria-label={`${q.label}（${q.qLabel}）`}
           aria-pressed={isActive(q.value)}
         >
+          {/* Q 標籤左側、emoji 右側,為底部 subtitle 留乾淨空間 */}
           <div className="flex items-center justify-between mb-0.5">
-            <span className="text-base" aria-hidden="true">{q.emoji}</span>
             <span className="text-[9px] font-bold opacity-70">{q.qLabel}</span>
+            <span className="text-base" aria-hidden="true">{q.emoji}</span>
           </div>
           <div className="text-[11px] font-semibold leading-tight">
             {q.label}
           </div>
           <div
-            className="text-[9px]"
+            className="text-[9px] pr-4"
             style={{ opacity: isActive(q.value) ? 0.85 : 0.7 }}
           >
             {q.subtitle}
           </div>
 
-          {/* 中文解釋彩蛋：hover (i) tooltip */}
+          {/* 中文解釋彩蛋：hover (i) tooltip — 移到右上避免擋 subtitle */}
           <span
             role="img"
             aria-label={q.caption}
-            className="absolute bottom-1 right-1 inline-flex items-center justify-center w-4 h-4 rounded-full opacity-50 hover:opacity-100 focus-within:opacity-100 transition-opacity"
+            className="absolute top-1 right-1 inline-flex items-center justify-center w-4 h-4 rounded-full opacity-40 hover:opacity-100 focus-within:opacity-100 transition-opacity"
+            style={{ color: isActive(q.value) ? "#fff" : "var(--text-tertiary)" }}
             tabIndex={0}
           >
             <Info className="w-3 h-3" aria-hidden="true" />
