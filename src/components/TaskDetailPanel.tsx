@@ -203,41 +203,6 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     setHasChanges(false);
   };
 
-  // 「立即儲存並關閉」：給使用者一個明確的「儲存」快捷鍵
-  // 與輸入即儲存(debounce)並存；不再有「忘記按儲存」風險，但保留手動控制
-  const handleSaveAndClose = useCallback(() => {
-    // 完成/重開按鈕的語意：切換 status 並關閉
-    const nextStatus: TaskStatus = status === "done" ? "todo" : "done";
-    setStatus(nextStatus);
-    // 立即寫入（含新 status），不依賴 debounce 的下次觸發
-    let recurrence: Recurrence | undefined;
-    if (recurrenceType !== "none") {
-      recurrence = {
-        pattern: recurrenceType as Recurrence["pattern"],
-        interval: recurrenceInterval,
-        completedCount: task.recurrence?.completedCount || 0,
-        daysOfWeek: recurrenceType === "weekly" ? recurrenceDaysOfWeek : undefined,
-        endDate: recurrenceEndDate || undefined,
-      };
-    }
-    updateTask(task.id, {
-      title: title.trim(),
-      description: description.trim() || undefined,
-      priority,
-      status: nextStatus,
-      startDate: startDate || undefined,
-      dueDate: dueDate || startDate || undefined,
-      dueTime: dueTime || undefined,
-      listId,
-      tags,
-      subTasks,
-      recurrence,
-      attachments,
-    });
-    setHasChanges(false);
-    onClose?.();
-  }, [status, recurrenceType, recurrenceInterval, recurrenceDaysOfWeek, recurrenceEndDate, title, description, priority, startDate, dueDate, dueTime, listId, tags, subTasks, attachments, task, updateTask, onClose]);
-
   // 將整個 task snapshot 送給 debounce：使用 ref 避免 debounce 內部 closure 抓舊值
   const snapshotRef = useRef({
     title: "",
@@ -514,13 +479,6 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               aria-label="刪除任務"
             >
               <Trash2 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleSaveAndClose}
-              disabled={!title.trim()}
-              className="btn-primary text-[13px] py-2 px-4 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {status === "done" ? "重開" : "完成"} ✓
             </button>
           </div>
         </div>
