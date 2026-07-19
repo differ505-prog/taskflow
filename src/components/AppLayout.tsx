@@ -13,7 +13,6 @@ import StatsClient from "@/components/StatsClient";
 import { TagsPage } from "@/components/TagsPage";
 import { QuadrantRadarView } from "@/components/QuadrantRadarView";
 import { PomodoroTimer } from "@/components/PomodoroTimer";
-import { ZenFlowPanel } from "@/components/ZenFlowPanel";
 import { ZenFlowProvider } from "@/lib/ZenFlowProvider";
 import { BottomNavigation } from "@/components/BottomNavigation";
 import { UserMenu } from "@/components/UserMenu";
@@ -33,7 +32,6 @@ function AppLayoutInner() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isListFormOpen, setIsListFormOpen] = useState(false);
   const [isPomodoroOpen, setIsPomodoroOpen] = useState(false);
-  const [isZenFlowOpen, setIsZenFlowOpen] = useState(false);
   const [editingList, setEditingList] = useState<TaskList | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [shareModalList, setShareModalList] = useState<{ list: TaskList; tasks: import("@/lib/types").Task[] } | null>(null);
@@ -225,7 +223,6 @@ function AppLayoutInner() {
           onEditList={handleEditList}
           onDeleteList={deleteList}
           onOpenPomodoro={() => setIsPomodoroOpen(true)}
-          onOpenZenFlow={() => setIsPomodoroOpen(true)}
           onOpenShareModal={(list, listTasks) => setShareModalList({ list, tasks: listTasks })}
           onOpenSharedLists={() => setShowSharedLists(true)}
           onOpenSharedList={(sharedId) => { setCurrentSharedList(sharedId); }}
@@ -278,7 +275,6 @@ function AppLayoutInner() {
               onEditList={handleEditList}
               onDeleteList={deleteList}
               onOpenPomodoro={() => { setIsMobileSidebarOpen(false); setIsPomodoroOpen(true); }}
-              onOpenZenFlow={() => { setIsMobileSidebarOpen(false); setIsPomodoroOpen(true); }}
               onOpenShareModal={(list, listTasks) => { setIsMobileSidebarOpen(false); setShareModalList({ list, tasks: listTasks }); }}
               onOpenSharedLists={() => { setIsMobileSidebarOpen(false); setShowSharedLists(true); }}
               onOpenSharedList={(sharedId) => { setIsMobileSidebarOpen(false); setCurrentSharedList(sharedId); }}
@@ -321,12 +317,6 @@ function AppLayoutInner() {
         isOpen={batchGate.upgradeModalOpen}
         onClose={batchGate.closeUpgradeModal}
         feature="batch-operations"
-      />
-
-      {/* ZenFlow 心流專注播放器 */}
-      <ZenFlowPanel
-        isOpen={isZenFlowOpen}
-        onClose={() => setIsZenFlowOpen(false)}
       />
     </div>
   );

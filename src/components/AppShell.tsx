@@ -32,55 +32,6 @@ const VIEW_LABELS: Record<AppView, string> = {
   quadrant: "Quadrant Radar",
 };
 
-const SEED_TASKS: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order">[] = [
-  {
-    title: "完成專案提案簡報",
-    description: "整理本季 OKR 進度並製作成 15 分鐘簡報",
-    priority: "schedule",
-    status: "in-progress",
-    dueDate: new Date(Date.now() + 86400000).toISOString().split("T")[0],
-    tags: ["工作", "簡報"],
-    subTasks: [
-      { id: "st1", title: "收集數據資料", status: "done", createdAt: new Date().toISOString() },
-      { id: "st2", title: "設計投影片母片", status: "todo", createdAt: new Date().toISOString() },
-    ],
-  },
-  {
-    title: "閱讀《原子習慣》第三章",
-    priority: "delegate",
-    status: "todo",
-    dueDate: new Date(Date.now() + 172800000).toISOString().split("T")[0],
-    tags: ["閱讀"],
-  },
-  {
-    title: "預約牙醫洗牙",
-    description: "半年一次的口腔檢查",
-    priority: "none",
-    status: "todo",
-    dueDate: new Date(Date.now() + 604800000).toISOString().split("T")[0],
-    tags: ["健康"],
-  },
-  {
-    title: "每晚冥想 10 分鐘",
-    priority: "none",
-    status: "todo",
-    tags: ["健康", "習慣"],
-    recurrence: { pattern: "daily", interval: 1, completedCount: 0 },
-  },
-];
-
-function initSeedTasks(): Task[] {
-  return SEED_TASKS.map((t, i) => ({
-    ...t,
-    id: `${Date.now()}-seed-${i}`,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    focusMinutes: 0,
-    isArchived: false,
-    order: i,
-  }));
-}
-
 interface AppShellProps {
   selectedTaskId: string | null;
   onSelectTask: (id: string) => void;
@@ -138,14 +89,6 @@ export function AppShell({
   // 觀看者模式：Viewer 在 shared list 是唯讀的
   const sharedRole = currentSharedListId ? getMyRole(currentSharedListId) : null;
   const isReadOnlyShared = !!currentSharedListId && sharedRole === "viewer";
-
-  // Seed tasks on first load
-  useEffect(() => {
-    if (tasks.length === 0) {
-      const seeds = initSeedTasks();
-      seeds.forEach((t) => addTask(t));
-    }
-  }, []); // eslint-disable-line
 
   // Keyboard shortcut: Cmd+K for quick add
   useEffect(() => {
