@@ -243,7 +243,7 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
               style={{ borderColor: "rgba(192,38,211,0.3)", boxShadow: "0 0 24px rgba(192,38,211,0.25)" }}
             >
               <iframe
-                src={typeof window !== "undefined" ? `${new URL("/", window.location.origin).origin}/embed/button` : "/embed/button"}
+                src={`${process.env.NEXT_PUBLIC_OMNISONIC_URL ?? ""}/embed/button`}
                 title="OmniSonic Deep Focus Button"
                 className="w-full h-full border-0"
                 allow="autoplay"
