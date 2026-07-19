@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { sortSubTasks } from "@/utils/subtaskSort";
 import { useSubTaskCollapse } from "@/utils/useSubTaskCollapse";
-import { isComposingKey } from "@/utils/imeGuard";
+import { isComposingKey, isComposingSubmit } from "@/utils/imeGuard";
 import { useDebouncedField } from "@/utils/useDebouncedField";
 import { ListChipPicker } from "./ListChipPicker";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
@@ -547,18 +547,35 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             </label>
             <span className="ml-auto text-[11px]" style={{ color: "var(--text-tertiary)" }}>自動儲存</span>
           </div>
-          <div className="flex gap-2 mb-3">
+          <form
+            className="flex gap-2 mb-3"
+            onSubmit={(e) => {
+              if (isComposingSubmit(e)) return;
+              e.preventDefault();
+              addSubTask();
+            }}
+          >
             <input
               ref={subtaskInputRef}
               type="text"
+              enterKeyHint="send"
               value={subtaskInputValue}
               onChange={(e) => setSubtaskInputValue(e.target.value)}
               onKeyDown={(e) => { if (!isComposingKey(e) && e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
               placeholder="新增子任務..." className="input flex-1" style={{ fontSize: 13, padding: "8px 12px" }} />
-            <button type="button" onClick={addSubTask} className="btn-ghost px-3" aria-label="新增子任務（送出）">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                if (subtaskInputValue.trim()) addSubTask();
+              }}
+              onMouseDown={(e) => e.preventDefault()}
+              className="btn-ghost px-3 min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+              aria-label="新增子任務（送出）"
+            >
               <Check className="w-4 h-4" />
             </button>
-          </div>
+          </form>
           {(() => {
             const sorted = sortSubTasks(subTasks);
             const todoSubs = sorted.filter((s) => s.status !== "done");

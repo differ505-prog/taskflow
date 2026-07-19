@@ -258,6 +258,7 @@ export function AppShell({
                 key={quickAddKey}
                 ref={quickAddRef}
                 type="text"
+                enterKeyHint="send"
                 value={quickAddInput}
                 onChange={(e) => setQuickAddInput(e.target.value)}
                 onKeyDown={(e) => {
