@@ -98,6 +98,8 @@ interface AppContextValue {
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => Promise<void>;
   toggleTaskStatus: (id: string) => void;
+  markEditingActivity: (id: string) => void;
+  clearEditingActivity: (id: string) => void;
   archiveTask: (id: string) => void;
   unarchiveTask: (id: string) => void;
 
@@ -178,6 +180,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const previousTasksRef = useRef<Task[]>([]); // 儲存最近刪除前的快照，用於 Undo
   const recentlyWrittenRef = useRef<Map<string, number>>(new Map()); // 追蹤本地剛寫入的 task，5 秒內不被 realtime 推送覆蓋
   const RECENT_WRITE_WINDOW_MS = 5_000;
+  // 持續輸入保護：被打開詳情面板的 task,在編輯活動窗內(每 keystroke 重置),不應被遠端覆蓋
+  // 避免「打 50 字描述,打到第 30 字時,別人同步一個更新把我的字蓋掉」邊界問題(§26 類別 A 子模式)
+  const editingTaskIdsRef = useRef<Set<string>>(new Set()); // 詳情面板開啟中
+  const lastEditActivityRef = useRef<Map<string, number>>(new Map()); // 每 task 最後 keystroke 時間
+  const EDIT_ACTIVITY_WINDOW_MS = 30_000; // 編輯活動窗(30 秒內有 keystroke 視為「正在編輯」)
   const firstTasksLoadDone = useRef(false); // 跳過 subscribeTasks 初次空資料覆蓋
   const firstListsLoadDone = useRef(false); // 跳過 subscribeListsSync 初次空資料覆蓋
   const ACTIVE_THROTTLE_MS = 30_000;
@@ -185,6 +192,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // 標記 task 為「剛寫入」；realtime 推送的 fbTask 在窗內不會覆蓋本地版本
   const markRecentlyWritten = useCallback((id: string) => {
     recentlyWrittenRef.current.set(id, Date.now());
+  }, []);
+
+  // 標記 task 正在編輯(詳情面板 mount/unmount + 每 keystroke)
+  const markEditingActivity = useCallback((id: string) => {
+    editingTaskIdsRef.current.add(id);
+    lastEditActivityRef.current.set(id, Date.now());
+  }, []);
+  const clearEditingActivity = useCallback((id: string) => {
+    editingTaskIdsRef.current.delete(id);
+    lastEditActivityRef.current.delete(id);
   }, []);
 
   // merge 時呼叫：判斷是否在寫入保護窗內，並順手做 lazy GC
@@ -197,6 +214,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     const ts = map.get(id);
     return ts !== undefined && now - ts < RECENT_WRITE_WINDOW_MS;
+  }, []);
+
+  // 持續輸入保護：task 在編輯活動窗內 → 保留本地(防止遠端 echo 覆蓋正在打的字)
+  const isWithinEditingActivityWindow = useCallback((id: string): boolean => {
+    if (!editingTaskIdsRef.current.has(id)) return false;
+    const lastActivity = lastEditActivityRef.current.get(id);
+    if (lastActivity === undefined) return false;
+    const now = Date.now();
+    // lazy GC 過期項目
+    const map = lastEditActivityRef.current;
+    for (const [tid, ts] of map) {
+      if (now - ts >= EDIT_ACTIVITY_WINDOW_MS) {
+        map.delete(tid);
+        editingTaskIdsRef.current.delete(tid);
+      }
+    }
+    return now - lastActivity < EDIT_ACTIVITY_WINDOW_MS;
   }, []);
 
   // 同步 tasks 到 ref（給 Firebase listener 用，避免 stale closure）
@@ -276,6 +310,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             if (local) {
               // 本地剛寫入（5 秒內）→ 一律保留本地，避免 supabase commit 前即時的回音 / 跨分頁 echo 覆蓋樂觀更新
               if (isWithinRecentWriteWindow(fbT.id)) {
+                return local;
+              }
+              // 持續輸入保護：詳情面板開啟中且最近 30 秒有 keystroke → 一律保留本地
+              // 避免「打 50 字描述,打到第 30 字時別人同步一個更新把字蓋掉」
+              if (isWithinEditingActivityWindow(fbT.id)) {
                 return local;
               }
               // 本地 updatedAt 較新 → 保留本地（樂觀更新尚未被雲端推送覆蓋）
@@ -1483,6 +1522,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     membersBySharedList,
     getFilteredTasks, viewCounts, getListTaskCount, getTagCounts,
     forceReload: () => setReloadKey((k) => k + 1),
+    markEditingActivity,
+    clearEditingActivity,
   };
 
   if (!isLoaded) return null;

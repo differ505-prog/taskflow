@@ -48,10 +48,19 @@ interface TaskDetailPanelProps {
 const SELECT_ARROW = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23999' strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E";
 
 export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
-  const { updateTask, deleteTask, lists, getTagCounts } = useApp();
+  const { updateTask, deleteTask, lists, getTagCounts, markEditingActivity, clearEditingActivity } = useApp();
   const { user } = useAuth();
   const collapseScope = user?.uid ?? "anon";
   const { isCollapsed: isDoneCollapsed, toggle: toggleDoneCollapse } = useSubTaskCollapse(task.id, task.subTasks || [], collapseScope);
+
+  // 持續輸入保護（§26 類別 A 子模式，詳情面板防護）：
+  // - 面板開啟期間 → 標記 task 為「編輯中」,realtime echo 不會覆蓋本地版本
+  // - 任一欄位 keystroke → 重置活動計時,延長 30 秒保護窗
+  // - 面板關閉 → 結束編輯狀態,回歸既有 5 秒窗(避免永遠不釋放)
+  useEffect(() => {
+    markEditingActivity(task.id);
+    return () => clearEditingActivity(task.id);
+  }, [task.id, markEditingActivity, clearEditingActivity]);
 
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || "");
@@ -269,9 +278,11 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   const debouncedVersionRef = useRef(0);
 
   // 統一追蹤 13 個欄位的 useDebouncedField：每個欄位 debounce 後，都會 bump version
+  // 同時呼叫 markEditingActivity 重置 30 秒「正在編輯」保護窗
   const bumpDebounced = useCallback(() => {
     debouncedVersionRef.current += 1;
-  }, []);
+    markEditingActivity(task.id);
+  }, [markEditingActivity, task.id]);
 
   // 主 debouncer：等 300ms 安靜後，一次性寫入整個 task snapshot
   const lastWrittenVersionRef = useRef(0);
