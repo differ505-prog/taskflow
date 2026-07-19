@@ -24,6 +24,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useFeatureGate } from "@/lib/useFeatureGate";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { ToastProvider } from "@/components/ToastProvider";
+import { Onboarding } from "@/components/Onboarding";
 
 // ─── Inner app (has access to useApp) ───────────────────────
 function AppLayoutInner() {
@@ -213,7 +214,9 @@ function AppLayoutInner() {
   );
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden">
+    <>
+      <Onboarding />
+      <div className="flex h-[100dvh] overflow-hidden">
       {/* Desktop Sidebar */}
       <div className="hidden md:flex flex-shrink-0">
         <Sidebar
@@ -318,7 +321,8 @@ function AppLayoutInner() {
         onClose={batchGate.closeUpgradeModal}
         feature="batch-operations"
       />
-    </div>
+      </div>
+    </>
   );
 }
 
