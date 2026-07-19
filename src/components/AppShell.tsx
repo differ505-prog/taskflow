@@ -255,7 +255,6 @@ export function AppShell({
             <div className="relative flex items-center">
               <Zap className="absolute left-3.5 w-4 h-4 pointer-events-none" style={{ color: "var(--text-tertiary)" }} />
               <input
-                key={quickAddKey}
                 ref={quickAddRef}
                 type="text"
                 enterKeyHint="send"
@@ -274,9 +273,14 @@ export function AppShell({
               />
               {quickAddInput && (
                 <button
+                  type="button"
                   onClick={handleQuickAdd}
-                  className="absolute right-3 p-1 rounded-lg hover:bg-black/5 transition-colors"
-                  style={{ color: "var(--brand)" }}
+                  onTouchEnd={(e) => {
+                    e.preventDefault();
+                    handleQuickAdd();
+                  }}
+                  className="absolute right-2 p-2.5 rounded-lg hover:bg-black/5 active:scale-95 transition-all duration-150 cursor-pointer"
+                  style={{ color: "var(--brand)", touchAction: "manipulation" }}
                   aria-label="送出快速新增"
                 >
                   <ChevronRight className="w-4 h-4" />
