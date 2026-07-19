@@ -25,6 +25,7 @@ import { useFeatureGate } from "@/lib/useFeatureGate";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { ToastProvider } from "@/components/ToastProvider";
 import { Onboarding } from "@/components/Onboarding";
+import { IOSInstallPrompt, AndroidInstallPrompt, AhaMoment } from "@/components/PwaPrompts";
 
 // ─── Inner app (has access to useApp) ───────────────────────
 function AppLayoutInner() {
@@ -216,6 +217,9 @@ function AppLayoutInner() {
   return (
     <>
       <Onboarding />
+      <IOSInstallPrompt />
+      <AndroidInstallPrompt />
+      <AhaMoment />
       <div className="flex h-[100dvh] overflow-hidden">
       {/* Desktop Sidebar */}
       <div className="hidden md:flex flex-shrink-0">

@@ -71,6 +71,7 @@ import { updateLastActive } from "@/lib/userProfiles";
 import { triggerWebhook } from "./useWebhook";
 import { toast } from "sonner";
 import { AppShellSkeleton } from "@/components/Skeleton";
+import { dispatchFirstTaskDone } from "@/components/PwaPrompts";
 
 interface AppContextValue {
   // ── 資料 ──────────────────────────────────────────────
@@ -788,6 +789,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTasks(updated);
     saveTasks(updated);
     markRecentlyWritten(id);
+    // Aha Moment 偵測：使用者首次把任務從 todo → done 觸發
+    if (newStatus === "done" && task.status === "todo") {
+      const hasAnyDoneBefore = tasks.some((t) => t.id !== id && t.status === "done");
+      if (!hasAnyDoneBefore) {
+        // 延遲到下一個 frame 讓 confetti 先跑,避免 Modal 與動畫打架
+        setTimeout(() => dispatchFirstTaskDone(), 600);
+      }
+    }
     if (user) {
       const updatedTask = updated.find((t) => t.id === id);
       if (updatedTask) batchSaveTasksFirebase(user.uid, [updatedTask]).catch((err) => console.warn("[SUP SYNC] toggle 失敗:", err));
