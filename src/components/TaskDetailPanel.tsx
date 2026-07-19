@@ -17,6 +17,7 @@ import {
 import { sortSubTasks } from "@/utils/subtaskSort";
 import { useSubTaskCollapse } from "@/utils/useSubTaskCollapse";
 import { isComposingKey } from "@/utils/imeGuard";
+import { useDebouncedField } from "@/utils/useDebouncedField";
 import { ListChipPicker } from "./ListChipPicker";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
 import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
@@ -25,6 +26,8 @@ import TaskCommentsInline from "./TaskCommentsInline";
 import TaskCommentsDrawer from "./TaskCommentsDrawer";
 import { TextWithLinks } from "./TextWithLinks";
 import { deleteFile } from "@/lib/storageUpload";
+
+const DEBOUNCE_MS = 300; // 詳情面板欄位 debounce 寫入（TickTick 直覺：輸入即回饋、300ms 內不重複寫入）
 
 const RECURRENCE_OPTIONS = [
   { label: "不重複", value: "none" },
@@ -190,6 +193,138 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     });
     setHasChanges(false);
   };
+
+  // 「立即儲存並關閉」：給使用者一個明確的「儲存」快捷鍵
+  // 與輸入即儲存(debounce)並存；不再有「忘記按儲存」風險，但保留手動控制
+  const handleSaveAndClose = useCallback(() => {
+    // 完成/重開按鈕的語意：切換 status 並關閉
+    const nextStatus: TaskStatus = status === "done" ? "todo" : "done";
+    setStatus(nextStatus);
+    // 立即寫入（含新 status），不依賴 debounce 的下次觸發
+    let recurrence: Recurrence | undefined;
+    if (recurrenceType !== "none") {
+      recurrence = {
+        pattern: recurrenceType as Recurrence["pattern"],
+        interval: recurrenceInterval,
+        completedCount: task.recurrence?.completedCount || 0,
+        daysOfWeek: recurrenceType === "weekly" ? recurrenceDaysOfWeek : undefined,
+        endDate: recurrenceEndDate || undefined,
+      };
+    }
+    updateTask(task.id, {
+      title: title.trim(),
+      description: description.trim() || undefined,
+      priority,
+      status: nextStatus,
+      startDate: startDate || undefined,
+      dueDate: dueDate || startDate || undefined,
+      dueTime: dueTime || undefined,
+      listId,
+      tags,
+      subTasks,
+      recurrence,
+      attachments,
+    });
+    setHasChanges(false);
+    onClose?.();
+  }, [status, recurrenceType, recurrenceInterval, recurrenceDaysOfWeek, recurrenceEndDate, title, description, priority, startDate, dueDate, dueTime, listId, tags, subTasks, attachments, task, updateTask, onClose]);
+
+  // 將整個 task snapshot 送給 debounce：使用 ref 避免 debounce 內部 closure 抓舊值
+  const snapshotRef = useRef({
+    title: "",
+    description: "",
+    priority: "none" as Priority,
+    status: "todo" as TaskStatus,
+    startDate: "",
+    dueDate: "",
+    dueTime: "",
+    listId: undefined as string | undefined,
+    tags: [] as string[],
+    recurrenceType: "none" as string,
+    recurrenceInterval: 1,
+    recurrenceDaysOfWeek: [] as number[],
+    recurrenceEndDate: "",
+  });
+
+  // 每次 render 把最新 snapshot push 進 ref
+  useEffect(() => {
+    snapshotRef.current = {
+      title,
+      description,
+      priority,
+      status,
+      startDate,
+      dueDate,
+      dueTime,
+      listId,
+      tags,
+      recurrenceType,
+      recurrenceInterval,
+      recurrenceDaysOfWeek,
+      recurrenceEndDate,
+    };
+  });
+
+  // 一個合併的 debounce counter：任一欄位變化會 bump，300ms 後 flush 整個 task
+  const debouncedVersionRef = useRef(0);
+
+  // 統一追蹤 13 個欄位的 useDebouncedField：每個欄位 debounce 後，都會 bump version
+  const bumpDebounced = useCallback(() => {
+    debouncedVersionRef.current += 1;
+  }, []);
+
+  // 主 debouncer：等 300ms 安靜後，一次性寫入整個 task snapshot
+  const lastWrittenVersionRef = useRef(0);
+  useEffect(() => {
+    if (debouncedVersionRef.current === lastWrittenVersionRef.current) return;
+    const timer = setTimeout(() => {
+      const snap = snapshotRef.current;
+      const v = debouncedVersionRef.current;
+      if (v === lastWrittenVersionRef.current) return; // 期間又改了，再等下一輪
+      lastWrittenVersionRef.current = v;
+      // 寫入整個 task（沿用既有的 recurrence 結構）
+      const recurrence: Recurrence | undefined =
+        snap.recurrenceType !== "none"
+          ? {
+              pattern: snap.recurrenceType as Recurrence["pattern"],
+              interval: snap.recurrenceInterval,
+              completedCount: task.recurrence?.completedCount || 0,
+              daysOfWeek:
+                snap.recurrenceType === "weekly" ? snap.recurrenceDaysOfWeek : undefined,
+              endDate: snap.recurrenceEndDate || undefined,
+            }
+          : undefined;
+      const finalDueDate = snap.dueDate || snap.startDate || undefined;
+      updateTask(task.id, {
+        title: snap.title.trim(),
+        description: snap.description.trim() || undefined,
+        priority: snap.priority,
+        status: snap.status,
+        startDate: snap.startDate || undefined,
+        dueDate: finalDueDate,
+        dueTime: snap.dueTime || undefined,
+        listId: snap.listId,
+        tags: snap.tags,
+        recurrence,
+      });
+    }, DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }); // 故意不寫 dependency：每次 render 都跑，內部 ref 自管理
+
+  // 為 13 個欄位掛上 useDebouncedField，每個都呼叫 bumpDebounced
+  useDebouncedField({ value: title, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
+  useDebouncedField({ value: description, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
+  useDebouncedField({ value: priority, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
+  useDebouncedField({ value: status, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
+  useDebouncedField({ value: startDate, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
+  useDebouncedField({ value: dueDate, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
+  useDebouncedField({ value: dueTime, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
+  useDebouncedField({ value: listId, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
+  useDebouncedField({ value: tags, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
+  useDebouncedField({ value: recurrenceType, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
+  useDebouncedField({ value: recurrenceInterval, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
+  useDebouncedField({ value: recurrenceDaysOfWeek, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
+  useDebouncedField({ value: recurrenceEndDate, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
 
   const handleDelete = () => {
     if (confirm(`刪除任務「${task.title}」？`)) {
@@ -370,32 +505,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               <Trash2 className="w-4 h-4" />
             </button>
             <button
-              onClick={() => {
-                const newStatus: TaskStatus = status === "done" ? "todo" : "done";
-                setStatus(newStatus);
-                updateTask(task.id, {
-                  title: title.trim(),
-                  description: description.trim() || undefined,
-                  priority,
-                  status: newStatus,
-                  startDate: startDate || undefined,
-                  dueDate: dueDate || startDate || undefined,
-                  dueTime: dueTime || undefined,
-                  listId,
-                  tags,
-                  subTasks,
-                  recurrence: recurrenceType !== "none" ? {
-                    pattern: recurrenceType as Recurrence["pattern"],
-                    interval: recurrenceInterval,
-                    completedCount: task.recurrence?.completedCount || 0,
-                    daysOfWeek: recurrenceType === "weekly" ? recurrenceDaysOfWeek : undefined,
-                    endDate: recurrenceEndDate || undefined,
-                  } : undefined,
-                  attachments,
-                });
-                setHasChanges(false);
-                onClose?.();
-              }}
+              onClick={handleSaveAndClose}
               disabled={!title.trim()}
               className="btn-primary text-[13px] py-2 px-4 disabled:opacity-40 disabled:cursor-not-allowed"
             >
