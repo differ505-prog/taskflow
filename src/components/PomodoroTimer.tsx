@@ -6,8 +6,8 @@ import { useZenFlowContext } from "@/lib/ZenFlowContext";
 import { Task } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  Play, Pause, RotateCcw, Coffee, Target, Settings2,
-  X, CheckCircle2, Timer, SkipForward, Music,
+  Play, Pause, RotateCcw, Coffee, Target,
+  X, CheckCircle2, Timer,
 } from "lucide-react";
 
 interface PomodoroTimerProps {
@@ -235,57 +235,23 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
           <div className="w-11" />
         </div>
 
-        {/* Music bar — only show during focus */}
+        {/* OmniSonic Deep Focus embed button */}
         {type === "focus" && (
-          <div
-            className="flex items-center gap-3 px-4 py-3 rounded-2xl"
-            style={{ background: "var(--surface-muted)" }}
-          >
-            <Music className="w-4 h-4 flex-shrink-0" style={{ color: "var(--brand)" }} />
-            <div className="flex-1 min-w-0 text-left">
-              {zenState.error ? (
-                <p className="text-[12px] truncate" style={{ color: "var(--status-danger)" }}>
-                  無法載入音樂
-                </p>
-              ) : zenState.isLoading ? (
-                <p className="text-[12px] truncate" style={{ color: "var(--text-tertiary)" }}>
-                  等待載入...
-                </p>
-              ) : !zenState.currentTrack ? (
-                <p className="text-[12px] truncate" style={{ color: "var(--text-tertiary)" }}>
-                  未設定音樂服務
-                </p>
-              ) : (
-                <>
-                  <p className="text-[12px] font-medium truncate" style={{ color: "var(--text-primary)" }}>
-                    {zenState.currentTrack.title}
-                  </p>
-                  <p className="text-[10px] truncate" style={{ color: "var(--text-tertiary)" }}>
-                    OmniSonic · 85 BPM
-                  </p>
-                </>
-              )}
+          <div className="flex flex-col items-center gap-2">
+            <div
+              className="relative w-20 h-20 rounded-full overflow-hidden border"
+              style={{ borderColor: "rgba(192,38,211,0.3)", boxShadow: "0 0 24px rgba(192,38,211,0.25)" }}
+            >
+              <iframe
+                src={typeof window !== "undefined" ? `${new URL("/", window.location.origin).origin}/embed/button` : "/embed/button"}
+                title="OmniSonic Deep Focus Button"
+                className="w-full h-full border-0"
+                allow="autoplay"
+              />
             </div>
-            {zenState.currentTrack && !zenState.error && (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => zenState.isPlaying ? pause() : play()}
-                  className="p-1.5 rounded-lg transition-colors"
-                  style={{ color: "var(--text-secondary)" }}
-                  aria-label={zenState.isPlaying ? "靜音" : "播放"}
-                >
-                  {zenState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                </button>
-                <button
-                  onClick={next}
-                  className="p-1.5 rounded-lg transition-colors"
-                  style={{ color: "var(--text-tertiary)" }}
-                  aria-label="下一首"
-                >
-                  <SkipForward className="w-4 h-4" />
-                </button>
-              </div>
-            )}
+            <p className="text-[10px] tracking-widest uppercase" style={{ color: "var(--text-tertiary)" }}>
+              OmniSonic · Deep Focus
+            </p>
           </div>
         )}
 
