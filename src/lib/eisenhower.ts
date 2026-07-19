@@ -58,7 +58,7 @@ export function getEisenhowerVisual(
   task: Task | { priority: Priority; dueDate?: string },
   now: Date = new Date(),
 ): EisenhowerVisual {
-  const priority = task.priority;
+  const priority: Priority = task.priority ?? "none";
 
   // Q1 顯式：do-now（用戶/系統明確標記為「速辦」）
   if (priority === "do-now") {
@@ -96,6 +96,7 @@ export function getEisenhowerVisual(
     case "delegate":
       return { quadrant: "delegate", color: Q3_COLOR, colorHex: Q3_HEX, emoji: Q3_EMOJI, isUrgent: false, label: "轉交" };
     case "none":
+    default:
       return { quadrant: "none", color: Q4_COLOR, colorHex: Q4_HEX, emoji: Q4_EMOJI, isUrgent: false, label: "暫緩" };
   }
 }
