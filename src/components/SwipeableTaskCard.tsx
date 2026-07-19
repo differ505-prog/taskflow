@@ -25,12 +25,13 @@ export function SwipeableTaskCard({
   hideComplete = false,
 }: SwipeableTaskCardProps) {
   const trackRef = useRef<HTMLDivElement>(null);
-  // Track offset: negative = card shifted left, reveals right-side actions
   const [offset, setOffset] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
+  // 按鈕反饋動畫：觸發短暫脈衝（模擬 iOS 無 vibrate 時的震動感）
+  const [pulseKey, setPulseKey] = useState(0);
   const startXRef = useRef(0);
   const currentOffsetRef = useRef(0);
-  const isProcessingRef = useRef(false); // 防止重複點擊
+  const isProcessingRef = useRef(false);
 
   const close = useCallback(() => {
     setOffset(0);
@@ -89,34 +90,68 @@ export function SwipeableTaskCard({
       >
         {/* Complete button (rightmost, revealed first on left-swipe) */}
         {!hideComplete && onComplete && (
-          <button
+          <motion.button
+            key={`complete-${pulseKey}`}
             className="relative z-40 flex flex-col items-center justify-center gap-1 text-white text-[11px] font-semibold"
             style={{ width: ACTION_WIDTH, background: "var(--status-success)" }}
-            onClick={() => {
+            whileTap={{ scale: 0.9 }}
+            animate={pulseKey > 0 ? { scale: [1, 1.15, 1] } : { scale: 1 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              isProcessingRef.current = true;
+              // iOS 無 navigator.vibrate：用脈衝動畫模擬震動回饋
+              setPulseKey((k) => k + 1);
               haptic("light");
-              onComplete();
-              close();
+              // 延遲 close 等 spring 動畫完成，避免按鈕被滑動中卡片遮住
+              setTimeout(() => {
+                onComplete();
+                close();
+                setTimeout(() => { isProcessingRef.current = false; }, 50);
+              }, 200);
             }}
             aria-label="完成任務"
           >
             <CheckCircle2 className="w-5 h-5" />
             完成
-          </button>
+          </motion.button>
         )}
         {/* Delete button (always present, rightmost) */}
-        <button
+        <motion.button
+          key={`delete-${pulseKey}`}
           className="relative z-40 flex flex-col items-center justify-center gap-1 text-white text-[11px] font-semibold"
           style={{ width: ACTION_WIDTH, background: "var(--status-danger)" }}
-          onClick={() => {
+          whileTap={{ scale: 0.9 }}
+          animate={pulseKey > 0 ? { scale: [1, 1.2, 1] } : { scale: 1 }}
+          transition={{ duration: 0.22, ease: "easeOut" }}
+          onClick={(e) => {
+            e.stopPropagation();
+            isProcessingRef.current = true;
+            // iOS 無 navigator.vibrate：用較強脈衝模擬震動回饋
+            setPulseKey((k) => k + 1);
             haptic("medium");
-            onDelete(taskId);
-            close();
+            // 卡片閃白反饋（替代震動）
+            if (trackRef.current) {
+              trackRef.current.animate(
+                [
+                  { boxShadow: "inset 0 0 0 2px rgba(239, 68, 68, 0.6)" },
+                  { boxShadow: "inset 0 0 0 0px rgba(239, 68, 68, 0)" },
+                ],
+                { duration: 250, easing: "ease-out" }
+              );
+            }
+            // 延遲 close 等 spring 動畫完成，按鈕動畫先完成再收合
+            setTimeout(() => {
+              onDelete(taskId);
+              close();
+              setTimeout(() => { isProcessingRef.current = false; }, 50);
+            }, 220);
           }}
           aria-label="刪除任務"
         >
           <Trash2 className="w-5 h-5" />
           刪除
-        </button>
+        </motion.button>
       </div>
 
       {/* Scrim: tap anywhere outside buttons to close — pointer-events-none lets clicks pass through */}
