@@ -2,7 +2,13 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Howl, Howler } from "howler";
-import type { ZenFlowTrack } from "./zenflow-api";
+import type {
+  OmniSonicTrack,
+  OmniSonicSessionPlan,
+  fetchAutoDjPlaylist,
+} from "./zenflow-api";
+
+export type ZenFlowTrack = OmniSonicTrack;
 
 export type ZenFlowState = {
   isPlaying: boolean;
@@ -14,10 +20,10 @@ export type ZenFlowState = {
   volume: number;
   isLoading: boolean;
   isCrossfading: boolean;
+  sessionPlan: OmniSonicSessionPlan | null;
   error: string | null;
 };
 
-const CROSSFADE_SECONDS = 4.36;
 const CROSSFADE_POLL_MS = 200;
 const CROSSFADE_WINDOW_MS = 1200;
 
@@ -32,6 +38,7 @@ export function useZenFlow(omnisonicBaseUrl: string) {
     volume: 0.8,
     isLoading: true,
     isCrossfading: false,
+    sessionPlan: null,
     error: null,
   });
 
@@ -48,6 +55,8 @@ export function useZenFlow(omnisonicBaseUrl: string) {
   const mutedVolumeRef = useRef<number | null>(null);
   const isCrossfadingRef = useRef(false);
   const volumeRef = useRef(0.8);
+  // Per-track crossfade duration — updated whenever the current track changes
+  const currentCrossfadeSecondsRef = useRef(4.36);
 
   // ── Helpers ───────────────────────────────────────────────
 
@@ -74,12 +83,12 @@ export function useZenFlow(omnisonicBaseUrl: string) {
   );
 
   const createHowl = useCallback(
-    (track: ZenFlowTrack, volume = 1) => {
+    (track: ZenFlowTrack, initialVolume = 1) => {
       const howl = new Howl({
         src: [buildAudioUrl(track)],
         html5: true,
         preload: true,
-        volume,
+        volume: initialVolume,
       });
 
       howl.on("end", () => {
@@ -123,7 +132,9 @@ export function useZenFlow(omnisonicBaseUrl: string) {
       const track = playlistRef.current[index];
       if (!track) return;
 
-      // Clean up existing howls
+      // Update crossfade duration for this track
+      currentCrossfadeSecondsRef.current = track.transition.crossfadeSeconds;
+
       if (currentHowlRef.current) {
         currentHowlRef.current.stop();
         currentHowlRef.current.unload();
@@ -135,18 +146,24 @@ export function useZenFlow(omnisonicBaseUrl: string) {
       const howl = createHowl(track, startsMuted ? 0 : 1);
       currentHowlRef.current = howl;
 
-      if (startsMuted) {
-        howl.once("play", () => {
+      howl.once("play", () => {
+        const introCue = track.transition.introCueSeconds;
+        const duration = howl.duration();
+        if (introCue > 0 && introCue < duration) {
+          howl.seek(introCue);
+        }
+
+        if (startsMuted) {
           howl.fade(0, volumeRef.current, fadeInMs);
-        });
-      }
+        }
+      });
 
       howl.play();
       scheduleCrossfadeMonitor();
       startTicker();
       emit();
     },
-    [createHowl, emit, state.volume],
+    [createHowl, emit],
   );
 
   const play = useCallback(
@@ -310,7 +327,7 @@ export function useZenFlow(omnisonicBaseUrl: string) {
       nextHowlRef.current.volume(0);
       currentHowlRef.current?.volume(volumeRef.current);
 
-      const fadeMs = CROSSFADE_SECONDS * 1000;
+      const fadeMs = currentCrossfadeSecondsRef.current * 1000;
       let startedAt = Date.now();
 
       const tick = () => {
@@ -338,6 +355,12 @@ export function useZenFlow(omnisonicBaseUrl: string) {
             currentIndexRef.current = 0;
           }
 
+          // Update crossfade duration for the NEW current track
+          const newTrack = playlistRef.current[currentIndexRef.current];
+          if (newTrack) {
+            currentCrossfadeSecondsRef.current = newTrack.transition.crossfadeSeconds;
+          }
+
           setState((prev) => ({ ...prev, isCrossfading: false }));
           isCrossfadingRef.current = false;
           primeNext();
@@ -348,7 +371,7 @@ export function useZenFlow(omnisonicBaseUrl: string) {
 
       crossfadeMonitorRef.current = setInterval(tick, 40);
     },
-    [createHowl, emit, getNextTrack, state.volume],
+    [createHowl, emit, getNextTrack],
   );
 
   const scheduleCrossfadeMonitor = useCallback(() => {
@@ -366,7 +389,8 @@ export function useZenFlow(omnisonicBaseUrl: string) {
 
       emit();
 
-      const outgoingStart = duration - CROSSFADE_SECONDS;
+      const crossfadeSeconds = currentCrossfadeSecondsRef.current;
+      const outgoingStart = duration - crossfadeSeconds;
       const remainingMs = (outgoingStart - seek) * 1000;
 
       if (seek >= outgoingStart) {
@@ -446,7 +470,7 @@ export function useZenFlow(omnisonicBaseUrl: string) {
     }
   }, []);
 
-  // ── Init: fetch track list ────────────────────────────────
+  // ── Init: fetch Auto DJ playlist from OmniSonic ─────────────────────
 
   useEffect(() => {
     if (!omnisonicBaseUrl) {
@@ -456,13 +480,33 @@ export function useZenFlow(omnisonicBaseUrl: string) {
 
     let cancelled = false;
 
-    fetch(`${omnisonicBaseUrl}/api/zenflow/tracks`, {
-      next: { revalidate: 60 },
-    })
+    const currentTrackId = playlistRef.current[currentIndexRef.current]?.id ?? null;
+    const nextTrackId = currentTrackId
+      ? (() => {
+          const idx = playlistRef.current.findIndex((t) => t.id === currentTrackId);
+          return playlistRef.current[idx + 1]?.id ?? playlistRef.current[0]?.id ?? null;
+        })()
+      : null;
+
+    fetch(
+      `${omnisonicBaseUrl}/api/zenflow/autodj/playlist${
+        currentTrackId || nextTrackId
+          ? `?${new URLSearchParams({
+              ...(currentTrackId ? { currentTrackId } : {}),
+              ...(nextTrackId ? { nextTrackId } : {}),
+            }).toString()}`
+          : ""
+      }`,
+      { next: { revalidate: 10 } },
+    )
       .then((r) => r.json())
-      .then((data: { tracks: ZenFlowTrack[] }) => {
+      .then((data: {
+        tracks: ZenFlowTrack[];
+        sessionPlan: OmniSonicSessionPlan;
+      }) => {
         if (cancelled) return;
         const tracks = data.tracks ?? [];
+        const sessionPlan = data.sessionPlan ?? null;
         playlistRef.current = tracks;
         setState((prev) => ({
           ...prev,
@@ -471,6 +515,7 @@ export function useZenFlow(omnisonicBaseUrl: string) {
           currentTrack: tracks[0] ?? null,
           nextTrack: tracks[1] ?? null,
           duration: tracks[0]?.durationSeconds ?? 0,
+          sessionPlan,
         }));
       })
       .catch(() => {

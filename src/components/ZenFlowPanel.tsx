@@ -115,8 +115,8 @@ export function ZenFlowPanel({ isOpen, onClose }: ZenFlowPanelProps) {
                   {currentTrack!.title}
                 </p>
                 <p className="text-[12px] truncate" style={{ color: "var(--text-secondary)" }}>
-                  {currentTrack!.descriptionZh.slice(0, 60)}
-                  {currentTrack!.descriptionZh.length > 60 ? "…" : ""}
+                  {currentTrack!.copy.descriptionZh.slice(0, 60)}
+                  {currentTrack!.copy.descriptionZh.length > 60 ? "…" : ""}
                 </p>
               </div>
 

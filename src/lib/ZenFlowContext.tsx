@@ -1,7 +1,10 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import type { ZenFlowTrack } from "./zenflow-api";
+import type {
+  ZenFlowTrack,
+  OmniSonicSessionPlan,
+} from "./zenflow-api";
 
 export type ZenFlowState = {
   isPlaying: boolean;
@@ -13,6 +16,7 @@ export type ZenFlowState = {
   volume: number;
   isLoading: boolean;
   isCrossfading: boolean;
+  sessionPlan: OmniSonicSessionPlan | null;
   error: string | null;
 };
 
