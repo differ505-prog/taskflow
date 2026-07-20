@@ -118,7 +118,7 @@ export async function subscribeTasks(
       { event: "*", schema: "public", table: TABLE, filter: `owner_uid=eq.${uid}` },
       async (payload) => {
         const t0 = Date.now();
-        console.log(`[personalTaskSync] postgres_changes 收到，event=${payload.eventType}，時間=${Date.now()}`);
+        console.log(`[personalTaskSync] postgres_changes 收到，raw payload:`, JSON.stringify(payload));
         try {
           const fresh = await loadTasks(uid);
           console.log(`[personalTaskSync] loadTasks 耗時 ${Date.now() - t0}ms，任務數: ${fresh.length}`);
@@ -138,8 +138,10 @@ export async function subscribeTasks(
 
   // 建立 Realtime 訂閱：監聽自己 uid 的 INSERT/UPDATE/DELETE
   let activeChannel = buildChannel();
-  activeChannel.subscribe();
-  // 連線狀態由 channel.on("system") 處理，這裡不做額外判斷
+  activeChannel.subscribe((status, err) => {
+    console.log("[personalTaskSync] subscribe callback → status:", status, "err:", err);
+  });
+  console.log("[personalTaskSync] channel created, state:", (activeChannel as unknown as { state?: () => string }).state?.());
 
   return () => {
     if (activeChannel) supabase!.removeChannel(activeChannel);
