@@ -83,10 +83,14 @@ export async function subscribeTasks(
       ? tasks.filter((t) => !deletedIdsRef.has(t.id))
       : tasks;
 
-  // Supabase Realtime 的 postgres_changes INSERT/UPDATE 廣播有時會延遲到分鐘級
-  // （觀察到 > 5 分鐘，且會「下一個事件觸發才廣播出來」）。
-  // Fallback：訂閱後 5 秒內沒收到任何 INSERT/UPDATE callback，主動 loadTasks 一次。
-  // 只跑一次（避免重複觸發）。DELETE 走 realtime 已即時，不需 fallback。
+  // Supabase Realtime 的 postgres_changes INSERT/UPDATE 廣播會隨機延遲（觀察到 22 秒~數分鐘），
+  // 且呈現「下一個事件觸發才廣播出來」特性。光靠 5 秒一次性 timer 只保護訂閱後前幾秒，
+  // 對「訂閱後 10 分鐘才新增任務」的場景無效。
+  //
+  // 雙層保護：
+  // 1) 訂閱時 5 秒一次性 fallback — 保護剛啟動的視窗
+  // 2) ongoing 30 秒靜默輪詢 — 監測 lastBroadcastAt，超過 30 秒沒收到任何 INSERT/UPDATE
+  //    → 主動 loadTasks。DELETE 廣播即時，不算靜默也不更新 timestamp（不影響這層保護）。
   let fallbackFired = false;
   const fallbackTimer = setTimeout(async () => {
     if (fallbackFired) return;
@@ -99,11 +103,27 @@ export async function subscribeTasks(
       console.error("[personalTaskSync] fallback poll failed:", err);
     }
   }, 5000);
-  // INSERT/UPDATE 一旦抵達就取消 fallback（DELETE 不取消，因為 DELETE 廣播已即時，
-  // 不代表下次 INSERT/UPDATE 會正常；保守起見讓 fallback 跑完一次）
   const cancelFallback = () => {
     clearTimeout(fallbackTimer);
     fallbackFired = true;
+  };
+
+  // 2) ongoing 30 秒靜默輪詢
+  let lastBroadcastAt = Date.now();
+  const SILENT_WINDOW_MS = 30_000;
+  const periodicPollTimer = setInterval(async () => {
+    if (Date.now() - lastBroadcastAt < SILENT_WINDOW_MS) return;
+    try {
+      const fresh = await loadTasks(uid);
+      console.log(`[personalTaskSync] periodic poll fired（靜默 ${Math.floor((Date.now() - lastBroadcastAt) / 1000)}s），任務數: ${fresh.length}`);
+      onUpdate(filterDeleted(fresh));
+      lastBroadcastAt = Date.now(); // 重置視窗，避免持續觸發直到下次 INSERT/UPDATE
+    } catch (err) {
+      console.error("[personalTaskSync] periodic poll failed:", err);
+    }
+  }, SILENT_WINDOW_MS);
+  const markBroadcast = () => {
+    lastBroadcastAt = Date.now();
   };
 
   let reconnectAttempts = 0;
@@ -124,6 +144,7 @@ export async function subscribeTasks(
       { event: "INSERT", schema: "public", table: TABLE },
       async (payload) => {
         cancelFallback();
+        markBroadcast();
         const tRecv = Date.now();
         console.log(`[personalTaskSync] INSERT callback received at ${new Date(tRecv).toISOString()} (deltaFromPayload=${tRecv - new Date(payload.commit_timestamp || Date.now()).getTime()}ms)`, payload);
         const raw = payload as { new?: { owner_uid?: string } };
@@ -144,6 +165,7 @@ export async function subscribeTasks(
       { event: "UPDATE", schema: "public", table: TABLE },
       async (payload) => {
         cancelFallback();
+        markBroadcast();
         console.log(`[personalTaskSync] UPDATE callback`);
         const raw = payload as { new?: { owner_uid?: string } };
         if (raw.new && raw.new.owner_uid !== uid) return;
@@ -208,6 +230,7 @@ export async function subscribeTasks(
 
   return () => {
     clearTimeout(fallbackTimer);
+    clearInterval(periodicPollTimer);
     if (activeChannel) supabase!.removeChannel(activeChannel);
     activeChannel = null as unknown as ReturnType<typeof buildChannel>;
   };
