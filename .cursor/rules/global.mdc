@@ -604,6 +604,37 @@ alwaysApply: true
 
 ---
 
+#### 24.1 瀏覽器子模式首次確認 (Browser Sub-Mode First)
+
+**問題**：本對話 PWA 同步延遲修了 N 輪才發現：iOS Safari tab 跟 iOS PWA（從主畫點加入）是**兩個完全獨立的 runtime**，JS 排程、WebSocket 凍結、背景行為都不同。§24 只涵蓋「單機/多分頁/多裝置」的裝置拓樸，**沒涵蓋「同一瀏覽器內的不同子模式」**（PWA / 一般 tab / incognito / WebView）。
+
+**觸發**：
+- 任何涉及「**realtime 廣播丟失**」「**事件沒觸發**」「**背景/前景切換後狀態不對**」「**JS 在背景卡住**」的問題
+- 任何涉及「**手機操作**」「**主畫 icon**」「**background fetch**」「**PWA install**」的修改
+
+**規則**：
+
+1. **第一步用 `AskQuestion` 確認瀏覽器子模式**（不可跳過，不可自由問句）：
+   - ① Safari 一般 tab（在 Safari 裡開分頁）
+   - ② PWA（從主畫 icon 開啟，已加入主畫面）
+   - ③ 一般 Chrome / 其他瀏覽器 tab
+   - ④ WebView / 嵌入其他 App（如 Line 內開連結）
+2. **確認後才進症狀分析**：不同子模式的 JS / WebSocket 行為差異極大：
+   - iOS Safari tab：背景時 JS 受限、WebSocket 可能 suspend 但**沒有 PWA 凍結那麼嚴格**
+   - iOS PWA：**JS 在背景會被 iOS 凍結**（WebSocket 斷線、setInterval 停擺、wake lock 失效），進前景時 bfcache 恢復或 cold start
+   - iOS WebView：行為依宿主 App 而定，最難預測
+3. **配套確認**：子模式確認後，順帶問「是否使用主畫 PWA 為日常主力？」——這決定要不要做 PWA 喚醒同步（visibilitychange / pageshow / online）
+4. **修法方向因子模式不同**：
+   - Safari tab bug → realtime + periodic poll 即可
+   - **PWA bug → 必須加 PWA 喚醒同步**（治本）
+   - WebView bug → 通常建議放棄 sync 改走強制 reload
+
+**與 §24 關係**：§24 是「**裝置層拓樸**」（單機/多分頁/多裝置），§24.1 是「**瀏覽器內子模式層**」。兩者獨立維度，但實務上常合併問（例如：「單機 iPhone + PWA 從主畫開」）。
+
+**違規計入 §16 失敗上限**：未確認子模式直接假設「Safari tab = PWA」= 累計 1 次修改失敗（本對話實際發生）。
+
+---
+
 ### 25. 既有防護 pattern 對齊檢查 (Existing Guard Pattern Alignment)
 
 **問題**：Codebase 裡已有 `deletedTaskIdsRef`、`isWritingRef`、`firstTasksLoadDone` 等同類保護 pattern，但近幾輪又重新發明 `recentlyWrittenRef` / `pendingExpected` 等相似概念，散落多處。
@@ -649,6 +680,7 @@ alwaysApply: true
 | **H** | Build 失敗導致改動「隱形上線」陷阱（commit 已 push、developer 認為已 deploy、實際 production 仍 serve 舊版） | curl / 瀏覽器看到的 HTML 與 commit 預期不符、Vercel 部署狀態顯示舊 commit SHA | 改動後**必須**驗證三件事：(1) `npm run build` 成功 (2) Vercel deployment log clean (3) curl SSR HTML 內容確認（§12 強制 + §15.6 純樣式 0 tool call 例外） |
 | **I** | PostgREST 把函式內部 PostgreSQL error 包裝為 404，掩蓋真根因 | `POST /rest/v1/rpc/xxx → 404`，但 SQL Editor 跑同樣函式沒問題；誤以為是 grant / schema cache 問題，多輪盲改仍失敗 | **第一刀就看 Supabase Dashboard → Logs → Postgrologist**，找 HTTP 4xx/5xx 對應的 SQLSTATE（如 42883、42P01、42703）；SQLSTATE 才是真根因 |
 | **J** | 同步失敗期間產生的「孤兒任務」永遠卡 localOnly | 「某些任務跨裝置看不到 / 跨裝置刪除後其他裝置還在」；`localOnly = N > 0` 長期存在，雲端從未收到 DELETE 事件（因為雲端沒有該 task）；用戶以為「刪除未同步」實際根因是「雲端無此 id」 | subscribeTasks callback 中偵測 `localOnly`：不在「最近寫入保護窗」內 → 視為孤兒，自動 `batchSave` 補推上雲（一次性，保護窗避免和正常本地寫入混淆） |
+| **K** | 把 Safari 一般 tab 的行為直接套用到 iOS PWA，沒意識到「**同一個網站在兩種 runtime 環境下完全不同**」（iOS 對 PWA 進背景時會凍結 JS / WebSocket） | 在 Safari tab 同步正常 + 在 PWA 同步延遲幾秒；或反之；或只在 PWA 復現的 bug 沒抓到 iOS 凍結這個根因 | §24.1 — 第一步用 `AskQuestion` 確認瀏覽器子模式 + 監聽 `visibilitychange` / `pageshow` / `online` 做 PWA 喚醒同步 |
 
 3. **命中已知類別 → 直接套用標準修法，禁止重新推理**。評分表只寫「命中類別 X，套用修法」。
 4. **新類別 → 修完後主動追加**至本表（commit 內同步）。
@@ -669,3 +701,4 @@ alwaysApply: true
 | 2026-07-19 | 新增 §10.3 修憲自評分公約 + §15.7 Runtime 預算揭露 + §15.8 悶做攔截 + §21.7 跨 repo SSOT + §26 類別 G/H（build 失敗隱形上線 / client/server 元件邊界衝突） | （本表自評） |
 | 2026-07-20 | 新增 §26 類別 I：PostgREST 把函式內部 PostgreSQL error 包裝為 404（42883 等），掩蓋真根因；本輪修了 4 輪才從 Logs 發現 SQLSTATE；新增前自評 9.2，達標 | **9.2**（首輪即達標，免二輪） |
 | 2026-07-20 | 新增 §14.1（build/type 報錯全鏈條清理）— 針對本輪 deletedIdsRef type 改了 3 輪才完整（每次 build 才看到下一錯）；新增 §26 類別 J（孤兒任務自動補推）— 針對「localOnly=15 跨裝置永遠看不到」的具體根因 | **§14.1: 9.3 / §26-J: 9.2**（均首輪達標，免二輪） |
+| 2026-07-20 | 新增 §24.1 瀏覽器子模式首次確認（涵蓋 PWA / Safari tab / WebView 子模式差異，避免把 Safari tab 行為誤套 PWA）+ §26 類別 K（瀏覽器子模式假設錯誤）；本輪 iOS PWA 同步延遲修了 N 輪才發現是 PWA 進背景 iOS 凍結 WebSocket — 治本加 PWA 喚醒同步（visibilitychange + pageshow + online 三事件）已驗證 < 1 秒同步 | **§24.1: 9.3 / §26-K: 9.2**（均首輪達標，免二輪） |
