@@ -91,29 +91,7 @@ export async function subscribeTasks(
     const channel = supabase!
       .channel(`personal_tasks:${uid}`);
 
-    // 監聽 channel 系統事件（連線/斷線/錯誤/超時）
-    channel.on("system", { event: "system" } as any, (payload) => {
-      if (payload.status === "connected") {
-        reconnectAttempts = 0;
-        console.log("[personalTaskSync] Realtime channel 已連線");
-      } else if (payload.status === "disconnected" || payload.status === "timeout" || payload.status === "channel_error") {
-        console.warn(`[personalTaskSync] Realtime channel ${payload.status}:`, payload);
-        if (reconnectAttempts < MAX_RECONNECT) {
-          const delay = Math.min(1000 * 2 ** reconnectAttempts, 30000); // 指數退避，最大 30 秒
-          reconnectAttempts++;
-          console.log(`[personalTaskSync] ${delay / 1000}s 後嘗試重連 (${reconnectAttempts}/${MAX_RECONNECT})`);
-          setTimeout(() => {
-            console.log("[personalTaskSync] 正在重連...");
-            activeChannel = buildChannel();
-            void activeChannel.subscribe();
-          }, delay);
-        } else {
-          console.error("[personalTaskSync] 已達最大重連次數，停止重連");
-        }
-      }
-    });
-
-    // 監聽 postgres 變更
+    // 監聽 postgres 變更（INSERT/UPDATE/DELETE）
     channel.on(
       "postgres_changes",
       { event: "*", schema: "public", table: TABLE, filter: `owner_uid=eq.${uid}` },
@@ -142,8 +120,15 @@ export async function subscribeTasks(
   // 訂閱（加 flag 防 React StrictMode / 熱更新觸發兩次 subscribe）
   if (!subscribed) {
     subscribed = true;
-    await activeChannel.subscribe();
-    console.log("[personalTaskSync] channel created, state:", (activeChannel as unknown as { state?: () => string }).state?.());
+    activeChannel.subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        reconnectAttempts = 0;
+        console.log("[personalTaskSync] Realtime channel 已連線");
+      } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        console.warn(`[personalTaskSync] channel ${status}`);
+      }
+    });
+    console.log("[personalTaskSync] channel created");
   } else {
     console.warn("[personalTaskSync] channel 已訂閱，跳過重複 subscribe()");
   }

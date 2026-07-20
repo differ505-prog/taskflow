@@ -48,28 +48,6 @@ export async function subscribeLists(
     const channel = supabase!
       .channel(`personal_lists:${uid}`);
 
-    channel.on("system", { event: "system" } as any, (payload) => {
-      if (payload.status === "connected") {
-        reconnectAttempts = 0;
-      } else if (
-        payload.status === "disconnected" ||
-        payload.status === "timeout" ||
-        payload.status === "channel_error"
-      ) {
-        console.warn(`[personalListSync] Realtime channel ${payload.status}`);
-        if (reconnectAttempts < MAX_RECONNECT) {
-          const delay = Math.min(1000 * 2 ** reconnectAttempts, 30000);
-          reconnectAttempts++;
-          console.log(`[personalListSync] ${delay / 1000}s 後重連 (${reconnectAttempts}/${MAX_RECONNECT})`);
-          setTimeout(() => {
-            const newChannel = buildChannel();
-            activeChannel = newChannel;
-            void newChannel.subscribe();
-          }, delay);
-        }
-      }
-    });
-
     channel.on(
       "postgres_changes",
       { event: "*", schema: "public", table: TABLE, filter: `owner_uid=eq.${uid}` },
@@ -89,7 +67,15 @@ export async function subscribeLists(
   // 訂閱（加 flag 防 React StrictMode / 熱更新觸發兩次 subscribe）
   if (!subscribed) {
     subscribed = true;
-    await activeChannel.subscribe();
+    activeChannel.subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        reconnectAttempts = 0;
+        console.log("[personalListSync] Realtime channel 已連線");
+      } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        console.warn(`[personalListSync] channel ${status}`);
+      }
+    });
+    console.log("[personalListSync] channel created");
   } else {
     console.warn("[personalListSync] channel 已訂閱，跳過重複 subscribe()");
   }
