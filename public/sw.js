@@ -1,5 +1,13 @@
 /**
- * sw.js — TaskFlow PWA Service Worker
+ * sw.js — TaskFlow PWA Service Worker（純 JavaScript,不可使用 TypeScript 語法）
+ *
+ * ⚠️ 重要維護守則（§13 / §14 對齊）：
+ * - 此檔由瀏覽器直接載入執行,不會經過 webpack/tsc 編譯
+ * - 禁止使用 TypeScript 語法:'as unknown as'、'as ServiceWorkerGlobalScope'、
+ *   型別註記（(x: string)）、泛型（Array<T>）、enum、interface 等
+ * - 需要型別時用 JSDoc 註解（@type {ServiceWorkerGlobalScope}）保留 IDE 提示
+ * - 改動後必跑 'node --check public/sw.js' 驗證語法（CI 可加 npm run check:sw）
+ * - 若未來需要完整 TS workflow,改用 esbuild 編譯 sw.ts → sw.js + npm script
  *
  * 功能：
  * 1. Cache-first 策略：靜態資源（JS/CSS/圖片）離線可用
@@ -26,7 +34,7 @@ self.addEventListener("install", (event) => {
     })
   );
   // 立即啟用新 SW，跳過等待
-  (self as unknown as ServiceWorkerGlobalScope).skipWaiting();
+  self.skipWaiting();
 });
 
 // ─── Activate ────────────────────────────────────────────────────
@@ -41,7 +49,7 @@ self.addEventListener("activate", (event) => {
     })
   );
   // 接管所有客戶端
-  (self as unknown as ServiceWorkerGlobalScope).clients.claim();
+  self.clients.claim();
 });
 
 // ─── Fetch ───────────────────────────────────────────────────────
@@ -96,7 +104,7 @@ self.addEventListener("fetch", (event) => {
 // ─── Background Sync ──────────────────────────────────────────────
 // 當 SW 重新啟動時，檢查是否有待處理的背景同步
 self.addEventListener("sync", (event) => {
-  if ((event as unknown as { tag: string }).tag === "sync-tasks") {
+  if (event.tag === "sync-tasks") {
     event.waitUntil(syncTasks());
   }
 });
@@ -111,7 +119,7 @@ async function syncTasks() {
 self.addEventListener("push", (event) => {
   if (!event.data) return;
   const data = event.data.json();
-  const options: NotificationOptions = {
+  const options = {
     body: data.body,
     icon: "/favicon.svg",
     badge: "/favicon.svg",
@@ -120,7 +128,7 @@ self.addEventListener("push", (event) => {
     actions: data.actions || [],
   };
   event.waitUntil(
-    (self as unknown as ServiceWorkerGlobalScope).registration.showNotification(
+    self.registration.showNotification(
       data.title || "TaskFlow",
       options
     )
@@ -131,7 +139,7 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const url = event.notification.data?.url || "/";
   event.waitUntil(
-    (self as unknown as ServiceWorkerGlobalScope).clients
+    self.clients
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((clientList) => {
         for (const client of clientList) {
@@ -139,7 +147,7 @@ self.addEventListener("notificationclick", (event) => {
             return client.focus();
           }
         }
-        return (self as unknown as ServiceWorkerGlobalScope).clients.openWindow(url);
+        return self.clients.openWindow(url);
       })
   );
 });
