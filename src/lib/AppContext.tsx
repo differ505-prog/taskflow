@@ -171,6 +171,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [todayFocusMinutes, setTodayFocusMinutes] = useState(0);
   // ── Webhook outbound：當 tasks/habits/lists 變動時,debounce 500ms 觸發單次 batch 事件 ──
   const lastEmittedSizesRef = useRef({ tasks: 0, habits: 0, lists: 0 });
+
+  // ── §16b Observability：記錄 tasks state 變動時的 timestamp + count ──
+  // 用途：對比 INSERT realtime callback 抵達時間與 UI 真正 render 時間，定位 40 秒延遲根因
+  useEffect(() => {
+    console.log(`[UI RENDER] tasks updated: count=${tasks.length} at ${new Date().toISOString()}`);
+  }, [tasks]);
   const [currentView, setCurrentViewState] = useState<AppView>("inbox");
   const [currentListId, setCurrentListId] = useState<string | undefined>(undefined);
   const [currentSharedListId, setCurrentSharedListIdState] = useState<string | undefined>(undefined);
