@@ -428,8 +428,11 @@ export function AppShell({
                         </button>
                       );
                     })}
-                    {/* 顯示完成按鈕 — 所有視圖通用 */}
-                    {tasks.some((t) => t.status === "done" && !t.isArchived) && (
+                    {/* 顯示完成按鈕 — 只在需要它的視圖渲染。
+                        today / next7days / list 這 3 個語義就是「永遠顯示已完成」,
+                        按鈕點了也無意義(顯示邏輯會強制開啟),所以不要渲染避免誤導。 */}
+                    {!["today", "next7days", "list"].includes(currentView) &&
+                      tasks.some((t) => t.status === "done" && !t.isArchived) && (
                       <button onClick={() => { setShowCompleted(!showCompleted); setActiveFilter({ ...activeFilter, status: undefined }); }} className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 rounded-full text-[12px] font-medium transition-all duration-150"
                         style={!showCompleted ? { background: "var(--brand-tint)", color: "var(--brand)" } : { background: "rgba(0,0,0,0.04)", color: "var(--text-tertiary)" }}>
                         <Archive className="w-3 h-3" />
