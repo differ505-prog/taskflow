@@ -329,7 +329,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             return fbT;
           });
           // 補回雲端尚未收到的本地任務（剛新增的）
-          const localOnly = prev.filter((t) => !fbIds.has(t.id));
+          // 但排除正在刪除中的任務，避免 DELETE 事件的 merge 把刪除目標又加回來
+          const localOnly = prev.filter(
+            (t) => !fbIds.has(t.id) && !deletedTaskIdsRef.current.has(t.id)
+          );
           const result = [...merged, ...localOnly];
           console.log(`[SUP SYNC] setTasks merge: fb=${fbTasks.length}, merged=${merged.length}, localOnly=${localOnly.length}, result=${result.length}, deleted=${deletedTaskIdsRef.current.size}`);
           saveTasks(result);
