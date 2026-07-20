@@ -85,6 +85,7 @@ export async function subscribeTasks(
 
   let reconnectAttempts = 0;
   const MAX_RECONNECT = 5;
+  let subscribed = false;
 
   function buildChannel() {
     const channel = supabase!
@@ -138,9 +139,14 @@ export async function subscribeTasks(
 
   // 建立 Realtime 訂閱：監聽自己 uid 的 INSERT/UPDATE/DELETE
   let activeChannel = buildChannel();
-  // 訂閱（不傳 callback，狀態監聽走 channel.on("system")）
-  await activeChannel.subscribe();
-  console.log("[personalTaskSync] channel created, state:", (activeChannel as unknown as { state?: () => string }).state?.());
+  // 訂閱（加 flag 防 React StrictMode / 熱更新觸發兩次 subscribe）
+  if (!subscribed) {
+    subscribed = true;
+    await activeChannel.subscribe();
+    console.log("[personalTaskSync] channel created, state:", (activeChannel as unknown as { state?: () => string }).state?.());
+  } else {
+    console.warn("[personalTaskSync] channel 已訂閱，跳過重複 subscribe()");
+  }
 
   return () => {
     if (activeChannel) supabase!.removeChannel(activeChannel);

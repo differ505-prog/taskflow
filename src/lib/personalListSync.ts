@@ -42,6 +42,7 @@ export async function subscribeLists(
 
   let reconnectAttempts = 0;
   const MAX_RECONNECT = 5;
+  let subscribed = false;
 
   function buildChannel() {
     const channel = supabase!
@@ -85,7 +86,13 @@ export async function subscribeLists(
   onUpdate(initial);
 
   let activeChannel = buildChannel();
-  await activeChannel.subscribe();
+  // 訂閱（加 flag 防 React StrictMode / 熱更新觸發兩次 subscribe）
+  if (!subscribed) {
+    subscribed = true;
+    await activeChannel.subscribe();
+  } else {
+    console.warn("[personalListSync] channel 已訂閱，跳過重複 subscribe()");
+  }
 
   return () => {
     if (activeChannel) supabase!.removeChannel(activeChannel);
