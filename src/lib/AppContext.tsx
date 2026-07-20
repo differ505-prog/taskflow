@@ -331,6 +331,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           // 補回雲端尚未收到的本地任務（剛新增的）
           const localOnly = prev.filter((t) => !fbIds.has(t.id));
           const result = [...merged, ...localOnly];
+          console.log(`[SUP SYNC] setTasks merge: fb=${fbTasks.length}, merged=${merged.length}, localOnly=${localOnly.length}, result=${result.length}, deleted=${deletedTaskIdsRef.current.size}`);
           saveTasks(result);
           return result;
         });
