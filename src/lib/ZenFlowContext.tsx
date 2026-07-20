@@ -5,6 +5,7 @@ import type {
   ZenFlowTrack,
   OmniSonicSessionPlan,
 } from "./zenflow-api";
+import type { PomodoroController } from "./usePomodoro";
 
 export type ZenFlowState = {
   isPlaying: boolean;
@@ -39,6 +40,16 @@ export function useZenFlowContext() {
   const ctx = useContext(ZenFlowContext);
   if (!ctx) {
     throw new Error("useZenFlowContext must be used inside ZenFlowProvider");
+  }
+  return ctx;
+}
+
+export const PomodoroContext = createContext<PomodoroController | null>(null);
+
+export function usePomodoroContext() {
+  const ctx = useContext(PomodoroContext);
+  if (!ctx) {
+    throw new Error("usePomodoroContext must be used inside ZenFlowProvider");
   }
   return ctx;
 }

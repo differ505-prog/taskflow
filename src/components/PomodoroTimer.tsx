@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useApp } from "@/lib/AppContext";
-import { useZenFlowContext } from "@/lib/ZenFlowContext";
+import { useZenFlowContext, usePomodoroContext } from "@/lib/ZenFlowContext";
+import type { PomodoroType } from "@/lib/usePomodoro";
 import { Task } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Play, Pause, RotateCcw, Coffee, Target,
-  X, CheckCircle2, Timer, Search,
+  X, Timer, Search,
 } from "lucide-react";
 
 interface PomodoroTimerProps {
@@ -15,36 +16,35 @@ interface PomodoroTimerProps {
   onClose: () => void;
 }
 
-const FOCUS_MINUTES = 25;
-const SHORT_BREAK_MINUTES = 5;
-const LONG_BREAK_MINUTES = 15;
 const SESSIONS_BEFORE_LONG_BREAK = 4;
 
-type TimerState = "idle" | "running" | "paused";
-type TimerType = "focus" | "break" | "long-break";
+type TimerType = PomodoroType;
 
 export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
   const { tasks, todayFocusMinutes } = useApp();
-  const { state: zenState, play, pause, next } = useZenFlowContext();
+  const { state: zenState, play, pause } = useZenFlowContext();
+  const pomodoro = usePomodoroContext();
 
-  const [timerState, setTimerState] = useState<TimerState>("idle");
-  const [type, setType] = useState<TimerType>("focus");
-  const [secondsLeft, setSecondsLeft] = useState(FOCUS_MINUTES * 60);
-  const [selectedTaskId, setSelectedTaskId] = useState<string | undefined>(undefined);
-  const [completedSessions, setCompletedSessions] = useState(0);
+  const {
+    snapshot,
+    secondsLeft,
+    start,
+    pause: pausePomodoro,
+    resume,
+    reset,
+    cycleType,
+    setBoundTask,
+  } = pomodoro;
+
   const [taskSearch, setTaskSearch] = useState("");
   const [taskMenuOpen, setTaskMenuOpen] = useState(false);
   const taskSearchRef = useRef<HTMLInputElement>(null);
   const taskMenuRef = useRef<HTMLDivElement>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const totalSeconds = type === "focus"
-    ? FOCUS_MINUTES * 60
-    : type === "break" ? SHORT_BREAK_MINUTES * 60 : LONG_BREAK_MINUTES * 60;
-
+  const totalSeconds = Math.floor(snapshot.totalMs / 1000);
   const minutes = Math.floor(secondsLeft / 60);
   const seconds = secondsLeft % 60;
-  const progress = (totalSeconds - secondsLeft) / totalSeconds;
+  const progress = totalSeconds > 0 ? (totalSeconds - secondsLeft) / totalSeconds : 0;
 
   const activeTasks = tasks.filter((t) => !t.isArchived && t.status !== "done");
   const filteredTasks = useMemo(() => {
@@ -54,15 +54,16 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
       .filter(
         (t) =>
           t.title.toLowerCase().includes(q) ||
-          t.tags.some((tag) => tag.toLowerCase().includes(q))
+          t.tags.some((tag) => tag.toLowerCase().includes(q)),
       )
       .slice(0, 50);
   }, [activeTasks, taskSearch]);
   const selectedTask = useMemo(
-    () => activeTasks.find((t) => t.id === selectedTaskId),
-    [activeTasks, selectedTaskId]
+    () => activeTasks.find((t) => t.id === snapshot.boundTaskId),
+    [activeTasks, snapshot.boundTaskId],
   );
 
+  // ── Click outside for task menu ────────────────────────────
   useEffect(() => {
     if (!taskMenuOpen) return;
     const onClickOutside = (e: MouseEvent) => {
@@ -77,76 +78,68 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [taskMenuOpen]);
 
-  const handleStart = useCallback(() => {
-    setTimerState("running");
-    // Auto-play music when focus session starts
-    if (type === "focus" && !zenState.isPlaying) {
+  // ── Alarm + Notification when a session completes ─────────
+  useEffect(() => {
+    const unsubscribe = pomodoro.onComplete((finalSnapshot) => {
+      const isFocus = finalSnapshot.type === "focus";
+
+      // 1. Play alarm sound
+      try {
+        const audio = new Audio("/sounds/alarm.mp3");
+        audio.volume = 0.7;
+        audio.play().catch(() => {
+          // Autoplay may be blocked; the system notification still fires below
+        });
+      } catch {
+        // Audio API not available; continue with notification
+      }
+
+      // 2. System notification
+      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+        try {
+          new Notification("VibeList 番茄鐘", {
+            body: isFocus ? "專注時間結束！休息一下吧 🌿" : "休息結束,準備下一個專注 session ✨",
+            icon: "/favicon.svg",
+          });
+        } catch {
+          // Notification API unavailable on some browsers
+        }
+      }
+
+      // 3. Stop focus music when focus session ends
+      if (isFocus) {
+        pause();
+      }
+    });
+    return unsubscribe;
+  }, [pomodoro, pause]);
+
+  // ── Auto-play music when focus session starts ──────────────
+  // (kept here, not in handleStart, so the same behavior holds whether
+  //  start() is invoked from this modal or from any future entry point.)
+  useEffect(() => {
+    if (snapshot.phase === "running" && snapshot.type === "focus" && !zenState.isPlaying) {
       play();
     }
-  }, [type, zenState.isPlaying, play]);
+  }, [snapshot.phase, snapshot.type, zenState.isPlaying, play]);
+
+  const handleStart = useCallback(() => {
+    if (snapshot.phase === "paused") {
+      resume();
+      if (snapshot.type === "focus" && !zenState.isPlaying) play();
+    } else {
+      start({ type: snapshot.type, taskId: snapshot.boundTaskId });
+    }
+  }, [snapshot.phase, snapshot.type, snapshot.boundTaskId, start, resume, zenState.isPlaying, play]);
 
   const handlePause = useCallback(() => {
-    setTimerState("paused");
-  }, []);
+    pausePomodoro();
+  }, [pausePomodoro]);
 
   const handleReset = useCallback(() => {
-    setTimerState("idle");
-    setSecondsLeft(totalSeconds);
-    pause();
-  }, [totalSeconds, pause]);
-
-  const handleComplete = useCallback(() => {
-    setTimerState("idle");
-    setSecondsLeft(type === "focus" ? FOCUS_MINUTES * 60 : type === "break" ? SHORT_BREAK_MINUTES * 60 : LONG_BREAK_MINUTES * 60);
-
-    if (type === "focus") {
-      pause(); // Stop music when focus ends
-      setCompletedSessions((s) => {
-        const next_ = s + 1;
-        if (next_ % SESSIONS_BEFORE_LONG_BREAK === 0) {
-          setType("long-break");
-          return next_;
-        } else {
-          setType("break");
-          return next_;
-        }
-      });
-      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-        new Notification("VibeList 番茄鐘", {
-          body: `專注時間結束！休息一下吧 🌿`,
-          icon: "/favicon.svg",
-        });
-      }
-    } else {
-      // Break ended → go back to focus
-      setType("focus");
-    }
-  }, [type, pause]);
-
-  useEffect(() => {
-    if (timerState === "running") {
-      intervalRef.current = setInterval(() => {
-        setSecondsLeft((s) => {
-          if (s <= 1) {
-            handleComplete();
-            return 0;
-          }
-          return s - 1;
-        });
-      }, 1000);
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [timerState, handleComplete]);
-
-  const cycleType = (newType: TimerType) => {
-    setType(newType);
-    setTimerState("idle");
-    setSecondsLeft(newType === "focus" ? FOCUS_MINUTES * 60 : newType === "break" ? SHORT_BREAK_MINUTES * 60 : LONG_BREAK_MINUTES * 60);
-  };
+    reset({ type: snapshot.type });
+    if (snapshot.type === "focus") pause();
+  }, [reset, snapshot.type, pause]);
 
   if (!isOpen) return null;
 
@@ -177,7 +170,7 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
               onClick={() => cycleType(t.value)}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-medium transition-all duration-150"
               style={
-                type === t.value
+                snapshot.type === t.value
                   ? { background: "var(--surface)", boxShadow: "var(--shadow-sm)", color: "var(--text-primary)" }
                   : { color: "var(--text-tertiary)" }
               }
@@ -195,31 +188,29 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
               key={i}
               className="w-2.5 h-2.5 rounded-full transition-all duration-300"
               style={{
-                background: i < (completedSessions % SESSIONS_BEFORE_LONG_BREAK) ? "var(--brand)" : "var(--surface-hover)",
-                transform: i < (completedSessions % SESSIONS_BEFORE_LONG_BREAK) ? "scale(1.2)" : "scale(1)",
+                background: i < (snapshot.completedSessions % SESSIONS_BEFORE_LONG_BREAK) ? "var(--brand)" : "var(--surface-hover)",
+                transform: i < (snapshot.completedSessions % SESSIONS_BEFORE_LONG_BREAK) ? "scale(1.2)" : "scale(1)",
               }}
             />
           ))}
           <span className="text-[11px] ml-1" style={{ color: "var(--text-tertiary)" }}>
-            {completedSessions} 個專注 session
+            {snapshot.completedSessions} 個專注 session
           </span>
         </div>
 
         {/* Timer ring */}
         <div className="relative inline-flex items-center justify-center">
           <svg width="200" height="200" viewBox="0 0 200 200">
-            {/* Background ring */}
             <circle
               cx="100" cy="100" r="88"
               fill="none"
               stroke="var(--surface-muted)"
               strokeWidth="8"
             />
-            {/* Progress ring */}
             <circle
               cx="100" cy="100" r="88"
               fill="none"
-              stroke={type === "focus" ? "var(--brand)" : "var(--status-success)"}
+              stroke={snapshot.type === "focus" ? "var(--brand)" : "var(--status-success)"}
               strokeWidth="8"
               strokeLinecap="round"
               strokeDasharray={`${2 * Math.PI * 88}`}
@@ -233,7 +224,11 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
               {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
             </span>
             <span className="text-[12px] mt-1" style={{ color: "var(--text-tertiary)" }}>
-              {type === "focus" ? "專注時間" : "休息時間"}
+              {snapshot.type === "focus"
+                ? snapshot.phase === "running" ? "專注中"
+                : snapshot.phase === "paused" ? "已暫停"
+                : "準備開始"
+                : "休息時間"}
             </span>
           </div>
         </div>
@@ -249,17 +244,17 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
             <RotateCcw className="w-5 h-5" />
           </button>
           <button
-            onClick={timerState === "running" ? handlePause : handleStart}
+            onClick={snapshot.phase === "running" ? handlePause : handleStart}
             className="w-16 h-16 rounded-full flex items-center justify-center text-white transition-all hover:scale-105 active:scale-95"
             style={{
-              background: type === "focus" ? "var(--brand)" : "var(--status-success)",
-              boxShadow: type === "focus"
+              background: snapshot.type === "focus" ? "var(--brand)" : "var(--status-success)",
+              boxShadow: snapshot.type === "focus"
                 ? "0 4px 20px rgba(79,106,245,0.4)"
                 : "0 4px 20px rgba(52,199,89,0.4)",
             }}
-            aria-label={timerState === "running" ? "暫停" : "開始"}
+            aria-label={snapshot.phase === "running" ? "暫停" : "開始"}
           >
-            {timerState === "running" ? (
+            {snapshot.phase === "running" ? (
               <Pause className="w-7 h-7" />
             ) : (
               <Play className="w-7 h-7 ml-0.5" />
@@ -269,7 +264,7 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
         </div>
 
         {/* OmniSonic Deep Focus embed button */}
-        {type === "focus" && (
+        {snapshot.type === "focus" && (
           <div className="flex flex-col items-center gap-2">
             <div
               className="relative w-20 h-20 rounded-full overflow-hidden border"
@@ -288,7 +283,7 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
           </div>
         )}
 
-        {/* Link to task — 可搜尋 combobox */}
+        {/* Link to task — searchable combobox */}
         <div className="relative" ref={taskMenuRef}>
           <button
             type="button"
@@ -311,8 +306,8 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
               <span
                 role="button"
                 tabIndex={0}
-                onClick={(e) => { e.stopPropagation(); setSelectedTaskId(undefined); }}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); setSelectedTaskId(undefined); } }}
+                onClick={(e) => { e.stopPropagation(); setBoundTask(undefined); }}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); setBoundTask(undefined); } }}
                 className="ml-auto p-0.5 rounded hover:bg-black/5"
                 aria-label="清除綁定"
               >
@@ -347,7 +342,7 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
                   <li>
                     <button
                       type="button"
-                      onClick={() => { setSelectedTaskId(undefined); setTaskMenuOpen(false); setTaskSearch(""); }}
+                      onClick={() => { setBoundTask(undefined); setTaskMenuOpen(false); setTaskSearch(""); }}
                       className="w-full px-3 py-2 text-left text-[13px] transition-colors hover:bg-black/5"
                       style={{ color: "var(--text-tertiary)" }}
                     >
@@ -363,11 +358,11 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
                       <li key={t.id}>
                         <button
                           type="button"
-                          onClick={() => { setSelectedTaskId(t.id); setTaskMenuOpen(false); setTaskSearch(""); }}
+                          onClick={() => { setBoundTask(t.id); setTaskMenuOpen(false); setTaskSearch(""); }}
                           className="w-full px-3 py-2 text-left text-[13px] truncate transition-colors hover:bg-[var(--surface-hover)]"
                           style={{ color: "var(--text-primary)" }}
                           role="option"
-                          aria-selected={t.id === selectedTaskId}
+                          aria-selected={t.id === snapshot.boundTaskId}
                           title={t.title}
                         >
                           {t.title}
