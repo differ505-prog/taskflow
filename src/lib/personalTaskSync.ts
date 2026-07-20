@@ -116,10 +116,11 @@ export async function subscribeTasks(
     channel.on(
       "postgres_changes",
       { event: "*", schema: "public", table: TABLE, filter: `owner_uid=eq.${uid}` },
-      async () => {
+      async (payload) => {
         const t0 = Date.now();
+        console.log(`[personalTaskSync] postgres_changes 收到，event=${payload.eventType}，時間=${Date.now()}`);
         const fresh = await loadTasks(uid);
-        console.log(`[personalTaskSync] postgres_changes 收到，loadTasks 耗時 ${Date.now() - t0}ms，任務數: ${fresh.length}`);
+        console.log(`[personalTaskSync] loadTasks 耗時 ${Date.now() - t0}ms，任務數: ${fresh.length}`);
         onUpdate(filterDeleted(fresh));
       }
     );
