@@ -31,25 +31,63 @@ export async function deleteList(uid: string, listId: string): Promise<void> {
   await supabase.from(TABLE).delete().eq("id", listId).eq("owner_uid", uid);
 }
 
+/**
+ * 對 iOS Safari WebSocket Suspend：監聽 channel 狀態，斷線時自動重連
+ */
 export async function subscribeLists(
   uid: string,
   onUpdate: (lists: TaskList[]) => void
 ): Promise<Unsubscribe> {
   if (!supabase) return () => {};
-  const initial = await loadLists(uid);
-  onUpdate(initial);
-  const channel = supabase
-    .channel(`personal_lists:${uid}`)
-    .on(
+
+  let reconnectAttempts = 0;
+  const MAX_RECONNECT = 5;
+
+  function buildChannel() {
+    const channel = supabase!
+      .channel(`personal_lists:${uid}`);
+
+    channel.on("system", {} as Parameters<typeof channel.on>[0], (payload) => {
+      if (payload.status === "connected") {
+        reconnectAttempts = 0;
+      } else if (
+        payload.status === "disconnected" ||
+        payload.status === "timeout" ||
+        payload.status === "channel_error"
+      ) {
+        console.warn(`[personalListSync] Realtime channel ${payload.status}`);
+        if (reconnectAttempts < MAX_RECONNECT) {
+          const delay = Math.min(1000 * 2 ** reconnectAttempts, 30000);
+          reconnectAttempts++;
+          console.log(`[personalListSync] ${delay / 1000}s 後重連 (${reconnectAttempts}/${MAX_RECONNECT})`);
+          setTimeout(() => {
+            const newChannel = buildChannel();
+            activeChannel = newChannel;
+          }, delay);
+        }
+      }
+    });
+
+    channel.on(
       "postgres_changes",
       { event: "*", schema: "public", table: TABLE, filter: `owner_uid=eq.${uid}` },
       async () => {
         const fresh = await loadLists(uid);
         onUpdate(fresh);
       }
-    )
-    .subscribe();
+    );
+
+    return channel;
+  }
+
+  const initial = await loadLists(uid);
+  onUpdate(initial);
+
+  let activeChannel = buildChannel();
+  await activeChannel.subscribe();
+
   return () => {
-    if (supabase) supabase.removeChannel(channel);
+    if (activeChannel) supabase!.removeChannel(activeChannel);
+    activeChannel = null as unknown as ReturnType<typeof buildChannel>;
   };
 }

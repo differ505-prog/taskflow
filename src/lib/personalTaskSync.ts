@@ -67,6 +67,8 @@ export async function deleteTask(uid: string, taskId: string): Promise<void> {
  * 實時訂閱個人任務 — 任何設備寫入都會推送給所有訂閱者
  * deletedIdsRef: Set of task IDs being deleted. Handler reads .size each time (live ref).
  * 回傳清理函式
+ *
+ * 對 iOS Safari 的 WebSocket Suspend 問題：監聽 channel 狀態，斷線時自動重連
  */
 export async function subscribeTasks(
   uid: string,
@@ -81,24 +83,59 @@ export async function subscribeTasks(
       ? tasks.filter((t) => !deletedIdsRef.has(t.id))
       : tasks;
 
-  // 初次載入
-  const initial = await loadTasks(uid);
-  onUpdate(filterDeleted(initial));
+  let reconnectAttempts = 0;
+  const MAX_RECONNECT = 5;
 
-  // Realtime 訂閱：監聽自己 uid 的 INSERT/UPDATE/DELETE
-  const channel = supabase
-    .channel(`personal_tasks:${uid}`)
-    .on(
+  function buildChannel() {
+    const channel = supabase!
+      .channel(`personal_tasks:${uid}`);
+
+    // 監聽 channel 系統事件（連線/斷線/錯誤/超時）
+    channel.on("system", {} as Parameters<typeof channel.on>[0], (payload) => {
+      if (payload.status === "connected") {
+        reconnectAttempts = 0;
+        console.log("[personalTaskSync] Realtime channel 已連線");
+      } else if (payload.status === "disconnected" || payload.status === "timeout" || payload.status === "channel_error") {
+        console.warn(`[personalTaskSync] Realtime channel ${payload.status}:`, payload);
+        if (reconnectAttempts < MAX_RECONNECT) {
+          const delay = Math.min(1000 * 2 ** reconnectAttempts, 30000); // 指數退避，最大 30 秒
+          reconnectAttempts++;
+          console.log(`[personalTaskSync] ${delay / 1000}s 後嘗試重連 (${reconnectAttempts}/${MAX_RECONNECT})`);
+          setTimeout(() => {
+            console.log("[personalTaskSync] 正在重連...");
+            const newChannel = buildChannel();
+            // 把新 channel 替換為全域引用，讓 unsubscribe 能正確清理
+            activeChannel = newChannel;
+          }, delay);
+        } else {
+          console.error("[personalTaskSync] 已達最大重連次數，停止重連");
+        }
+      }
+    });
+
+    // 監聽 postgres 變更
+    channel.on(
       "postgres_changes",
       { event: "*", schema: "public", table: TABLE, filter: `owner_uid=eq.${uid}` },
       async () => {
         const fresh = await loadTasks(uid);
         onUpdate(filterDeleted(fresh));
       }
-    )
-    .subscribe();
+    );
+
+    return channel;
+  }
+
+  // 初次載入
+  const initial = await loadTasks(uid);
+  onUpdate(filterDeleted(initial));
+
+  // 建立 Realtime 訂閱：監聽自己 uid 的 INSERT/UPDATE/DELETE
+  let activeChannel = buildChannel();
+  await activeChannel.subscribe();
 
   return () => {
-    if (supabase) supabase.removeChannel(channel);
+    if (activeChannel) supabase!.removeChannel(activeChannel);
+    activeChannel = null as unknown as ReturnType<typeof buildChannel>;
   };
 }
