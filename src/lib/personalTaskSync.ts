@@ -72,7 +72,7 @@ export async function deleteTask(uid: string, taskId: string): Promise<void> {
  */
 export async function subscribeTasks(
   uid: string,
-  onUpdate: (tasks: Task[], deletedIds?: Set<string>) => void,
+  onUpdate: (tasks: Task[], deletedId?: string) => void,
   deletedIdsRef?: Set<string>
 ): Promise<Unsubscribe> {
   if (!supabase) return () => {};
@@ -138,21 +138,18 @@ export async function subscribeTasks(
       async (payload) => {
         const raw = payload as { old?: { id?: string } };
         const deletedId = raw.old?.id;
-        // 同步加入 deletedIdsRef：確保 filterDeleted 和 AppContext 的 localOnly 都能看到
+        // 同步加入 deletedIdsRef：確保 filterDeleted 能看到
         if (deletedId && deletedIdsRef) deletedIdsRef.add(deletedId);
         console.log(`[personalTaskSync] DELETE callback, payload:`, JSON.stringify(payload));
-        // 注意：DELETE 時 old 物件只有 id 欄位，沒有 owner_uid，
-        // 因此無法像 INSERT/UPDATE 一樣做 uid 檢查。
-        // channel 名稱已綁定 uid，視為安全。
         const t0 = Date.now();
         try {
           const fresh = await loadTasks(uid);
           console.log(`[personalTaskSync] loadTasks 耗時 ${Date.now() - t0}ms，任務數: ${fresh.length}`);
-          onUpdate(filterDeleted(fresh), deletedIdsRef);
+          // 直接把 deletedId 傳給 AppContext，讓 localOnly 邏輯也能排除
+          onUpdate(filterDeleted(fresh), deletedId);
         } catch (err) {
           console.error("[personalTaskSync] loadTasks 失敗:", err);
         } finally {
-          // loadTasks 完成後（無論成功失敗）從 deletedIdsRef 移除
           if (deletedId && deletedIdsRef) deletedIdsRef.delete(deletedId);
         }
       }
