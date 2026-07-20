@@ -241,9 +241,54 @@ export async function subscribeTasks(
     console.warn("[personalTaskSync] channel 已訂閱，跳過重複 subscribe()");
   }
 
+  // ─────────────────────────────────────────────────────────────────
+  // PWA / iOS Safari 喚醒同步：背景 → 前景時主動 loadTasks
+  //
+  // 問題：iOS PWA 在背景時 WebSocket / JS 會被 iOS 凍結，realtime 廣播丟失。
+  // 解法：監聽三個事件，從背景切回前景時（或 PWA cold start / 網路恢復），
+  //       主動 loadTasks 一次，確保使用者看到最新資料。
+  // ─────────────────────────────────────────────────────────────────
+  const refreshOnAwake = async (reason: string) => {
+    // 避免重複觸發：如果上一次 refresh 還在跑，不重疊
+    if (document.visibilityState !== "visible") return;
+    try {
+      const t0 = Date.now();
+      const fresh = await loadTasks(uid);
+      console.log(`[personalTaskSync] [AWAKE-REFRESH] ${reason}，loadTasks 耗時 ${Date.now() - t0}ms，任務數: ${fresh.length}`);
+      onUpdate(filterDeleted(fresh));
+      markBroadcast(); // 重置 lastBroadcastAt，避免 periodic poll 立刻又跑
+    } catch (err) {
+      console.error(`[personalTaskSync] [AWAKE-REFRESH] ${reason} 失敗:`, err);
+    }
+  };
+
+  const onVisibilityChange = () => {
+    if (document.visibilityState === "visible") {
+      console.log("[personalTaskSync] [AWAKE] visibilitychange → visible，觸發 refresh");
+      refreshOnAwake("visibilitychange");
+    }
+  };
+  const onPageShow = (e: PageTransitionEvent) => {
+    // e.persisted === true 代表是從 bfcache 恢復（PWA 切走又切回的典型場景）
+    console.log(`[personalTaskSync] [AWAKE] pageshow persisted=${e.persisted}，觸發 refresh`);
+    refreshOnAwake(e.persisted ? "pageshow(bfcache)" : "pageshow");
+  };
+  const onOnline = () => {
+    console.log("[personalTaskSync] [AWAKE] online 事件，觸發 refresh");
+    refreshOnAwake("online(網路恢復)");
+  };
+
+  document.addEventListener("visibilitychange", onVisibilityChange);
+  window.addEventListener("pageshow", onPageShow);
+  window.addEventListener("online", onOnline);
+  console.log("[personalTaskSync] PWA 喚醒監聽器已掛載 (visibilitychange + pageshow + online)");
+
   return () => {
     clearTimeout(fallbackTimer);
     clearInterval(periodicPollTimer);
+    document.removeEventListener("visibilitychange", onVisibilityChange);
+    window.removeEventListener("pageshow", onPageShow);
+    window.removeEventListener("online", onOnline);
     if (activeChannel) supabase!.removeChannel(activeChannel);
     activeChannel = null as unknown as ReturnType<typeof buildChannel>;
   };
