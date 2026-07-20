@@ -92,7 +92,7 @@ export async function subscribeTasks(
       .channel(`personal_tasks:${uid}`);
 
     // 監聽 channel 系統事件（連線/斷線/錯誤/超時）
-    channel.on("system", {} as Parameters<typeof channel.on>[0], (payload) => {
+    channel.on("system", { event: "system" } as any, (payload) => {
       if (payload.status === "connected") {
         reconnectAttempts = 0;
         console.log("[personalTaskSync] Realtime channel 已連線");

@@ -48,7 +48,7 @@ export async function subscribeLists(
     const channel = supabase!
       .channel(`personal_lists:${uid}`);
 
-    channel.on("system", {} as Parameters<typeof channel.on>[0], (payload) => {
+    channel.on("system", { event: "system" } as any, (payload) => {
       if (payload.status === "connected") {
         reconnectAttempts = 0;
       } else if (
