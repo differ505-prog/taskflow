@@ -137,8 +137,9 @@ export async function subscribeTasks(
       { event: "DELETE", schema: "public", table: TABLE },
       async (payload) => {
         console.log(`[personalTaskSync] DELETE callback, payload:`, JSON.stringify(payload));
-        const raw = payload as { old?: { owner_uid?: string } };
-        if (raw.old && raw.old.owner_uid !== uid) return;
+        // 注意：DELETE 時 old 物件只有 id 欄位，沒有 owner_uid，
+        // 因此無法像 INSERT/UPDATE 一樣做 uid 檢查。
+        // channel 名稱已綁定 uid，視為安全。
         const t0 = Date.now();
         try {
           const fresh = await loadTasks(uid);
