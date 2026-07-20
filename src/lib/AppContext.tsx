@@ -334,6 +334,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             (t) => !fbIds.has(t.id) && !deletedTaskIdsRef.current.has(t.id)
           );
           const result = [...merged, ...localOnly];
+          console.log(`[SUP SYNC] setTasks result: merged=${merged.length} localOnly=${localOnly.length} deleted=${deletedTaskIdsRef.current.size} result=${result.length}`);
           saveTasks(result);
           return result;
         });
