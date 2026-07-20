@@ -95,17 +95,51 @@ export async function subscribeTasks(
     // 注意：不使用 filter 參數，因為 Supabase Realtime 在 DELETE 時
     // 會先評估 filter（row 已消失），導致所有 DELETE 事件被吃掉。
     // 改在 callback 內做 client-side uid 過濾。
+    // 拆分為三個獨立 handler：確認 DELETE 是否真的廣播出來
     channel.on(
       "postgres_changes",
-      { event: "*", schema: "public", table: TABLE },
+      { event: "INSERT", schema: "public", table: TABLE },
       async (payload) => {
-        // Client-side uid 過濾（DELETE 時 row.owner_uid 已不存在，但仍廣播）
-        const raw = payload as { new?: { owner_uid?: string }; old?: { owner_uid?: string } };
-        const payloadUid = raw.new?.owner_uid ?? raw.old?.owner_uid;
-        if (payloadUid !== uid) return;
-
+        console.log(`[personalTaskSync] INSERT callback`);
+        const raw = payload as { new?: { owner_uid?: string } };
+        if (raw.new && raw.new.owner_uid !== uid) return;
         const t0 = Date.now();
-        console.log(`[personalTaskSync] postgres_changes 收到，raw payload:`, JSON.stringify(payload));
+        try {
+          const fresh = await loadTasks(uid);
+          console.log(`[personalTaskSync] loadTasks 耗時 ${Date.now() - t0}ms，任務數: ${fresh.length}`);
+          onUpdate(filterDeleted(fresh));
+        } catch (err) {
+          console.error("[personalTaskSync] loadTasks 失敗:", err);
+        }
+      }
+    );
+
+    channel.on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: TABLE },
+      async (payload) => {
+        console.log(`[personalTaskSync] UPDATE callback`);
+        const raw = payload as { new?: { owner_uid?: string } };
+        if (raw.new && raw.new.owner_uid !== uid) return;
+        const t0 = Date.now();
+        try {
+          const fresh = await loadTasks(uid);
+          console.log(`[personalTaskSync] loadTasks 耗時 ${Date.now() - t0}ms，任務數: ${fresh.length}`);
+          onUpdate(filterDeleted(fresh));
+        } catch (err) {
+          console.error("[personalTaskSync] loadTasks 失敗:", err);
+        }
+      }
+    );
+
+    channel.on(
+      "postgres_changes",
+      { event: "DELETE", schema: "public", table: TABLE },
+      async (payload) => {
+        console.log(`[personalTaskSync] DELETE callback, payload:`, JSON.stringify(payload));
+        const raw = payload as { old?: { owner_uid?: string } };
+        if (raw.old && raw.old.owner_uid !== uid) return;
+        const t0 = Date.now();
         try {
           const fresh = await loadTasks(uid);
           console.log(`[personalTaskSync] loadTasks 耗時 ${Date.now() - t0}ms，任務數: ${fresh.length}`);
