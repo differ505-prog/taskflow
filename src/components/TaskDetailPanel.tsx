@@ -521,24 +521,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
           </div>
         </div>
 
-        {/* Description */}
-        <div>
-          <div className="flex items-center gap-1.5 mb-2">
-            <AlignLeft className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
-            <label className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>描述</label>
-          </div>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="任務描述（支援 Markdown）"
-            rows={6}
-            className="input resize-none"
-            style={{ minHeight: 160 }}
-            maxLength={1000}
-          />
-        </div>
-
-        {/* Sub-tasks */}
+        {/* Status */}
         <div className="rounded-2xl p-4" style={{ background: "var(--surface-muted)" }}>
           <div className="flex items-center gap-1.5 mb-3">
             <ListChecks className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
@@ -777,6 +760,23 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Description */}
+        <div>
+          <div className="flex items-center gap-1.5 mb-2">
+            <AlignLeft className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
+            <label className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>描述</label>
+          </div>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="任務描述（支援 Markdown）"
+            rows={6}
+            className="input resize-none"
+            style={{ minHeight: 160 }}
+            maxLength={1000}
+          />
         </div>
 
         {/* Dates */}
