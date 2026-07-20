@@ -330,9 +330,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           });
           // 補回雲端尚未收到的本地任務（剛新增的）
           const localOnly = prev.filter((t) => !fbIds.has(t.id));
-          return [...merged, ...localOnly];
+          const result = [...merged, ...localOnly];
+          saveTasks(result);
+          return result;
         });
-        saveTasks(fbTasks);
       }, deletedTaskIdsRef.current).then((unsub) => {
         fbUnsubRef.current = unsub;
         if (fbSyncDebug) console.log("[SUP SYNC] 已訂閱 tasks uid:", user.uid);
