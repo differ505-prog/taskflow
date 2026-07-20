@@ -1,16 +1,19 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
-import { Tags as TagsIcon, Trash2, Edit3, Plus, X, Check, Lock } from "lucide-react";
+import { Tags as TagsIcon, Trash2, Edit3, Plus, X, Check, Lock, RefreshCw } from "lucide-react";
 import { Task } from "@/lib/types";
 import { TAG_COLORS } from "@/lib/types";
 import { getTasks, saveTasks, getTagColors, saveTagColors, setTagColor, removeTagColor } from "@/lib/storage";
 import { useAuth } from "@/lib/AuthContext";
+import { useApp } from "@/lib/AppContext";
 import { useFeatureGate } from "@/lib/useFeatureGate";
+import { useTagRename } from "@/lib/useTagRename";
 import { motion, AnimatePresence } from "framer-motion";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { TagsPageSkeleton } from "@/components/Skeleton";
 import { isComposingKey } from "@/utils/imeGuard";
+import { toast } from "sonner";
 
 interface TagEntry {
   name: string;
@@ -19,11 +22,12 @@ interface TagEntry {
 }
 
 export default function TagsPage() {
-  const { isAdmin, isPro, isBeta } = useAuth();
+  const { isAdmin, isBeta } = useAuth();
+  const { renameTag, isLoading: isRenaming } = useTagRename();
   // 方案 X（向後相容）：beta 用戶繼續享有早期體驗
-  const canCustomizeTags = isAdmin || isBeta || isPro;
+  const canCustomizeTags = isAdmin || isBeta;
   // 關聯式標籤更新（PRO 守衛）：free 用戶無法一鍵批次改 tag 名稱
-  const renameGate = useFeatureGate("tag-rename");
+  const renameGate = useFeatureGate("advanced-tags");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [editingTag, setEditingTag] = useState<string | null>(null);
@@ -61,30 +65,28 @@ export default function TagsPage() {
       .sort((a, b) => b.count - a.count);
   }, [tasks]);
 
-  const handleRenameTag = (oldName: string) => {
-    // PRO 守衛：free 用戶繞過 UI 直接呼叫時也會被擋下（保險絲）
-    if (renameGate.locked) { renameGate.requestUnlock(); return; }
+  const handleRenameTag = async (oldName: string) => {
     if (!editInput.trim() || editInput.trim() === oldName) {
       setEditingTag(null);
       return;
     }
     const newName = editInput.trim();
-    // 若舊標籤有顏色，且新名稱沒有顏色設定，搬移顏色
-    const existingColor = tagColors[oldName];
-    if (existingColor && !tagColors[newName]) {
-      const newColors = { ...tagColors };
-      delete newColors[oldName];
-      newColors[newName] = existingColor;
-      setTagColors(newColors);
-      saveTagColors(newColors);
+
+    // 雲端同步 + localStorage 更新
+    const result = await renameTag({
+      oldName,
+      newName,
+      tasks,
+      setTasks,
+      tagColors,
+      setTagColors,
+    });
+
+    if (!result.success) {
+      toast.error(result.error || "重新命名失敗");
+    } else if (result.updatedCount && result.updatedCount > 0) {
+      toast.success(`已更新 ${result.updatedCount} 項任務`);
     }
-    const updated = tasks.map((task) => ({
-      ...task,
-      tags: task.tags.map((t) => (t === oldName ? newName : t)),
-      updatedAt: new Date().toISOString(),
-    }));
-    setTasks(updated);
-    saveTasks(updated);
     setEditingTag(null);
   };
 
@@ -294,7 +296,7 @@ export default function TagsPage() {
             <ul className="space-y-2" role="list">
               {tagEntries.map((entry) => {
                 const tagColor = tagColors[entry.name] || TAG_COLORS[0];
-                const canCustomize = isAdmin || isBeta || isPro;
+                const canCustomize = isAdmin || isBeta;
                 return (
                   <li key={entry.name}>
                     <motion.div
@@ -450,7 +452,7 @@ export default function TagsPage() {
       <UpgradeModal
         isOpen={renameGate.upgradeModalOpen}
         onClose={renameGate.closeUpgradeModal}
-        feature="tag-rename"
+        feature="advanced-tags"
       />
     </div>
   );

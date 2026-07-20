@@ -14,41 +14,37 @@ interface UpgradeModalProps {
 }
 
 const FEATURE_COPY: Record<ProFeature, { title: string; description: string }> = {
-  "custom-tag-colors": {
-    title: "自訂標籤顏色",
-    description: "為每個標籤挑選專屬顏色,讓任務清單一眼可辨。",
+  "advanced-tags": {
+    title: "進階標籤管理後台",
+    description: "解鎖「標籤管理模組」。全域重新命名、自訂 HEX 顏色、查看任務計數統計與合併標籤。讓整理強迫症患者心甘情願買單。",
   },
   "stats-dashboard": {
     title: "統計儀表板",
     description: "深度洞察你的任務完成率、優先級分布與工作節奏。",
   },
-  "tag-rename": {
-    title: "關聯式標籤更新",
-    description: "一鍵批次更新所有關聯任務的標籤,歷史任務與未來任務同步生效。",
-  },
-  "batch-operations": {
-    title: "批次操作",
-    description: "選取多個任務一次完成搬移、標記、刪除等操作。",
-  },
   "cloud-attachments": {
     title: "雲端檔案與富文本評論",
-    description: "S3 拖曳上傳附件,搭配富文本格式撰寫任務註解與協作留言。",
+    description: "S3 / Supabase Storage 拖曳上傳附件，搭配富文本編輯器撰寫任務備註與協作留言。",
   },
-  "ai-task-decompose": {
-    title: "AI 自動任務拆解",
-    description: "輸入大專案,AI 自動切分為具體可執行的子任務與時間估算。",
+  "storage-cleaner": {
+    title: "空間清理器",
+    description: "列出大檔案供一鍵刪除，釋放儲存空間。",
+  },
+  "zip-backup": {
+    title: "ZIP 輕量備份",
+    description: "打包舊專案為 ZIP 下載回本機，隨時隨地掌握你的資料主權。",
+  },
+  "storage-expansion": {
+    title: "加大儲存空間",
+    description: "+10GB 額外空間，告別滿載焦慮，讓你盡情保存所有重要檔案。",
   },
   "karma-mode": {
-    title: "Karma Mode · 心靈還債引擎",
-    description: "信用血條會因拖延而扣血;完成任務累積 Karma,維持你的信用節奏。",
+    title: "心靈還債引擎 · Karma Mode",
+    description: "結合記帳概念，設定虧損與渴望獎勵，靠打勾好習慣填平赤字。信用血條會因拖延而扣血，完成任務累積 Karma。",
   },
   "domino-tasks": {
-    title: "Domino Tasks · 漸進式專案解鎖",
-    description: "未完成的子任務保持毛玻璃模糊,完成前置任務後自動解鎖後續步驟。",
-  },
-  "storage-overflow": {
-    title: "加大儲存空間",
-    description: "提供 ZIP 備份、大檔清理與加購空間,告別滿載焦慮。",
+    title: "漸進式專案解鎖模組 · Task Dependency",
+    description: "前置任務打勾，後置任務動態解鎖彈出。蔡加尼克效應驅動你完成每一個環節。",
   },
 };
 

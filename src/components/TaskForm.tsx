@@ -332,7 +332,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
               </div>
 
               {/* AI 自動任務拆解（PRO 幽靈按鈕） */}
-              <ProGhostButton feature="ai-task-decompose" variant="inline" className="mb-4">
+              <ProGhostButton feature="advanced-tags" variant="inline" className="mb-4">
                 <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>AI 拆解</span>
               </ProGhostButton>

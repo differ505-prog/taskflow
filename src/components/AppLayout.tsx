@@ -40,8 +40,7 @@ function AppLayoutInner() {
   const [showSharedLists, setShowSharedLists] = useState(false);
   const [incomingShareData, setIncomingShareData] = useState<{ sharedListId: string; snapshot: SharedListSnapshot } | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  // ── 批次多選模式（PRO 守衛）───────────────────────
-  const batchGate = useFeatureGate("batch-operations");
+  // ── 批次多選模式───────────────────────
   const [batchMode, setBatchMode] = useState(false);
   const [batchSelectedIds, setBatchSelectedIds] = useState<Set<string>>(() => new Set());
   const toggleBatchSelect = (id: string) => {
@@ -54,7 +53,11 @@ function AppLayoutInner() {
   };
   const enterBatchMode = (firstSelectedId?: string) => {
     // PRO 守衛：free 用戶嘗試進入批次模式 → 觸發 UpgradeModal
-    if (batchGate.locked) { batchGate.requestUnlock(); return; }
+    if (batchMode) {
+      setBatchMode(false);
+      setBatchSelectedIds(new Set());
+      return;
+    }
     setBatchMode(true);
     if (firstSelectedId) {
       setBatchSelectedIds((prev) => new Set(prev).add(firstSelectedId));
@@ -319,12 +322,6 @@ function AppLayoutInner() {
         incomingShareData={incomingShareData}
       />
 
-      {/* PRO 升級 Modal — 批次操作守衛 */}
-      <UpgradeModal
-        isOpen={batchGate.upgradeModalOpen}
-        onClose={batchGate.closeUpgradeModal}
-        feature="batch-operations"
-      />
       </div>
     </>
   );

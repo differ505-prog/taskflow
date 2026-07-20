@@ -24,15 +24,14 @@ import { useAuth } from "@/lib/AuthContext";
  * @see src/lib/AuthContext.tsx 角色優先級
  */
 export type ProFeature =
-  | "custom-tag-colors"
-  | "stats-dashboard"
-  | "tag-rename"
-  | "batch-operations"
-  | "cloud-attachments"
-  | "ai-task-decompose"
-  | "karma-mode"
-  | "domino-tasks"
-  | "storage-overflow";
+  | "advanced-tags"           // 進階標籤管理後台
+  | "stats-dashboard"        // 統計儀表板
+  | "cloud-attachments"       // 雲端檔案與富文本評論
+  | "storage-cleaner"         // 空間清理器
+  | "zip-backup"             // ZIP 輕量備份
+  | "storage-expansion"       // 擴充包
+  | "karma-mode"             // 心靈還債引擎
+  | "domino-tasks";          // 漸進式專案解鎖模組
 
 export interface FeatureGateResult {
   /** 是否被鎖（free 用戶） */

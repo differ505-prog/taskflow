@@ -355,7 +355,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                     </p>
                   </div>
                 </div>
-                <ProGhostButton feature="storage-overflow" variant="inline" title="管理儲存空間（PRO 專屬）">
+                <ProGhostButton feature="storage-cleaner" variant="inline" title="管理儲存空間（PRO 專屬）">
                   <span>管理</span>
                 </ProGhostButton>
               </div>

@@ -19,7 +19,7 @@ export function TagsPage() {
   // 方案 X（向後相容）：beta 用戶繼續享有早期體驗，不破壞現狀
   const canCustomizeTags = isAdmin || isBeta || isPro;
   // 關聯式標籤更新（PRO 守衛）：free 用戶無法一鍵批次改 tag 名稱
-  const renameGate = useFeatureGate("tag-rename");
+  const renameGate = useFeatureGate("advanced-tags");
   const [isLoaded, setIsLoaded] = useState(false);
   const [editingTag, setEditingTag] = useState<string | null>(null);
   const [editInput, setEditInput] = useState("");
@@ -389,7 +389,7 @@ export function TagsPage() {
       <UpgradeModal
         isOpen={renameGate.upgradeModalOpen}
         onClose={renameGate.closeUpgradeModal}
-        feature="tag-rename"
+        feature="advanced-tags"
       />
     </div>
   );
