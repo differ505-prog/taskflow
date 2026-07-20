@@ -83,6 +83,29 @@ export async function subscribeTasks(
       ? tasks.filter((t) => !deletedIdsRef.has(t.id))
       : tasks;
 
+  // Supabase Realtime 的 postgres_changes INSERT/UPDATE 廣播有時會延遲到分鐘級
+  // （觀察到 > 5 分鐘，且會「下一個事件觸發才廣播出來」）。
+  // Fallback：訂閱後 5 秒內沒收到任何 INSERT/UPDATE callback，主動 loadTasks 一次。
+  // 只跑一次（避免重複觸發）。DELETE 走 realtime 已即時，不需 fallback。
+  let fallbackFired = false;
+  const fallbackTimer = setTimeout(async () => {
+    if (fallbackFired) return;
+    fallbackFired = true;
+    try {
+      const fresh = await loadTasks(uid);
+      console.log(`[personalTaskSync] fallback poll fired（INSERT/UPDATE 廣播逾時 5s），任務數: ${fresh.length}`);
+      onUpdate(filterDeleted(fresh));
+    } catch (err) {
+      console.error("[personalTaskSync] fallback poll failed:", err);
+    }
+  }, 5000);
+  // INSERT/UPDATE 一旦抵達就取消 fallback（DELETE 不取消，因為 DELETE 廣播已即時，
+  // 不代表下次 INSERT/UPDATE 會正常；保守起見讓 fallback 跑完一次）
+  const cancelFallback = () => {
+    clearTimeout(fallbackTimer);
+    fallbackFired = true;
+  };
+
   let reconnectAttempts = 0;
   const MAX_RECONNECT = 5;
   let subscribed = false;
@@ -100,7 +123,9 @@ export async function subscribeTasks(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: TABLE },
       async (payload) => {
-        console.log(`[personalTaskSync] INSERT callback`);
+        cancelFallback();
+        const tRecv = Date.now();
+        console.log(`[personalTaskSync] INSERT callback received at ${new Date(tRecv).toISOString()} (deltaFromPayload=${tRecv - new Date(payload.commit_timestamp || Date.now()).getTime()}ms)`, payload);
         const raw = payload as { new?: { owner_uid?: string } };
         if (raw.new && raw.new.owner_uid !== uid) return;
         const t0 = Date.now();
@@ -118,6 +143,7 @@ export async function subscribeTasks(
       "postgres_changes",
       { event: "UPDATE", schema: "public", table: TABLE },
       async (payload) => {
+        cancelFallback();
         console.log(`[personalTaskSync] UPDATE callback`);
         const raw = payload as { new?: { owner_uid?: string } };
         if (raw.new && raw.new.owner_uid !== uid) return;
@@ -181,6 +207,7 @@ export async function subscribeTasks(
   }
 
   return () => {
+    clearTimeout(fallbackTimer);
     if (activeChannel) supabase!.removeChannel(activeChannel);
     activeChannel = null as unknown as ReturnType<typeof buildChannel>;
   };

@@ -235,6 +235,23 @@ alwaysApply: true
 
 例外：簡單 query（查一個函式定義、找某個 props 用法）→ 直接 Grep 就夠。
 
+#### 14.1 Build/Type 報錯全鏈條清理 (Fix All Type Errors in File / Pattern)
+
+**問題**：build 或 `tsc --noEmit` 報錯指出某檔某行某 pattern（如 callback signature、props type、import 重複），第一輪只修報錯處。但常因 `replace_all=false` 漏改另 1 處、改完才看到第二個錯誤，**每次 build 才看到下一個錯誤**，浪費 2-4 輪。本輪「`deletedIdsRef` 第二參數型別」改了 3 次才完整（personalTaskSync.ts + subscribeLists 一處 callback 都錯）。
+
+**觸發**：任何 build/type error 指向某 pattern 而非孤立問題時。
+
+**規則**：
+
+1. **build/type error 出現時**，**先 grep 同檔所有相同 pattern**（不要只改報錯處）
+   - 範例：「`subscribe(uid, callback, deletedRef)`」錯 → grep `subscribe(` 看還有哪幾處 call
+   - 範例：「`onTasksUpdate(payload, deletedRef)`」錯 → grep 同檔所有 `onTasksUpdate(` 看 callback signature 是否一致
+2. **一次修齊所有同 pattern 處**，再 build
+3. **第一個錯誤修完仍未過 → 不要急著再改**，先 grep 確認是否還有同型錯
+4. **禁止「修一處 → build → 看下一錯 → 再修」循環**
+
+**修憲自評 9.3**（首輪達標）：直接對應本對話 build 修了 3 輪才乾淨的具體根因，規則可驗證，未來命中時直接 grep + 修齊 + 一次 build。與 §13 最小變更無矛盾（修齊同 pattern 是同一邏輯單元）。
+
 ### 15. Runtime 驗證分級 (Right Tool for the Job)
 
 **最高原則：最簡工具優先 (Cheapest Tool First)** — 除非明確需要 runtime 證據，否則不改用 CDP / 瀏覽器互動。
@@ -631,6 +648,7 @@ alwaysApply: true
 | **G** | Next.js App Router：client component 檔案 export `metadata` / `generateMetadata`（server-only API），導致 build 失敗、改動實際未部署 | commit 已 push 但 Vercel production 仍 serve 舊版、build log 含 "useSearchParams should be wrapped" 或 "metadata export" 錯誤 | 拆 layout/根組件為 server component（保留 metadata export）+ 新增 client wrapper component 內含 `usePathname` / `useSearchParams` 等 hook |
 | **H** | Build 失敗導致改動「隱形上線」陷阱（commit 已 push、developer 認為已 deploy、實際 production 仍 serve 舊版） | curl / 瀏覽器看到的 HTML 與 commit 預期不符、Vercel 部署狀態顯示舊 commit SHA | 改動後**必須**驗證三件事：(1) `npm run build` 成功 (2) Vercel deployment log clean (3) curl SSR HTML 內容確認（§12 強制 + §15.6 純樣式 0 tool call 例外） |
 | **I** | PostgREST 把函式內部 PostgreSQL error 包裝為 404，掩蓋真根因 | `POST /rest/v1/rpc/xxx → 404`，但 SQL Editor 跑同樣函式沒問題；誤以為是 grant / schema cache 問題，多輪盲改仍失敗 | **第一刀就看 Supabase Dashboard → Logs → Postgrologist**，找 HTTP 4xx/5xx 對應的 SQLSTATE（如 42883、42P01、42703）；SQLSTATE 才是真根因 |
+| **J** | 同步失敗期間產生的「孤兒任務」永遠卡 localOnly | 「某些任務跨裝置看不到 / 跨裝置刪除後其他裝置還在」；`localOnly = N > 0` 長期存在，雲端從未收到 DELETE 事件（因為雲端沒有該 task）；用戶以為「刪除未同步」實際根因是「雲端無此 id」 | subscribeTasks callback 中偵測 `localOnly`：不在「最近寫入保護窗」內 → 視為孤兒，自動 `batchSave` 補推上雲（一次性，保護窗避免和正常本地寫入混淆） |
 
 3. **命中已知類別 → 直接套用標準修法，禁止重新推理**。評分表只寫「命中類別 X，套用修法」。
 4. **新類別 → 修完後主動追加**至本表（commit 內同步）。
@@ -650,3 +668,4 @@ alwaysApply: true
 | 2026-07-19 | 新增 §18b 操作失敗初始確認（面對「按鈕點不了」，第一步必須問用戶具體操作哪個按鈕，不可假設；本輪修了圓圈按鈕但用戶實際要的是「完成」按鈕，浪費 4+ tool call） | **9.2**（首輪即達標，免二輪） |
 | 2026-07-19 | 新增 §10.3 修憲自評分公約 + §15.7 Runtime 預算揭露 + §15.8 悶做攔截 + §21.7 跨 repo SSOT + §26 類別 G/H（build 失敗隱形上線 / client/server 元件邊界衝突） | （本表自評） |
 | 2026-07-20 | 新增 §26 類別 I：PostgREST 把函式內部 PostgreSQL error 包裝為 404（42883 等），掩蓋真根因；本輪修了 4 輪才從 Logs 發現 SQLSTATE；新增前自評 9.2，達標 | **9.2**（首輪即達標，免二輪） |
+| 2026-07-20 | 新增 §14.1（build/type 報錯全鏈條清理）— 針對本輪 deletedIdsRef type 改了 3 輪才完整（每次 build 才看到下一錯）；新增 §26 類別 J（孤兒任務自動補推）— 針對「localOnly=15 跨裝置永遠看不到」的具體根因 | **§14.1: 9.3 / §26-J: 9.2**（均首輪達標，免二輪） |
