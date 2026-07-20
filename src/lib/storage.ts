@@ -272,6 +272,24 @@ export function exportAllData(): string {
   }, null, 2);
 }
 
+// ─── 自動化備份追蹤（L3 需求）──────────────────────────────
+const LAST_BACKUP_KEY = "taskflow_last_backup_at"; // ISO string | null
+
+export function getLastBackupAt(): string | null {
+  return localStorage.getItem(LAST_BACKUP_KEY);
+}
+
+export function recordBackupAt(): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString());
+}
+
+export function getDaysSinceBackup(): number {
+  const last = getLastBackupAt();
+  if (!last) return Infinity;
+  return Math.floor((Date.now() - new Date(last).getTime()) / 86_400_000);
+}
+
 export function clearAllData(): void {
   [TASKS_KEY, LISTS_KEY, HABITS_KEY, POMODORO_KEY, TAGS_KEY].forEach((k) =>
     localStorage.removeItem(k)

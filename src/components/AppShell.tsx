@@ -81,7 +81,6 @@ export function AppShell({
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [quickAddInput, setQuickAddInput] = useState("");
   const [quickAddHint, setQuickAddHint] = useState(false);
-  const [quickAddKey, setQuickAddKey] = useState(0);
   const [sharedQuickAddInput, setSharedQuickAddInput] = useState("");
   const sharedQuickAddRef = useRef<HTMLInputElement>(null);
   const quickAddRef = useRef<HTMLInputElement>(null);
@@ -107,9 +106,9 @@ export function AppShell({
     if (!quickAddInput.trim()) return;
     quickAdd(quickAddInput, currentView);
     setQuickAddInput("");
-    setQuickAddKey((k) => k + 1);
-    quickAddRef.current?.blur();
-  }, [quickAdd, quickAddInput, currentListId, currentView]);
+    // L3.5「無摩擦連擊輸入」：Enter 建立任務後，游標留在輸入框，可盲打連續新增
+    quickAddRef.current?.focus();
+  }, [quickAdd, quickAddInput, currentView]);
 
   const handleSharedQuickAdd = useCallback(() => {
     if (!sharedQuickAddInput.trim() || !currentSharedListId) return;

@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/AuthContext";
 import {
   clearAllData, exportAllData, downloadCSV, downloadJSON,
   exportTasksToCSV, exportHabitsToCSV, importData,
+  recordBackupAt, getLastBackupAt, getDaysSinceBackup,
 } from "@/lib/storage";
 import { motion } from "framer-motion";
 import {
@@ -39,6 +40,8 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [importStats, setImportStats] = useState<{ tasks: number; habits: number; lists: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [lastBackupAt, setLastBackupAt] = useState<string | null>(null);
+  const [daysSinceBackup, setDaysSinceBackup] = useState<number>(Infinity);
   // ── Webhook 整合狀態 ──
   const webhook = useWebhookSettings();
   const [webhookDraft, setWebhookDraft] = useState("");
@@ -143,6 +146,9 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
       setTheme(saved);
       applyTheme(saved);
     }
+    // L3 自動化備份：開啟設定時載入上次備份時間
+    setLastBackupAt(getLastBackupAt());
+    setDaysSinceBackup(getDaysSinceBackup());
   }, []);
 
   const applyTheme = (t: "light" | "dark" | "system") => {
@@ -178,6 +184,9 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
   const handleExportJSON = () => {
     const data = exportAllData();
     downloadJSON(data, `taskflow-backup-${new Date().toISOString().split("T")[0]}.json`);
+    recordBackupAt();
+    setLastBackupAt(getLastBackupAt());
+    setDaysSinceBackup(getDaysSinceBackup());
     setExportMsg("已匯出 JSON 備份");
     setTimeout(() => setExportMsg(null), 3000);
   };
@@ -671,6 +680,35 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
           {/* Data */}
           <section>
             <h3 className="text-[12px] font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-tertiary)" }}>資料管理</h3>
+
+            {/* L3 自動化備份提醒 */}
+            {(() => {
+              const days = daysSinceBackup;
+              const isNever = days === Infinity;
+              const isWarning = !isNever && days >= 7;
+              const isRecent = !isNever && days < 7;
+              return (
+                <div
+                  className="mb-3 px-4 py-3 rounded-xl flex items-center gap-3"
+                  style={{
+                    background: isWarning ? "rgba(255,149,0,0.08)" : isNever ? "rgba(59,130,246,0.08)" : "rgba(52,199,89,0.08)",
+                    border: `1px solid ${isWarning ? "rgba(255,149,0,0.25)" : isNever ? "rgba(59,130,246,0.25)" : "rgba(52,199,89,0.25)"}`,
+                  }}
+                  role="status"
+                >
+                  <Shield className="w-4 h-4 flex-shrink-0" style={{ color: isWarning ? "var(--status-warning)" : isNever ? "var(--brand)" : "var(--status-success)" }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-medium truncate" style={{ color: isWarning ? "var(--status-warning)" : isNever ? "var(--brand)" : "var(--status-success)" }}>
+                      {isNever ? "從未備份過" : isWarning ? `已 ${days} 天未備份` : `上次備份 ${days === 0 ? "今天" : `${days} 天前`}`}
+                    </p>
+                    <p className="text-[11px] truncate" style={{ color: "var(--text-tertiary)" }}>
+                      {isNever ? "建議立即匯出一次 JSON 備份" : isWarning ? "備份有助於資料安全，點上方按鈕匯出" : "備份狀態良好"}
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+
             <div className="space-y-2">
 
               {/* Export */}
