@@ -26,7 +26,6 @@ import { UpgradeModal } from "@/components/UpgradeModal";
 import { ToastProvider } from "@/components/ToastProvider";
 import { Onboarding } from "@/components/Onboarding";
 import { IOSInstallPrompt, AndroidInstallPrompt, AhaMoment } from "@/components/PwaPrompts";
-import { MobileLogOverlay } from "@/components/MobileLogOverlay";
 import { QuickVoiceFAB } from "@/components/QuickVoiceFAB";
 
 // ─── Inner app (has access to useApp) ───────────────────────
@@ -225,7 +224,6 @@ function AppLayoutInner() {
       <IOSInstallPrompt />
       <AndroidInstallPrompt />
       <AhaMoment />
-      <MobileLogOverlay />
       <div className="flex h-[100dvh] overflow-hidden">
       {/* Desktop Sidebar */}
       <div className="hidden md:flex flex-shrink-0">

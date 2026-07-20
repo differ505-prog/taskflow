@@ -49,11 +49,12 @@ export function QuickVoiceFAB() {
       <motion.button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed z-50 rounded-full shadow-lg flex items-center justify-center text-white"
+        className="fixed z-50 rounded-full shadow-lg flex items-center justify-center text-white bottom-[calc(164px+env(safe-area-inset-bottom,0px))] right-[calc(20px+env(safe-area-inset-right,0px))] md:!bottom-6 md:!right-6"
         style={{
-          // mobile: BottomNav 上方 16px(60 nav + 16);desktop: 右下 24
-          bottom: "calc(76px + env(safe-area-inset-bottom, 0px))",
-          right: "calc(16px + env(safe-area-inset-right, 0px))",
+          // mobile: 「+」FAB(右 20, bottom 96, 56x56)正上方 12px → 164
+          // desktop: 右下 24
+          bottom: "calc(164px + env(safe-area-inset-bottom, 0px))",
+          right: "calc(20px + env(safe-area-inset-right, 0px))",
         }}
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -63,13 +64,13 @@ export function QuickVoiceFAB() {
         aria-label="快速語音建任務"
         title="快速語音建任務"
       >
-        {/* desktop: 較大圓鈕;mobile: 仍 56px 但下移避開 BottomNav */}
+        {/* mobile: 44x44 小圓鈕,在「+」正上方(避免重疊);desktop: 完整 pill 鈕 */}
         <span className="hidden md:flex items-center gap-2 px-5 h-14 rounded-full bg-[var(--brand)] text-white">
           <Mic className="w-5 h-5" />
           <span className="text-sm font-medium">語音建任務</span>
         </span>
-        <span className="md:hidden w-14 h-14 rounded-full bg-[var(--brand)] flex items-center justify-center">
-          <Mic className="w-6 h-6" />
+        <span className="md:hidden w-11 h-11 rounded-full bg-[var(--brand)] flex items-center justify-center">
+          <Mic className="w-5 h-5" />
         </span>
       </motion.button>
 
