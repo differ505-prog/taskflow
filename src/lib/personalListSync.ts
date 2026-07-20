@@ -63,6 +63,7 @@ export async function subscribeLists(
           setTimeout(() => {
             const newChannel = buildChannel();
             activeChannel = newChannel;
+            void newChannel.subscribe();
           }, delay);
         }
       }

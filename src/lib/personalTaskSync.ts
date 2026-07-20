@@ -103,9 +103,8 @@ export async function subscribeTasks(
           console.log(`[personalTaskSync] ${delay / 1000}s 後嘗試重連 (${reconnectAttempts}/${MAX_RECONNECT})`);
           setTimeout(() => {
             console.log("[personalTaskSync] 正在重連...");
-            const newChannel = buildChannel();
-            // 把新 channel 替換為全域引用，讓 unsubscribe 能正確清理
-            activeChannel = newChannel;
+            activeChannel = buildChannel();
+            void activeChannel.subscribe();
           }, delay);
         } else {
           console.error("[personalTaskSync] 已達最大重連次數，停止重連");
