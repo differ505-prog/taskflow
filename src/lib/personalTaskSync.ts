@@ -92,10 +92,18 @@ export async function subscribeTasks(
       .channel(`personal_tasks:${uid}`);
 
     // 監聽 postgres 變更（INSERT/UPDATE/DELETE）
+    // 注意：不使用 filter 參數，因為 Supabase Realtime 在 DELETE 時
+    // 會先評估 filter（row 已消失），導致所有 DELETE 事件被吃掉。
+    // 改在 callback 內做 client-side uid 過濾。
     channel.on(
       "postgres_changes",
-      { event: "*", schema: "public", table: TABLE, filter: `owner_uid=eq.${uid}` },
+      { event: "*", schema: "public", table: TABLE },
       async (payload) => {
+        // Client-side uid 過濾（DELETE 時 row.owner_uid 已不存在，但仍廣播）
+        const raw = payload as { new?: { owner_uid?: string }; old?: { owner_uid?: string } };
+        const payloadUid = raw.new?.owner_uid ?? raw.old?.owner_uid;
+        if (payloadUid !== uid) return;
+
         const t0 = Date.now();
         console.log(`[personalTaskSync] postgres_changes 收到，raw payload:`, JSON.stringify(payload));
         try {

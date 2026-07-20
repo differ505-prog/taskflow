@@ -48,10 +48,17 @@ export async function subscribeLists(
     const channel = supabase!
       .channel(`personal_lists:${uid}`);
 
+    // 注意：不使用 filter 參數，因為 Supabase Realtime 在 DELETE 時
+    // 會先評估 filter（row 已消失），導致所有 DELETE 事件被吃掉。
+    // 改在 callback 內做 client-side uid 過濾。
     channel.on(
       "postgres_changes",
-      { event: "*", schema: "public", table: TABLE, filter: `owner_uid=eq.${uid}` },
-      async () => {
+      { event: "*", schema: "public", table: TABLE },
+      async (payload) => {
+        const raw = payload as { new?: { owner_uid?: string }; old?: { owner_uid?: string } };
+        const payloadUid = raw.new?.owner_uid ?? raw.old?.owner_uid;
+        if (payloadUid !== uid) return;
+
         const fresh = await loadLists(uid);
         onUpdate(fresh);
       }
