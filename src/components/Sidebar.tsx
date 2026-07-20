@@ -169,7 +169,9 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
 
           {listsExpanded && (
             <div className="space-y-0.5">
-              {lists.map((list) => (
+              {/* 過濾掉預設的「收集箱」清單 — 它在 mainNavItems 已由 virtual view 顯示,
+                  否則側邊欄會同時出現 2 個「收集箱」(一個帶 GTD badge,一個帶 📥 emoji 計數) */}
+              {lists.filter((l) => l.name !== "收集箱").map((list) => (
                 <div key={list.id} className="relative">
                   <button
                     onClick={() => setCurrentView("list", list.id)}
