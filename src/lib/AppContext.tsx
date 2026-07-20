@@ -306,7 +306,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // Merge 而非覆蓋：本地剛寫入（Firestore 還沒同步抵達）時，本地版本優先
         // 避免樂觀更新被雲端舊快照蓋回去（子任務 toggle / 任務狀態切換 第一次 tap 看似跳回）
         setTasks((prev) => {
-          const localById = new Map(prev.map((t) => [t.id, t]));
+          // 移除處於「刪除中」狀態的本地任務，避免 DELETE realtime callback 到達時
+          // deletedTaskIdsRef 已空、localOnly 邏輯把刪除目標又加回來
+          const prevWithoutDeleted = prev.filter((t) => !deletedTaskIdsRef.current.has(t.id));
+          const localById = new Map(prevWithoutDeleted.map((t) => [t.id, t]));
           const fbIds = new Set<string>();
           const merged = fbTasks.map((fbT) => {
             fbIds.add(fbT.id);
@@ -330,8 +333,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           });
           // 補回雲端尚未收到的本地任務（剛新增的）
           // 但排除正在刪除中的任務，避免 DELETE 事件的 merge 把刪除目標又加回來
-          const localOnly = prev.filter(
-            (t) => !fbIds.has(t.id) && !deletedTaskIdsRef.current.has(t.id)
+          const localOnly = prevWithoutDeleted.filter(
+            (t) => !fbIds.has(t.id)
           );
           const result = [...merged, ...localOnly];
           console.log(`[SUP SYNC] setTasks result: merged=${merged.length} localOnly=${localOnly.length} deleted=${deletedTaskIdsRef.current.size} result=${result.length}`);
