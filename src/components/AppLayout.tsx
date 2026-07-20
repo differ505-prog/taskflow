@@ -246,7 +246,7 @@ function AppLayoutInner() {
       <div className="flex-1 min-w-0 flex flex-col pb-[calc(60px+env(safe-area-inset-bottom,0px)+12px)] md:pb-0">
         {/* Global Search Bar — rendered above all views so calendar/habits/tags/stats can search too */}
         <div className="hidden sm:flex justify-end px-4 md:px-6 pt-3 pb-1 flex-shrink-0">
-          <GlobalSearchBar />
+          <GlobalSearchBar onSelectTask={(id) => setSelectedTaskId(id)} />
         </div>
         <div className="flex-1 min-w-0 flex flex-col min-h-0">
           {renderView()}
