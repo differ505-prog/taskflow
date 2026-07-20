@@ -84,6 +84,10 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   const [subtaskInputValue, setSubtaskInputValue] = useState("");
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [interimText, setInterimText] = useState("");
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const titleWasEmptyRef = useRef(true);
   const [attachments, setAttachments] = useState<Attachment[]>(task.attachments || []);
   const [hasChanges, setHasChanges] = useState(false);
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
@@ -157,22 +161,78 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   }, [tags]);
 
   const handleVoiceInput = useCallback(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
+    const W = window as any;
+    const SpeechRecognition = W.SpeechRecognition || W.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setVoiceError("此瀏覽器不支援語音輸入,建議使用桌面 Chrome");
+      return;
+    }
+
+    if (isRecording && recognitionRef.current) {
+      recognitionRef.current.stop();
+      return;
+    }
+
     const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
     recognition.lang = "zh-TW";
     recognition.continuous = false;
-    recognition.interimResults = false;
-    if (isRecording) { recognition.stop(); setIsRecording(false); return; }
+    recognition.interimResults = true;
     setIsRecording(true);
-    recognition.start();
+    setInterimText("");
+    setVoiceError(null);
+
+    let finalTranscript = "";
+    let interimTranscript = "";
+
     recognition.onresult = (event: any) => {
-      setTitle((prev) => prev + event.results[0][0].transcript);
-      setIsRecording(false);
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const piece = event.results[i][0].transcript;
+        if (event.results[i].isFinal) finalTranscript += piece;
+        else interimTranscript += piece;
+      }
+      setInterimText(interimTranscript);
+      if (finalTranscript) {
+        setTitle((prev) => {
+          if (titleWasEmptyRef.current || !prev.trim()) {
+            return finalTranscript.trim();
+          }
+          return (prev + " " + finalTranscript.trim()).trim();
+        });
+        finalTranscript = "";
+      }
     };
-    recognition.onerror = () => setIsRecording(false);
-    recognition.onend = () => setIsRecording(false);
+
+    recognition.onerror = (e: any) => {
+      const msg: Record<string, string> = {
+        "no-speech": "沒聽到語音,請再試一次",
+        "audio-capture": "找不到麥克風,請確認權限",
+        "not-allowed": "麥克風權限被拒絕",
+        "network": "網路錯誤,語音辨識失敗",
+      };
+      setVoiceError(msg[e.error] || `語音辨識錯誤:${e.error}`);
+      setInterimText("");
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+      setInterimText("");
+      recognitionRef.current = null;
+    };
+
+    try {
+      recognition.start();
+    } catch (e) {
+      setVoiceError("無法啟動語音輸入");
+      setIsRecording(false);
+      recognitionRef.current = null;
+    }
   }, [isRecording]);
+
+  // 追蹤標題是否為空,決定覆蓋/附加
+  useEffect(() => {
+    if (!isRecording) titleWasEmptyRef.current = !title.trim();
+  }, [title, isRecording]);
 
   const handleSave = () => {
     let recurrence: Recurrence | undefined;
@@ -492,26 +552,61 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             <input
               type="text"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                if (!isRecording) titleWasEmptyRef.current = !e.target.value.trim();
+              }}
               placeholder="任務標題"
               className="w-full text-[16px] font-medium bg-transparent border-none outline-none placeholder:text-[var(--text-tertiary)]"
               style={{ color: "var(--text-primary)" }}
               maxLength={200}
               autoComplete="off"
             />
-            <button
+            {interimText && (
+              <span
+                className="absolute left-0 top-full mt-1 text-[13px] italic pointer-events-none"
+                style={{ color: "var(--text-tertiary)", opacity: 0.7 }}
+              >
+                {interimText}…
+              </span>
+            )}
+            <motion.button
               type="button"
               onClick={handleVoiceInput}
+              animate={isRecording ? { scale: [1, 1.15, 1] } : { scale: 1 }}
+              transition={isRecording ? { repeat: Infinity, duration: 1.2 } : { duration: 0.2 }}
               className={`absolute right-0 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors ${isRecording ? "recording" : ""}`}
-              style={{ color: isRecording ? "var(--status-danger)" : "var(--text-tertiary)" }}
+              style={{
+                color: isRecording ? "var(--status-danger)" : "var(--text-tertiary)",
+                backgroundColor: isRecording ? "rgba(239,68,68,0.08)" : "transparent",
+              }}
               aria-label={isRecording ? "停止錄音" : "語音輸入"}
+              title={isRecording ? "點擊停止" : "語音輸入標題"}
             >
               {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-            </button>
+            </motion.button>
           </div>
           {!title.trim() && (
             <p className="mt-1 text-[12px]" style={{ color: "var(--status-danger)" }}>標題必填</p>
           )}
+          <AnimatePresence>
+            {voiceError && (
+              <motion.p
+                key="voice-error"
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="mt-1 text-[12px]"
+                style={{ color: "var(--status-warning)" }}
+                onAnimationComplete={() => {
+                  setTimeout(() => setVoiceError(null), 4000);
+                }}
+              >
+                {voiceError}
+              </motion.p>
+            )}
+          </AnimatePresence>
           <div className="mt-2">
             <ListChipPicker
               lists={lists}
