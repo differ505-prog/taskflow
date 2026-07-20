@@ -468,6 +468,23 @@ alwaysApply: true
 
 **違規計入 §16 失敗上限**：跳過根因表直接改代碼 = 累計 1 次修改失敗。
 
+### 18c. 列表空白快速確診捷徑 (Empty List Quick Triage)
+
+**觸發**：用戶描述「列表空白，但 localStorage / DevTools 確認有資料」時，**第一步直接問用戶檢查 `status` 欄位**。
+
+**問題**：本輪「非正式雜事」列表空白，浪費了多輪 sync layer 排查，最後才發現根因是 `status: "done"` 被 `displayTasks` filter 過濾。在還沒確認 React state 是否為空之前就走 sync layer，是方向錯誤。
+
+**規則**：
+1. **第一步：請用戶檢查 DevTools → Application → Local Storage（或直接提供任務 JSON）**，確認 `status` 欄位值
+2. **對照分流**：
+   - `status: "done"` → 高機率是 `showCompleted` / `displayTasks` filter 邏輯問題（不需查 sync layer）
+   - `status: "todo"` 但 React state 空 → 才走 §23 sync layer 排查
+3. **分流後才走對應方向**，不走無關程式碼
+
+**例外不適用**：
+- 用戶已明確提供完整 task JSON（含 status）
+- 用戶描述的是「新增任務後立即消失」而非「一直空白」
+
 ### 21. 優化清單維護公約 (Optimization Ledger Maintenance)
 
 **用途**：`優化清單.md` 是專案待辦問題的單一事實來源（SSOT），需保持與現實同步。

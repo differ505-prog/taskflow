@@ -692,7 +692,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTasks(updated);
     saveTasks(updated);
     markRecentlyWritten(id);
-    if (user) batchSaveTasksFirebase(user.uid, [task]).catch((err) => console.warn("[SUP SYNC] 新增失敗:", err));
+    if (user) batchSaveTasksFirebase(user.uid, [task]).catch((err) => console.error("[SUP SYNC] 新增失敗:", err));
     return id;
   }, [tasks, user, markRecentlyWritten]);
 
@@ -705,7 +705,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     markRecentlyWritten(id);
     if (user) {
       const task = updated.find((t) => t.id === id);
-      if (task) batchSaveTasksFirebase(user.uid, [task]).catch((err) => console.warn("[SUP SYNC] 更新失敗:", err));
+      if (task) batchSaveTasksFirebase(user.uid, [task]).catch((err) => console.error("[SUP SYNC] 更新失敗:", err));
     }
   }, [tasks, user, markRecentlyWritten]);
 
@@ -719,7 +719,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const updated = [task, ...tasks];
     setTasks(updated);
     saveTasks(updated);
-    if (user) batchSaveTasksFirebase(user.uid, [task]).catch((err) => console.warn("[SUP SYNC] undo 寫入失敗:", err));
+    if (user) batchSaveTasksFirebase(user.uid, [task]).catch((err) => console.error("[SUP SYNC] undo 寫入失敗:", err));
     toast.success(`已恢復「${task.title}」`);
   }, [tasks, user]);
 
@@ -806,7 +806,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     if (user) {
       const updatedTask = updated.find((t) => t.id === id);
-      if (updatedTask) batchSaveTasksFirebase(user.uid, [updatedTask]).catch((err) => console.warn("[SUP SYNC] toggle 失敗:", err));
+      if (updatedTask) batchSaveTasksFirebase(user.uid, [updatedTask]).catch((err) => console.error("[SUP SYNC] toggle 失敗:", err));
     }
     // 完成任務時更新 lastActiveAt（節流 30 秒）
     if (newStatus === "done" && user?.uid) {

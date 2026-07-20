@@ -26,7 +26,7 @@ export async function loadTasks(uid: string): Promise<Task[]> {
     .select("data")
     .eq("owner_uid", uid);
   if (error) {
-    console.warn("[personalTaskSync] loadTasks error:", error);
+    console.error("[personalTaskSync] loadTasks error:", error);
     return [];
   }
   return (data ?? []).map((row) => row.data as Task);
@@ -41,7 +41,7 @@ export async function saveTask(uid: string, task: Task): Promise<void> {
     is_archived: task.isArchived,
     updated_at: new Date().toISOString(),
   });
-  if (error) console.warn("[personalTaskSync] saveTask error:", error);
+  if (error) console.error("[personalTaskSync] saveTask error:", error);
 }
 
 export async function batchSaveTasks(uid: string, tasks: Task[]): Promise<void> {
@@ -54,13 +54,13 @@ export async function batchSaveTasks(uid: string, tasks: Task[]): Promise<void> 
     updated_at: new Date().toISOString(),
   }));
   const { error } = await supabase.from(TABLE).upsert(rows);
-  if (error) console.warn("[personalTaskSync] batchSaveTasks error:", error);
+  if (error) console.error("[personalTaskSync] batchSaveTasks error:", error);
 }
 
 export async function deleteTask(uid: string, taskId: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from(TABLE).delete().eq("id", taskId).eq("owner_uid", uid);
-  if (error) console.warn("[personalTaskSync] deleteTask error:", error);
+  if (error) console.error("[personalTaskSync] deleteTask error:", error);
 }
 
 /**

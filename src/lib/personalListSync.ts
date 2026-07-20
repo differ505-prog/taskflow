@@ -23,7 +23,7 @@ export async function batchSaveLists(uid: string, lists: TaskList[]): Promise<vo
     updated_at: new Date().toISOString(),
   }));
   const { error } = await supabase.from(TABLE).upsert(rows);
-  if (error) console.warn("[personalListSync] batchSaveLists error:", error);
+  if (error) console.error("[personalListSync] batchSaveLists error:", error);
 }
 
 export async function deleteList(uid: string, listId: string): Promise<void> {
