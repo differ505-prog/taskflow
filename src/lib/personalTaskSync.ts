@@ -138,9 +138,8 @@ export async function subscribeTasks(
 
   // 建立 Realtime 訂閱：監聽自己 uid 的 INSERT/UPDATE/DELETE
   let activeChannel = buildChannel();
-  activeChannel.subscribe((status, err) => {
-    console.log("[personalTaskSync] subscribe callback → status:", status, "err:", err);
-  });
+  // 訂閱（不傳 callback，狀態監聽走 channel.on("system")）
+  await activeChannel.subscribe();
   console.log("[personalTaskSync] channel created, state:", (activeChannel as unknown as { state?: () => string }).state?.());
 
   return () => {
