@@ -119,9 +119,13 @@ export async function subscribeTasks(
       async (payload) => {
         const t0 = Date.now();
         console.log(`[personalTaskSync] postgres_changes 收到，event=${payload.eventType}，時間=${Date.now()}`);
-        const fresh = await loadTasks(uid);
-        console.log(`[personalTaskSync] loadTasks 耗時 ${Date.now() - t0}ms，任務數: ${fresh.length}`);
-        onUpdate(filterDeleted(fresh));
+        try {
+          const fresh = await loadTasks(uid);
+          console.log(`[personalTaskSync] loadTasks 耗時 ${Date.now() - t0}ms，任務數: ${fresh.length}`);
+          onUpdate(filterDeleted(fresh));
+        } catch (err) {
+          console.error("[personalTaskSync] loadTasks 失敗:", err);
+        }
       }
     );
 
@@ -134,7 +138,8 @@ export async function subscribeTasks(
 
   // 建立 Realtime 訂閱：監聽自己 uid 的 INSERT/UPDATE/DELETE
   let activeChannel = buildChannel();
-  await activeChannel.subscribe();
+  activeChannel.subscribe();
+  // 連線狀態由 channel.on("system") 處理，這裡不做額外判斷
 
   return () => {
     if (activeChannel) supabase!.removeChannel(activeChannel);
