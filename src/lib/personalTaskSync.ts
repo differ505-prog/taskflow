@@ -117,7 +117,9 @@ export async function subscribeTasks(
       "postgres_changes",
       { event: "*", schema: "public", table: TABLE, filter: `owner_uid=eq.${uid}` },
       async () => {
+        const t0 = Date.now();
         const fresh = await loadTasks(uid);
+        console.log(`[personalTaskSync] postgres_changes 收到，loadTasks 耗時 ${Date.now() - t0}ms，任務數: ${fresh.length}`);
         onUpdate(filterDeleted(fresh));
       }
     );

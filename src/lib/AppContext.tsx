@@ -743,6 +743,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // 立即從 UI 移除（optimistic）
     deletedTaskIdsRef.current.add(id);
     const updated = tasks.filter((t) => t.id !== id);
+    console.log(`[AppContext] 刪除任務 ${id}，時間: ${Date.now()}`);
     setTasks(updated);
     saveTasks(updated);
 
