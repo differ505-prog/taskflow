@@ -7,6 +7,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isTod
 import { zhTW } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus, ChevronDown, ChevronRight as ChevronRightSm } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { SwipeableTaskCard } from "./SwipeableTaskCard";
 
 interface CalendarViewProps {
   selectedTaskId: string | null;
@@ -14,7 +15,7 @@ interface CalendarViewProps {
 }
 
 export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps) {
-  const { tasks, updateTask, toggleTaskStatus, addTask } = useApp();
+  const { tasks, updateTask, toggleTaskStatus, addTask, deleteTask } = useApp();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [draggingTask, setDraggingTask] = useState<string | null>(null);
@@ -311,13 +312,19 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
                 return (
                   <div className="space-y-2">
                     {todo.map((task) => (
-                      <CalendarTaskItem
+                      <SwipeableTaskCard
                         key={task.id}
-                        task={task}
-                        isSelected={selectedTaskId === task.id}
-                        onClick={() => onSelectTask(task.id)}
-                        onToggleStatus={() => toggleTaskStatus(task.id)}
-                      />
+                        taskId={task.id}
+                        hideComplete
+                        onDelete={(id) => deleteTask(id)}
+                      >
+                        <CalendarTaskItem
+                          task={task}
+                          isSelected={selectedTaskId === task.id}
+                          onClick={() => onSelectTask(task.id)}
+                          onToggleStatus={() => toggleTaskStatus(task.id)}
+                        />
+                      </SwipeableTaskCard>
                     ))}
                     {done.length > 0 && (
                       <div className={todo.length > 0 ? "pt-2 border-t border-dashed" : ""} style={{ borderColor: "var(--border)" }}>
@@ -339,13 +346,19 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
                         {isDoneOpen && (
                           <div className="mt-2 space-y-2">
                             {done.map((task) => (
-                              <CalendarTaskItem
+                              <SwipeableTaskCard
                                 key={task.id}
-                                task={task}
-                                isSelected={selectedTaskId === task.id}
-                                onClick={() => onSelectTask(task.id)}
-                                onToggleStatus={() => toggleTaskStatus(task.id)}
-                              />
+                                taskId={task.id}
+                                hideComplete
+                                onDelete={(id) => deleteTask(id)}
+                              >
+                                <CalendarTaskItem
+                                  task={task}
+                                  isSelected={selectedTaskId === task.id}
+                                  onClick={() => onSelectTask(task.id)}
+                                  onToggleStatus={() => toggleTaskStatus(task.id)}
+                                />
+                              </SwipeableTaskCard>
                             ))}
                           </div>
                         )}
