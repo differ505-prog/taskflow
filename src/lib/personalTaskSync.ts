@@ -107,7 +107,7 @@ export async function subscribeTasks(
         try {
           const fresh = await loadTasks(uid);
           console.log(`[personalTaskSync] loadTasks 耗時 ${Date.now() - t0}ms，任務數: ${fresh.length}`);
-          onUpdate(filterDeleted(fresh), deletedIdsRef);
+          onUpdate(filterDeleted(fresh));
         } catch (err) {
           console.error("[personalTaskSync] loadTasks 失敗:", err);
         }
@@ -125,7 +125,7 @@ export async function subscribeTasks(
         try {
           const fresh = await loadTasks(uid);
           console.log(`[personalTaskSync] loadTasks 耗時 ${Date.now() - t0}ms，任務數: ${fresh.length}`);
-          onUpdate(filterDeleted(fresh), deletedIdsRef);
+          onUpdate(filterDeleted(fresh));
         } catch (err) {
           console.error("[personalTaskSync] loadTasks 失敗:", err);
         }
