@@ -11,9 +11,11 @@ import { createServerClient } from "@supabase/ssr";
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.clone();
   const code = url.searchParams.get("code");
+  const type = url.searchParams.get("type");
 
   if (code) {
-    const supabaseResponse = NextResponse.redirect(new URL("/", req.url));
+    const target = type === "recovery" ? "/reset-password" : "/";
+    const supabaseResponse = NextResponse.redirect(new URL(target, req.url));
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

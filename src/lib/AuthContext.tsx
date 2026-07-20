@@ -39,6 +39,8 @@ interface AuthContextValue {
   signInWithApple: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<void>;
+  resetPasswordForEmail: (email: string) => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
   signOut: () => Promise<void>;
   // ── Role & Permissions ────────────────────────────────
   role: UserRole;
@@ -63,6 +65,8 @@ const AuthContext = createContext<AuthContextValue>({
     signInWithApple: async () => {},
     signInWithEmail: async () => {},
   signUpWithEmail: async () => {},
+  resetPasswordForEmail: async () => {},
+  updatePassword: async () => {},
   signOut: async () => {},
   role: "free",
   roleConfig: ROLE_CONFIGS.free,
@@ -259,6 +263,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
+  const resetPasswordForEmail = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
+    });
+    if (error) throw error;
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+  };
+
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
@@ -270,7 +286,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user, loading,
-        signInWithGoogle, signInWithApple, signInWithEmail, signUpWithEmail, signOut,
+        signInWithGoogle, signInWithApple, signInWithEmail, signUpWithEmail,
+        resetPasswordForEmail, updatePassword, signOut,
         role, roleConfig, canUpload, maxFileSizeMB,
         isAdmin, isPro, isBeta, isFree,
         betaUsers, betaLoading,
