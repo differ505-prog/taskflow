@@ -28,7 +28,7 @@ import { ToastProvider } from "@/components/ToastProvider";
 import { Onboarding } from "@/components/Onboarding";
 import { IOSInstallPrompt, AndroidInstallPrompt, AhaMoment } from "@/components/PwaPrompts";
 import { QuickVoiceFAB } from "@/components/QuickVoiceFAB";
-import { ConfirmProvider, useConfirm } from "@/hooks/useConfirm";
+import { useConfirm } from "@/hooks/useConfirm";
 
 // ─── Inner app (has access to useApp) ───────────────────────
 function AppLayoutInner() {
@@ -229,7 +229,6 @@ function AppLayoutInner() {
   );
 
   return (
-    <ConfirmProvider>
     <>
       <Onboarding />
       <IOSInstallPrompt />
@@ -343,7 +342,6 @@ function AppLayoutInner() {
 
       </div>
     </>
-    </ConfirmProvider>
   );
 }
 
