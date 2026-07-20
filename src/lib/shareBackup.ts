@@ -31,12 +31,16 @@ export type ShareResult = "shared" | "cancelled" | "fallback";
  * 偵測瀏覽器是否支援分享檔案
  * - navigator.canShare 必須存在
  * - navigator.canShare({ files }) 必須回 true(代表瀏覽器支援檔案分享)
+ *
+ * 注意:iOS Safari 對 MIME type 嚴格:application/json 在部分 iOS 版本會被拒絕。
+ * 所以用真實的 JSON 檔做測試,而不是 text/plain,避免「測試通過但實際失敗」。
  */
 export function canShareFiles(): boolean {
   if (typeof navigator === "undefined") return false;
   if (!navigator.share || !navigator.canShare) return false;
   try {
-    const testFile = new File(["test"], "test.txt", { type: "text/plain" });
+    // 用實際會分享的 MIME/副檔名做測試
+    const testFile = new File(['{"test":1}'], "test.json", { type: "application/json" });
     return navigator.canShare({ files: [testFile] });
   } catch {
     return false;
