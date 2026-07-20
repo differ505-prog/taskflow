@@ -89,7 +89,7 @@ export async function subscribeTasks(
   //
   // 雙層保護：
   // 1) 訂閱時 5 秒一次性 fallback — 保護剛啟動的視窗
-  // 2) ongoing 10 秒靜默輪詢 — 監測 lastBroadcastAt，超過 30 秒沒收到任何 INSERT/UPDATE
+  // 2) ongoing 3 秒靜默輪詢 — 監測 lastBroadcastAt，超過 3 秒沒收到任何 INSERT/UPDATE
   //    → 主動 loadTasks。DELETE 廣播即時，不算靜默也不更新 timestamp（不影響這層保護）。
   let fallbackFired = false;
   const fallbackTimer = setTimeout(async () => {
@@ -108,9 +108,11 @@ export async function subscribeTasks(
     fallbackFired = true;
   };
 
-  // 2) ongoing 10 秒靜默輪詢
+  // 2) ongoing 靜默輪詢：當 realtime INSERT/UPDATE 廣播逾時時的 fallback
+  // 3 秒間隔 — realtime 在大多數情況下應該 < 1s 內送達，3 秒是最保險且幾乎無感的 fallback
   let lastBroadcastAt = Date.now();
-  const SILENT_WINDOW_MS = 10_000;
+  const POLL_INTERVAL_MS = 3_000;
+  const SILENT_WINDOW_MS = POLL_INTERVAL_MS;
   const periodicPollTimer = setInterval(async () => {
     if (Date.now() - lastBroadcastAt < SILENT_WINDOW_MS) return;
     try {
@@ -121,7 +123,7 @@ export async function subscribeTasks(
     } catch (err) {
       console.error("[personalTaskSync] periodic poll failed:", err);
     }
-  }, SILENT_WINDOW_MS);
+  }, POLL_INTERVAL_MS);
   const markBroadcast = () => {
     lastBroadcastAt = Date.now();
   };
@@ -146,9 +148,14 @@ export async function subscribeTasks(
         cancelFallback();
         markBroadcast();
         const tRecv = Date.now();
-        console.log(`[personalTaskSync] INSERT callback received at ${new Date(tRecv).toISOString()} (deltaFromPayload=${tRecv - new Date(payload.commit_timestamp || Date.now()).getTime()}ms)`, payload);
+        // 標記 [REALTIME-RECEIVED]：這是從 realtime channel 收到的 INSERT callback
+        // 如果 log 裡完全沒看到這行 → realtime 廣播根本沒送到這個 client
+        console.log(`[personalTaskSync] [REALTIME-RECEIVED] INSERT callback at ${new Date(tRecv).toISOString()}`, payload);
         const raw = payload as { new?: { owner_uid?: string } };
-        if (raw.new && raw.new.owner_uid !== uid) return;
+        if (raw.new && raw.new.owner_uid !== uid) {
+          console.log(`[personalTaskSync] INSERT callback owner_uid 不符 (${raw.new.owner_uid} !== ${uid})，跳過`);
+          return;
+        }
         const t0 = Date.now();
         try {
           const fresh = await loadTasks(uid);
@@ -166,9 +173,13 @@ export async function subscribeTasks(
       async (payload) => {
         cancelFallback();
         markBroadcast();
-        console.log(`[personalTaskSync] UPDATE callback`);
+        // 標記 [REALTIME-RECEIVED]：這是從 realtime channel 收到的 UPDATE callback
+        console.log(`[personalTaskSync] [REALTIME-RECEIVED] UPDATE callback`, payload);
         const raw = payload as { new?: { owner_uid?: string } };
-        if (raw.new && raw.new.owner_uid !== uid) return;
+        if (raw.new && raw.new.owner_uid !== uid) {
+          console.log(`[personalTaskSync] UPDATE callback owner_uid 不符，跳過`);
+          return;
+        }
         const t0 = Date.now();
         try {
           const fresh = await loadTasks(uid);
@@ -216,10 +227,12 @@ export async function subscribeTasks(
   if (!subscribed) {
     subscribed = true;
     activeChannel.subscribe((status) => {
+      // 把所有 status 都 log，幫助診斷「到底有沒有訂閱成功」
+      console.log(`[personalTaskSync] subscribe status: ${status}`);
       if (status === "SUBSCRIBED") {
         reconnectAttempts = 0;
-        console.log("[personalTaskSync] Realtime channel 已連線");
-      } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        console.log(`[personalTaskSync] Realtime channel 已連線，主題=personal_tasks:${uid}`);
+      } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
         console.warn(`[personalTaskSync] channel ${status}`);
       }
     });
