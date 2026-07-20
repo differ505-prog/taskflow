@@ -8,6 +8,7 @@ import {
   exportTasksToCSV, exportHabitsToCSV, importData,
   recordBackupAt, getLastBackupAt, getDaysSinceBackup,
 } from "@/lib/storage";
+import { shareOrDownloadBackup, fallbackDownload } from "@/lib/shareBackup";
 import { motion } from "framer-motion";
 import {
   Moon, Sun, Bell, Download, Upload, Trash2, Info,
@@ -181,14 +182,32 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
     window.location.reload();
   };
 
-  const handleExportJSON = () => {
+  const handleExportJSON = async () => {
     const data = exportAllData();
-    downloadJSON(data, `taskflow-backup-${new Date().toISOString().split("T")[0]}.json`);
-    recordBackupAt();
-    setLastBackupAt(getLastBackupAt());
-    setDaysSinceBackup(getDaysSinceBackup());
-    setExportMsg("已匯出 JSON 備份");
-    setTimeout(() => setExportMsg(null), 3000);
+    const filename = `taskflow-backup-${new Date().toISOString().split("T")[0]}.json`;
+
+    // 優先用 Web Share API(手機原生分享面板:存 Files/AirDrop/傳 LINE/Email 自己)
+    // 不支援或失敗時降級到 <a download>
+    await shareOrDownloadBackup({
+      data,
+      filename,
+      onFallback: () => {
+        fallbackDownload(data, filename);
+        recordBackupAt();
+        setLastBackupAt(getLastBackupAt());
+        setDaysSinceBackup(getDaysSinceBackup());
+        setExportMsg("已下載 JSON 備份");
+        setTimeout(() => setExportMsg(null), 3000);
+      },
+      onShared: () => {
+        recordBackupAt();
+        setLastBackupAt(getLastBackupAt());
+        setDaysSinceBackup(getDaysSinceBackup());
+        setExportMsg("已分享 JSON 備份");
+        setTimeout(() => setExportMsg(null), 3000);
+      },
+      // onCancelled: 用戶主動關掉分享面板,靜默處理(不顯示訊息)
+    });
   };
 
   const handleExportTasksCSV = () => {
