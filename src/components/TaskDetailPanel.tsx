@@ -184,10 +184,13 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
 
     let finalTranscript = "";
     let interimTranscript = "";
+    let lastTranscript = ""; // 補抓 fallback:語音引擎不發 final 時,用最後一個 result 寫入
+    let finalHandled = false; // onresult 已處理 final(避免 onend fallback 重複寫入)
 
     recognition.onresult = (event: any) => {
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const piece = event.results[i][0].transcript;
+        lastTranscript = piece; // 永遠記住最後一段(不論 isFinal),onend 補抓用
         if (event.results[i].isFinal) finalTranscript += piece;
         else interimTranscript += piece;
       }
@@ -200,6 +203,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
           return (prev + " " + finalTranscript.trim()).trim();
         });
         finalTranscript = "";
+        finalHandled = true; // 標記:已寫入,onend fallback 跳過
       }
     };
 
@@ -218,6 +222,19 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
       setIsRecording(false);
       setInterimText("");
       recognitionRef.current = null;
+      // 補抓 fallback:Chrome Web Speech API 在 continuous:false + 中文情境下
+      // 有時不標 final 就 end(語音引擎判定「句子未完」)。
+      // 此時 finalTranscript 仍空,改抓最後一個 result 寫入(不論 isFinal)。
+      // finalHandled 防呆:避免 onresult 已寫入後又重複觸發。
+      if (!finalHandled && !finalTranscript.trim() && lastTranscript.trim()) {
+        const text = lastTranscript.trim();
+        setTitle((prev) => {
+          if (titleWasEmptyRef.current || !prev.trim()) {
+            return text;
+          }
+          return (prev + " " + text).trim();
+        });
+      }
     };
 
     try {
