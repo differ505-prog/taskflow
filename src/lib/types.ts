@@ -228,6 +228,7 @@ export interface Habit {
   checkins: HabitCheckin[];
   streak: number;
   longestStreak: number;
+  archivedAt?: string;
 }
 
 export interface HabitCheckin {

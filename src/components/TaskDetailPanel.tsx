@@ -27,6 +27,7 @@ import TaskCommentsDrawer from "./TaskCommentsDrawer";
 import { TextWithLinks } from "./TextWithLinks";
 import { deleteFile } from "@/lib/storageUpload";
 import { useVoiceRecognition } from "@/lib/useVoiceRecognition";
+import { useConfirm } from "@/hooks/useConfirm";
 
 const DEBOUNCE_MS = 300; // 詳情面板欄位 debounce 寫入（TickTick 直覺：輸入即回饋、300ms 內不重複寫入）
 
@@ -51,6 +52,7 @@ const SELECT_ARROW = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
 export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   const { updateTask, deleteTask, lists, getTagCounts, markEditingActivity, clearEditingActivity } = useApp();
   const { user } = useAuth();
+  const confirm = useConfirm();
   const collapseScope = user?.uid ?? "anon";
   const { isCollapsed: isDoneCollapsed, toggle: toggleDoneCollapse } = useSubTaskCollapse(task.id, task.subTasks || [], collapseScope);
 
@@ -287,9 +289,16 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   useDebouncedField({ value: recurrenceDaysOfWeek, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
   useDebouncedField({ value: recurrenceEndDate, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
 
-  const handleDelete = () => {
-    if (confirm(`刪除任務「${task.title}」？`)) {
+  const handleDelete = async () => {
+    const ok = await confirm({
+      title: `刪除任務「${task.title}」`,
+      message: "此任務的所有資料（子任務、附件、註解）將一併移除,此操作無法復原。",
+      confirmText: "刪除任務",
+      tone: "danger",
+    });
+    if (ok) {
       deleteTask(task.id);
+      onClose?.();
     }
   };
 

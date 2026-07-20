@@ -12,10 +12,12 @@ import { useFeatureGate } from "@/lib/useFeatureGate";
 import { motion, AnimatePresence } from "framer-motion";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { isComposingKey } from "@/utils/imeGuard";
+import { useConfirm } from "@/hooks/useConfirm";
 
 export function TagsPage() {
   const { tasks, updateTask } = useApp();
   const { isAdmin, isPro, isBeta } = useAuth();
+  const confirm = useConfirm();
   // 方案 X（向後相容）：beta 用戶繼續享有早期體驗，不破壞現狀
   const canCustomizeTags = isAdmin || isBeta || isPro;
   // 關聯式標籤更新（PRO 守衛）：free 用戶無法一鍵批次改 tag 名稱
@@ -115,7 +117,16 @@ export function TagsPage() {
     setNewTagColor(TAG_COLORS[0]);
   };
 
-  const handleRemoveTag = (tagName: string) => {
+  const handleRemoveTag = async (tagName: string) => {
+    const usedByCount = tasks.filter((t) => !t.isArchived && t.tags.includes(tagName)).length;
+    const ok = await confirm({
+      title: `刪除標籤「${tagName}」`,
+      message: "標籤將從所有任務中移除,此操作無法復原。",
+      impactDetail: usedByCount > 0 ? `${usedByCount} 項任務將移除此標籤` : "此標籤目前沒有任務使用",
+      confirmText: "刪除標籤",
+      tone: "danger",
+    });
+    if (!ok) return;
     const colors = { ...tagColors };
     delete colors[tagName];
     setTagColors(colors);

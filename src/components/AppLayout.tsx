@@ -28,11 +28,13 @@ import { ToastProvider } from "@/components/ToastProvider";
 import { Onboarding } from "@/components/Onboarding";
 import { IOSInstallPrompt, AndroidInstallPrompt, AhaMoment } from "@/components/PwaPrompts";
 import { QuickVoiceFAB } from "@/components/QuickVoiceFAB";
+import { ConfirmProvider, useConfirm } from "@/hooks/useConfirm";
 
 // ─── Inner app (has access to useApp) ───────────────────────
 function AppLayoutInner() {
   const { currentView, currentListId, currentSharedListId, addList, updateList, deleteList, setCurrentView, setCurrentSharedList, removeAcceptedSharedList, viewCounts, tasks, checkIncomingShareLink, lists, toggleTaskStatus, deleteTask } = useApp();
   const { user } = useAuth();
+  const confirm = useConfirm();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isListFormOpen, setIsListFormOpen] = useState(false);
   const [isPomodoroOpen, setIsPomodoroOpen] = useState(false);
@@ -79,7 +81,14 @@ function AppLayoutInner() {
     exitBatchMode();
   };
   const handleBatchDelete = async () => {
-    if (!confirm(`確定要刪除 ${batchSelectedIds.size} 項任務嗎?`)) return;
+    const ok = await confirm({
+      title: `刪除 ${batchSelectedIds.size} 項任務`,
+      message: `這 ${batchSelectedIds.size} 項任務將從所有清單中移除,此操作無法復原。`,
+      impactDetail: `${batchSelectedIds.size} 項任務將永久刪除`,
+      confirmText: "刪除",
+      tone: "danger",
+    });
+    if (!ok) return;
     for (const id of batchSelectedIds) {
       deleteTask(id);
     }
@@ -220,6 +229,7 @@ function AppLayoutInner() {
   );
 
   return (
+    <ConfirmProvider>
     <>
       <Onboarding />
       <IOSInstallPrompt />
@@ -333,6 +343,7 @@ function AppLayoutInner() {
 
       </div>
     </>
+    </ConfirmProvider>
   );
 }
 

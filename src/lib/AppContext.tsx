@@ -123,7 +123,8 @@ interface AppContextValue {
   // ── 習慣 CRUD ─────────────────────────────────────────
   addHabit: (data: Omit<Habit, "id" | "createdAt" | "updatedAt" | "checkins" | "streak" | "longestStreak">) => void;
   updateHabit: (id: string, updates: Partial<Habit>) => void;
-  deleteHabit: (id: string) => void;
+  archiveHabit: (id: string) => void;
+  unarchiveHabit: (id: string) => void;
   checkinHabit: (id: string, date: string, count?: number, note?: string) => void;
 
   // ── Quick Add ──────────────────────────────────────────
@@ -955,8 +956,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     saveHabits(updated);
   }, [habits]);
 
-  const deleteHabit = useCallback((id: string) => {
-    const updated = habits.filter((h) => h.id !== id);
+  const archiveHabit = useCallback((id: string) => {
+    // §P0-2: 改為 archive 取代硬刪（streak/checkins 仍可恢復）
+    const updated = habits.map((h) =>
+      h.id === id ? { ...h, archivedAt: new Date().toISOString() } : h
+    );
+    setHabits(updated);
+    saveHabits(updated);
+  }, [habits]);
+
+  const unarchiveHabit = useCallback((id: string) => {
+    const updated = habits.map((h) => {
+      if (h.id !== id) return h;
+      const { archivedAt, ...rest } = h;
+      return rest;
+    });
     setHabits(updated);
     saveHabits(updated);
   }, [habits]);
@@ -1562,7 +1576,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addSubTask, toggleSubTask, deleteSubTask,
     completeRecurringAndClone,
     addList, updateList, deleteList,
-    addHabit, updateHabit, deleteHabit, checkinHabit: checkinHabitFn,
+    addHabit, updateHabit, archiveHabit, unarchiveHabit, checkinHabit: checkinHabitFn,
     quickAdd,
     requestNotificationPermission, notificationPermission,
     sharedLists, sharedListIds: Object.keys(sharedLists),

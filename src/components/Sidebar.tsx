@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useApp } from "@/lib/AppContext";
 import { AppView, TaskList } from "@/lib/types";
+import { useConfirm } from "@/hooks/useConfirm";
 import {
   Inbox, Sun, CalendarDays, Layers, Tag, Clock,
   Plus, ChevronDown, ChevronRight, CheckCircle2,
@@ -36,6 +37,7 @@ const LIST_ICONS = ["📋", "💼", "🏠", "🏃", "📚", "💡", "🎯", "�
 
 export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditList, onDeleteList, onOpenPomodoro, onOpenShareModal, onOpenSharedLists, onOpenSharedList, onLeaveSharedList }: SidebarProps) {
   const { currentView, currentListId, currentSharedListId, setCurrentView, viewCounts, lists, sharedLists, getListTaskCount, tasks } = useApp();
+  const confirm = useConfirm();
   const [listsExpanded, setListsExpanded] = useState(true);
   const [showListMenu, setShowListMenu] = useState<string | null>(null);
   const [showSharedListMenu, setShowSharedListMenu] = useState<string | null>(null);
@@ -214,7 +216,20 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
                         </button>
                       )}
                       <button
-                        onClick={() => { onDeleteList?.(list.id); setShowListMenu(null); }}
+                        onClick={async () => {
+                          const taskCount = tasks.filter((t) => t.listId === list.id && !t.isArchived).length;
+                          const ok = await confirm({
+                            title: `刪除清單「${list.name}」`,
+                            message: "此操作會將清單下的任務改為「未分類」,清單本身將永久移除。",
+                            impactDetail: taskCount > 0 ? `${taskCount} 項任務將改為未分類` : "此清單下沒有任務",
+                            confirmText: "刪除清單",
+                            tone: "danger",
+                          });
+                          if (ok) {
+                            onDeleteList?.(list.id);
+                            setShowListMenu(null);
+                          }
+                        }}
                         className="w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                         style={{ color: "var(--status-danger)" }}
                       >

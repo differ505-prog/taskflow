@@ -5,6 +5,7 @@ import { useApp } from "@/lib/AppContext";
 import { Habit } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
 import { Plus, X, CheckCircle2, Circle, Trash2, Edit3, Flame, Target, TrendingUp } from "lucide-react";
+import { useConfirm } from "@/hooks/useConfirm";
 
 const HABIT_COLORS = ["#4F6AF5", "#8B5CF6", "#EC4899", "#EF4444", "#F97316", "#EAB308", "#22C55E", "#14B8A6", "#06B6D4", "#636366"];
 
@@ -28,14 +29,16 @@ function getLast30Days(): string[] {
   return days;
 }
 
-function HabitRow({ habit, onCheckin, onDelete, onUpdate }: {
+function HabitRow({ habit, onCheckin, onDelete, onUpdate, onRestore }: {
   habit: Habit;
   onCheckin: () => void;
   onDelete: () => void;
   onUpdate: (updates: Partial<Habit>) => void;
+  onRestore?: () => void;
 }) {
   const [showHeatmap, setShowHeatmap] = useState(false);
   const today = new Date().toISOString().split("T")[0];
+  const isArchived = !!habit.archivedAt;
   const todayCheckin = habit.checkins.find((c) => c.date === today);
   const isCheckedToday = !!todayCheckin?.completed;
   const last30Days = getLast30Days();
@@ -51,13 +54,14 @@ function HabitRow({ habit, onCheckin, onDelete, onUpdate }: {
   };
 
   return (
-    <div className="card px-5 py-4">
+    <div className="card px-5 py-4" style={isArchived ? { opacity: 0.65 } : undefined}>
       <div className="flex items-start gap-4">
         {/* Check button */}
         <button
           onClick={onCheckin}
-          className="flex-shrink-0 mt-0.5 transition-transform hover:scale-110"
-          aria-label={isCheckedToday ? "取消打卡" : "打卡"}
+          disabled={isArchived}
+          className="flex-shrink-0 mt-0.5 transition-transform hover:scale-110 disabled:hover:scale-100 disabled:cursor-not-allowed"
+          aria-label={isArchived ? "已封存" : isCheckedToday ? "取消打卡" : "打卡"}
         >
           {isCheckedToday ? (
             <CheckCircle2 className="w-6 h-6" style={{ color: habit.color }} />
@@ -91,14 +95,25 @@ function HabitRow({ habit, onCheckin, onDelete, onUpdate }: {
               >
                 <TrendingUp className="w-4 h-4" />
               </button>
-              <button
-                onClick={onDelete}
-                className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
-                style={{ color: "var(--text-tertiary)" }}
-                aria-label="刪除習慣"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              {onRestore ? (
+                <button
+                  onClick={onRestore}
+                  className="px-2 py-1 rounded-lg text-[12px] font-medium hover:bg-blue-50 transition-colors"
+                  style={{ color: "var(--brand)" }}
+                  aria-label="還原習慣"
+                >
+                  還原
+                </button>
+              ) : (
+                <button
+                  onClick={onDelete}
+                  className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                  style={{ color: "var(--text-tertiary)" }}
+                  aria-label="封存習慣"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -150,8 +165,10 @@ function HabitRow({ habit, onCheckin, onDelete, onUpdate }: {
 }
 
 export function HabitsPage() {
-  const { habits, addHabit, checkinHabit, deleteHabit } = useApp();
+  const { habits, addHabit, checkinHabit, archiveHabit, unarchiveHabit } = useApp();
+  const confirm = useConfirm();
   const [showForm, setShowForm] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [form, setForm] = useState<HabitFormData>({
     title: "",
     frequency: "daily",
@@ -176,7 +193,10 @@ export function HabitsPage() {
   };
 
   const today = new Date().toISOString().split("T")[0];
-  const todayDone = habits.filter((h) => h.checkins.some((c) => c.date === today && c.completed)).length;
+  const activeHabits = habits.filter((h) => !h.archivedAt);
+  const archivedHabits = habits.filter((h) => !!h.archivedAt);
+  const todayDone = activeHabits.filter((h) => h.checkins.some((c) => c.date === today && c.completed)).length;
+  const displayHabits = showArchived ? archivedHabits : activeHabits;
 
   return (
     <div className="max-w-2xl mx-auto p-6 space-y-5">
@@ -185,13 +205,29 @@ export function HabitsPage() {
         <div>
           <h1 className="text-[18px] font-semibold" style={{ color: "var(--text-primary)" }}>習慣打卡</h1>
           <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>
-            今日完成 {todayDone}/{habits.length} 個習慣
+            今日完成 {todayDone}/{activeHabits.length} 個習慣
+            {archivedHabits.length > 0 && !showArchived && (
+              <span className="ml-2">
+                · 已封存 {archivedHabits.length} 個
+              </span>
+            )}
           </p>
         </div>
-        <button onClick={() => setShowForm(true)} className="btn-primary">
-          <Plus className="w-4 h-4" />
-          新增習慣
-        </button>
+        <div className="flex items-center gap-2">
+          {archivedHabits.length > 0 && (
+            <button
+              onClick={() => setShowArchived((v) => !v)}
+              className="px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              {showArchived ? "← 返回" : `查看封存 (${archivedHabits.length})`}
+            </button>
+          )}
+          <button onClick={() => setShowForm(true)} className="btn-primary">
+            <Plus className="w-4 h-4" />
+            新增習慣
+          </button>
+        </div>
       </div>
 
       {/* Habit form */}
@@ -294,14 +330,16 @@ export function HabitsPage() {
       </AnimatePresence>
 
       {/* Habits list */}
-      {habits.length === 0 && !showForm ? (
+      {displayHabits.length === 0 && !showForm ? (
         <div className="card py-16 text-center">
-          <p className="text-[14px]" style={{ color: "var(--text-tertiary)" }}>還沒有習慣，點擊上方新增開始追蹤</p>
+          <p className="text-[14px]" style={{ color: "var(--text-tertiary)" }}>
+            {showArchived ? "沒有封存的習慣" : "還沒有習慣，點擊上方新增開始追蹤"}
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
           <AnimatePresence>
-            {habits.map((habit) => (
+            {displayHabits.map((habit) => (
               <motion.div
                 key={habit.id}
                 initial={{ opacity: 0, y: 8 }}
@@ -311,8 +349,19 @@ export function HabitsPage() {
                 <HabitRow
                   habit={habit}
                   onCheckin={() => checkinHabit(habit.id, today)}
-                  onDelete={() => deleteHabit(habit.id)}
+                  onDelete={async () => {
+                  const ok = await confirm({
+                    title: `封存習慣「${habit.title}」`,
+                    message: "此習慣將從主列表移除,但 streak、checkins 紀錄仍會保留,可在「查看封存」中還原。",
+                    impactDetail: `${habit.checkins.filter((c) => c.completed).length} 次打卡紀錄將保留`,
+                    confirmText: "封存",
+                    cancelText: "取消",
+                    tone: "warning",
+                  });
+                  if (ok) archiveHabit(habit.id);
+                }}
                   onUpdate={() => {}}
+                  onRestore={showArchived ? () => unarchiveHabit(habit.id) : undefined}
                 />
               </motion.div>
             ))}

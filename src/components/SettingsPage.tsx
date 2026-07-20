@@ -23,6 +23,7 @@ import { useWebhookSettings, triggerWebhook } from "@/lib/useWebhook";
 import { ROLE_CONFIGS, UserRole } from "@/lib/types";
 import { getConfettiEnabled, setConfettiEnabled, previewConfetti } from "@/lib/confetti";
 import { toast } from "sonner";
+import { useConfirm } from "@/hooks/useConfirm";
 import { isComposingKey } from "@/utils/imeGuard";
 import { ProGhostButton } from "./ProGhostButton";
 
@@ -34,8 +35,8 @@ interface SettingsPageProps {
 export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
   const { notificationPermission, requestNotificationPermission, tasks, habits, lists, addTask, addHabit, addList } = useApp();
   const { user, role, roleConfig, isAdmin } = useAuth();
+  const confirm = useConfirm();
   const [theme, setTheme] = useState<"light" | "dark" | "system">("light");
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
   const [importMsg, setImportMsg] = useState<string | null>(null);
   const [importErrors, setImportErrors] = useState<string[]>([]);
@@ -177,9 +178,19 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
     setTimeout(() => setExportMsg(null), 3000);
   };
 
-  const handleClearAll = () => {
+  const handleClearAll = async () => {
+    const ok = await confirm({
+      title: "清除所有資料",
+      message: "所有任務、清單、習慣、設定將從本機與雲端完全移除。匯出備份後再清除可避免資料遺失。",
+      impactDetail: `${tasks.length} 項任務 · ${habits.length} 個習慣 · ${lists.length} 個清單將永久刪除`,
+      confirmText: "永久清除",
+      cancelText: "取消",
+      tone: "danger",
+    });
+    if (!ok) return;
     clearAllData();
-    window.location.reload();
+    toast.success(`已清除 ${tasks.length} 項任務、${habits.length} 個習慣、${lists.length} 個清單`);
+    setTimeout(() => window.location.reload(), 600);
   };
 
   const handleExportJSON = async () => {
@@ -778,29 +789,17 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
 
               <div style={{ height: "1px", background: "var(--border)" }} />
 
-              {!showClearConfirm ? (
-                <button
-                  onClick={() => setShowClearConfirm(true)}
-                  className="w-full flex items-center gap-3 p-4 rounded-xl transition-colors hover:bg-red-50/50"
-                  style={{ background: "var(--surface-muted)" }}
-                >
-                  <Trash2 className="w-5 h-5" style={{ color: "var(--status-danger)" }} />
-                  <div className="text-left">
-                    <p className="text-[14px] font-medium" style={{ color: "var(--status-danger)" }}>清除所有資料</p>
-                    <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>刪除所有任務、習慣與設定</p>
-                  </div>
-                </button>
-              ) : (
-                <div className="p-4 rounded-xl border" style={{ borderColor: "var(--status-danger)", background: "rgba(255,59,48,0.04)" }}>
-                  <p className="text-[13px] mb-3" style={{ color: "var(--status-danger)" }}>確定要清除所有資料嗎？此操作無法復原。</p>
-                  <div className="flex gap-2">
-                    <button onClick={() => setShowClearConfirm(false)} className="btn-ghost flex-1 py-2 text-[13px]">取消</button>
-                    <button onClick={handleClearAll} className="flex-1 py-2 rounded-xl text-[13px] font-medium text-white transition-all" style={{ background: "var(--status-danger)" }}>
-                      確定清除
-                    </button>
-                  </div>
+              <button
+                onClick={handleClearAll}
+                className="w-full flex items-center gap-3 p-4 rounded-xl transition-colors hover:bg-red-50/50"
+                style={{ background: "var(--surface-muted)" }}
+              >
+                <Trash2 className="w-5 h-5" style={{ color: "var(--status-danger)" }} />
+                <div className="text-left">
+                  <p className="text-[14px] font-medium" style={{ color: "var(--status-danger)" }}>清除所有資料</p>
+                  <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>刪除所有任務、習慣與設定</p>
                 </div>
-              )}
+              </button>
             </div>
           </section>
 
