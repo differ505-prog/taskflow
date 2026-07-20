@@ -89,7 +89,7 @@ export async function subscribeTasks(
   //
   // 雙層保護：
   // 1) 訂閱時 5 秒一次性 fallback — 保護剛啟動的視窗
-  // 2) ongoing 30 秒靜默輪詢 — 監測 lastBroadcastAt，超過 30 秒沒收到任何 INSERT/UPDATE
+  // 2) ongoing 10 秒靜默輪詢 — 監測 lastBroadcastAt，超過 30 秒沒收到任何 INSERT/UPDATE
   //    → 主動 loadTasks。DELETE 廣播即時，不算靜默也不更新 timestamp（不影響這層保護）。
   let fallbackFired = false;
   const fallbackTimer = setTimeout(async () => {
@@ -108,9 +108,9 @@ export async function subscribeTasks(
     fallbackFired = true;
   };
 
-  // 2) ongoing 30 秒靜默輪詢
+  // 2) ongoing 10 秒靜默輪詢
   let lastBroadcastAt = Date.now();
-  const SILENT_WINDOW_MS = 30_000;
+  const SILENT_WINDOW_MS = 10_000;
   const periodicPollTimer = setInterval(async () => {
     if (Date.now() - lastBroadcastAt < SILENT_WINDOW_MS) return;
     try {
