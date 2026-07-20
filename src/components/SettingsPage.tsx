@@ -4,15 +4,15 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useApp } from "@/lib/AppContext";
 import { useAuth } from "@/lib/AuthContext";
 import {
-  clearAllData, exportAllData, downloadCSV, downloadJSON,
-  exportTasksToCSV, exportHabitsToCSV, importData,
+  clearAllData, exportAllData, downloadJSON,
+  importData,
   recordBackupAt, getLastBackupAt, getDaysSinceBackup,
 } from "@/lib/storage";
 import { shareOrDownloadBackup, fallbackDownload } from "@/lib/shareBackup";
 import { motion } from "framer-motion";
 import {
   Moon, Sun, Bell, Download, Upload, Trash2, Info,
-  ChevronRight, X, CheckCircle2, AlertCircle, FileText,
+  ChevronRight, X, CheckCircle2, AlertCircle,
   CalendarDays, Shield, UserPlus, UserMinus, Crown, Sparkles, Zap, Copy,
   Heart, Lock, Package,
 } from "lucide-react";
@@ -208,20 +208,6 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
       },
       // onCancelled: 用戶主動關掉分享面板,靜默處理(不顯示訊息)
     });
-  };
-
-  const handleExportTasksCSV = () => {
-    const csv = exportTasksToCSV(tasks);
-    downloadCSV(csv, `taskflow-tasks-${new Date().toISOString().split("T")[0]}.csv`);
-    setExportMsg("已匯出任務 CSV");
-    setTimeout(() => setExportMsg(null), 3000);
-  };
-
-  const handleExportHabitsCSV = () => {
-    const csv = exportHabitsToCSV(habits);
-    downloadCSV(csv, `taskflow-habits-${new Date().toISOString().split("T")[0]}.csv`);
-    setExportMsg("已匯出習慣 CSV");
-    setTimeout(() => setExportMsg(null), 3000);
   };
 
   const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -733,16 +719,8 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
               {/* Export */}
               <div>
                 <p className="text-[12px] font-medium mb-2" style={{ color: "var(--text-secondary)" }}>匯出資料</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={handleExportJSON} className="flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-medium transition-all active:scale-95" style={{ background: "var(--brand)", color: "white" }}>
-                    <Download className="w-4 h-4" /> JSON
-                  </button>
-                  <button onClick={handleExportTasksCSV} className="flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-medium transition-all active:scale-95" style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>
-                    <FileText className="w-4 h-4" /> 任務 CSV
-                  </button>
-                </div>
-                <button onClick={handleExportHabitsCSV} className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-medium transition-all active:scale-95" style={{ background: "var(--surface-muted)", color: "var(--text-secondary)" }}>
-                  <Download className="w-4 h-4" /> 習慣 CSV
+                <button onClick={handleExportJSON} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-medium transition-all active:scale-95" style={{ background: "var(--brand)", color: "white" }}>
+                  <Download className="w-4 h-4" /> JSON 備份
                 </button>
               </div>
 
