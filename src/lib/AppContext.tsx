@@ -343,6 +343,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const result = [...merged, ...localOnly];
           console.log(`[SUP SYNC] setTasks result: merged=${merged.length} localOnly=${localOnly.length} deleted=${deleted.size} result=${result.length}`);
           saveTasks(result);
+          // 孤兒補推：若 localOnly 任務不在「最近寫入保護窗」內，視為從未成功上雲，
+          // 自動 batchSave 推上去（修補「同步失敗期間本地新增」的殭屍任務）。
+          // §26 類別 A 補強：避免該批任務永遠卡在 localOnly、跨裝置看不到。
+          if (localOnly.length > 0 && user) {
+            const orphans = localOnly.filter((t) => !isWithinRecentWriteWindow(t.id));
+            if (orphans.length > 0) {
+              console.log(`[SUP SYNC] 自動補推 ${orphans.length} 個孤兒任務上雲`);
+              batchSaveTasksFirebase(user.uid, orphans).catch((err) =>
+                console.error("[SUP SYNC] 孤兒補推失敗:", err)
+              );
+            }
+          }
           return result;
         });
       }, deletedTaskIdsRef.current).then((unsub) => {
