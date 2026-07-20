@@ -349,15 +349,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         if (fbSyncDebug) console.log("[SUP SYNC] lists 推送:", fbLists.length);
-        // Merge 而非覆蓋：本地有資料但雲端尚未收到時，保留本地版本
-        // 避免「清單在本地建立後、Supabase 尚未同步前、又被空快照覆蓋」的問題
-        setLists((prevLocal) => {
-          const deduped = dedupeDuplicateLists(fbLists);
-          const cloudIds = new Set(deduped.map((l) => l.id));
-          // 保留本地有但雲端沒有的清單（尚未上傳的本地清單）
-          const localOnly = prevLocal.filter((l) => !cloudIds.has(l.id));
-          return [...deduped, ...localOnly];
-        });
+        // 去重：同名的預設清單只保留一份（保留固定 id 那份，合併任務）
+        const deduped = dedupeDuplicateLists(fbLists);
+        // 修補：本地任務若指向被丟棄的清單 id，改指到 keeper，並回寫雲端
+        rebindTasksToKeptLists(fbLists, deduped);
+        lastCloudLists = deduped;
+        setLists(deduped);
+        saveLists(deduped);
       }).then((unsub) => {
         listsUnsubRef.current = unsub;
       }).catch((err) => {
