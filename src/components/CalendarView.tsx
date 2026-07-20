@@ -176,7 +176,7 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
             const dateStr = format(day, "yyyy-MM-dd");
             const dayTasks = getTasksForDay(day);
             const isSelected = selectedDate === dateStr;
-            const taskCount = dayTasks.length;
+            const taskCount = dayTasks.filter((t) => t.status !== "done").length;
 
             return (
               <div
