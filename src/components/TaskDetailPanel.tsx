@@ -87,7 +87,6 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   const [interimText, setInterimText] = useState("");
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
-  const titleWasEmptyRef = useRef(true);
   const [attachments, setAttachments] = useState<Attachment[]>(task.attachments || []);
   const [hasChanges, setHasChanges] = useState(false);
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
@@ -185,7 +184,6 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     let finalTranscript = "";
     let interimTranscript = "";
     let lastTranscript = ""; // 補抓 fallback:語音引擎不發 final 時,用最後一個 result 寫入
-    let finalHandled = false; // onresult 已處理 final(避免 onend fallback 重複寫入)
 
     recognition.onresult = (event: any) => {
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -196,14 +194,8 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
       }
       setInterimText(interimTranscript);
       if (finalTranscript) {
-        setTitle((prev) => {
-          if (titleWasEmptyRef.current || !prev.trim()) {
-            return finalTranscript.trim();
-          }
-          return (prev + " " + finalTranscript.trim()).trim();
-        });
+        setTitle(finalTranscript.trim());
         finalTranscript = "";
-        finalHandled = true; // 標記:已寫入,onend fallback 跳過
       }
     };
 
@@ -225,15 +217,8 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
       // 補抓 fallback:Chrome Web Speech API 在 continuous:false + 中文情境下
       // 有時不標 final 就 end(語音引擎判定「句子未完」)。
       // 此時 finalTranscript 仍空,改抓最後一個 result 寫入(不論 isFinal)。
-      // finalHandled 防呆:避免 onresult 已寫入後又重複觸發。
-      if (!finalHandled && !finalTranscript.trim() && lastTranscript.trim()) {
-        const text = lastTranscript.trim();
-        setTitle((prev) => {
-          if (titleWasEmptyRef.current || !prev.trim()) {
-            return text;
-          }
-          return (prev + " " + text).trim();
-        });
+      if (!finalTranscript.trim() && lastTranscript.trim()) {
+        setTitle(lastTranscript.trim());
       }
     };
 
@@ -245,11 +230,6 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
       recognitionRef.current = null;
     }
   }, [isRecording]);
-
-  // 追蹤標題是否為空,決定覆蓋/附加
-  useEffect(() => {
-    if (!isRecording) titleWasEmptyRef.current = !title.trim();
-  }, [title, isRecording]);
 
   const handleSave = () => {
     let recurrence: Recurrence | undefined;
@@ -569,10 +549,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             <input
               type="text"
               value={title}
-              onChange={(e) => {
-                setTitle(e.target.value);
-                if (!isRecording) titleWasEmptyRef.current = !e.target.value.trim();
-              }}
+              onChange={(e) => setTitle(e.target.value)}
               placeholder="任務標題"
               className="w-full text-[16px] font-medium bg-transparent border-none outline-none placeholder:text-[var(--text-tertiary)]"
               style={{ color: "var(--text-primary)" }}
