@@ -14,7 +14,7 @@ export default function TermsPage() {
             服務條款
           </h1>
           <p className="text-[14px]" style={{ color: "var(--text-tertiary)" }}>
-            最後更新：2026 年 7 月 7 日
+            最後更新：2026 年 7 月 20 日
           </p>
         </div>
 
@@ -30,9 +30,11 @@ export default function TermsPage() {
           </Section>
 
           <Section title="3. 資料儲存">
-            VibeList 預設使用瀏覽器本地儲存（localStorage）儲存您的資料。
-            我們不保證資料的永久保存，您有責任定期匯出資料備份。
-            若因瀏覽器清除資料、裝置故障或其他原因導致資料遺失，我們不承擔責任。
+            VibeList 採用雲端同步架構。註冊後您的任務、清單、評論與習慣資料會同步至雲端資料庫，
+            以便跨裝置存取與協作。本地瀏覽器 localStorage 僅作為離線快取，加速載入速度。
+            若因瀏覽器清除資料、裝置故障或其他原因導致本地快取遺失，
+            雲端資料仍可跨裝置復原。
+            請定期使用「設定 → 匯出資料」功能下載完整備份。
           </Section>
 
           <Section title="4. 隱私與資料">
@@ -67,7 +69,7 @@ export default function TermsPage() {
 
           <Section title="9. 終止">
             我們可基於任何原因（包括違反本條款）終止您對服務的存取權。
-            若您希望終止帳戶，可清除瀏覽器中的所有資料。
+            若您希望終止帳戶，請透過「設定 → 刪除帳號」流程，我們將於 30 天內永久刪除所有雲端資料。
           </Section>
 
           <Section title="10. 條款修改">
