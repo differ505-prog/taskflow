@@ -69,6 +69,8 @@ import { parseNaturalLanguage } from "./nlp";
 import { useAuth } from "./AuthContext";
 import { updateLastActive } from "@/lib/userProfiles";
 import { triggerWebhook } from "./useWebhook";
+import { notifyFirstTaskDone } from "@/lib/useDiscordNotifier";
+import { getKnownUserCount } from "@/lib/useNewUserDetection";
 import { toast } from "sonner";
 import { AppShellSkeleton } from "@/components/Skeleton";
 import { dispatchFirstTaskDone } from "@/components/PwaPrompts";
@@ -795,6 +797,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!hasAnyDoneBefore) {
         // 延遲到下一個 frame 讓 confetti 先跑,避免 Modal 與動畫打架
         setTimeout(() => dispatchFirstTaskDone(), 600);
+        // 創業者多巴胺：首個任務完成通知 Discord
+        if (user?.email) {
+          void notifyFirstTaskDone(user.email, task.title, getKnownUserCount());
+        }
       }
     }
     if (user) {

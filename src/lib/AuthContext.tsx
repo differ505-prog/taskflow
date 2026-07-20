@@ -11,6 +11,8 @@ import { createBrowserClient } from "@supabase/ssr";
 import { subscribeBetaUsers } from "@/lib/betaListFS";
 import { upsertProfile, getRole } from "@/lib/userProfiles";
 import { UserRole, ADMIN_EMAILS, PRO_EMAILS, ROLE_CONFIGS } from "@/lib/types";
+import { useNewUserDetection, getKnownUserCount } from "@/lib/useNewUserDetection";
+import { notifyNewUser } from "@/lib/useDiscordNotifier";
 
 // ── Supabase client ──────────────────────────────────────────────
 const supabase = createBrowserClient(
@@ -83,6 +85,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [betaLoading, setBetaLoading] = useState(true);
   // dbRole 是資料庫權威值（null = 尚未抓到，避免誤判為 free）
   const [dbRole, setDbRole] = useState<UserRole | null>(null);
+
+  // ── 新用戶偵測（創業者多巴胺）───────────────────────────
+  const { isNewUser, markAsKnown } = useNewUserDetection(user?.uid);
+
+  // 新用戶首次登入時，發送 Discord 通知
+  useEffect(() => {
+    if (!isNewUser || !user?.email) return;
+    const provider = user.metadata?.provider as string | undefined;
+    void notifyNewUser(user.email, provider);
+    markAsKnown();
+  }, [isNewUser, user?.email, user?.metadata]);
 
   // ── 即時訂閱 Firestore Beta 名單（不受 auth 系統影響）────
   useEffect(() => {
