@@ -613,6 +613,7 @@ alwaysApply: true
 | **F** | 「E 的一個子模式」首次空資料被雲端空快照覆蓋（firstTasksLoadDone pattern） | 新增後重整消失、再重整才出現 | skipFirst callback（屬 E 子類，優先確認 sync 層後套用） |
 | **G** | Next.js App Router：client component 檔案 export `metadata` / `generateMetadata`（server-only API），導致 build 失敗、改動實際未部署 | commit 已 push 但 Vercel production 仍 serve 舊版、build log 含 "useSearchParams should be wrapped" 或 "metadata export" 錯誤 | 拆 layout/根組件為 server component（保留 metadata export）+ 新增 client wrapper component 內含 `usePathname` / `useSearchParams` 等 hook |
 | **H** | Build 失敗導致改動「隱形上線」陷阱（commit 已 push、developer 認為已 deploy、實際 production 仍 serve 舊版） | curl / 瀏覽器看到的 HTML 與 commit 預期不符、Vercel 部署狀態顯示舊 commit SHA | 改動後**必須**驗證三件事：(1) `npm run build` 成功 (2) Vercel deployment log clean (3) curl SSR HTML 內容確認（§12 強制 + §15.6 純樣式 0 tool call 例外） |
+| **I** | PostgREST 把函式內部 PostgreSQL error 包裝為 404，掩蓋真根因 | `POST /rest/v1/rpc/xxx → 404`，但 SQL Editor 跑同樣函式沒問題；誤以為是 grant / schema cache 問題，多輪盲改仍失敗 | **第一刀就看 Supabase Dashboard → Logs → Postgrologist**，找 HTTP 4xx/5xx 對應的 SQLSTATE（如 42883、42P01、42703）；SQLSTATE 才是真根因 |
 
 3. **命中已知類別 → 直接套用標準修法，禁止重新推理**。評分表只寫「命中類別 X，套用修法」。
 4. **新類別 → 修完後主動追加**至本表（commit 內同步）。
@@ -630,4 +631,5 @@ alwaysApply: true
 | 2026-07-18 | 新增 §10.1 勸退方案揭露（方案評分表必須包含至少 1 個「不動/維持現狀」選項，且必須有評分，禁止刻意壓低勸退分數） | **9.33**（首輪即達標，免二輪） |
 | 2026-07-19 | 新增 §10.2 評分鎖定與衝突處理（已公布分數不可悄悄修正；當客觀評分與用戶主觀需求衝突時，先揭露衝突讓用戶選擇，不得靠「個人推薦」繞過分數）；新增次要改善執行公約（P1 廢除「細節你決定」/ P2 §15.4 已涵蓋 mobile input 風險無需重述） | **9.4**（首輪即達標，免二輪） |
 | 2026-07-19 | 新增 §18b 操作失敗初始確認（面對「按鈕點不了」，第一步必須問用戶具體操作哪個按鈕，不可假設；本輪修了圓圈按鈕但用戶實際要的是「完成」按鈕，浪費 4+ tool call） | **9.2**（首輪即達標，免二輪） |
-| 2026-07-19 | 新增 §10.3 修憲自評分公約（修憲後必評分、未達 9.0 持續優化）+ §15.7 Runtime 預算即時揭露（每次 runtime tool call 後揭露 X/6 預算）+ §15.8 悶做攔截（同一 blocker 連續 2 次失敗立即停下）+ §21.7 跨 repo 整合 SSOT 維護（Wade 為主導時整合紀錄放 Wade `優化清單.md`）+ §26 新增類別 G（Next.js client/server 元件邊界衝突）+ 類別 H（build 失敗隱形上線陷阱） | （本表自評） |
+| 2026-07-19 | 新增 §10.3 修憲自評分公約 + §15.7 Runtime 預算揭露 + §15.8 悶做攔截 + §21.7 跨 repo SSOT + §26 類別 G/H（build 失敗隱形上線 / client/server 元件邊界衝突） | （本表自評） |
+| 2026-07-20 | 新增 §26 類別 I：PostgREST 把函式內部 PostgreSQL error 包裝為 404（42883 等），掩蓋真根因；本輪修了 4 輪才從 Logs 發現 SQLSTATE；新增前自評 9.2，達標 | **9.2**（首輪即達標，免二輪） |
