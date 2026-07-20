@@ -26,6 +26,7 @@ import TaskCommentsInline from "./TaskCommentsInline";
 import TaskCommentsDrawer from "./TaskCommentsDrawer";
 import { TextWithLinks } from "./TextWithLinks";
 import { deleteFile } from "@/lib/storageUpload";
+import { useVoiceRecognition } from "@/lib/useVoiceRecognition";
 
 const DEBOUNCE_MS = 300; // 詳情面板欄位 debounce 寫入（TickTick 直覺：輸入即回饋、300ms 內不重複寫入）
 
@@ -83,10 +84,9 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   const subtaskInputRef = useRef<HTMLInputElement>(null);
   const [subtaskInputValue, setSubtaskInputValue] = useState("");
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [interimText, setInterimText] = useState("");
-  const [voiceError, setVoiceError] = useState<string | null>(null);
-  const recognitionRef = useRef<any>(null);
+  const { isRecording, interimText, voiceError, toggle, reset } = useVoiceRecognition((text) => {
+    setTitle(text);
+  });
   const [attachments, setAttachments] = useState<Attachment[]>(task.attachments || []);
   const [hasChanges, setHasChanges] = useState(false);
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
@@ -158,78 +158,6 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     if (!tags.includes(tag)) { setTags([...tags, tag]); }
     setTagInput(""); setSuggestions([]); setShowSuggestions(false);
   }, [tags]);
-
-  const handleVoiceInput = useCallback(() => {
-    const W = window as any;
-    const SpeechRecognition = W.SpeechRecognition || W.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setVoiceError("此瀏覽器不支援語音輸入,建議使用桌面 Chrome");
-      return;
-    }
-
-    if (isRecording && recognitionRef.current) {
-      recognitionRef.current.stop();
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognitionRef.current = recognition;
-    recognition.lang = "zh-TW";
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    setIsRecording(true);
-    setInterimText("");
-    setVoiceError(null);
-
-    let finalTranscript = "";
-    let interimTranscript = "";
-    let lastTranscript = ""; // 補抓 fallback:語音引擎不發 final 時,用最後一個 result 寫入
-
-    recognition.onresult = (event: any) => {
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const piece = event.results[i][0].transcript;
-        lastTranscript = piece; // 永遠記住最後一段(不論 isFinal),onend 補抓用
-        if (event.results[i].isFinal) finalTranscript += piece;
-        else interimTranscript += piece;
-      }
-      setInterimText(interimTranscript);
-      if (finalTranscript) {
-        setTitle(finalTranscript.trim());
-        finalTranscript = "";
-      }
-    };
-
-    recognition.onerror = (e: any) => {
-      const msg: Record<string, string> = {
-        "no-speech": "沒聽到語音,請再試一次",
-        "audio-capture": "找不到麥克風,請確認權限",
-        "not-allowed": "麥克風權限被拒絕",
-        "network": "網路錯誤,語音辨識失敗",
-      };
-      setVoiceError(msg[e.error] || `語音辨識錯誤:${e.error}`);
-      setInterimText("");
-    };
-
-    recognition.onend = () => {
-      setIsRecording(false);
-      setInterimText("");
-      recognitionRef.current = null;
-      // 補抓 fallback:Chrome Web Speech API 在 continuous:false + 中文情境下
-      // 有時不標 final 就 end(語音引擎判定「句子未完」)。
-      // 此時 finalTranscript 仍空,改抓最後一個 result 寫入(不論 isFinal)。
-      if (!finalTranscript.trim() && lastTranscript.trim()) {
-        setTitle(lastTranscript.trim());
-      }
-    };
-
-    try {
-      recognition.start();
-    } catch (e) {
-      setVoiceError("無法啟動語音輸入");
-      setIsRecording(false);
-      recognitionRef.current = null;
-    }
-  }, [isRecording]);
 
   const handleSave = () => {
     let recurrence: Recurrence | undefined;
@@ -566,7 +494,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             )}
             <motion.button
               type="button"
-              onClick={handleVoiceInput}
+              onClick={toggle}
               animate={isRecording ? { scale: [1, 1.15, 1] } : { scale: 1 }}
               transition={isRecording ? { repeat: Infinity, duration: 1.2 } : { duration: 0.2 }}
               className={`absolute right-0 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors ${isRecording ? "recording" : ""}`}
@@ -594,7 +522,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
                 className="mt-1 text-[12px]"
                 style={{ color: "var(--status-warning)" }}
                 onAnimationComplete={() => {
-                  setTimeout(() => setVoiceError(null), 4000);
+                  setTimeout(() => reset(), 4000);
                 }}
               >
                 {voiceError}

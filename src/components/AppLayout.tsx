@@ -27,6 +27,7 @@ import { ToastProvider } from "@/components/ToastProvider";
 import { Onboarding } from "@/components/Onboarding";
 import { IOSInstallPrompt, AndroidInstallPrompt, AhaMoment } from "@/components/PwaPrompts";
 import { MobileLogOverlay } from "@/components/MobileLogOverlay";
+import { QuickVoiceFAB } from "@/components/QuickVoiceFAB";
 
 // ─── Inner app (has access to useApp) ───────────────────────
 function AppLayoutInner() {
@@ -323,6 +324,9 @@ function AppLayoutInner() {
         listToShare={null}
         incomingShareData={incomingShareData}
       />
+
+      {/* Quick Voice FAB — 永遠顯示,跨頁面捕捉靈感 */}
+      <QuickVoiceFAB />
 
       </div>
     </>
