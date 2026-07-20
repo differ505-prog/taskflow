@@ -15,7 +15,7 @@ interface CalendarViewProps {
 }
 
 export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps) {
-  const { tasks, updateTask, toggleTaskStatus, addTask, deleteTask } = useApp();
+  const { tasks, updateTask, toggleTaskStatus, addTask, deleteTask, searchQuery } = useApp();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [draggingTask, setDraggingTask] = useState<string | null>(null);
@@ -63,6 +63,20 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
       if (!start || !end) return false;
       return dateStr >= start && dateStr <= end;
     });
+  };
+
+  // [§26-K guard] 搜尋期間:dayTasks 加上「符合搜尋的子集」屬性,用於格子高亮
+  // (since searchQuery is "highlight only", we don't filter visible tasks — only mark matching dates)
+  const matchedDayHas = (dayTasks: Task[]): boolean => {
+    if (!searchQuery.trim()) return false;
+    const q = searchQuery.toLowerCase();
+    return dayTasks.some(
+      (t) =>
+        t.title.toLowerCase().includes(q) ||
+        t.description?.toLowerCase().includes(q) ||
+        t.tags.some((tag) => tag.toLowerCase().includes(q)) ||
+        t.subTasks?.some((s) => s.title.toLowerCase().includes(q))
+    );
   };
 
   const submitQuickAdd = (dateStr: string, title: string) => {
@@ -177,6 +191,7 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
             const dayTasks = getTasksForDay(day);
             const isSelected = selectedDate === dateStr;
             const taskCount = dayTasks.filter((t) => t.status !== "done").length;
+            const isSearchMatch = matchedDayHas(dayTasks);
 
             return (
               <div
@@ -213,17 +228,35 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
                 {/* Task indicator - 只顯示數量或優先級指示，不可點擊 */}
                 <div className="flex-1 flex flex-col items-center justify-start px-1 pb-1">
                   {taskCount > 0 ? (
-                    <div 
-                      className="w-full rounded-md py-0.5 px-1 text-center"
+                    <div
+                      className="w-full rounded-md py-0.5 px-1 text-center relative"
                       style={{
                         background: isCurrentMonth ? getIndicatorBg(dayTasks) : 'rgba(0,0,0,0.03)',
+                        outline: isSearchMatch ? "1.5px solid var(--brand)" : "none",
+                        outlineOffset: "-1.5px",
                       }}
                     >
-                      <span 
+                      <span
                         className="text-[10px] font-medium"
                         style={{ color: isCurrentMonth ? "var(--text-secondary)" : "var(--text-tertiary)" }}
                       >
-                        {taskCount} 項
+                        {taskCount}{isSearchMatch ? " ✓" : ""} 項
+                      </span>
+                    </div>
+                  ) : isSearchMatch ? (
+                    <div
+                      className="w-full rounded-md py-0.5 px-1 text-center"
+                      style={{
+                        background: "rgba(0,0,0,0.03)",
+                        outline: "1.5px solid var(--brand)",
+                        outlineOffset: "-1.5px",
+                      }}
+                    >
+                      <span
+                        className="text-[10px] font-medium"
+                        style={{ color: "var(--brand)" }}
+                      >
+                        ✓ 符合
                       </span>
                     </div>
                   ) : (

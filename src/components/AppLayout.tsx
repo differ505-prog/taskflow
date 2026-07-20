@@ -19,6 +19,7 @@ import { UserMenu } from "@/components/UserMenu";
 import { AuthGate } from "@/components/AuthGate";
 import { FirebaseDataProvider, SyncWriter } from "@/components/FirebaseDataProvider";
 import { ShareListModal } from "@/components/ShareListModal";
+import { GlobalSearchBar } from "@/components/GlobalSearchBar";
 import { TaskList, SharedListSnapshot } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
 import { useFeatureGate } from "@/lib/useFeatureGate";
@@ -243,6 +244,10 @@ function AppLayoutInner() {
 
       {/* Main content — flex column, AppShell scrolls within */}
       <div className="flex-1 min-w-0 flex flex-col pb-[calc(60px+env(safe-area-inset-bottom,0px)+12px)] md:pb-0">
+        {/* Global Search Bar — rendered above all views so calendar/habits/tags/stats can search too */}
+        <div className="hidden sm:flex justify-end px-4 md:px-6 pt-3 pb-1 flex-shrink-0">
+          <GlobalSearchBar />
+        </div>
         <div className="flex-1 min-w-0 flex flex-col min-h-0">
           {renderView()}
         </div>
