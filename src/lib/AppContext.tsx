@@ -334,7 +334,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             (t) => !fbIds.has(t.id) && !deletedTaskIdsRef.current.has(t.id)
           );
           const result = [...merged, ...localOnly];
-          console.log(`[SUP SYNC] setTasks merge: fb=${fbTasks.length}, merged=${merged.length}, localOnly=${localOnly.length}, result=${result.length}, deleted=${deletedTaskIdsRef.current.size}`);
           saveTasks(result);
           return result;
         });
@@ -769,11 +768,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // 5 秒後真正刪除（若未 Undo）
     setTimeout(() => {
       if (deletedTaskIdsRef.current.has(id)) {
-        deletedTaskIdsRef.current.delete(id);
         if (user) {
-          deleteTaskFirebase(user.uid, id).catch((err) => {
-            console.warn("[SUP SYNC] 延後刪除失敗:", err);
-          });
+          deleteTaskFirebase(user.uid, id)
+            .then(() => {
+              // 等刪除成功後才從 ref 移除，確保 DELETE realtime callback 到達時
+              // deletedTaskIdsRef 仍有該 id，merge 時 localOnly 會正確過濾
+              deletedTaskIdsRef.current.delete(id);
+            })
+            .catch((err) => {
+              console.warn("[SUP SYNC] 延後刪除失敗:", err);
+              // 刪除失敗時也要移除，否則 ref 永遠留著
+              deletedTaskIdsRef.current.delete(id);
+            });
         }
       }
     }, UNDO_WINDOW_MS);
