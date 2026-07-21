@@ -94,7 +94,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
 
   const getTasksForDay = (date: Date): Task[] => {
     const dateStr = format(date, "yyyy-MM-dd");
-    return tasks.filter((t) => {
+    const result = tasks.filter((t) => {
       if (t.isArchived) return false;
       const start = t.startDate;
       const end = t.dueDate;
@@ -104,6 +104,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
       if (start && !end) return dateStr === start;
       return false;
     });
+    return result;
   };
 
   // [§26-K guard] 搜尋期間:dayTasks 加上「符合搜尋的子集」屬性,用於格子高亮
@@ -225,8 +226,8 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
           ))}
         </div>
 
-        {/* Calendar cells - 日曆格子 5 行，釋放空間給面板 */}
-        <div className="grid grid-cols-7 gap-px" style={{ background: "var(--border)", height: "calc(72px * 5)" }}>
+        {/* Calendar cells - 5 行。高度刻意小於 6 行的 1/5,留給下方任務面板,避免 31/8/1 被「新增任務」輸入框擋住 */}
+        <div className="grid grid-cols-7 gap-px" style={{ background: "var(--border)", height: "calc(56px * 5)" }}>
           {days.map((day, i) => {
             const isCurrentMonth = isSameMonth(day, currentMonth);
             const isTodayDate = isToday(day);
@@ -239,75 +240,74 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
             return (
               <div
                 key={i}
-                className="flex flex-col transition-colors duration-150 cursor-pointer"
+                className="relative flex flex-col transition-colors duration-150 cursor-pointer"
                 style={{
                   background: isSelected
                     ? "var(--brand-tint)"
                     : isCurrentMonth
                     ? "var(--surface)"
                     : "var(--surface-muted)",
-                  minHeight: 72,
+                  minHeight: 56,
                 }}
                 onClick={() => handleDayClick(dateStr)}
                 onDragOver={handleDragOver}
                 onDrop={() => handleDrop(day)}
               >
                 {/* Day number */}
-                <div className="flex items-center justify-center pt-2 pb-1">
-                  <span
-                    className="w-7 h-7 flex items-center justify-center rounded-full text-[13px] font-medium"
-                    style={
-                      isTodayDate
-                        ? { background: "var(--brand)", color: "var(--brand-foreground)" }
-                        : isCurrentMonth
-                        ? { color: "var(--text-primary)" }
-                        : { color: "var(--text-tertiary)" }
-                    }
-                  >
-                    {format(day, "d")}
-                  </span>
-                </div>
-
-                {/* Task indicator - 只顯示數量或優先級指示，不可點擊 */}
-                <div className="flex-1 flex flex-col items-center justify-start px-1 pb-1">
-                  {taskCount > 0 ? (
-                    <div
-                      className="w-full rounded-md py-0.5 px-1 text-center relative"
-                      style={{
-                        background: isCurrentMonth ? getIndicatorBg(dayTasks) : 'rgba(0,0,0,0.03)',
-                        outline: isSearchMatch ? "1.5px solid var(--brand)" : "none",
-                        outlineOffset: "-1.5px",
-                      }}
+                <div className="flex flex-col items-center pt-2 pb-1">
+                  <div className={`flex items-center justify-center w-full ${taskCount > 0 ? "pr-5" : ""}`}>
+                    <span
+                      className="w-7 h-7 flex items-center justify-center rounded-full text-[13px] font-medium"
+                      style={
+                        isTodayDate
+                          ? { background: "var(--brand)", color: "var(--brand-foreground)" }
+                          : isCurrentMonth
+                          ? { color: "var(--text-primary)" }
+                          : { color: "var(--text-tertiary)" }
+                      }
                     >
-                      <span
-                        className="text-[10px] font-medium"
-                        style={{ color: isCurrentMonth ? "var(--text-secondary)" : "var(--text-tertiary)" }}
-                      >
-                        {taskCount}{isSearchMatch ? " ✓" : ""} 項
-                      </span>
-                    </div>
-                  ) : isSearchMatch ? (
-                    <div
-                      className="w-full rounded-md py-0.5 px-1 text-center"
-                      style={{
-                        background: "rgba(0,0,0,0.03)",
-                        outline: "1.5px solid var(--brand)",
-                        outlineOffset: "-1.5px",
-                      }}
+                      {format(day, "d")}
+                    </span>
+                  </div>
+                  {/* [D 方案] 未完成任務總數 - 灰色 9px,所有有任務的日子都顯示 */}
+                  {taskCount > 0 && (
+                    <span
+                      className="text-[9px] font-medium mt-0.5 tabular-nums"
+                      style={{ color: "var(--text-tertiary)" }}
+                      aria-label={`${taskCount} 項未完成任務`}
                     >
-                      <span
-                        className="text-[10px] font-medium"
-                        style={{ color: "var(--brand)" }}
-                      >
-                        ✓ 符合
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="w-full rounded-md py-0.5 text-center opacity-0">
-                      <span className="text-[10px]">-</span>
-                    </div>
+                      {taskCount}
+                    </span>
                   )}
                 </div>
+
+                {/* [D v3 + a3d5954 徽章] 右上角徽章: 僅當任務數 ≥ 5 時顯示,作為「任務爆量」視覺提示 */}
+                {taskCount >= 5 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDayClick(dateStr);
+                    }}
+                    className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-semibold flex items-center justify-center hover:opacity-90 transition-opacity"
+                    style={{
+                      background: "var(--brand)",
+                      color: "var(--brand-foreground)",
+                      lineHeight: 1,
+                    }}
+                    aria-label={`${taskCount} 項任務,點擊查看全部`}
+                  >
+                    {taskCount}
+                  </button>
+                )}
+
+                {/* [D v3] 移除任務標題預覽 (per §21 user feedback + §23 a3d5954 徽章保留) */}
+                {/* 保留: 搜尋高亮「✓ 符合」標記 (即使沒任務也顯示) */}
+                {taskCount === 0 && isSearchMatch && (
+                  <div className="flex-1 flex items-start justify-center px-1 pt-0.5">
+                    <span className="text-[10px] font-medium" style={{ color: "var(--brand)" }}>✓</span>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -532,13 +532,7 @@ function getPriorityColor(priority: string): string {
   }
 }
 
-function getIndicatorBg(tasks: Task[]): string {
-  // 根據任務優先級顯示不同顏色
-  const hasUrgent = tasks.some(t => t.priority === "do-now");
-  const hasHigh = tasks.some(t => t.priority === "schedule");
-  const hasMedium = tasks.some(t => t.priority === "delegate");
-
-  if (hasUrgent || hasHigh) return "rgba(215, 0, 21, 0.18)";
-  if (hasMedium) return "rgba(255, 149, 0, 0.15)";
-  return "rgba(52, 199, 89, 0.15)";
+// 日曆格子內任務點（小圓點）：色彩鎖定來自 getPriorityColor（同色系統，§3）
+function getPriorityDotColor(priority: string): string {
+  return getPriorityColor(priority);
 }
