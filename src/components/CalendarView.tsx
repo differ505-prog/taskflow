@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useApp } from "@/lib/AppContext";
 import { Task } from "@/lib/types";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
@@ -160,24 +160,6 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
     setQuickAddTitle("");
   };
 
-  // DEBUG: 量測面板 DOM 高度
-  useEffect(() => {
-    if (!selectedDate) return;
-    const id = setTimeout(() => {
-      const panel = document.querySelector('[data-calendar-panel]') as HTMLElement | null;
-      const list = document.querySelector('[data-calendar-list]') as HTMLElement | null;
-      if (panel) {
-        const s = getComputedStyle(panel);
-        window.alert(`[DEBUG PANEL]\noffsetHeight:${panel.offsetHeight}\nscrollHeight:${panel.scrollHeight}\nclientHeight:${panel.clientHeight}\nmaxHeight:${s.maxHeight}\noverflowY:${s.overflowY}\noverflow:${s.overflow}`);
-      }
-      if (list) {
-        const s = getComputedStyle(list);
-        window.alert(`[DEBUG LIST]\noffsetHeight:${list.offsetHeight}\nscrollHeight:${list.scrollHeight}\nclientHeight:${list.clientHeight}\nflexGrow:${s.flexGrow}\nflexShrink:${s.flexShrink}`);
-      }
-    }, 500);
-    return () => clearTimeout(id);
-  }, [selectedDate, mounted]);
-
   return (
     <div className="flex flex-col h-full">
       {/* 日曆區域 - flex-1 佔滿剩餘空間 */}
@@ -314,10 +296,10 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
 
       {/* 任務列表展開區域 */}
       {selectedDate && mounted && (
-        <div data-calendar-panel className="flex-shrink-0 border-t flex flex-col transition-all duration-200"
-          style={{ borderColor: "var(--border)", background: "var(--surface)", maxHeight: "55vh", overflowY: "auto" }}
+        <div className="flex-1 min-h-0 border-t flex flex-col transition-all duration-200 overflow-y-auto"
+          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
         >
-            <div data-calendar-list className="p-4 flex flex-col">
+            <div className="p-4 flex flex-col">
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
