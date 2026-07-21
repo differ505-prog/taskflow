@@ -497,7 +497,8 @@ export function AppShell({
               )
             ) : (
               <>
-                {/* Toolbar */}
+                {/* Toolbar — 永遠渲染,即使 displayTasks 空也保留讓用戶能切換 filter 回「全部」或其他狀態
+                    避免「點了進行中 → 該清單沒進行中任務 → chip 整排消失 → 找不到回頭路」的陷阱。 */}
                 <div className="flex items-center justify-between gap-2 sm:gap-4 mb-4 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 pb-1 touch-scroll min-w-0 flex-1">
                     {["全部", "待辦", "進行中", "已完成"].map((label, i) => {
@@ -512,9 +513,6 @@ export function AppShell({
                         </button>
                       );
                     })}
-                    {/* 顯示完成按鈕 — 只在需要它的視圖渲染。
-                        today / next7days / list 這 3 個語義就是「永遠顯示已完成」,
-                        按鈕點了也無意義(顯示邏輯會強制開啟),所以不要渲染避免誤導。 */}
                     {!["today", "next7days", "list"].includes(currentView) &&
                       tasks.some((t) => t.status === "done" && !t.isArchived) && (
                       <button onClick={() => { setShowCompleted(!showCompleted); setActiveFilter({ ...activeFilter, status: undefined }); }} className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 rounded-full text-[12px] font-medium transition-all duration-150"
@@ -525,7 +523,6 @@ export function AppShell({
                     )}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    {/* 「今天先這樣」按鈕 — ADHD 友善：給使用者「重新開始」的權利 */}
                     {!["today", "next7days", "list", "archived"].includes(currentView) &&
                       filteredTasks.some((t) => t.status !== "done") && (
                       <button
@@ -555,7 +552,6 @@ export function AppShell({
                         今天先這樣
                       </button>
                     )}
-                    {/* Search bar moved to GlobalSearchBar (rendered in AppLayout, above all views) */}
                     <div className="flex items-center gap-0.5 p-1 rounded-xl" style={{ background: "rgba(0,0,0,0.04)" }}>
                       <button onClick={() => setViewMode("list")} className="p-1.5 rounded-lg transition-all duration-150" style={viewMode === "list" ? { background: "var(--surface)", boxShadow: "var(--shadow-xs)", color: "var(--text-primary)" } : { color: "var(--text-tertiary)" }} aria-label="列表檢視">
                         <List className="w-4 h-4" />
@@ -566,37 +562,41 @@ export function AppShell({
                     </div>
                   </div>
                 </div>
-
-                {/* Task list — always compact (mobile: swipe left = 完成/刪除; desktop: 用 TaskDetailPanel) */}
+                {/* Task list — 沒任務時顯示 EmptyState,有任務時顯示列表 */}
                 <div className="flex flex-col gap-1">
-                  <AnimatePresence mode="popLayout">
-                    {displayTasks.map((task) => (
-                      <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
-                        <TaskSwipeWrapper
-                          taskId={task.id}
-                          isDone={task.status === "done"}
-                          onComplete={() => updateTask(task.id, { status: task.status === "done" ? "todo" : "done" })}
-                          onDelete={(id) => deleteTask(id)}
-                        >
-                          <TaskListItem
-                            task={task}
-                            isSelected={task.id === selectedTaskId}
-                            onClick={() => handleSelectTask(task.id)}
-                            onToggleStatus={toggleTaskStatus}
-                            onToggleSubTask={toggleSubTask}
-                            onUpdatePriority={(id, p) => updateTask(id, { priority: p })}
-                            onUpdateTags={(id, tags) => updateTask(id, { tags })}
-                            onTogglePin={(id) => updateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
-                            allTags={Object.keys(getTagCounts())}
-                            batchMode={batchMode}
-                            batchSelected={!!batchSelectedIds?.has(task.id)}
-                            onLongPress={() => onEnterBatchMode?.(task.id)}
-                            onBatchToggle={() => onToggleBatchSelect?.(task.id)}
-                          />
-                        </TaskSwipeWrapper>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
+                  {displayTasks.length > 0 && (
+                    <AnimatePresence mode="popLayout">
+                      {displayTasks.map((task) => (
+                        <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
+                          <TaskSwipeWrapper
+                            taskId={task.id}
+                            isDone={task.status === "done"}
+                            onComplete={() => updateTask(task.id, { status: task.status === "done" ? "todo" : "done" })}
+                            onDelete={(id) => deleteTask(id)}
+                          >
+                            <TaskListItem
+                              task={task}
+                              isSelected={task.id === selectedTaskId}
+                              onClick={() => handleSelectTask(task.id)}
+                              onToggleStatus={toggleTaskStatus}
+                              onToggleSubTask={toggleSubTask}
+                              onUpdatePriority={(id, p) => updateTask(id, { priority: p })}
+                              onUpdateTags={(id, tags) => updateTask(id, { tags })}
+                              onTogglePin={(id) => updateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
+                              allTags={Object.keys(getTagCounts())}
+                              batchMode={batchMode}
+                              batchSelected={!!batchSelectedIds?.has(task.id)}
+                              onLongPress={() => onEnterBatchMode?.(task.id)}
+                              onBatchToggle={() => onToggleBatchSelect?.(task.id)}
+                            />
+                          </TaskSwipeWrapper>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  )}
+                  {displayTasks.length === 0 && (
+                    <EmptyState onAddTask={() => setIsFormOpen(true)} variant="general" />
+                  )}
                 </div>
               </>
             )}
