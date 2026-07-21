@@ -279,10 +279,10 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-            className="border-t overflow-hidden"
-            style={{ borderColor: "var(--border)", background: "var(--surface)", maxHeight: "calc(100dvh - 210px)" }}
+            className="border-t"
+            style={{ borderColor: "var(--border)", background: "var(--surface)", maxHeight: "calc(100dvh - 210px)", overflowY: "auto" }}
           >
-            <div className="p-4 overflow-y-auto overscroll-contain" style={{ maxHeight: "calc(100dvh - 210px)" }}>
+            <div className="p-4" style={{ maxHeight: "calc(100dvh - 210px)", overflowY: "auto" }}>
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
