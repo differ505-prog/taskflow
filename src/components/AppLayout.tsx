@@ -13,6 +13,7 @@ import StatsClient from "@/components/StatsClient";
 import { TagsPage } from "@/components/TagsPage";
 import { QuadrantRadarView } from "@/components/QuadrantRadarView";
 import { PomodoroTimer } from "@/components/PomodoroTimer";
+import { useBfcacheKey } from "@/components/BfcacheHandler";
 import { ZenFlowProvider } from "@/lib/ZenFlowProvider";
 import { BottomNavigation } from "@/components/BottomNavigation";
 import { UserMenu } from "@/components/UserMenu";
@@ -46,6 +47,7 @@ function AppLayoutInner() {
   const [incomingShareData, setIncomingShareData] = useState<{ sharedListId: string; snapshot: SharedListSnapshot } | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [calendarSelectedTask, setCalendarSelectedTask] = useState<Task | null>(null);
+  const getBfcacheKey = useBfcacheKey();
   // ── 批次多選模式───────────────────────
   const [batchMode, setBatchMode] = useState(false);
   const [batchSelectedIds, setBatchSelectedIds] = useState<Set<string>>(() => new Set());
@@ -187,6 +189,7 @@ function AppLayoutInner() {
       case "calendar":
         return (
           <CalendarView
+            key={getBfcacheKey()}
             selectedTask={calendarSelectedTask}
             onSelectTask={(task) => {
               setCalendarSelectedTask((prev) => prev?.id === task.id ? null : task);
