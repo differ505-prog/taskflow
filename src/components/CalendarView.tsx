@@ -164,8 +164,8 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
   useEffect(() => {
     if (!selectedDate) return;
     const id = setTimeout(() => {
-      const panel = document.querySelector('[data-calendar-panel]');
-      const list = document.querySelector('[data-calendar-list]');
+      const panel = document.querySelector('[data-calendar-panel]') as HTMLElement | null;
+      const list = document.querySelector('[data-calendar-list]') as HTMLElement | null;
       if (panel) {
         const s = getComputedStyle(panel);
         window.alert(`[DEBUG PANEL]\noffsetHeight:${panel.offsetHeight}\nscrollHeight:${panel.scrollHeight}\nclientHeight:${panel.clientHeight}\nmaxHeight:${s.maxHeight}\noverflowY:${s.overflowY}\noverflow:${s.overflow}`);
