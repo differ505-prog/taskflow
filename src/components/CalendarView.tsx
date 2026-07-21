@@ -262,22 +262,34 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                 onDrop={() => handleDrop(day)}
               >
                 {/* Day number */}
-                <div className={`flex items-center justify-center pt-2 pb-1 ${taskCount > 2 ? "pr-5" : ""}`}>
-                  <span
-                    className="w-7 h-7 flex items-center justify-center rounded-full text-[13px] font-medium"
-                    style={
-                      isTodayDate
-                        ? { background: "var(--brand)", color: "var(--brand-foreground)" }
-                        : isCurrentMonth
-                        ? { color: "var(--text-primary)" }
-                        : { color: "var(--text-tertiary)" }
-                    }
-                  >
-                    {format(day, "d")}
-                  </span>
+                <div className="flex flex-col items-center pt-2 pb-1">
+                  <div className={`flex items-center justify-center w-full ${taskCount > 0 ? "pr-5" : ""}`}>
+                    <span
+                      className="w-7 h-7 flex items-center justify-center rounded-full text-[13px] font-medium"
+                      style={
+                        isTodayDate
+                          ? { background: "var(--brand)", color: "var(--brand-foreground)" }
+                          : isCurrentMonth
+                          ? { color: "var(--text-primary)" }
+                          : { color: "var(--text-tertiary)" }
+                      }
+                    >
+                      {format(day, "d")}
+                    </span>
+                  </div>
+                  {/* [D 方案] 未完成任務總數 - 灰色 9px,所有有任務的日子都顯示 */}
+                  {taskCount > 0 && (
+                    <span
+                      className="text-[9px] font-medium mt-0.5 tabular-nums"
+                      style={{ color: "var(--text-tertiary)" }}
+                      aria-label={`${taskCount} 項未完成任務`}
+                    >
+                      {taskCount}
+                    </span>
+                  )}
                 </div>
 
-                {/* [D 方案] 隱藏任務徽章 - 右上角,absolute 定位永遠可見,不擠 72px */}
+                {/* [D 方案 v2] 隱藏任務徽章 - 右上角顯示「溢出數」(>2 才出現),核心總數已移到 day number 下方 */}
                 {taskCount > 2 && (
                   <button
                     type="button"
@@ -291,7 +303,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                       color: "var(--brand-foreground)",
                       lineHeight: 1,
                     }}
-                    aria-label={`還有 ${taskCount - 2} 項任務，點擊查看`}
+                    aria-label={`還有 ${taskCount - 2} 項任務未顯示，點擊查看`}
                   >
                     +{taskCount - 2}
                   </button>
@@ -332,10 +344,6 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                         })}
                       {(() => {
                         const remaining = taskCount - 2;
-                        // [§15 插樁 #5] 證明 remaining 計算結果，判斷 UI 層 vs 邏輯層
-                        if (dayTasks.length >= 3 && todoOnly.length >= 3) {
-                          console.log(`[CalendarDebug][moreBtn] date=${dateStr} taskCount=${taskCount} remaining=${remaining} willRenderButton=${remaining > 0}`);
-                        }
                         if (remaining > 0) {
                           // [D 方案] 改為右上角徽章 — 移到這裡由父層渲染,避免被 flex 截斷
                           return null;
