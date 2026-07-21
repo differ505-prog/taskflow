@@ -94,7 +94,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
 
   const getTasksForDay = (date: Date): Task[] => {
     const dateStr = format(date, "yyyy-MM-dd");
-    return tasks.filter((t) => {
+    const result = tasks.filter((t) => {
       if (t.isArchived) return false;
       const start = t.startDate;
       const end = t.dueDate;
@@ -104,6 +104,10 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
       if (start && !end) return dateStr === start;
       return false;
     });
+    if (result.length > 0) {
+      console.log(`[CalendarDebug][getTasksForDay] date=${dateStr} matched=${result.length}`, result.map((t) => ({ id: t.id, title: t.title, status: t.status, start: t.startDate, end: t.dueDate })));
+    }
+    return result;
   };
 
   // [§26-K guard] 搜尋期間:dayTasks 加上「符合搜尋的子集」屬性,用於格子高亮
@@ -235,6 +239,11 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
             const isSelected = selectedDate === dateStr;
             const taskCount = dayTasks.filter((t) => t.status !== "done").length;
             const isSearchMatch = matchedDayHas(dayTasks);
+            const todoOnly = dayTasks.filter((t) => t.status !== "done");
+            // [§15 插樁 #2/#3/#4] 檢視日任務有沒有真的進到預覽
+            if (dayTasks.length > 0) {
+              console.log(`[CalendarDebug][render] date=${dateStr} total=${dayTasks.length} taskCount(todo)=${taskCount} todoOnlyLen=${todoOnly.length} currentMonth=${isCurrentMonth} isSelected=${isSelected}`);
+            }
 
             return (
               <div
