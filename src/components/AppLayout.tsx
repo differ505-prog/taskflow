@@ -20,6 +20,7 @@ import { AuthGate } from "@/components/AuthGate";
 import { FirebaseDataProvider, SyncWriter } from "@/components/FirebaseDataProvider";
 import { ShareListModal } from "@/components/ShareListModal";
 import { GlobalSearchBar } from "@/components/GlobalSearchBar";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { TaskList, SharedListSnapshot } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
 import { useFeatureGate } from "@/lib/useFeatureGate";
@@ -32,7 +33,7 @@ import { useConfirm } from "@/hooks/useConfirm";
 
 // ─── Inner app (has access to useApp) ───────────────────────
 function AppLayoutInner() {
-  const { currentView, currentListId, currentSharedListId, addList, updateList, deleteList, setCurrentView, setCurrentSharedList, removeAcceptedSharedList, viewCounts, tasks, checkIncomingShareLink, lists, toggleTaskStatus, deleteTask } = useApp();
+  const { currentView, currentListId, currentSharedListId, addList, updateList, deleteList, setCurrentView, setCurrentSharedList, removeAcceptedSharedList, viewCounts, tasks, checkIncomingShareLink, lists, toggleTaskStatus, deleteTask, forceReload } = useApp();
   const { user } = useAuth();
   const confirm = useConfirm();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -106,6 +107,25 @@ function AppLayoutInner() {
     exitBatchMode();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentView, currentListId, currentSharedListId]);
+
+  // ── 全域鍵盤快捷鍵 ──
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // 忽略在 input/textarea/contenteditable 內的按鍵
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+
+      if (e.key === "Escape") {
+        if (isSettingsOpen) { setIsSettingsOpen(false); return; }
+        if (isPomodoroOpen) { setIsPomodoroOpen(false); return; }
+        if (selectedTaskId) { setSelectedTaskId(null); return; }
+        if (isMobileSidebarOpen) { setIsMobileSidebarOpen(false); return; }
+        if (batchMode) { exitBatchMode(); return; }
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [isSettingsOpen, isPomodoroOpen, selectedTaskId, isMobileSidebarOpen, batchMode]);
 
   // Detect mobile viewport
   useEffect(() => {
@@ -258,7 +278,9 @@ function AppLayoutInner() {
           <GlobalSearchBar onSelectTask={(id) => setSelectedTaskId(id)} />
         </div>
         <div className="flex-1 min-w-0 flex flex-col min-h-0">
-          {renderView()}
+          <PullToRefresh onRefresh={forceReload} className="flex-1 min-w-0 flex flex-col min-h-0">
+            {renderView()}
+          </PullToRefresh>
         </div>
       </div>
       {/* Desktop: detail panel as sibling → renders to the right via flex parent */}

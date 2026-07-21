@@ -81,6 +81,7 @@ interface AppContextValue {
   lists: TaskList[];
   habits: Habit[];
   todayFocusMinutes: number;
+  isAppReady: boolean; // 首次資料載入完成（用於骨架屏判定）
 
   forceReload: () => void;
 
@@ -1591,6 +1592,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     membersBySharedList,
     getFilteredTasks, viewCounts, getListTaskCount, getTagCounts,
     forceReload: () => setReloadKey((k) => k + 1),
+    isAppReady: isLoaded,
     markEditingActivity,
     clearEditingActivity,
   };
