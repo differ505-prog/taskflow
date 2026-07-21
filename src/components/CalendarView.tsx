@@ -82,8 +82,11 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
     });
 
     // Pad end to complete the last week
+    // [§26-K fix] 原 (7 - endDay - 1) % 7 + 1 在 endDay=5 時算 (7-5-1)%7+1 = 2%7+1 = 3,pad 出 3 天但只需要 2 天(7/31 五→8/2 日)
+    // 改為 (7 - endDay) % 7: 7/31 五(endDay=5)→(7-5)%7=2 ✓
     const endDay = end.getDay();
-    const padAfter = Array.from({ length: (7 - endDay - 1) % 7 + 1 }, (_, i) => {
+    const padAfterLen = (7 - endDay) % 7;
+    const padAfter = Array.from({ length: padAfterLen }, (_, i) => {
       const d = new Date(end);
       d.setDate(d.getDate() + i + 1);
       return d;
@@ -182,9 +185,9 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
   };
 
   return (
-    <div className="flex flex-col flex-1">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       {/* 日曆區域 - flex-1 佔滿剩餘空間 */}
-      <div className="flex-1 min-h-0 p-4 md:p-6 flex flex-col">
+      <div className="flex-1 min-h-0 p-4 md:p-6 flex flex-col overflow-hidden">
         {/* Month header */}
         <div className="flex items-center justify-between mb-4 md:mb-5 flex-shrink-0">
           <h1 className="text-[18px] font-semibold" style={{ color: "var(--text-primary)" }}>
@@ -226,8 +229,16 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
           ))}
         </div>
 
-        {/* Calendar cells - 5 行。高度刻意小於 6 行的 1/5,留給下方任務面板,避免 31/8/1 被「新增任務」輸入框擋住 */}
-        <div className="grid grid-cols-7 gap-px" style={{ background: "var(--border)", height: "calc(56px * 5)" }}>
+        {/* Calendar cells - 動態行數依 days.length 計算,避免 31/8/1 從 grid 下方溢出被「新增任務」輸入框擋住
+            [§26-K fix] 原 height: calc(56px * 5) 寫死 5 行,當月跨 6 行時(例 7/26 第一天落在週日)會切到 6 行,grid 被壓縮,row 高度變矮
+            改為 gridTemplateRows + auto-rows + overflow-hidden,確保每行固定 56px,多餘內容不外溢 */}
+        <div
+          className="grid grid-cols-7 grid-rows-6 gap-px overflow-hidden"
+          style={{
+            background: "var(--border)",
+            gridTemplateRows: `repeat(${Math.max(5, Math.ceil(days.length / 7))}, 56px)`,
+          }}
+        >
           {days.map((day, i) => {
             const isCurrentMonth = isSameMonth(day, currentMonth);
             const isTodayDate = isToday(day);
