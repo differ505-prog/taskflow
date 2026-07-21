@@ -35,10 +35,24 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
   useEffect(() => {
     observerRef.current = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        setTaskPanelHeight(entry.contentRect.height);
+        // 一次寫入採 debounce，避免滾動/transition 期間連續 setState 造成 re-render storm
+        requestAnimationFrame(() => {
+          setTaskPanelHeight(entry.contentRect.height);
+        });
       }
     });
     return () => observerRef.current?.disconnect();
+  }, []);
+
+  // §15 視窗 resize 主動重算：避免 orientation 或 dock 高度改變後量測值停留在舊值
+  useEffect(() => {
+    const onResize = () => {
+      if (taskPanelRef.current) {
+        setTaskPanelHeight(taskPanelRef.current.getBoundingClientRect().height);
+      }
+    };
+    window.addEventListener("resize", onResize, { passive: true });
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   const measureTaskPanel = useCallback((node: HTMLDivElement | null) => {
@@ -326,7 +340,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
       {selectedDate && mounted && (
         <div
           ref={measureTaskPanel}
-          className="min-h-0 flex-1 border-t flex flex-col transition-all duration-200 overflow-y-auto"
+          className="calendar-task-panel min-h-0 flex-1 border-t flex flex-col overflow-y-auto"
           style={{
             borderColor: "var(--border)",
             background: "var(--surface)",

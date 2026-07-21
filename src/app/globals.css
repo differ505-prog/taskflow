@@ -413,6 +413,14 @@
     border-radius: 50%;
     animation: spin 600ms linear infinite;
   }
+
+  /* §15 滾動卡頓治本：覆寫全域 scroll-behavior: smooth
+     「瘋狂滾動時任務慢慢出現」= 連續 wheel event 排了一堆 smooth 動畫 = frame 卡住
+     只覆寫 task panel（全域 smooth 保留，因 detail panel 等場景需要） */
+  .calendar-task-panel {
+    scroll-behavior: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 /* ============================================================
