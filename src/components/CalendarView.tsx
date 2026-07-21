@@ -360,7 +360,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                 const done = selectedDateTasks.filter((t) => t.status === "done");
                 const isDoneOpen = !!doneExpanded[selectedDate];
                 return (
-                  <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-2 flex flex-col min-h-0">
+                  <div className="space-y-2 flex flex-col">
                     {todo.map((task) => (
                       <SwipeableTaskCard
                         key={task.id}
