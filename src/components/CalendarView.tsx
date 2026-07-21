@@ -183,7 +183,7 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
         </div>
 
         {/* Calendar cells - 純顯示，只有日期可點擊 */}
-        <div className="grid grid-cols-7 gap-px overflow-hidden" style={{ background: "var(--border)" }}>
+        <div className="grid grid-cols-7 gap-px" style={{ background: "var(--border)" }}>
           {days.map((day, i) => {
             const isCurrentMonth = isSameMonth(day, currentMonth);
             const isTodayDate = isToday(day);
@@ -196,7 +196,7 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
             return (
               <div
                 key={i}
-                className="flex flex-col overflow-hidden transition-colors duration-150 cursor-pointer"
+                className="flex flex-col transition-colors duration-150 cursor-pointer"
                 style={{
                   background: isSelected
                     ? "var(--brand-tint)"
