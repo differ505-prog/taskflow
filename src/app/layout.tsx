@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { ConfirmProvider } from "@/hooks/useConfirm";
+import { BfcacheHandler } from "@/components/BfcacheHandler";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -57,6 +58,7 @@ export default function RootLayout({
         <meta name="msapplication-TileColor" content="#4F6AF5" />
       </head>
       <body className="min-h-screen antialiased bg-[var(--surface-muted)]">
+        <BfcacheHandler />
         <ConfirmProvider>{children}</ConfirmProvider>
         <ServiceWorkerRegister />
       </body>

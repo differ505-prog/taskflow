@@ -29,16 +29,6 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
   }, []);
 
   useEffect(() => {
-    const handlePageshow = (e: PageTransitionEvent) => {
-      if (e.persisted) {
-        window.location.reload();
-      }
-    };
-    window.addEventListener("pageshow", handlePageshow);
-    return () => window.removeEventListener("pageshow", handlePageshow);
-  }, []);
-
-  useEffect(() => {
     if (selectedDate && quickAddInputRef.current) {
       quickAddInputRef.current.focus();
     }
