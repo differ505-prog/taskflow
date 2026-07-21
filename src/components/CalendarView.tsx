@@ -58,10 +58,13 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
     const dateStr = format(date, "yyyy-MM-dd");
     return tasks.filter((t) => {
       if (t.isArchived) return false;
-      const start = t.startDate || t.dueDate;
-      const end = t.dueDate || t.startDate;
-      if (!start || !end) return false;
-      return dateStr >= start && dateStr <= end;
+      const start = t.startDate;
+      const end = t.dueDate;
+      // 有日期：顯示在該日期範圍內的任務；沒日期：只要有 dueDate 就顯示在那天
+      if (start && end) return dateStr >= start && dateStr <= end;
+      if (!start && end) return dateStr === end;
+      if (start && !end) return dateStr === start;
+      return false;
     });
   };
 
@@ -99,10 +102,12 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
   const selectedDateTasks = selectedDate
     ? tasks.filter((t) => {
         if (t.isArchived) return false;
-        const start = t.startDate || t.dueDate;
-        const end = t.dueDate || t.startDate;
-        if (!start || !end) return false;
-        return selectedDate >= start && selectedDate <= end;
+        const start = t.startDate;
+        const end = t.dueDate;
+        if (start && end) return selectedDate >= start && selectedDate <= end;
+        if (!start && end) return selectedDate === end;
+        if (start && !end) return selectedDate === start;
+        return false;
       })
     : [];
 

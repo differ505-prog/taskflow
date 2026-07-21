@@ -67,6 +67,13 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     return () => clearEditingActivity(task.id);
   }, [task.id, markEditingActivity, clearEditingActivity]);
 
+  // 任務切換時滾動到面板頂部
+  useEffect(() => {
+    if (panelRef.current) {
+      panelRef.current.scrollTop = 0;
+    }
+  }, [task.id]);
+
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || "");
   const [priority, setPriority] = useState<Priority>(task.priority);
