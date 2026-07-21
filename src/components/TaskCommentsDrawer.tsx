@@ -10,6 +10,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { X, Trash2, MessageSquare, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
+import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 import {
   subscribeTaskComments,
   addTaskComment,
@@ -47,6 +48,7 @@ function maskEmail(email: string): string {
 
 export default function TaskCommentsDrawer({ taskId, taskTitle, open, onClose }: Props) {
   const { user } = useAuth();
+  const keyboard = useKeyboardOffset();
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
@@ -112,9 +114,10 @@ export default function TaskCommentsDrawer({ taskId, taskTitle, open, onClose }:
 
       {/* Drawer */}
       <aside
-        className={`fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col bg-white shadow-2xl transition-transform duration-300 ease-out ${
+        className={`fixed right-0 top-0 z-50 flex w-full max-w-md flex-col bg-white shadow-2xl transition-transform duration-300 ease-out ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
+        style={{ height: keyboard > 0 ? `calc(100vh - ${keyboard}px)` : "100vh" }}
         aria-label="任務評論"
         aria-hidden={!open}
       >

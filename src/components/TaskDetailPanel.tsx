@@ -28,6 +28,7 @@ import { TextWithLinks } from "./TextWithLinks";
 import { deleteFile } from "@/lib/storageUpload";
 import { useVoiceRecognition } from "@/lib/useVoiceRecognition";
 import { useConfirm } from "@/hooks/useConfirm";
+import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 
 const DEBOUNCE_MS = 300; // 詳情面板欄位 debounce 寫入（TickTick 直覺：輸入即回饋、300ms 內不重複寫入）
 
@@ -53,6 +54,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   const { updateTask, deleteTask, lists, getTagCounts, markEditingActivity, clearEditingActivity } = useApp();
   const { user } = useAuth();
   const confirm = useConfirm();
+  const keyboard = useKeyboardOffset();
   const collapseScope = user?.uid ?? "anon";
   const { isCollapsed: isDoneCollapsed, toggle: toggleDoneCollapse } = useSubTaskCollapse(task.id, task.subTasks || [], collapseScope);
 
@@ -400,7 +402,8 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   const panelStyle = onClose ? {
     transform: `translateX(${swipeX}px)`,
     transition: swipeX === 0 ? 'transform 0.25s ease-out' : 'none',
-  } : {};
+    maxHeight: keyboard > 0 ? `calc(100vh - ${keyboard}px)` : undefined,
+  } : { maxHeight: keyboard > 0 ? `calc(100vh - ${keyboard}px)` : undefined };
 
   return (
     <div

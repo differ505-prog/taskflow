@@ -8,6 +8,7 @@ import { getTagColors, getOrphanTags } from "@/lib/storage";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Plus, Repeat, Calendar, Mic, MicOff, Hash, AlertCircle, Sparkles } from "lucide-react";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
+import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 import { ProGhostButton } from "./ProGhostButton";
 import { deleteFile } from "@/lib/storageUpload";
 import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
@@ -40,6 +41,7 @@ const SELECT_ARROW = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
 
 export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId, currentView, onDeleteAttachment }: TaskFormProps) {
   const { lists, tasks, getTagCounts } = useApp();
+  const keyboard = useKeyboardOffset();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   // 預設「暫緩」＝第 4 象限（艾森豪矩陣：避免決策疲勞，新任務預設最低優先）
@@ -278,8 +280,12 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
           aria-labelledby="form-title"
         >
           <motion.div
-            className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl"
-            style={{ background: "var(--surface)", boxShadow: "var(--shadow-lg)" }}
+            className="w-full max-w-lg overflow-y-auto rounded-2xl"
+            style={{
+              background: "var(--surface)",
+              boxShadow: "var(--shadow-lg)",
+              maxHeight: `calc(100dvh - ${keyboard}px - 32px)`,
+            }}
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
