@@ -299,7 +299,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
         <div className="min-h-0 max-h-[70vh] border-t flex flex-col transition-all duration-200 overflow-y-auto"
           style={{ borderColor: "var(--border)", background: "var(--surface)" }}
         >
-            <div className="p-4 flex flex-col max-h-[55vh] overflow-y-auto overscroll-contain">
+        <div className="p-4 flex flex-col flex-1 min-h-0">
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
