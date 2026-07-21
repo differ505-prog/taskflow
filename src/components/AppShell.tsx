@@ -416,155 +416,150 @@ export function AppShell({
                   </div>
                 )}
               </>
-            ) : displayTasks.length === 0 ? (
-              // 收集箱空狀態 = Brain-dump 模式：只有一個巨大的輸入框作為唯一入口
-              currentView === "inbox" ? (
-                <div className="flex flex-col items-center justify-center flex-1 py-12 px-4">
-                  <motion.div
-                    className="w-full max-w-md"
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
-                  >
-                    {/* 柔性標題 */}
-                    <div className="text-center mb-8">
-                      <h2 className="text-[20px] font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
-                        把腦中的東西倒出來
-                      </h2>
-                      <p className="text-[14px]" style={{ color: "var(--text-tertiary)" }}>
-                        想到什麼就寫什麼，不用組織，不用分類
-                      </p>
-                    </div>
-                    {/* 巨大的 Brain-dump 輸入框 */}
-                    <div className="relative">
-                        <textarea
-                        ref={(el) => {
-                          if (el) {
-                            brainDumpRef.current = el;
-                            // 空狀態時自動 focus
-                            setTimeout(() => el.focus(), 100);
-                          }
-                        }}
-                        value={quickAddInput}
-                        onChange={(e) => {
-                          setQuickAddInput(e.target.value);
-                          // textarea auto-resize
-                          e.target.style.height = "auto";
-                          e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`;
-                        }}
-                        onKeyDown={(e) => {
-                          if (isComposingKey(e)) return;
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            handleQuickAdd();
-                            const target = e.target as HTMLTextAreaElement;
-                            target.style.height = "auto";
-                          }
-                        }}
-                        placeholder="寫下任何東西... 按 Enter 直接變成任務"
-                        rows={3}
-                        className="w-full resize-none rounded-2xl px-5 py-4 text-[16px] placeholder:text-[var(--text-tertiary)] focus:outline-none transition-all duration-200"
-                        style={{
-                          background: "var(--surface-elevated)",
-                          border: "2px solid var(--border)",
-                          boxShadow: "var(--shadow-md)",
-                          color: "var(--text-primary)",
-                          lineHeight: 1.5,
-                        }}
-                        onFocus={(e) => {
-                          e.target.style.borderColor = "var(--brand)";
-                          e.target.style.boxShadow = "0 0 0 4px rgba(59,130,246,0.12), var(--shadow-md)";
-                        }}
-                        onBlur={(e) => {
-                          e.target.style.borderColor = "var(--border)";
-                          e.target.style.boxShadow = "var(--shadow-md)";
-                        }}
-                      />
-                      {/* 提示文字 */}
-                      <div className="mt-3 flex items-center justify-center gap-2">
-                        <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
-                          支援自然語言：明天下午3點 #工作 p1
-                        </span>
-                      </div>
-                    </div>
-                  </motion.div>
-                </div>
-              ) : (
-                <EmptyState
-                  onAddTask={() => setIsFormOpen(true)}
-                  variant="general"
-                />
-              )
             ) : (
               <>
-                {/* Toolbar — 永遠渲染,即使 displayTasks 空也保留讓用戶能切換 filter 回「全部」或其他狀態
-                    避免「點了進行中 → 該清單沒進行中任務 → chip 整排消失 → 找不到回頭路」的陷阱。 */}
-                <div className="flex items-center justify-between gap-2 sm:gap-4 mb-4 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 pb-1 touch-scroll min-w-0 flex-1">
-                    {["全部", "待辦", "進行中", "已完成"].map((label, i) => {
-                      const statuses = ["all", "todo", "in-progress", "done"] as const;
-                      const val = statuses[i];
-                      const isActive = activeFilter.status === val || (val === "all" && !activeFilter.status);
-                      const count = val === "all" ? filteredTasks.length : filteredTasks.filter((t) => t.status === val).length;
-                      return (
-                        <button key={val} onClick={() => setActiveFilter({ ...activeFilter, status: val === "all" ? undefined : val as any })} className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 rounded-full text-[12px] font-medium transition-all duration-150"
-                          style={isActive ? { background: "var(--brand)", color: "var(--brand-foreground)" } : { background: "rgba(0,0,0,0.04)", color: "var(--text-secondary)" }}>
-                          {label} <span style={{ opacity: 0.5 }}>{count}</span>
+                {/* Toolbar — 永遠渲染（inbox 視圖除外：保留 Brain-dump 哲學）
+                    避免「點了進行中 → 該清單沒進行中任務 → 整個區塊走向 EmptyState → chip 消失」的陷阱。
+                    EmptyState 與 task list 改為 toolbar 下方的 sibling,而非 ternary 的對立分支。 */}
+                {currentView !== "inbox" && (
+                  <div className="flex items-center justify-between gap-2 sm:gap-4 mb-4 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 pb-1 touch-scroll min-w-0 flex-1">
+                      {["全部", "待辦", "進行中", "已完成"].map((label, i) => {
+                        const statuses = ["all", "todo", "in-progress", "done"] as const;
+                        const val = statuses[i];
+                        const isActive = activeFilter.status === val || (val === "all" && !activeFilter.status);
+                        const count = val === "all" ? filteredTasks.length : filteredTasks.filter((t) => t.status === val).length;
+                        return (
+                          <button key={val} onClick={() => setActiveFilter({ ...activeFilter, status: val === "all" ? undefined : val as any })} className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 rounded-full text-[12px] font-medium transition-all duration-150"
+                            style={isActive ? { background: "var(--brand)", color: "var(--brand-foreground)" } : { background: "rgba(0,0,0,0.04)", color: "var(--text-secondary)" }}>
+                            {label} <span style={{ opacity: 0.5 }}>{count}</span>
+                          </button>
+                        );
+                      })}
+                      {!["today", "next7days", "list"].includes(currentView) &&
+                        tasks.some((t) => t.status === "done" && !t.isArchived) && (
+                        <button onClick={() => { setShowCompleted(!showCompleted); setActiveFilter({ ...activeFilter, status: undefined }); }} className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 rounded-full text-[12px] font-medium transition-all duration-150"
+                          style={!showCompleted ? { background: "var(--brand-tint)", color: "var(--brand)" } : { background: "rgba(0,0,0,0.04)", color: "var(--text-tertiary)" }}>
+                          <Archive className="w-3 h-3" />
+                          {showCompleted ? "隱藏完成" : "顯示完成"}
                         </button>
-                      );
-                    })}
-                    {!["today", "next7days", "list"].includes(currentView) &&
-                      tasks.some((t) => t.status === "done" && !t.isArchived) && (
-                      <button onClick={() => { setShowCompleted(!showCompleted); setActiveFilter({ ...activeFilter, status: undefined }); }} className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 rounded-full text-[12px] font-medium transition-all duration-150"
-                        style={!showCompleted ? { background: "var(--brand-tint)", color: "var(--brand)" } : { background: "rgba(0,0,0,0.04)", color: "var(--text-tertiary)" }}>
-                        <Archive className="w-3 h-3" />
-                        {showCompleted ? "隱藏完成" : "顯示完成"}
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {!["today", "next7days", "list", "archived"].includes(currentView) &&
-                      filteredTasks.some((t) => t.status !== "done") && (
-                      <button
-                        onClick={async () => {
-                          const pendingCount = filteredTasks.filter((t) => t.status !== "done").length;
-                          const ok = await confirm({
-                            title: "今天先這樣？",
-                            message: `把 ${pendingCount} 項未完成的任務收起來，明天又是新的開始。`,
-                            confirmText: "好，明天再說",
-                            cancelText: "再想想",
-                            tone: "info",
-                          });
-                          if (ok) {
-                            filteredTasks
-                              .filter((t) => t.status !== "done")
-                              .forEach((t) => archiveTask(t.id));
-                          }
-                        }}
-                        className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 rounded-full text-[12px] font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
-                        style={{ background: "rgba(120,119,198,0.12)", color: "var(--text-secondary)" }}
-                        title="把未完成的任務收起來，給自己一個乾淨的開始"
-                      >
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                          <path d="M1 6C1 3.24 3.24 1 6 1s5 2.24 5 5-2.24 5-5 5-5-2.24-5-5Z" stroke="currentColor" strokeWidth="1.2"/>
-                          <path d="M4 6l1.5 1.5L8 4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                        今天先這樣
-                      </button>
-                    )}
-                    <div className="flex items-center gap-0.5 p-1 rounded-xl" style={{ background: "rgba(0,0,0,0.04)" }}>
-                      <button onClick={() => setViewMode("list")} className="p-1.5 rounded-lg transition-all duration-150" style={viewMode === "list" ? { background: "var(--surface)", boxShadow: "var(--shadow-xs)", color: "var(--text-primary)" } : { color: "var(--text-tertiary)" }} aria-label="列表檢視">
-                        <List className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => setViewMode("grid")} className="p-1.5 rounded-lg transition-all duration-150" style={viewMode === "grid" ? { background: "var(--surface)", boxShadow: "var(--shadow-xs)", color: "var(--text-primary)" } : { color: "var(--text-tertiary)" }} aria-label="網格檢視">
-                        <LayoutGrid className="w-4 h-4" />
-                      </button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {!["today", "next7days", "list", "archived"].includes(currentView) &&
+                        filteredTasks.some((t) => t.status !== "done") && (
+                        <button
+                          onClick={async () => {
+                            const pendingCount = filteredTasks.filter((t) => t.status !== "done").length;
+                            const ok = await confirm({
+                              title: "今天先這樣？",
+                              message: `把 ${pendingCount} 項未完成的任務收起來,明天又是新的開始。`,
+                              confirmText: "好,明天再說",
+                              cancelText: "再想想",
+                              tone: "info",
+                            });
+                            if (ok) {
+                              filteredTasks
+                                .filter((t) => t.status !== "done")
+                                .forEach((t) => archiveTask(t.id));
+                            }
+                          }}
+                          className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 rounded-full text-[12px] font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
+                          style={{ background: "rgba(120,119,198,0.12)", color: "var(--text-secondary)" }}
+                          title="把未完成的任務收起來,給自己一個乾淨的開始"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                            <path d="M1 6C1 3.24 3.24 1 6 1s5 2.24 5 5-2.24 5-5 5-5-2.24-5-5Z" stroke="currentColor" strokeWidth="1.2"/>
+                            <path d="M4 6l1.5 1.5L8 4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                          今天先這樣
+                        </button>
+                      )}
+                      <div className="flex items-center gap-0.5 p-1 rounded-xl" style={{ background: "rgba(0,0,0,0.04)" }}>
+                        <button onClick={() => setViewMode("list")} className="p-1.5 rounded-lg transition-all duration-150" style={viewMode === "list" ? { background: "var(--surface)", boxShadow: "var(--shadow-xs)", color: "var(--text-primary)" } : { color: "var(--text-tertiary)" }} aria-label="列表檢視">
+                          <List className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => setViewMode("grid")} className="p-1.5 rounded-lg transition-all duration-150" style={viewMode === "grid" ? { background: "var(--surface)", boxShadow: "var(--shadow-xs)", color: "var(--text-primary)" } : { color: "var(--text-tertiary)" }} aria-label="網格檢視">
+                          <LayoutGrid className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-                {/* Task list — 沒任務時顯示 EmptyState,有任務時顯示列表 */}
-                <div className="flex flex-col gap-1">
-                  {displayTasks.length > 0 && (
+                )}
+                {/* Task list 區塊 — displayTasks 空時顯示對應空狀態,有任務時渲染清單 */}
+                {currentView === "inbox" && displayTasks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center flex-1 py-12 px-4">
+                    <motion.div
+                      className="w-full max-w-md"
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+                    >
+                      <div className="text-center mb-8">
+                        <h2 className="text-[20px] font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
+                          把腦中的東西倒出來
+                        </h2>
+                        <p className="text-[14px]" style={{ color: "var(--text-tertiary)" }}>
+                          想到什麼就寫什麼,不用組織,不用分類
+                        </p>
+                      </div>
+                      <div className="relative">
+                          <textarea
+                          ref={(el) => {
+                            if (el) {
+                              brainDumpRef.current = el;
+                              setTimeout(() => el.focus(), 100);
+                            }
+                          }}
+                          value={quickAddInput}
+                          onChange={(e) => {
+                            setQuickAddInput(e.target.value);
+                            e.target.style.height = "auto";
+                            e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`;
+                          }}
+                          onKeyDown={(e) => {
+                            if (isComposingKey(e)) return;
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              handleQuickAdd();
+                              const target = e.target as HTMLTextAreaElement;
+                              target.style.height = "auto";
+                            }
+                          }}
+                          placeholder="寫下任何東西... 按 Enter 直接變成任務"
+                          rows={3}
+                          className="w-full resize-none rounded-2xl px-5 py-4 text-[16px] placeholder:text-[var(--text-tertiary)] focus:outline-none transition-all duration-200"
+                          style={{
+                            background: "var(--surface-elevated)",
+                            border: "2px solid var(--border)",
+                            boxShadow: "var(--shadow-md)",
+                            color: "var(--text-primary)",
+                            lineHeight: 1.5,
+                          }}
+                          onFocus={(e) => {
+                            e.target.style.borderColor = "var(--brand)";
+                            e.target.style.boxShadow = "0 0 0 4px rgba(59,130,246,0.12), var(--shadow-md)";
+                          }}
+                          onBlur={(e) => {
+                            e.target.style.borderColor = "var(--border)";
+                            e.target.style.boxShadow = "var(--shadow-md)";
+                          }}
+                        />
+                        <div className="mt-3 flex items-center justify-center gap-2">
+                          <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+                            支援自然語言：明天下午3點 #工作 p1
+                          </span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </div>
+                ) : displayTasks.length === 0 ? (
+                  <EmptyState
+                    onAddTask={() => setIsFormOpen(true)}
+                    variant="general"
+                  />
+                ) : (
+                  <div className="flex flex-col gap-1">
                     <AnimatePresence mode="popLayout">
                       {displayTasks.map((task) => (
                         <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
@@ -593,11 +588,8 @@ export function AppShell({
                         </motion.div>
                       ))}
                     </AnimatePresence>
-                  )}
-                  {displayTasks.length === 0 && (
-                    <EmptyState onAddTask={() => setIsFormOpen(true)} variant="general" />
-                  )}
-                </div>
+                  </div>
+                )}
               </>
             )}
           </div>
