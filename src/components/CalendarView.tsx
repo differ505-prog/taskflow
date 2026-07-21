@@ -26,13 +26,16 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
 
   useEffect(() => {
     setMounted(true);
+    console.log("[CalendarView] mounted, selectedDate:", null, "tasks:", tasks.length);
   }, []);
 
   useEffect(() => {
-    if (selectedDate && quickAddInputRef.current) {
-      quickAddInputRef.current.focus();
-    }
-  }, [selectedDate]);
+    console.log("[CalendarView] selectedDate changed:", selectedDate, "| mounted:", mounted, "| tasks:", tasks.length);
+  }, [selectedDate, mounted, tasks.length]);
+
+  useEffect(() => {
+    console.log("[CalendarView] selectedDateTasks:", selectedDateTasks.length, "| todo:", selectedDateTasks.filter(t => t.status !== "done").length);
+  }, [selectedDateTasks]);
 
   const days = useMemo(() => {
     const start = startOfMonth(currentMonth);
