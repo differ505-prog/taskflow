@@ -280,12 +280,12 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
       <AnimatePresence>
         {selectedDate && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
+            initial={{ maxHeight: 0, opacity: 0 }}
+            animate={{ maxHeight: 600, opacity: 1 }}
+            exit={{ maxHeight: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-            className="flex-shrink-0 border-t flex flex-col"
-            style={{ borderColor: "var(--border)", background: "var(--surface)", overflow: "visible" }}
+            className="flex-shrink-0 border-t flex flex-col overflow-hidden"
+            style={{ borderColor: "var(--border)", background: "var(--surface)" }}
           >
             <div className="p-4 flex flex-col flex-1 min-h-0">
               {/* Header */}
