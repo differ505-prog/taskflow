@@ -228,30 +228,15 @@ alwaysApply: true
    - `deploy: main` — 推到 main，**會觸發 Vercel production deployment**
    - `deploy: preview-only` — 推到非 main branch，**只觸發 Vercel preview deployment，不影響 production**
    - `deploy: skip-deploy` — 純文件/配置 commit，**不會觸發 Vercel**
-2. **push 前必須輸出「🔔 推送目標 Gate」欄**（最後一次確認機會）：
-   ```
-   🔔 推送目標 Gate (§11.1):
-     commit SHA: <short SHA>
-     branch: <branch>
-     commit message deploy: 前綴值: <main|preview-only|skip-deploy>
-     預期 Vercel 部署目標: <production|preview|none>
-     是否正確: ❓ AI 自評 + 揭露
-   ```
-3. **AI 自評揭露強制內容**：
-   - 「本 commit 屬於 X 類別（UI fix / data migration / docs only），按憲法 X 條，**預期推送目標應為 production / preview / skip**」
-   - 若 deploy 欄與 AI 自評推薦不一致 → 必須以「⚠️ §23-A 違憲揭露」升級為顯著提示，等使用者明確回覆「違憲授權：採用 X」才能 push
-4. **`deploy:` 前綴為必填**：commit message 沒這個前綴 → `git commit --amend` 補上，不能用「忘了」帶過
-5. **驗證**：本條 commit 前必須 grep `git log --format=%s -1` 確認 deploy 前綴存在；若不存在，視同違憲，自動停下
-
-**與既有條文關係**：
-- 不違反 §10 評分表（這是 commit 階段，不動評分）
-- 不違反 §11 危險動作黑名單（這只規範「為什麼推」，不動 push 本身）
-- 不違反 §13 最小變更（commit message 欄位擴充，跟改寫 code 無關）
-- **與 §10/§23 互補**：§10/§23 在「評分階段」要求揭露推送目標,§11.1 在「commit 階段」強制格式,兩者不可偏廢
+2. **AI 自評推送目標**：根據 commit 類型（UI fix / docs only / data migration）**自行判斷 `deploy:` 值並直接寫入**，不要在 push 前反覆詢問使用者確認 SHA / branch / deploy 前綴值。**只在下列情境停下警告**：deploy 值明顯違反常理（例如 production push 寫 `deploy: skip-deploy` 但內容是 UI fix；或 `git push --force` 主分支）
+3. **`deploy:` 前綴為必填**：commit message 沒這個前綴 → `git commit --amend` 補上，不能用「忘了」帶過
+4. **危險動作需口頭確認**（§11 黑名單同步適用，與 deploy 欄無關）：
+   - `git push --force` / `--force-with-lease` 到任何分支
+   - 刪除檔案 / 覆寫 `.env` / 改寫資料庫 migration
 
 **例外**：
-- commit 訊息確實不需 deploy 觸發(例: 純 CSS 變數調整但尚未被任何 runtime import)→ `deploy: skip-deploy`
-- 使用者明確說「直接 push」可跳過 AI 自評確認,但 commit message `deploy:` 前綴仍必填
+- commit 訊息確實不需 deploy 觸發（例: 純 CSS 變數調整但尚未被任何 runtime import）→ `deploy: skip-deploy`
+- 使用者明確說「直接 push」→ 跳過所有 warning，但 commit message `deploy:` 前綴仍必填
 
 ### 12. 驗證必讀結果
 
@@ -768,5 +753,5 @@ alwaysApply: true
 | 2026-07-20 | 新增 §24.1 瀏覽器子模式首次確認（涵蓋 PWA / Safari tab / WebView 子模式差異，避免把 Safari tab 行為誤套 PWA）+ §26 類別 K（瀏覽器子模式假設錯誤）；本輪 iOS PWA 同步延遲修了 N 輪才發現是 PWA 進背景 iOS 凍結 WebSocket — 治本加 PWA 喚醒同步（visibilitychange + pageshow + online 三事件）已驗證 < 1 秒同步 | **§24.1: 9.3 / §26-K: 9.2**（均首輪達標，免二輪） |
 | 2026-07-21 | 新增 §26 類別 L：跨平台/Web API 方案評估沒查 caniuse/MDN 精準支援矩陣，且 feature-detect 用「近似 payload」（如 `text/plain` 測 `canShare` 但實際分享 `application/json`）導致誤判；本輪 Web Share API 評估時自信「手機都適用」，實則 iOS <15、Chrome Android <86、Firefox Desktop 不支援，且 MIME 測試錯誤；commit f6f73e2 已修正 canShareFiles 用真實 JSON MIME 測試；觸發修憲前自評 9.1 | **9.1**（首輪達標，免二輪） |
 | 2026-07-21 | 新增 §26 類別 M：Next.js App Router 把 client-side Context Provider 放在「可被路由旁路的 layout 內」（P0-2 hotfix: ConfirmProvider 留 AppLayout 但 `/settings` `/tags` 直連 URL 不掛 AppLayout → useConfirm throw）；本對話 commit `5ef2004` 已將 ConfirmProvider 上移至 root layout (`app/layout.tsx`)；類別 M 條文強調「Provider 一律掛 root layout」+ 「驗證必跑 `npx next build`」；觸發修憲前自評 9.1 | **9.1**（首輪達標，免二輪） |
-| 2026-07-21 | 新增 §11.1 推送目標 Gate — commit message 必填 `deploy: <main|preview-only|skip-deploy>` 前綴 + push 前必輸出「🔔 推送目標 Gate」欄 + AI 自評推薦推送目標若與前綴不一致必須升級為「⚠️ §23-A 違憲揭露」等使用者明確授權；針對本對話 calendar UI fix 推到 preview 不推 production 修未生效的根因（§11 commit 流程沒欄位強制 AI 揭露推送目標） | **9.0**（首輪達標，動 §11 既有條文，不新增獨立條文；D 方案勝 A 方案見本對話記錄） |
+| 2026-07-21 | 修改 §11.1 推送流程：commit message 仍必填 `deploy: <main|preview-only|skip-deploy>` 前綴，但 AI **自行判斷推送目標**並直接寫入、不再反覆詢問使用者確認 SHA/branch/deploy 值（只在 deploy 明顯違反常理或 `git push --force` 主分支時警告）；精簡原因：使用者明確反饋「push 前詢問過多浪費 token」 | **9.0**（精簡流程，保留核心 deploy 前綴強制） |
 | 2026-07-21 | 新增 §14.2（UI 條件渲染切換鏈盤點）+ §26 類別 N（嵌套 ternary 修錯層）— 針對本對話 chip toolbar bug 連續 3 commit 才修對的具體根因（d1e204c → f3c4bac → 8775fe2，前兩次只修內層 ternary，第三次才找到外層切換點）；§14.2 動手前盤點切換鏈、§26 類別 N 治本拆解外層 ternary | **§14.2: 9.2 / §26-N: 9.2**（首輪達標，免二輪） |
