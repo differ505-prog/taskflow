@@ -69,8 +69,8 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
 
   // 任務切換時滾動到面板頂部
   useEffect(() => {
-    if (panelRef.current) {
-      panelRef.current.scrollTop = 0;
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
     }
   }, [task.id]);
 
@@ -379,6 +379,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
 
   // Native swipe to close functionality
   const panelRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [swipeX, setSwipeX] = useState(0);
   const touchStartX = useRef<number>(0);
   const touchCurrentX = useRef<number>(0);
@@ -488,7 +489,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
         </div>
 
         {/* Form body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5 pb-24">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-5 pb-24">
 
         {/* Title */}
         <div>
