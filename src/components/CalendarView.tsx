@@ -19,10 +19,15 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [draggingTask, setDraggingTask] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
   const [quickAddTitle, setQuickAddTitle] = useState("");
   // 已完成任務摺疊：key = `${dateStr}`,value = 是否展開（未存 = 已折疊）
   const [doneExpanded, setDoneExpanded] = useState<Record<string, boolean>>({});
   const quickAddInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (selectedDate && quickAddInputRef.current) {
@@ -276,15 +281,15 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
         </div>
       </div>
 
-      {/* 任務列表展開區域 - flex-1 填滿剩餘空間，內部滾動 */}
+      {/* 任務列表展開區域 */}
       <AnimatePresence>
-        {selectedDate && (
+        {selectedDate && mounted && (
           <motion.div
-            initial={{ maxHeight: 0, opacity: 0 }}
-            animate={{ maxHeight: 600, opacity: 1 }}
-            exit={{ maxHeight: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-            className="flex-shrink-0 border-t flex flex-col overflow-hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="flex-shrink-0 border-t flex flex-col"
             style={{ borderColor: "var(--border)", background: "var(--surface)" }}
           >
             <div className="p-4 flex flex-col flex-1 min-h-0">
