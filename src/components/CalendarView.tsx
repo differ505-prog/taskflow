@@ -311,7 +311,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
           style={{
             borderColor: "var(--border)",
             background: "var(--surface)",
-            height: "min(420px, 55vh)",
+            height: "min(560px, 65vh)",
           }}
         >
           <div className="p-4 flex flex-col overscroll-contain flex-1 min-h-0 overflow-y-auto">
