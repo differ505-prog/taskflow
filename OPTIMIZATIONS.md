@@ -13,6 +13,7 @@
 | 1 | 收集箱捲到底被遮 | `<main>` 加 `flex flex-col` + list `flex-1 overflow-y-auto` | `ba28bf4` | 2026-07-15 |
 | 2 | 子任務勾選圈圈太小 | 點擊區 28×28,圖示 18×18 + 文字可點開編輯 | `ca182cb` | 2026-07-15 |
 | 3 | 子任務勾選按兩次才完成 | 移除 hover 陰影 + active scale,讓 hover 跟按下視覺一致,跟母任務圈圈行為對齊 | (本次) | 2026-07-15 |
+| 4 | 日曆 task panel 滾輪連續滾動時「任務超慢出現」 | ① 全域 `scroll-behavior: smooth` 對 panel 來說是雷：wheel event 連發 = 排一堆 smooth 動畫 queue = frame 卡住。改 panel 加 `.calendar-task-panel { scroll-behavior: auto }` 覆寫;② panel `transition-all duration-200` 在滾動期間任何子元素 transition 都會重新觸發動畫 → 拿掉;③ ResizeObserver 加 `requestAnimationFrame` debounce + window resize 主動重算。驗證:`npm run build` clean | `c526b3f` | 2026-07-21 |
 
 ---
 
