@@ -326,14 +326,14 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
       {selectedDate && mounted && (
         <div
           ref={measureTaskPanel}
-          className="min-h-0 border-t flex flex-col transition-all duration-200 overflow-y-auto"
+          className="min-h-0 flex-1 border-t flex flex-col transition-all duration-200 overflow-y-auto"
           style={{
             borderColor: "var(--border)",
             background: "var(--surface)",
             maxHeight: taskPanelHeight ? `${taskPanelHeight}px` : "70vh",
           }}
         >
-          <div className="p-4 flex flex-col overflow-y-auto overscroll-contain">
+          <div className="p-4 flex flex-col overscroll-contain">
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
