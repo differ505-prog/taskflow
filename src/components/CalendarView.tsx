@@ -140,7 +140,7 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
   return (
     <div className="flex flex-col h-full">
       {/* 日曆區域 - 純顯示，不可點擊任務 */}
-      <div className="flex-1 flex flex-col p-4 md:p-6 overflow-hidden">
+      <div className="flex-1 flex flex-col p-4 md:p-6">
         {/* Month header */}
         <div className="flex items-center justify-between mb-4 md:mb-5 flex-shrink-0">
           <h1 className="text-[18px] font-semibold" style={{ color: "var(--text-primary)" }}>
