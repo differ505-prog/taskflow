@@ -296,10 +296,10 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
 
       {/* 任務列表展開區域 */}
       {selectedDate && mounted && (
-        <div className="flex-shrink-0 border-t flex flex-col transition-all duration-200 max-h-[55vh] overflow-y-auto"
-          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+        <div className="flex-shrink-0 border-t flex flex-col transition-all duration-200"
+          style={{ borderColor: "var(--border)", background: "var(--surface)", maxHeight: "55vh", overflowY: "auto" }}
         >
-            <div className="p-4 flex flex-col flex-1 min-h-0">
+            <div className="p-4 flex flex-col">
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
