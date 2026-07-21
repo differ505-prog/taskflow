@@ -138,9 +138,9 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* 日曆區域 - 用 calc 明確約束高度，讓任務面板有穩定空間 */}
-      <div className="p-4 md:p-6 flex flex-col" style={{ height: "calc(100% - 0px)" }}>
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* 日曆區域 - 固定高度，讓任務面板有穩定剩餘空間 */}
+      <div className="flex-shrink-0 p-4 md:p-6 flex flex-col" style={{ height: "calc(100dvh - 56px)" }}>
         {/* Month header */}
         <div className="flex items-center justify-between mb-4 md:mb-5 flex-shrink-0">
           <h1 className="text-[18px] font-semibold" style={{ color: "var(--text-primary)" }}>
@@ -271,7 +271,7 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
         </div>
       </div>
 
-      {/* 任務列表展開區域 - 完全獨立，點擊任務才會觸發 */}
+      {/* 任務列表展開區域 - 固定最大高度，內部可滾動 */}
       <AnimatePresence>
         {selectedDate && (
           <motion.div
@@ -279,10 +279,10 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-            className="border-t"
-            style={{ borderColor: "var(--border)", background: "var(--surface)", maxHeight: "calc(100dvh - 210px)", overflowY: "auto" }}
+            className="flex-shrink-0 border-t"
+            style={{ borderColor: "var(--border)", background: "var(--surface)", maxHeight: "calc(100dvh - 180px)", overflowY: "auto" }}
           >
-            <div className="p-4" style={{ maxHeight: "calc(100dvh - 210px)", overflowY: "auto" }}>
+            <div className="p-4">
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
