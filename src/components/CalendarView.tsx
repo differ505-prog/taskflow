@@ -129,11 +129,6 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
       })
     : [];
 
-  // [DEBUG] 刷新後日曆任務列表長度
-  if (typeof window !== "undefined" && selectedDate) {
-    console.log(`[CalendarView] selectedDate=${selectedDate} selectedDateTasks=${selectedDateTasks.length} tasks=${tasks.length}`);
-  }
-
   // Drag and drop
   const handleDragStart = (taskId: string) => setDraggingTask(taskId);
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
@@ -365,7 +360,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                 const done = selectedDateTasks.filter((t) => t.status === "done");
                 const isDoneOpen = !!doneExpanded[selectedDate];
                 return (
-                  <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-2">
+                  <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-2 flex flex-col min-h-0">
                     {todo.map((task) => (
                       <SwipeableTaskCard
                         key={task.id}

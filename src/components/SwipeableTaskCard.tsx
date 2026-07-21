@@ -80,11 +80,6 @@ export function SwipeableTaskCard({
     close();
   }, [close]);
 
-  // [DEBUG] SwipeableTaskCard render
-  if (typeof window !== "undefined" && typeof document !== "undefined") {
-    console.log(`[SwipeableTaskCard] taskId=${taskId} children=${children ? "present" : "null"}`);
-  }
-
   return (
     <div className="relative overflow-hidden rounded-2xl" ref={trackRef}>
       {/* Action strip behind the card */}
