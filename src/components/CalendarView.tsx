@@ -248,7 +248,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
             return (
               <div
                 key={i}
-                className="flex flex-col transition-colors duration-150 cursor-pointer"
+                className="relative flex flex-col transition-colors duration-150 cursor-pointer"
                 style={{
                   background: isSelected
                     ? "var(--brand-tint)"
@@ -262,7 +262,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                 onDrop={() => handleDrop(day)}
               >
                 {/* Day number */}
-                <div className="flex items-center justify-center pt-2 pb-1">
+                <div className={`flex items-center justify-center pt-2 pb-1 ${taskCount > 2 ? "pr-5" : ""}`}>
                   <span
                     className="w-7 h-7 flex items-center justify-center rounded-full text-[13px] font-medium"
                     style={
@@ -276,6 +276,26 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                     {format(day, "d")}
                   </span>
                 </div>
+
+                {/* [D 方案] 隱藏任務徽章 - 右上角,absolute 定位永遠可見,不擠 72px */}
+                {taskCount > 2 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDayClick(dateStr);
+                    }}
+                    className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-semibold flex items-center justify-center hover:opacity-90 transition-opacity"
+                    style={{
+                      background: "var(--brand)",
+                      color: "var(--brand-foreground)",
+                      lineHeight: 1,
+                    }}
+                    aria-label={`還有 ${taskCount - 2} 項任務，點擊查看`}
+                  >
+                    +{taskCount - 2}
+                  </button>
+                )}
 
                 {/* Task indicator - 前 2 條任務預覽 + 「+N more」溢出指示（§8 防禦性 UI） */}
                 <div className="flex-1 flex flex-col items-stretch justify-start px-1 pb-1 gap-0.5 min-w-0">
@@ -312,21 +332,13 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                         })}
                       {(() => {
                         const remaining = taskCount - 2;
+                        // [§15 插樁 #5] 證明 remaining 計算結果，判斷 UI 層 vs 邏輯層
+                        if (dayTasks.length >= 3 && todoOnly.length >= 3) {
+                          console.log(`[CalendarDebug][moreBtn] date=${dateStr} taskCount=${taskCount} remaining=${remaining} willRenderButton=${remaining > 0}`);
+                        }
                         if (remaining > 0) {
-                          return (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDayClick(dateStr);
-                              }}
-                              className="text-[10px] font-medium text-left px-0.5 rounded-sm hover:opacity-80 transition-opacity"
-                              style={{ color: "var(--text-tertiary)" }}
-                              aria-label={`還有 ${remaining} 項任務，點擊查看`}
-                            >
-                              +{remaining} more
-                            </button>
-                          );
+                          // [D 方案] 改為右上角徽章 — 移到這裡由父層渲染,避免被 flex 截斷
+                          return null;
                         }
                         if (isSearchMatch) {
                           return (
