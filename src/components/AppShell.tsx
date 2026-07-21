@@ -499,7 +499,7 @@ export function AppShell({
               <>
                 {/* Toolbar */}
                 <div className="flex items-center justify-between gap-2 sm:gap-4 mb-4 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 overflow-x-auto scrollbar-hide pb-1 touch-scroll min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2 pb-1 touch-scroll min-w-0 flex-1">
                     {["全部", "待辦", "進行中", "已完成"].map((label, i) => {
                       const statuses = ["all", "todo", "in-progress", "done"] as const;
                       const val = statuses[i];
@@ -507,7 +507,7 @@ export function AppShell({
                       const count = val === "all" ? filteredTasks.length : filteredTasks.filter((t) => t.status === val).length;
                       return (
                         <button key={val} onClick={() => setActiveFilter({ ...activeFilter, status: val === "all" ? undefined : val as any })} className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 rounded-full text-[12px] font-medium transition-all duration-150"
-                          style={isActive ? { background: "var(--text-primary)", color: "var(--surface)" } : { background: "rgba(0,0,0,0.04)", color: "var(--text-secondary)" }}>
+                          style={isActive ? { background: "var(--brand)", color: "var(--brand-foreground)" } : { background: "rgba(0,0,0,0.04)", color: "var(--text-secondary)" }}>
                           {label} <span style={{ opacity: 0.5 }}>{count}</span>
                         </button>
                       );
