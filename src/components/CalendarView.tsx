@@ -325,7 +325,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
 
       {/* 任務列表展開區域 */}
       {selectedDate && mounted && (
-        <div className="flex-1 min-h-0 border-t flex flex-col transition-all duration-200 overflow-y-auto"
+        <div className="min-h-0 max-h-[70vh] border-t flex flex-col transition-all duration-200 overflow-y-auto"
           style={{ borderColor: "var(--border)", background: "var(--surface)" }}
         >
             <div className="p-4 flex flex-col max-h-[55vh] overflow-y-auto overscroll-contain">
