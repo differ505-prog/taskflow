@@ -250,7 +250,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
             const pendingTasks = dayTasks.filter((t) => t.status !== "done");
             const pendingCount = pendingTasks.length;
             // 最多渲染前 6 個,格子空間會自動截斷多餘任務
-            const visibleTasks = pendingTasks.slice(0, 6);
+            const visibleTasks = pendingTasks.slice(0, 3);
             const overflowCount = pendingCount - visibleTasks.length;
 
             return (
@@ -273,7 +273,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                 <div className="flex flex-col items-center pt-1 pb-0.5">
                   <div className="flex items-center justify-center w-full">
                     <span
-                      className="w-6 h-6 flex items-center justify-center rounded-full text-[12px] font-medium"
+                      className="w-7 h-7 flex items-center justify-center rounded-full text-[13px] font-medium"
                       style={
                         isTodayDate
                           ? { background: "var(--brand)", color: "var(--brand-foreground)" }
