@@ -268,24 +268,67 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                   </span>
                 </div>
 
-                {/* Task indicator - 只顯示數量或優先級指示，不可點擊 */}
-                <div className="flex-1 flex flex-col items-center justify-start px-1 pb-1">
+                {/* Task indicator - 前 2 條任務預覽 + 「+N more」溢出指示（§8 防禦性 UI） */}
+                <div className="flex-1 flex flex-col items-stretch justify-start px-1 pb-1 gap-0.5 min-w-0">
                   {taskCount > 0 ? (
-                    <div
-                      className="w-full rounded-md py-0.5 px-1 text-center relative"
-                      style={{
-                        background: isCurrentMonth ? getIndicatorBg(dayTasks) : 'rgba(0,0,0,0.03)',
-                        outline: isSearchMatch ? "1.5px solid var(--brand)" : "none",
-                        outlineOffset: "-1.5px",
-                      }}
-                    >
-                      <span
-                        className="text-[10px] font-medium"
-                        style={{ color: isCurrentMonth ? "var(--text-secondary)" : "var(--text-tertiary)" }}
-                      >
-                        {taskCount}{isSearchMatch ? " ✓" : ""} 項
-                      </span>
-                    </div>
+                    <>
+                      {dayTasks
+                        .filter((t) => t.status !== "done")
+                        .slice(0, 2)
+                        .map((t) => {
+                          const dotColor = getPriorityDotColor(t.priority);
+                          return (
+                            <div
+                              key={t.id}
+                              className="flex items-center gap-1 min-w-0 rounded-sm px-0.5"
+                              style={{
+                                outline: isSearchMatch ? "1.5px solid var(--brand)" : "none",
+                                outlineOffset: "-1.5px",
+                              }}
+                            >
+                              <span
+                                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                style={{ background: dotColor }}
+                                aria-hidden="true"
+                              />
+                              <span
+                                className="text-[10px] font-medium truncate min-w-0 flex-1"
+                                style={{ color: isCurrentMonth ? "var(--text-secondary)" : "var(--text-tertiary)" }}
+                                title={t.title}
+                              >
+                                {t.title}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      {(() => {
+                        const remaining = taskCount - 2;
+                        if (remaining > 0) {
+                          return (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDayClick(dateStr);
+                              }}
+                              className="text-[10px] font-medium text-left px-0.5 rounded-sm hover:opacity-80 transition-opacity"
+                              style={{ color: "var(--text-tertiary)" }}
+                              aria-label={`還有 ${remaining} 項任務，點擊查看`}
+                            >
+                              +{remaining} more
+                            </button>
+                          );
+                        }
+                        if (isSearchMatch) {
+                          return (
+                            <span className="text-[10px] font-medium px-0.5" style={{ color: "var(--brand)" }}>
+                              ✓ 符合
+                            </span>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </>
                   ) : isSearchMatch ? (
                     <div
                       className="w-full rounded-md py-0.5 px-1 text-center"
@@ -295,10 +338,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                         outlineOffset: "-1.5px",
                       }}
                     >
-                      <span
-                        className="text-[10px] font-medium"
-                        style={{ color: "var(--brand)" }}
-                      >
+                      <span className="text-[10px] font-medium" style={{ color: "var(--brand)" }}>
                         ✓ 符合
                       </span>
                     </div>
@@ -532,13 +572,7 @@ function getPriorityColor(priority: string): string {
   }
 }
 
-function getIndicatorBg(tasks: Task[]): string {
-  // 根據任務優先級顯示不同顏色
-  const hasUrgent = tasks.some(t => t.priority === "do-now");
-  const hasHigh = tasks.some(t => t.priority === "schedule");
-  const hasMedium = tasks.some(t => t.priority === "delegate");
-
-  if (hasUrgent || hasHigh) return "rgba(215, 0, 21, 0.18)";
-  if (hasMedium) return "rgba(255, 149, 0, 0.15)";
-  return "rgba(52, 199, 89, 0.15)";
+// 日曆格子內任務點（小圓點）：色彩鎖定來自 getPriorityColor（同色系統，§3）
+function getPriorityDotColor(priority: string): string {
+  return getPriorityColor(priority);
 }
