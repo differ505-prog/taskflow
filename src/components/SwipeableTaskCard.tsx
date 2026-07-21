@@ -81,7 +81,7 @@ export function SwipeableTaskCard({
   }, [close]);
 
   return (
-    <div className="relative overflow-hidden rounded-2xl" ref={trackRef}>
+    <div className="relative overflow-hidden rounded-2xl min-h-[60px]" ref={trackRef}>
       {/* Action strip behind the card */}
       <div
         className="absolute inset-y-0 right-0 z-10 flex items-stretch"
@@ -136,7 +136,7 @@ export function SwipeableTaskCard({
 
       {/* Swipeable card — captures clicks to close when scrim is open */}
       <motion.div
-        className="relative z-20 bg-[var(--surface)]"
+        className="relative z-20 bg-[var(--surface)] h-full min-h-[60px]"
         animate={{ x: offset }}
         transition={{ type: "spring", stiffness: 400, damping: 35 }}
         onTouchStart={handleTouchStart}
