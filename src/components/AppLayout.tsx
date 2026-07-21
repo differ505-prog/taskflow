@@ -119,7 +119,7 @@ function AppLayoutInner() {
       if (e.key === "Escape") {
         if (isSettingsOpen) { setIsSettingsOpen(false); return; }
         if (isPomodoroOpen) { setIsPomodoroOpen(false); return; }
-        if (selectedTaskId) { setSelectedTaskId(null); setCalendarSelectedTask(null); return; }
+        if (selectedTaskId || calendarSelectedTask) { setSelectedTaskId(null); setCalendarSelectedTask(null); return; }
         if (isMobileSidebarOpen) { setIsMobileSidebarOpen(false); return; }
         if (batchMode) { exitBatchMode(); return; }
       }
@@ -189,8 +189,7 @@ function AppLayoutInner() {
           <CalendarView
             selectedTask={calendarSelectedTask}
             onSelectTask={(task) => {
-              setSelectedTaskId(calendarSelectedTask?.id === task.id ? null : task.id);
-              setCalendarSelectedTask(calendarSelectedTask?.id === task.id ? null : task);
+              setCalendarSelectedTask((prev) => prev?.id === task.id ? null : task);
             }}
           />
         );
@@ -246,7 +245,7 @@ function AppLayoutInner() {
           <div className="h-full overflow-y-auto overscroll-contain">
             <TaskDetailPanel
               task={detailTask}
-              onClose={() => setSelectedTaskId(null)}
+              onClose={() => { setSelectedTaskId(null); setCalendarSelectedTask(null); }}
             />
           </div>
         </motion.div>
