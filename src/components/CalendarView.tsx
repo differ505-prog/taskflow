@@ -6,7 +6,6 @@ import { Task } from "@/lib/types";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus, ChevronDown, ChevronRight as ChevronRightSm } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
 import { SwipeableTaskCard } from "./SwipeableTaskCard";
 
 interface CalendarViewProps {
@@ -282,16 +281,10 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
       </div>
 
       {/* 任務列表展開區域 */}
-      <AnimatePresence>
-        {selectedDate && mounted && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="flex-shrink-0 border-t flex flex-col"
-            style={{ borderColor: "var(--border)", background: "var(--surface)" }}
-          >
+      {selectedDate && mounted && (
+        <div className="flex-shrink-0 border-t flex flex-col transition-all duration-200"
+          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+        >
             <div className="p-4 flex flex-col flex-1 min-h-0">
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
@@ -411,9 +404,8 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                 );
               })()}
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }
