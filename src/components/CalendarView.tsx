@@ -245,11 +245,13 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
             const dateStr = format(day, "yyyy-MM-dd");
             const dayTasks = getTasksForDay(day);
             const isSelected = selectedDate === dateStr;
-            // [§I 方案] 徽章需顯示完成度,分離「未完成數」(供搜尋高亮用)與「總任務數 + 完成數」(供徽章用)
-            const taskCount = dayTasks.filter((t) => t.status !== "done").length;
-            const doneCount = dayTasks.filter((t) => t.status === "done").length;
-            const totalTaskCount = dayTasks.length;
             const isSearchMatch = matchedDayHas(dayTasks);
+            // [§I 方案 v2] 格子內只顯示「未完成任務」標題 (用戶 1A+2A+3A+4A+5A+6A 全選)
+            const pendingTasks = dayTasks.filter((t) => t.status !== "done");
+            const pendingCount = pendingTasks.length;
+            // 最多渲染前 6 個,格子空間會自動截斷多餘任務
+            const visibleTasks = pendingTasks.slice(0, 6);
+            const overflowCount = pendingCount - visibleTasks.length;
 
             return (
               <div
@@ -268,10 +270,10 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                 onDrop={() => handleDrop(day)}
               >
                 {/* Day number */}
-                <div className="flex flex-col items-center pt-2 pb-1">
+                <div className="flex flex-col items-center pt-1 pb-0.5">
                   <div className="flex items-center justify-center w-full">
                     <span
-                      className="w-7 h-7 flex items-center justify-center rounded-full text-[13px] font-medium"
+                      className="w-6 h-6 flex items-center justify-center rounded-full text-[12px] font-medium"
                       style={
                         isTodayDate
                           ? { background: "var(--brand)", color: "var(--brand-foreground)" }
@@ -285,45 +287,39 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                   </div>
                 </div>
 
-                {/* [§I 方案] 右下徽章: 僅當總任務數 ≥ 7 時顯示,圓點陣列 = 已完成/未完成比例,+N = 超出格子顯示範圍數量
-                    顯示條件: totalTaskCount >= 7,徽章值 +N = totalTaskCount - 6 */}
-                {totalTaskCount >= 7 && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDayClick(dateStr);
-                    }}
-                    className="absolute bottom-1 right-1 flex items-center gap-0.5 px-1 h-[16px] rounded-md text-[10px] font-semibold hover:opacity-90 transition-opacity"
-                    style={{
-                      background: "var(--brand)",
-                      color: "var(--brand-foreground)",
-                      lineHeight: 1,
-                    }}
-                    aria-label={`總共 ${totalTaskCount} 項任務,已完成 ${doneCount} 項,點擊查看全部`}
-                  >
-                    {/* 已完成圓點 (最多 6 個,前段根據完成數填實心) */}
-                    {Array.from({ length: Math.min(totalTaskCount, 6) }).map((_, idx) => (
-                      <span
-                        key={idx}
-                        className="inline-block w-1.5 h-1.5 rounded-full"
-                        style={{
-                          background: idx < doneCount ? "var(--brand-foreground)" : "transparent",
-                          border: idx < doneCount ? "none" : "1px solid var(--brand-foreground)",
-                        }}
-                        aria-hidden="true"
-                      />
+                {/* [§I 方案 v2] 格子內任務標題堆疊: 最多渲染前 6 個未完成任務
+                    - text-[11px] + text-tertiary + truncate: 用戶選項 1A+2A+3A
+                    - flex-1 + overflow-hidden: 格子空間自動截斷多餘任務 */}
+                {visibleTasks.length > 0 && (
+                  <div className="flex-1 min-h-0 px-1 overflow-hidden flex flex-col">
+                    {visibleTasks.map((task) => (
+                      <div
+                        key={task.id}
+                        className="text-[11px] leading-[14px] truncate"
+                        style={{ color: "var(--text-tertiary)" }}
+                        title={task.title}
+                      >
+                        {task.title}
+                      </div>
                     ))}
-                    {/* +N 表示超出 6 個顯示範圍的數量 */}
-                    {totalTaskCount > 6 && (
-                      <span className="ml-0.5 tabular-nums">+{totalTaskCount - 6}</span>
-                    )}
-                  </button>
+                  </div>
                 )}
 
-                {/* [D v3] 移除任務標題預覽 (per §21 user feedback + §23 a3d5954 徽章保留) */}
-                {/* 保留: 搜尋高亮「✓ 符合」標記 (即使沒任務也顯示) */}
-                {taskCount === 0 && isSearchMatch && (
+                {/* [§I 方案 v2] 右下徽章: 純文字 +N (用戶選項 4A+5A)
+                    條件: overflowCount > 0 (即未完成總數 > 渲染數)
+                    樣式: text-[10px] 無背景無邊框,僅 tabular-nums 等寬數字 */}
+                {overflowCount > 0 && (
+                  <div
+                    className="absolute bottom-0.5 right-1 text-[10px] font-semibold tabular-nums pointer-events-none"
+                    style={{ color: "var(--text-tertiary)" }}
+                    aria-label={`還有 ${overflowCount} 項未完成任務未顯示`}
+                  >
+                    +{overflowCount}
+                  </div>
+                )}
+
+                {/* 搜尋高亮「✓ 符合」標記 (即使沒任務也顯示) */}
+                {pendingCount === 0 && isSearchMatch && (
                   <div className="flex-1 flex items-start justify-center px-1 pt-0.5">
                     <span className="text-[10px] font-medium" style={{ color: "var(--brand)" }}>✓</span>
                   </div>
