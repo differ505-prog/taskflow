@@ -104,9 +104,6 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
       if (start && !end) return dateStr === start;
       return false;
     });
-    if (result.length > 0) {
-      console.log(`[CalendarDebug][getTasksForDay] date=${dateStr} matched=${result.length}`, result.map((t) => ({ id: t.id, title: t.title, status: t.status, start: t.startDate, end: t.dueDate })));
-    }
     return result;
   };
 
@@ -229,8 +226,8 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
           ))}
         </div>
 
-        {/* Calendar cells - 日曆格子 5 行，釋放空間給面板 */}
-        <div className="grid grid-cols-7 gap-px" style={{ background: "var(--border)", height: "calc(72px * 5)" }}>
+        {/* Calendar cells - 5 行。高度刻意小於 6 行的 1/5,留給下方任務面板,避免 31/8/1 被「新增任務」輸入框擋住 */}
+        <div className="grid grid-cols-7 gap-px" style={{ background: "var(--border)", height: "calc(56px * 5)" }}>
           {days.map((day, i) => {
             const isCurrentMonth = isSameMonth(day, currentMonth);
             const isTodayDate = isToday(day);
@@ -239,11 +236,6 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
             const isSelected = selectedDate === dateStr;
             const taskCount = dayTasks.filter((t) => t.status !== "done").length;
             const isSearchMatch = matchedDayHas(dayTasks);
-            const todoOnly = dayTasks.filter((t) => t.status !== "done");
-            // [§15 插樁 #2/#3/#4] 檢視日任務有沒有真的進到預覽
-            if (dayTasks.length > 0) {
-              console.log(`[CalendarDebug][render] date=${dateStr} total=${dayTasks.length} taskCount(todo)=${taskCount} todoOnlyLen=${todoOnly.length} currentMonth=${isCurrentMonth} isSelected=${isSelected}`);
-            }
 
             return (
               <div
@@ -255,7 +247,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                     : isCurrentMonth
                     ? "var(--surface)"
                     : "var(--surface-muted)",
-                  minHeight: 72,
+                  minHeight: 56,
                 }}
                 onClick={() => handleDayClick(dateStr)}
                 onDragOver={handleDragOver}
@@ -289,8 +281,8 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                   )}
                 </div>
 
-                {/* [D 方案 v2] 隱藏任務徽章 - 右上角顯示「溢出數」(>2 才出現),核心總數已移到 day number 下方 */}
-                {taskCount > 2 && (
+                {/* [D v3 + a3d5954 徽章] 右上角徽章: 僅當任務數 ≥ 5 時顯示,作為「任務爆量」視覺提示 */}
+                {taskCount >= 5 && (
                   <button
                     type="button"
                     onClick={(e) => {
@@ -303,80 +295,19 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                       color: "var(--brand-foreground)",
                       lineHeight: 1,
                     }}
-                    aria-label={`還有 ${taskCount - 2} 項任務未顯示，點擊查看`}
+                    aria-label={`${taskCount} 項任務,點擊查看全部`}
                   >
-                    +{taskCount - 2}
+                    {taskCount}
                   </button>
                 )}
 
-                {/* Task indicator - 前 2 條任務預覽 + 「+N more」溢出指示（§8 防禦性 UI） */}
-                <div className="flex-1 flex flex-col items-stretch justify-start px-1 pb-1 gap-0.5 min-w-0">
-                  {taskCount > 0 ? (
-                    <>
-                      {dayTasks
-                        .filter((t) => t.status !== "done")
-                        .slice(0, 2)
-                        .map((t) => {
-                          const dotColor = getPriorityDotColor(t.priority);
-                          return (
-                            <div
-                              key={t.id}
-                              className="flex items-center gap-1 min-w-0 rounded-sm px-0.5"
-                              style={{
-                                outline: isSearchMatch ? "1.5px solid var(--brand)" : "none",
-                                outlineOffset: "-1.5px",
-                              }}
-                            >
-                              <span
-                                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                                style={{ background: dotColor }}
-                                aria-hidden="true"
-                              />
-                              <span
-                                className="text-[10px] font-medium truncate min-w-0 flex-1"
-                                style={{ color: isCurrentMonth ? "var(--text-secondary)" : "var(--text-tertiary)" }}
-                                title={t.title}
-                              >
-                                {t.title}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      {(() => {
-                        const remaining = taskCount - 2;
-                        if (remaining > 0) {
-                          // [D 方案] 改為右上角徽章 — 移到這裡由父層渲染,避免被 flex 截斷
-                          return null;
-                        }
-                        if (isSearchMatch) {
-                          return (
-                            <span className="text-[10px] font-medium px-0.5" style={{ color: "var(--brand)" }}>
-                              ✓ 符合
-                            </span>
-                          );
-                        }
-                        return null;
-                      })()}
-                    </>
-                  ) : isSearchMatch ? (
-                    <div
-                      className="w-full rounded-md py-0.5 px-1 text-center"
-                      style={{
-                        background: "rgba(0,0,0,0.03)",
-                        outline: "1.5px solid var(--brand)",
-                        outlineOffset: "-1.5px",
-                      }}
-                    >
-                      <span className="text-[10px] font-medium" style={{ color: "var(--brand)" }}>
-                        ✓ 符合
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="w-full rounded-md py-0.5 text-center opacity-0">
-                      <span className="text-[10px]">-</span>
-                    </div>
-                  )}
-                </div>
+                {/* [D v3] 移除任務標題預覽 (per §21 user feedback + §23 a3d5954 徽章保留) */}
+                {/* 保留: 搜尋高亮「✓ 符合」標記 (即使沒任務也顯示) */}
+                {taskCount === 0 && isSearchMatch && (
+                  <div className="flex-1 flex items-start justify-center px-1 pt-0.5">
+                    <span className="text-[10px] font-medium" style={{ color: "var(--brand)" }}>✓</span>
+                  </div>
+                )}
               </div>
             );
           })}
