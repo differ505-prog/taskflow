@@ -205,8 +205,8 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
           ))}
         </div>
 
-        {/* Calendar cells - 日曆格子可壓縮，讓面板拿到剩餘空間 */}
-        <div className="grid grid-cols-7 gap-px" style={{ background: "var(--border)", height: "calc(72px * 6)" }}>
+        {/* Calendar cells - 日曆格子 5 行，釋放空間給面板 */}
+        <div className="grid grid-cols-7 gap-px" style={{ background: "var(--border)", height: "calc(72px * 5)" }}>
           {days.map((day, i) => {
             const isCurrentMonth = isSameMonth(day, currentMonth);
             const isTodayDate = isToday(day);
