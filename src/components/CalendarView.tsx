@@ -160,6 +160,35 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
     setQuickAddTitle("");
   };
 
+  // DEBUG: 測量 flex 容器鏈真實高度
+  useEffect(() => {
+    if (!selectedDate) return;
+    const id = setTimeout(() => {
+      const r = {
+        body: document.body.offsetHeight,
+        root: document.querySelector('[class*="h-[100dvh]"]')?.parentElement?.offsetHeight ?? -1,
+        main: document.querySelector('[class*="flex-1 min-w-0 flex flex-col"]')?.parentElement?.offsetHeight ?? -1,
+        inner: document.querySelector('[class*="flex-1 min-h-0 p-4"]')?.parentElement?.offsetHeight ?? -1,
+        header: document.querySelector('[class*="items-center justify-between mb-4"]')?.parentElement?.offsetHeight ?? -1,
+        weekday: document.querySelector('[class*="grid-cols-7 mb-2"]')?.offsetHeight ?? -1,
+        grid: document.querySelector('[class*="grid-cols-7 gap-px"]')?.offsetHeight ?? -1,
+        panel: document.querySelector('[class*="border-t flex flex-col"]')?.offsetHeight ?? -1,
+        panelScroll: document.querySelector('[class*="border-t flex flex-col"]')?.scrollHeight ?? -1,
+      };
+      const content = r.panelScroll;
+      const avail  = r.panel;
+      const canScroll = avail > 0 && content > avail;
+      window.alert(
+        `flex 鏈實測 (px)\n` +
+        `body=${r.body} root=${r.root} main=${r.main}\n` +
+        `inner=${r.inner} header=${r.header} weekday=${r.weekday}\n` +
+        `grid=${r.grid} panel=${r.panel}\n` +
+        `panel.scrollHeight=${r.panelScroll} canScroll=${canScroll}`
+      );
+    }, 500);
+    return () => clearTimeout(id);
+  }, [selectedDate]);
+
   return (
     <div className="flex flex-col h-full">
       {/* 日曆區域 - flex-1 佔滿剩餘空間 */}
