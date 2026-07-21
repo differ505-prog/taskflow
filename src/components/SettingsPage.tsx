@@ -293,6 +293,9 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: "rgba(0,0,0,0.35)", backdropFilter: "blur(6px)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="settings-title"
     >
       <motion.div
         initial={{ scale: 0.95, y: 10 }}
@@ -303,7 +306,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
       >
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-5" style={{ background: "var(--surface-elevated)", borderBottom: "1px solid var(--border)" }}>
-          <h2 className="text-[17px] font-semibold" style={{ color: "var(--text-primary)" }}>設定</h2>
+          <h2 id="settings-title" className="text-[17px] font-semibold" style={{ color: "var(--text-primary)" }}>設定</h2>
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-black/5 transition-colors" style={{ color: "var(--text-tertiary)" }} aria-label="關閉設定">
             <X className="w-5 h-5" />
           </button>
@@ -323,6 +326,8 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                   key={opt.value}
                   onClick={() => handleThemeChange(opt.value)}
                   className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[14px] font-medium transition-all duration-150 border"
+                  aria-label={`切換至${opt.label}模式`}
+                  aria-pressed={theme === opt.value}
                   style={
                     theme === opt.value
                       ? { background: "var(--brand-tint)", borderColor: "var(--brand)", color: "var(--brand)" }
@@ -526,7 +531,9 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
 
                   {/* Add Beta User */}
                   <div className="flex gap-2 mb-3">
+                    <label htmlFor="beta-email-input" className="sr-only">Beta 用戶 Email</label>
                     <input
+                      id="beta-email-input"
                       type="email"
                       value={newBetaEmail}
                       onChange={(e) => setNewBetaEmail(e.target.value)}
@@ -633,7 +640,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                   <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>專注時間結束時通知</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" defaultChecked />
+                  <input type="checkbox" className="sr-only peer" defaultChecked aria-label="番茄鐘提醒" />
                   <div className="w-11 h-6 rounded-full peer peer-checked:bg-brand bg-black/10 transition-colors" />
                   <div className="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5" />
                 </label>
