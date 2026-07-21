@@ -319,7 +319,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
             maxHeight: "min(720px, 75vh)",
           }}
         >
-          <div className="p-4 flex flex-col overscroll-contain flex-1 min-h-0 overflow-y-auto">
+          <div className="px-4 pt-4 pb-6 flex flex-col overscroll-contain flex-1 min-h-0 overflow-y-auto">
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
