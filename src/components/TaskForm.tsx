@@ -334,7 +334,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                     {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                   </button>
                 </div>
-                {errors.title && <p className="mt-1.5 text-[12px]" style={{ color: "var(--status-danger)" }}>{errors.title}</p>}
+                {errors.title && <p className="mt-1.5 text-[12px] px-2.5 py-1.5 rounded-lg" style={{ background: "rgba(239,68,68,0.08)", color: "var(--status-danger)" }}>{errors.title}</p>}
               </div>
 
               {/* AI 自動任務拆解（PRO 幽靈按鈕） */}

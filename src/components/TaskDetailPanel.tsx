@@ -491,7 +491,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="任務標題"
-              className="w-full text-[16px] font-medium bg-transparent border-none outline-none placeholder:text-[var(--text-tertiary)]"
+              className="w-full text-[16px] font-medium bg-transparent border-none placeholder:text-[var(--text-tertiary)] focus-visible:outline-none"
               style={{ color: "var(--text-primary)" }}
               maxLength={200}
               autoComplete="off"
@@ -521,7 +521,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             </motion.button>
           </div>
           {!title.trim() && (
-            <p className="mt-1 text-[12px]" style={{ color: "var(--status-danger)" }}>標題必填</p>
+            <p className="mt-1 text-[12px] px-2.5 py-1.5 rounded-lg" style={{ background: "rgba(239,68,68,0.08)", color: "var(--status-danger)" }}>標題必填</p>
           )}
           <AnimatePresence>
             {voiceError && (

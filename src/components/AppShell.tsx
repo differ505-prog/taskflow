@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useApp } from "@/lib/AppContext";
+import { useConfirm } from "@/hooks/useConfirm";
 import { Task, AppView, TaskList } from "@/lib/types";
 import { TaskCard } from "./TaskCard";
 import { TaskSwipeWrapper } from "./SwipeableTaskCard";
 import { TaskForm } from "./TaskForm";
 import { EmptyState } from "./EmptyState";
 import { TaskListItem } from "./TaskListItem";
+import { TaskListSkeleton } from "./TaskListSkeleton";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   X, LayoutGrid, List,
@@ -71,6 +73,7 @@ export function AppShell({
     quickAddToShared, updateSharedTask, deleteSharedTask,
     getMyRole,
   } = useApp();
+  const confirm = useConfirm();
 
   const listTasks = currentListId ? tasks.filter(t => t.listId === currentListId) : [];
 
@@ -321,7 +324,7 @@ export function AppShell({
                       if (e.key === "Escape") { setSharedQuickAddInput(""); sharedQuickAddRef.current?.blur(); }
                     }}
                     placeholder="新增任務至共用清單..."
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl text-[14px] transition-all duration-150 focus:outline-none"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl text-[14px] transition-all duration-150 focus-visible:outline-none"
                     style={{
                       background: "var(--surface-muted)",
                       border: "1px solid var(--border)",
@@ -653,10 +656,11 @@ function ArchivedTasksView() {
                 <RotateCcw className="w-4 h-4" />
               </button>
               <button
-                onClick={() => deleteTask(task.id)}
+                onClick={() => { if (window.confirm(`「${task.title}」將永久刪除，無法復原。`)) deleteTask(task.id); }}
                 className="p-2 rounded-xl transition-all duration-150 hover:scale-105 active:scale-95"
                 style={{ color: "var(--status-danger)", background: "rgba(239,68,68,0.1)" }}
                 title="永久刪除"
+                aria-label="刪除任務"
               >
                 <Trash2 className="w-4 h-4" />
               </button>

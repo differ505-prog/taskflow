@@ -167,7 +167,7 @@ export function GlobalSearchBar({ className = "", onSelectTask, onNavigateToTask
                         key={task.id}
                         type="button"
                         onClick={() => handleSelect(task)}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-black/5 focus:bg-black/5 focus:outline-none"
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-black/5 focus:bg-black/5 focus-visible:outline-none"
                         role="option"
                         aria-selected="false"
                       >

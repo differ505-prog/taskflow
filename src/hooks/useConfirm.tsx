@@ -1,10 +1,23 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
-import { ConfirmDialog, type ConfirmOptions } from "@/components/ConfirmDialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+
+export type ConfirmTone = "danger" | "warning" | "info";
+
+export interface ConfirmOptions {
+  title: string;
+  message: string;
+  impactDetail?: string;
+  confirmText?: string;
+  cancelText?: string;
+  tone?: ConfirmTone;
+}
+
+type ConfirmFn = (opts: ConfirmOptions) => Promise<boolean>;
 
 interface ConfirmContextValue {
-  confirm: (opts: ConfirmOptions) => Promise<boolean>;
+  confirm: ConfirmFn;
 }
 
 const ConfirmContext = createContext<ConfirmContextValue | null>(null);
@@ -16,7 +29,7 @@ interface ConfirmRequest extends ConfirmOptions {
 export function ConfirmProvider({ children }: { children: ReactNode }) {
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
 
-  const confirm = useCallback((opts: ConfirmOptions) => {
+  const confirm = useCallback<ConfirmFn>((opts: ConfirmOptions) => {
     return new Promise<boolean>((resolve) => {
       setRequest({ ...opts, resolve });
     });
@@ -51,7 +64,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useConfirm(): ConfirmContextValue["confirm"] {
+export function useConfirm(): ConfirmFn {
   const ctx = useContext(ConfirmContext);
   if (!ctx) {
     throw new Error("useConfirm must be used within <ConfirmProvider>");
