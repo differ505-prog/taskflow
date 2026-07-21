@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useApp } from "@/lib/AppContext";
 import { Task } from "@/lib/types";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
@@ -28,6 +28,26 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
   // 已完成任務摺疊：key = `${dateStr}`,value = 是否展開（未存 = 已折疊）
   const [doneExpanded, setDoneExpanded] = useState<Record<string, boolean>>({});
   const quickAddInputRef = useRef<HTMLInputElement | null>(null);
+  const taskPanelRef = useRef<HTMLDivElement | null>(null);
+  const observerRef = useRef<ResizeObserver | null>(null);
+  const [taskPanelHeight, setTaskPanelHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    observerRef.current = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setTaskPanelHeight(entry.contentRect.height);
+      }
+    });
+    return () => observerRef.current?.disconnect();
+  }, []);
+
+  const measureTaskPanel = useCallback((node: HTMLDivElement | null) => {
+    if (taskPanelRef.current) observerRef.current?.unobserve(taskPanelRef.current);
+    if (node) {
+      observerRef.current?.observe(node);
+      taskPanelRef.current = node;
+    }
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -296,10 +316,16 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
 
       {/* 任務列表展開區域 */}
       {selectedDate && mounted && (
-        <div className="min-h-0 max-h-[70vh] border-t flex flex-col transition-all duration-200 overflow-y-auto"
-          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+        <div
+          ref={measureTaskPanel}
+          className="min-h-0 border-t flex flex-col transition-all duration-200 overflow-y-auto"
+          style={{
+            borderColor: "var(--border)",
+            background: "var(--surface)",
+            maxHeight: taskPanelHeight ? `${taskPanelHeight}px` : "70vh",
+          }}
         >
-        <div className="p-4 flex flex-col overflow-y-auto overscroll-contain">
+          <div className="p-4 flex flex-col overflow-y-auto overscroll-contain">
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
@@ -360,7 +386,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                 const done = selectedDateTasks.filter((t) => t.status === "done");
                 const isDoneOpen = !!doneExpanded[selectedDate];
                 return (
-                  <div className="space-y-2 flex flex-col overflow-y-auto" style={{ maxHeight: "calc(70vh - 140px)" }}>
+                  <div className="space-y-2 flex flex-col">
                     {todo.map((task) => (
                       <SwipeableTaskCard
                         key={task.id}
