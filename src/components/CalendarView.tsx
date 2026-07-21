@@ -191,8 +191,8 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
 
   return (
     <div className="flex flex-col h-full">
-      {/* 日曆區域 - flex-1 佔滿剩餘空間 */}
-      <div className="flex-1 min-h-0 p-4 md:p-6 flex flex-col">
+      {/* 日曆區域 - 讓整個日曆內容可滾動，grid 固定 432px */}
+      <div className="flex-1 min-h-0 p-4 md:p-6 flex flex-col overflow-y-auto overscroll-contain">
         {/* Month header */}
         <div className="flex items-center justify-between mb-4 md:mb-5 flex-shrink-0">
           <h1 className="text-[18px] font-semibold" style={{ color: "var(--text-primary)" }}>
