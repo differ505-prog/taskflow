@@ -276,7 +276,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
         </div>
       </div>
 
-      {/* 任務列表展開區域 - 固定最大高度，內部可滾動 */}
+      {/* 任務列表展開區域 - flex-1 填滿剩餘空間，內部滾動 */}
       <AnimatePresence>
         {selectedDate && (
           <motion.div
@@ -284,10 +284,10 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-            className="flex-shrink-0 border-t"
-            style={{ borderColor: "var(--border)", background: "var(--surface)", maxHeight: "calc(100dvh - 120px)", overflowY: "auto" }}
+            className="flex-shrink-0 border-t flex flex-col"
+            style={{ borderColor: "var(--border)", background: "var(--surface)" }}
           >
-            <div className="p-4">
+            <div className="p-4 flex flex-col flex-1 min-h-0">
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
@@ -327,7 +327,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                   className="input flex-1"
                   style={{ fontSize: 14, padding: "10px 14px" }}
                 />
-                <button type="submit" className="btn-primary py-2.5 px-4 flex items-center gap-1.5">
+                <button type="submit" className="btn-primary py-2.5 px-4 flex items-center gap-1.5 flex-shrink-0">
                   <Plus className="w-4 h-4" />
                   新增
                 </button>
@@ -335,7 +335,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
 
               {/* Task list - 任務可點擊，與日曆格子完全分離 */}
               {selectedDateTasks.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 gap-2">
+                <div className="flex flex-col items-center justify-center py-8 gap-2 flex-shrink-0">
                   <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "var(--surface-muted)" }}>
                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: "var(--text-tertiary)" }}>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -348,7 +348,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                 const done = selectedDateTasks.filter((t) => t.status === "done");
                 const isDoneOpen = !!doneExpanded[selectedDate];
                 return (
-                  <div className="space-y-2">
+                  <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-2">
                     {todo.map((task) => (
                       <SwipeableTaskCard
                         key={task.id}
