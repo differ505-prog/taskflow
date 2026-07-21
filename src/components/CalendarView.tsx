@@ -28,40 +28,6 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
   // 已完成任務摺疊：key = `${dateStr}`,value = 是否展開（未存 = 已折疊）
   const [doneExpanded, setDoneExpanded] = useState<Record<string, boolean>>({});
   const quickAddInputRef = useRef<HTMLInputElement | null>(null);
-  const taskPanelRef = useRef<HTMLDivElement | null>(null);
-  const observerRef = useRef<ResizeObserver | null>(null);
-  const [taskPanelHeight, setTaskPanelHeight] = useState<number | null>(null);
-
-  useEffect(() => {
-    observerRef.current = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        // 一次寫入採 debounce，避免滾動/transition 期間連續 setState 造成 re-render storm
-        requestAnimationFrame(() => {
-          setTaskPanelHeight(entry.contentRect.height);
-        });
-      }
-    });
-    return () => observerRef.current?.disconnect();
-  }, []);
-
-  // §15 視窗 resize 主動重算：避免 orientation 或 dock 高度改變後量測值停留在舊值
-  useEffect(() => {
-    const onResize = () => {
-      if (taskPanelRef.current) {
-        setTaskPanelHeight(taskPanelRef.current.getBoundingClientRect().height);
-      }
-    };
-    window.addEventListener("resize", onResize, { passive: true });
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
-  const measureTaskPanel = useCallback((node: HTMLDivElement | null) => {
-    if (taskPanelRef.current) observerRef.current?.unobserve(taskPanelRef.current);
-    if (node) {
-      observerRef.current?.observe(node);
-      taskPanelRef.current = node;
-    }
-  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -339,12 +305,10 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
       {/* 任務列表展開區域 */}
       {selectedDate && mounted && (
         <div
-          ref={measureTaskPanel}
-          className="calendar-task-panel min-h-0 flex-1 border-t flex flex-col overflow-y-auto"
+          className="calendar-task-panel min-h-0 flex-1 border-t flex flex-col overflow-y-auto max-h-[70vh] sm:max-h-[60vh]"
           style={{
             borderColor: "var(--border)",
             background: "var(--surface)",
-            maxHeight: taskPanelHeight ? `${taskPanelHeight}px` : "70vh",
           }}
         >
           <div className="p-4 flex flex-col overscroll-contain">
