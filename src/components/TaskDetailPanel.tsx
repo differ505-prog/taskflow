@@ -67,11 +67,12 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     return () => clearEditingActivity(task.id);
   }, [task.id, markEditingActivity, clearEditingActivity]);
 
-  // 任務切換時滾動到面板頂部
+  // 任務切換時滾動到面板頂部（Safari 需多幀確認）
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = 0;
-    }
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: 0, behavior: 'auto' });
+    requestAnimationFrame(() => el.scrollTo({ top: 0, behavior: 'auto' }));
   }, [task.id]);
 
   const [title, setTitle] = useState(task.title);
