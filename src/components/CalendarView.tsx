@@ -26,16 +26,13 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
 
   useEffect(() => {
     setMounted(true);
-    console.log("[CalendarView] mounted, selectedDate:", null, "tasks:", tasks.length);
   }, []);
 
   useEffect(() => {
-    console.log("[CalendarView] selectedDate changed:", selectedDate, "| mounted:", mounted, "| tasks:", tasks.length);
-  }, [selectedDate, mounted, tasks.length]);
-
-  useEffect(() => {
-    console.log("[CalendarView] selectedDateTasks:", selectedDateTasks.length, "| todo:", selectedDateTasks.filter(t => t.status !== "done").length);
-  }, [selectedDateTasks]);
+    if (selectedDate && quickAddInputRef.current) {
+      quickAddInputRef.current.focus();
+    }
+  }, [selectedDate]);
 
   const days = useMemo(() => {
     const start = startOfMonth(currentMonth);
@@ -117,6 +114,10 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
         return false;
       })
     : [];
+
+  useEffect(() => {
+    console.log("[CalendarView] selectedDateTasks:", selectedDateTasks.length, "| todo:", selectedDateTasks.filter(t => t.status !== "done").length);
+  }, [selectedDateTasks]);
 
   // Drag and drop
   const handleDragStart = (taskId: string) => setDraggingTask(taskId);
