@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useApp } from "@/lib/AppContext";
 import { Task } from "@/lib/types";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
@@ -160,49 +160,10 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
     setQuickAddTitle("");
   };
 
-  // DEBUG: 讀取整條 flex 父子鏈的真實高度
-  const [debugId, setDebugId] = useState(0);
-  useEffect(() => {
-    if (!selectedDate) return;
-    const id = setTimeout(() => {
-      // root = 外層 h-[100dvh] flex
-      // parent = CalendarView 根 div (h-full flex-col)
-      // inner  = 日曆區 div (flex-1 min-h-0)
-      // grid   = 日曆格子 div (flex-shrink-0, height:calc(72px*6))
-      // panel  = 任務面板 div (flex-1 min-h-0 overflow-y-auto)
-      // body   = AppLayout 根 div (h-[100dvh] overflow-hidden)
-      const body = document.querySelector('[style*="100dvh"]');
-      const root = document.querySelector('.flex.h-\\[100dvh\\]');
-      const parent = document.querySelector('.CalendarViewRoot, [class*="flex-col h-full"]') as HTMLElement;
-      const inner = document.querySelector('.CalendarViewInner') as HTMLElement;
-      const grid = document.querySelector('.CalendarViewGrid') as HTMLElement;
-      const panel = document.querySelector('.CalendarViewPanel') as HTMLElement;
-      const panelInner = document.querySelector('.CalendarViewPanelInner') as HTMLElement;
-
-      let msg = `[DEBUG flex 鏈]\n`;
-      const add = (name: string, el: HTMLElement | null, extra = "") => {
-        if (!el) { msg += `${name}: null\n`; return; }
-        const s = getComputedStyle(el);
-        const h = el.offsetHeight;
-        msg += `${name}: offsetHeight=${h} flexGrow=${s.flexGrow} flexShrink=${s.flexShrink} flexBasis=${s.flexBasis} overflow=${s.overflow} overflowY=${s.overflowY}\n`;
-        if (extra) msg += `  ${extra}\n`;
-      };
-      add("body", body as HTMLElement);
-      add("root", root as HTMLElement);
-      add("parent", parent);
-      add("inner", inner);
-      add("grid", grid);
-      add("panel", panel);
-      add("panelInner", panelInner);
-      window.alert(msg);
-    }, 600);
-    return () => clearTimeout(id);
-  }, [selectedDate, debugId]);
-
   return (
-    <div className="flex flex-col h-full CalendarViewRoot">
+    <div className="flex flex-col h-full">
       {/* 日曆區域 - flex-1 佔滿剩餘空間 */}
-      <div className="flex-1 min-h-0 p-4 md:p-6 flex flex-col CalendarViewInner">
+      <div className="flex-1 min-h-0 p-4 md:p-6 flex flex-col">
         {/* Month header */}
         <div className="flex items-center justify-between mb-4 md:mb-5 flex-shrink-0">
           <h1 className="text-[18px] font-semibold" style={{ color: "var(--text-primary)" }}>
@@ -244,8 +205,8 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
           ))}
         </div>
 
-        {/* Calendar cells - 固定高度，避免 flex-1 把剩餘空間全吃掉 */}
-        <div className="grid grid-cols-7 gap-px flex-shrink-0 CalendarViewGrid" style={{ background: "var(--border)", height: "calc(72px * 6)" }}>
+        {/* Calendar cells - 日曆格子可壓縮，讓面板拿到剩餘空間 */}
+        <div className="grid grid-cols-7 gap-px" style={{ background: "var(--border)", height: "calc(72px * 6)" }}>
           {days.map((day, i) => {
             const isCurrentMonth = isSameMonth(day, currentMonth);
             const isTodayDate = isToday(day);
@@ -335,10 +296,10 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
 
       {/* 任務列表展開區域 */}
       {selectedDate && mounted && (
-        <div className="flex-1 min-h-0 border-t flex flex-col transition-all duration-200 overflow-y-auto CalendarViewPanel"
+        <div className="flex-1 min-h-0 border-t flex flex-col transition-all duration-200 overflow-y-auto"
           style={{ borderColor: "var(--border)", background: "var(--surface)" }}
         >
-            <div className="p-4 flex flex-col CalendarViewPanelInner">
+            <div className="p-4 flex flex-col">
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
