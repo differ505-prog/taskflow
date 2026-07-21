@@ -86,6 +86,7 @@ export function AppShell({
   const [sharedQuickAddInput, setSharedQuickAddInput] = useState("");
   const sharedQuickAddRef = useRef<HTMLInputElement>(null);
   const quickAddRef = useRef<HTMLInputElement>(null);
+  const brainDumpRef = useRef<HTMLTextAreaElement>(null);
 
   // 觀看者模式：Viewer 在 shared list 是唯讀的
   const sharedRole = currentSharedListId ? getMyRole(currentSharedListId) : null;
@@ -109,7 +110,13 @@ export function AppShell({
     quickAdd(quickAddInput, currentView);
     setQuickAddInput("");
     // L3.5「無摩擦連擊輸入」：Enter 建立任務後，游標留在輸入框，可盲打連續新增
-    quickAddRef.current?.focus();
+    // 收集箱空狀態時 focus textarea，其他狀態 focus input
+    if (currentView === "inbox" && brainDumpRef.current) {
+      brainDumpRef.current.focus();
+      brainDumpRef.current.style.height = "auto";
+    } else {
+      quickAddRef.current?.focus();
+    }
   }, [quickAdd, quickAddInput, currentView]);
 
   const handleSharedQuickAdd = useCallback(() => {
@@ -410,10 +417,84 @@ export function AppShell({
                 )}
               </>
             ) : displayTasks.length === 0 ? (
-              <EmptyState
-                onAddTask={() => setIsFormOpen(true)}
-                variant={currentView === "inbox" ? "inbox" : "general"}
-              />
+              // 收集箱空狀態 = Brain-dump 模式：只有一個巨大的輸入框作為唯一入口
+              currentView === "inbox" ? (
+                <div className="flex flex-col items-center justify-center flex-1 py-12 px-4">
+                  <motion.div
+                    className="w-full max-w-md"
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+                  >
+                    {/* 柔性標題 */}
+                    <div className="text-center mb-8">
+                      <h2 className="text-[20px] font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
+                        把腦中的東西倒出來
+                      </h2>
+                      <p className="text-[14px]" style={{ color: "var(--text-tertiary)" }}>
+                        想到什麼就寫什麼，不用組織，不用分類
+                      </p>
+                    </div>
+                    {/* 巨大的 Brain-dump 輸入框 */}
+                    <div className="relative">
+                        <textarea
+                        ref={(el) => {
+                          if (el) {
+                            brainDumpRef.current = el;
+                            // 空狀態時自動 focus
+                            setTimeout(() => el.focus(), 100);
+                          }
+                        }}
+                        value={quickAddInput}
+                        onChange={(e) => {
+                          setQuickAddInput(e.target.value);
+                          // textarea auto-resize
+                          e.target.style.height = "auto";
+                          e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`;
+                        }}
+                        onKeyDown={(e) => {
+                          if (isComposingKey(e)) return;
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleQuickAdd();
+                            const target = e.target as HTMLTextAreaElement;
+                            target.style.height = "auto";
+                          }
+                        }}
+                        placeholder="寫下任何東西... 按 Enter 直接變成任務"
+                        rows={3}
+                        className="w-full resize-none rounded-2xl px-5 py-4 text-[16px] placeholder:text-[var(--text-tertiary)] focus:outline-none transition-all duration-200"
+                        style={{
+                          background: "var(--surface-elevated)",
+                          border: "2px solid var(--border)",
+                          boxShadow: "var(--shadow-md)",
+                          color: "var(--text-primary)",
+                          lineHeight: 1.5,
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = "var(--brand)";
+                          e.target.style.boxShadow = "0 0 0 4px rgba(59,130,246,0.12), var(--shadow-md)";
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = "var(--border)";
+                          e.target.style.boxShadow = "var(--shadow-md)";
+                        }}
+                      />
+                      {/* 提示文字 */}
+                      <div className="mt-3 flex items-center justify-center gap-2">
+                        <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+                          支援自然語言：明天下午3點 #工作 p1
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+              ) : (
+                <EmptyState
+                  onAddTask={() => setIsFormOpen(true)}
+                  variant="general"
+                />
+              )
             ) : (
               <>
                 {/* Toolbar */}
@@ -444,6 +525,36 @@ export function AppShell({
                     )}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* 「今天先這樣」按鈕 — ADHD 友善：給使用者「重新開始」的權利 */}
+                    {!["today", "next7days", "list", "archived"].includes(currentView) &&
+                      filteredTasks.some((t) => t.status !== "done") && (
+                      <button
+                        onClick={async () => {
+                          const pendingCount = filteredTasks.filter((t) => t.status !== "done").length;
+                          const ok = await confirm({
+                            title: "今天先這樣？",
+                            message: `把 ${pendingCount} 項未完成的任務收起來，明天又是新的開始。`,
+                            confirmText: "好，明天再說",
+                            cancelText: "再想想",
+                            tone: "info",
+                          });
+                          if (ok) {
+                            filteredTasks
+                              .filter((t) => t.status !== "done")
+                              .forEach((t) => archiveTask(t.id));
+                          }
+                        }}
+                        className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 rounded-full text-[12px] font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
+                        style={{ background: "rgba(120,119,198,0.12)", color: "var(--text-secondary)" }}
+                        title="把未完成的任務收起來，給自己一個乾淨的開始"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                          <path d="M1 6C1 3.24 3.24 1 6 1s5 2.24 5 5-2.24 5-5 5-5-2.24-5-5Z" stroke="currentColor" strokeWidth="1.2"/>
+                          <path d="M4 6l1.5 1.5L8 4.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        今天先這樣
+                      </button>
+                    )}
                     {/* Search bar moved to GlobalSearchBar (rendered in AppLayout, above all views) */}
                     <div className="flex items-center gap-0.5 p-1 rounded-xl" style={{ background: "rgba(0,0,0,0.04)" }}>
                       <button onClick={() => setViewMode("list")} className="p-1.5 rounded-lg transition-all duration-150" style={viewMode === "list" ? { background: "var(--surface)", boxShadow: "var(--shadow-xs)", color: "var(--text-primary)" } : { color: "var(--text-tertiary)" }} aria-label="列表檢視">
