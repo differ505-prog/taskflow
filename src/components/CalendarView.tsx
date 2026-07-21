@@ -129,6 +129,11 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
       })
     : [];
 
+  // [DEBUG] 刷新後日曆任務列表長度
+  if (typeof window !== "undefined" && selectedDate) {
+    console.log(`[CalendarView] selectedDate=${selectedDate} selectedDateTasks=${selectedDateTasks.length} tasks=${tasks.length}`);
+  }
+
   // Drag and drop
   const handleDragStart = (taskId: string) => setDraggingTask(taskId);
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
