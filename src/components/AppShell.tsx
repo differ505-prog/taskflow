@@ -31,7 +31,7 @@ const VIEW_LABELS: Record<AppView, string> = {
   shared: "共用清單",
   archived: "已封存",
   pinned: "置頂",
-  quadrant: "Quadrant Radar",
+  quadrant: "緩急圖",
 };
 
 interface AppShellProps {

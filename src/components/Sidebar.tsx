@@ -46,7 +46,7 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
     { view: "inbox", label: "收集箱", icon: <Inbox className="w-[18px] h-[18px]" />, count: viewCounts.inbox, badge: "GTD" },
     { view: "today", label: "今天", icon: <Sun className="w-[18px] h-[18px]" />, count: viewCounts.today, badge: viewCounts.today > 0 ? String(viewCounts.today) : undefined },
     { view: "next7days", label: "未來 7 天", icon: <CalendarDays className="w-[18px] h-[18px]" />, count: viewCounts.next7days },
-    { view: "quadrant", label: "Quadrant Radar", icon: <Gauge className="w-[18px] h-[18px]" />, count: viewCounts.q1, badge: "Q1" },
+    { view: "quadrant", label: "緩急圖", icon: <Gauge className="w-[18px] h-[18px]" />, count: viewCounts.q1, badge: "Q1" },
     { view: "all", label: "全部任務", icon: <Layers className="w-[18px] h-[18px]" /> },
   ];
 

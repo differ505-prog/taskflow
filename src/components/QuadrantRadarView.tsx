@@ -1,16 +1,16 @@
 "use client";
 
 /**
- * Quadrant Radar View
+ * 緩急圖視圖
  *
- * 艾森豪四象限雷達視圖,2x2 卡片網格,每象限顯示:
+ * 艾森豪四象限緩急圖,2x2 卡片網格,每象限顯示:
  * - Q 標籤 + emoji + 中文標籤
  * - 中文解釋彩蛋（hover (i) tooltip）
  * - 該象限任務數
  * - 該象限前 5 項任務（點擊打開 detail）
  *
  * 理論基石：艾森豪矩陣 Eisenhower Matrix
- * UI 命名：Quadrant Radar
+ * UI 命名：緩急圖
  *
  * 設計原則（§1 Stripe 骨架）：
  * - 2x2 網格,每象限統一結構
