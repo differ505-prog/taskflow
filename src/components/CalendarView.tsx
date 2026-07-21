@@ -144,8 +144,8 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* 日曆區域 - 固定高度，讓任務面板有穩定剩餘空間 */}
-      <div className="flex-shrink-0 p-4 md:p-6 flex flex-col" style={{ height: "calc(100dvh - 56px)" }}>
+      {/* 日曆區域 - flex-1 佔滿剩餘空間，overflow-y-auto 防止內容被裁 */}
+      <div className="flex-1 min-h-0 p-4 md:p-6 flex flex-col overflow-y-auto">
         {/* Month header */}
         <div className="flex items-center justify-between mb-4 md:mb-5 flex-shrink-0">
           <h1 className="text-[18px] font-semibold" style={{ color: "var(--text-primary)" }}>
