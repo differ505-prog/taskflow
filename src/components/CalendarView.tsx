@@ -16,7 +16,12 @@ interface CalendarViewProps {
 export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) {
   const { tasks, updateTask, toggleTaskStatus, addTask, deleteTask, searchQuery } = useApp();
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("calendar_selectedDate");
+    }
+    return null;
+  });
   const [draggingTask, setDraggingTask] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [quickAddTitle, setQuickAddTitle] = useState("");
@@ -27,6 +32,15 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // selectedDate 持久化
+  useEffect(() => {
+    if (selectedDate) {
+      localStorage.setItem("calendar_selectedDate", selectedDate);
+    } else {
+      localStorage.removeItem("calendar_selectedDate");
+    }
+  }, [selectedDate]);
 
   useEffect(() => {
     if (selectedDate && quickAddInputRef.current) {
@@ -114,10 +128,6 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
         return false;
       })
     : [];
-
-  useEffect(() => {
-    console.log("[CalendarView] selectedDateTasks:", selectedDateTasks.length, "| todo:", selectedDateTasks.filter(t => t.status !== "done").length);
-  }, [selectedDateTasks]);
 
   // Drag and drop
   const handleDragStart = (taskId: string) => setDraggingTask(taskId);
