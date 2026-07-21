@@ -169,11 +169,11 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
         root: document.querySelector('[class*="h-[100dvh]"]')?.parentElement?.offsetHeight ?? -1,
         main: document.querySelector('[class*="flex-1 min-w-0 flex flex-col"]')?.parentElement?.offsetHeight ?? -1,
         inner: document.querySelector('[class*="flex-1 min-h-0 p-4"]')?.parentElement?.offsetHeight ?? -1,
-        header: document.querySelector('[class*="items-center justify-between mb-4"]')?.parentElement?.offsetHeight ?? -1,
+        header: (document.querySelector('[class*="items-center justify-between mb-4"]')?.parentElement as HTMLElement)?.offsetHeight ?? -1,
         weekday: (document.querySelector('[class*="grid-cols-7 mb-2"]') as HTMLElement)?.offsetHeight ?? -1,
-        grid: document.querySelector('[class*="grid-cols-7 gap-px"]')?.offsetHeight ?? -1,
-        panel: document.querySelector('[class*="border-t flex flex-col"]')?.offsetHeight ?? -1,
-        panelScroll: document.querySelector('[class*="border-t flex flex-col"]')?.scrollHeight ?? -1,
+        grid: (document.querySelector('[class*="grid-cols-7 gap-px"]') as HTMLElement)?.offsetHeight ?? -1,
+        panel: (document.querySelector('[class*="border-t flex flex-col"]') as HTMLElement)?.offsetHeight ?? -1,
+        panelScroll: (document.querySelector('[class*="border-t flex flex-col"]') as HTMLElement)?.scrollHeight ?? -1,
       };
       const content = r.panelScroll;
       const avail  = r.panel;
