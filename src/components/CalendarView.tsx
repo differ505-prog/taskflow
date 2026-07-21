@@ -165,8 +165,8 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-      {/* 日曆區域 - flex-1 佔滿剩餘空間 */}
+    <div className="flex flex-col">
+      {/* 日曆區域 — flex-1 佔滿剩餘空間(panel 是獨立 viewport,不擠壓日曆) */}
       <div className="flex-1 min-h-0 p-4 md:p-6 flex flex-col overflow-hidden">
         {/* Month header */}
         <div className="flex items-center justify-between mb-4 md:mb-5 flex-shrink-0">
@@ -302,16 +302,19 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
         </div>
       </div>
 
-      {/* 任務列表展開區域 */}
+      {/* 任務列表展開區域 — 獨立 viewport,不參與日曆 flex chain
+          §26 類別 B 治本:固定 min(420px, 55vh) 直接給 height 基準,
+          100% 解析有依據,inner flex-1 min-h-0 overflow-y-auto 自我滾 */}
       {selectedDate && mounted && (
         <div
-          className="calendar-task-panel min-h-0 flex-1 border-t flex flex-col overflow-y-auto max-h-full"
+          className="calendar-task-panel border-t flex flex-col flex-shrink-0"
           style={{
             borderColor: "var(--border)",
             background: "var(--surface)",
+            height: "min(420px, 55vh)",
           }}
         >
-          <div className="p-4 flex flex-col overscroll-contain">
+          <div className="p-4 flex flex-col overscroll-contain flex-1 min-h-0 overflow-y-auto">
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
