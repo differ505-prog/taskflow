@@ -139,8 +139,8 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
 
   return (
     <div className="flex flex-col h-full">
-      {/* 日曆區域 - 純顯示，不可點擊任務 */}
-      <div className="flex-1 flex flex-col p-4 md:p-6">
+      {/* 日曆區域 - 用 calc 明確約束高度，讓任務面板有穩定空間 */}
+      <div className="p-4 md:p-6 flex flex-col" style={{ height: "calc(100% - 0px)" }}>
         {/* Month header */}
         <div className="flex items-center justify-between mb-4 md:mb-5 flex-shrink-0">
           <h1 className="text-[18px] font-semibold" style={{ color: "var(--text-primary)" }}>
@@ -182,8 +182,8 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
           ))}
         </div>
 
-        {/* Calendar cells - 純顯示，只有日期可點擊 */}
-        <div className="grid grid-cols-7 gap-px" style={{ background: "var(--border)" }}>
+        {/* Calendar cells - 固定高度，避免 flex-1 把剩餘空間全吃掉 */}
+        <div className="grid grid-cols-7 gap-px flex-shrink-0" style={{ background: "var(--border)", height: "calc(72px * 6)" }}>
           {days.map((day, i) => {
             const isCurrentMonth = isSameMonth(day, currentMonth);
             const isTodayDate = isToday(day);
