@@ -143,7 +143,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full">
       {/* 日曆區域 - flex-1 佔滿剩餘空間，overflow-y-auto 防止內容被裁 */}
       <div className="flex-1 min-h-0 p-4 md:p-6 flex flex-col overflow-y-auto">
         {/* Month header */}
@@ -285,7 +285,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
             className="flex-shrink-0 border-t"
-            style={{ borderColor: "var(--border)", background: "var(--surface)", maxHeight: "calc(100dvh - 180px)", overflowY: "auto" }}
+            style={{ borderColor: "var(--border)", background: "var(--surface)", maxHeight: "calc(100dvh - 120px)", overflowY: "auto" }}
           >
             <div className="p-4">
               {/* Header */}
