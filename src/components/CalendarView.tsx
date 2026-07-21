@@ -10,11 +10,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import { SwipeableTaskCard } from "./SwipeableTaskCard";
 
 interface CalendarViewProps {
-  selectedTaskId: string | null;
-  onSelectTask: (id: string) => void;
+  selectedTask: Task | null;
+  onSelectTask: (task: Task) => void;
 }
 
-export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps) {
+export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) {
   const { tasks, updateTask, toggleTaskStatus, addTask, deleteTask, searchQuery } = useApp();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -358,8 +358,8 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
                       >
                         <CalendarTaskItem
                           task={task}
-                          isSelected={selectedTaskId === task.id}
-                          onClick={() => onSelectTask(task.id)}
+                          isSelected={selectedTask?.id === task.id}
+                          onClick={() => onSelectTask(task)}
                           onToggleStatus={() => toggleTaskStatus(task.id)}
                         />
                       </SwipeableTaskCard>
@@ -392,8 +392,8 @@ export function CalendarView({ selectedTaskId, onSelectTask }: CalendarViewProps
                               >
                                 <CalendarTaskItem
                                   task={task}
-                                  isSelected={selectedTaskId === task.id}
-                                  onClick={() => onSelectTask(task.id)}
+                                  isSelected={selectedTask?.id === task.id}
+                                  onClick={() => onSelectTask(task)}
                                   onToggleStatus={() => toggleTaskStatus(task.id)}
                                 />
                               </SwipeableTaskCard>

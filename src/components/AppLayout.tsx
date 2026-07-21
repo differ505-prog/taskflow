@@ -21,7 +21,7 @@ import { FirebaseDataProvider, SyncWriter } from "@/components/FirebaseDataProvi
 import { ShareListModal } from "@/components/ShareListModal";
 import { GlobalSearchBar } from "@/components/GlobalSearchBar";
 import { PullToRefresh } from "@/components/PullToRefresh";
-import { TaskList, SharedListSnapshot } from "@/lib/types";
+import { TaskList, SharedListSnapshot, Task } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
 import { useFeatureGate } from "@/lib/useFeatureGate";
 import { UpgradeModal } from "@/components/UpgradeModal";
@@ -45,6 +45,7 @@ function AppLayoutInner() {
   const [showSharedLists, setShowSharedLists] = useState(false);
   const [incomingShareData, setIncomingShareData] = useState<{ sharedListId: string; snapshot: SharedListSnapshot } | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [calendarSelectedTask, setCalendarSelectedTask] = useState<Task | null>(null);
   // ── 批次多選模式───────────────────────
   const [batchMode, setBatchMode] = useState(false);
   const [batchSelectedIds, setBatchSelectedIds] = useState<Set<string>>(() => new Set());
@@ -118,7 +119,7 @@ function AppLayoutInner() {
       if (e.key === "Escape") {
         if (isSettingsOpen) { setIsSettingsOpen(false); return; }
         if (isPomodoroOpen) { setIsPomodoroOpen(false); return; }
-        if (selectedTaskId) { setSelectedTaskId(null); return; }
+        if (selectedTaskId) { setSelectedTaskId(null); setCalendarSelectedTask(null); return; }
         if (isMobileSidebarOpen) { setIsMobileSidebarOpen(false); return; }
         if (batchMode) { exitBatchMode(); return; }
       }
@@ -178,14 +179,19 @@ function AppLayoutInner() {
   };
 
   const selectedTask = selectedTaskId ? tasks.find((t) => t.id === selectedTaskId) ?? null : null;
+  const calendarTask = currentView === 'calendar' ? calendarSelectedTask : null;
+  const detailTask = calendarTask || selectedTask;
 
   const renderView = () => {
     switch (currentView) {
       case "calendar":
         return (
           <CalendarView
-            selectedTaskId={selectedTaskId}
-            onSelectTask={(id) => setSelectedTaskId((prev) => (prev === id ? null : id))}
+            selectedTask={calendarSelectedTask}
+            onSelectTask={(task) => {
+              setSelectedTaskId(calendarSelectedTask?.id === task.id ? null : task.id);
+              setCalendarSelectedTask(calendarSelectedTask?.id === task.id ? null : task);
+            }}
           />
         );
       case "habits":
@@ -223,7 +229,7 @@ function AppLayoutInner() {
 
   const renderDetailPanel = () => (
     <AnimatePresence>
-      {selectedTask && (
+      {detailTask && (
         <motion.div
           key="detail-panel"
           initial={{ opacity: 0, x: isMobile ? "100%" : 20 }}
@@ -239,7 +245,7 @@ function AppLayoutInner() {
         >
           <div className="h-full overflow-y-auto overscroll-contain">
             <TaskDetailPanel
-              task={selectedTask}
+              task={detailTask}
               onClose={() => setSelectedTaskId(null)}
             />
           </div>
@@ -284,9 +290,9 @@ function AppLayoutInner() {
         </div>
       </div>
       {/* Desktop: detail panel as sibling → renders to the right via flex parent */}
-      {selectedTask && !isMobile && renderDetailPanel()}
+      {detailTask && !isMobile && renderDetailPanel()}
       {/* Mobile: full-screen overlay when task selected */}
-      {selectedTask && isMobile && renderDetailPanel()}
+      {detailTask && isMobile && renderDetailPanel()}
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50">
