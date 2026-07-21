@@ -420,6 +420,7 @@
   .calendar-task-panel {
     scroll-behavior: auto;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
 }
 

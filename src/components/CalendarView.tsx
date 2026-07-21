@@ -305,7 +305,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
       {/* 任務列表展開區域 */}
       {selectedDate && mounted && (
         <div
-          className="calendar-task-panel min-h-0 flex-1 border-t flex flex-col overflow-y-auto max-h-[70vh] sm:max-h-[60vh]"
+          className="calendar-task-panel min-h-0 flex-1 border-t flex flex-col overflow-y-auto max-h-full"
           style={{
             borderColor: "var(--border)",
             background: "var(--surface)",
