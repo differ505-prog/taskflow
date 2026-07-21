@@ -299,7 +299,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
         <div className="min-h-0 max-h-[70vh] border-t flex flex-col transition-all duration-200 overflow-y-auto"
           style={{ borderColor: "var(--border)", background: "var(--surface)" }}
         >
-        <div className="p-4 flex flex-col overflow-hidden">
+        <div className="p-4 flex flex-col overflow-y-auto overscroll-contain">
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
@@ -360,7 +360,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                 const done = selectedDateTasks.filter((t) => t.status === "done");
                 const isDoneOpen = !!doneExpanded[selectedDate];
                 return (
-                  <div className="space-y-2 flex flex-col">
+                  <div className="space-y-2 flex flex-col overflow-y-auto" style={{ maxHeight: "calc(70vh - 140px)" }}>
                     {todo.map((task) => (
                       <SwipeableTaskCard
                         key={task.id}
