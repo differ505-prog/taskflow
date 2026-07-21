@@ -270,51 +270,43 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
                 onDrop={() => handleDrop(day)}
               >
                 {/* Day number */}
-                <div className="flex flex-col items-center pt-1 pb-0.5">
-                  <div className="flex items-center justify-center w-full">
+                <div className="flex flex-row items-center justify-between px-1 pt-0.5">
+                  <span
+                    className="w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-medium"
+                    style={
+                      isTodayDate
+                        ? { background: "var(--brand)", color: "var(--brand-foreground)" }
+                        : isCurrentMonth
+                        ? { color: "var(--text-primary)" }
+                        : { color: "var(--text-tertiary)" }
+                    }
+                  >
+                    {format(day, "d")}
+                  </span>
+                  {overflowCount > 0 && (
                     <span
-                      className="w-7 h-7 flex items-center justify-center rounded-full text-[13px] font-medium"
-                      style={
-                        isTodayDate
-                          ? { background: "var(--brand)", color: "var(--brand-foreground)" }
-                          : isCurrentMonth
-                          ? { color: "var(--text-primary)" }
-                          : { color: "var(--text-tertiary)" }
-                      }
+                      className="text-[10px] font-semibold tabular-nums pointer-events-none"
+                      style={{ color: "var(--text-tertiary)" }}
+                      aria-label={`還有 ${overflowCount} 項未完成任務未顯示`}
                     >
-                      {format(day, "d")}
+                      +{overflowCount}
                     </span>
-                  </div>
+                  )}
                 </div>
 
-                {/* [§I 方案 v2] 格子內任務標題堆疊: 最多渲染前 6 個未完成任務
-                    - text-[11px] + text-tertiary + truncate: 用戶選項 1A+2A+3A
-                    - flex-1 + overflow-hidden: 格子空間自動截斷多餘任務 */}
+                {/* Tasks: 最多 3 行,每行 10px,截尾顯示 */}
                 {visibleTasks.length > 0 && (
-                  <div className="flex-1 min-h-0 px-1 overflow-hidden flex flex-col">
+                  <div className="flex-1 min-h-0 px-1 pb-0.5 overflow-hidden flex flex-col">
                     {visibleTasks.map((task) => (
                       <div
                         key={task.id}
-                        className="text-[11px] leading-[14px] truncate"
+                        className="text-[10px] leading-[11px] truncate"
                         style={{ color: "var(--text-tertiary)" }}
                         title={task.title}
                       >
                         {task.title}
                       </div>
                     ))}
-                  </div>
-                )}
-
-                {/* [§I 方案 v2] 右下徽章: 純文字 +N (用戶選項 4A+5A)
-                    條件: overflowCount > 0 (即未完成總數 > 渲染數)
-                    樣式: text-[10px] 無背景無邊框,僅 tabular-nums 等寬數字 */}
-                {overflowCount > 0 && (
-                  <div
-                    className="absolute bottom-0.5 right-1 text-[10px] font-semibold tabular-nums pointer-events-none"
-                    style={{ color: "var(--text-tertiary)" }}
-                    aria-label={`還有 ${overflowCount} 項未完成任務未顯示`}
-                  >
-                    +{overflowCount}
                   </div>
                 )}
 
