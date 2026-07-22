@@ -272,7 +272,7 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
                   >
                     <span className="text-base flex-shrink-0">{data.list.icon}</span>
                     <span className="flex-1 text-left truncate">{data.list.name}</span>
-                    <span className="text-[11px]" style={{ opacity: 0.6 }}>{data.tasks.length}</span>
+                    <span className="text-[11px]" style={{ opacity: 0.6 }}>{data.tasks.filter((t) => t.status !== "done").length}</span>
                   </button>
 
                   {/* Shared list context menu */}

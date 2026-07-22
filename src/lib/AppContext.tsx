@@ -621,24 +621,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const localWeekEnd = `${weekEndDate.getFullYear()}-${String(weekEndDate.getMonth()+1).padStart(2,"0")}-${String(weekEndDate.getDate()).padStart(2,"0")}`;
     return {
       inbox: active.filter((t) => !t.listId && t.status !== "done").length,
-      today: active.filter((t) => t.dueDate === localToday).length,
-      next7days: active.filter((t) => t.dueDate && t.dueDate >= localToday && t.dueDate <= localWeekEnd).length,
+      today: active.filter((t) => t.dueDate === localToday && t.status !== "done").length,
+      next7days: active.filter((t) => t.dueDate && t.dueDate >= localToday && t.dueDate <= localWeekEnd && t.status !== "done").length,
       // Eisenhower 四象限計數 — 使用既有 priority 字段(已包含自動 Q1 提升規則由 getEisenhowerVisual 處理)
       // 視圖層渲染時呼叫 getEisenhowerVisual 取實時象限
-      q1: active.filter((t) => t.priority === "do-now").length,
-      q2: active.filter((t) => t.priority === "schedule").length,
-      q3: active.filter((t) => t.priority === "delegate").length,
-      q4: active.filter((t) => t.priority === "none").length,
+      q1: active.filter((t) => t.priority === "do-now" && t.status !== "done").length,
+      q2: active.filter((t) => t.priority === "schedule" && t.status !== "done").length,
+      q3: active.filter((t) => t.priority === "delegate" && t.status !== "done").length,
+      q4: active.filter((t) => t.priority === "none" && t.status !== "done").length,
     };
   }, [tasks]);
 
   const getListTaskCount = useCallback((listId: string) => {
-    return tasks.filter((t) => t.listId === listId && !t.isArchived).length;
+    return tasks.filter((t) => t.listId === listId && !t.isArchived && t.status !== "done").length;
   }, [tasks]);
 
   const getTagCounts = useCallback(() => {
     const counts: Record<string, number> = {};
-    tasks.filter((t) => !t.isArchived).forEach((t) => {
+    tasks.filter((t) => !t.isArchived && t.status !== "done").forEach((t) => {
       t.tags.forEach((tag) => {
         counts[tag] = (counts[tag] || 0) + 1;
       });
