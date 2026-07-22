@@ -426,11 +426,8 @@ export function AppShell({
               </>
             ) : (
               <>
-                {/* Toolbar — 永遠渲染（inbox 視圖除外：保留 Brain-dump 哲學）
-                    避免「點了進行中 → 該清單沒進行中任務 → 整個區塊走向 EmptyState → chip 消失」的陷阱。
-                    EmptyState 與 task list 改為 toolbar 下方的 sibling,而非 ternary 的對立分支。 */}
-                {currentView !== "inbox" && (
-                  <div className="flex items-center justify-between gap-2 sm:gap-4 mb-4 min-w-0">
+                {/* Toolbar — 永遠渲染（避免「點了進行中 → 該清單沒進行中任務 → 整個區塊走向 EmptyState → chip 消失」的陷阱。EmptyState 與 task list 改為 toolbar 下方的 sibling，而非 ternary 的對立分支。） */}
+                <div className="flex items-center justify-between gap-2 sm:gap-4 mb-4 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 pb-1 touch-scroll min-w-0 flex-1">
                       {["全部", "待辦", "進行中", "已完成"].map((label, i) => {
                         const statuses = ["all", "todo", "in-progress", "done"] as const;
@@ -492,8 +489,7 @@ export function AppShell({
                         </button>
                       </div>
                     </div>
-                  </div>
-                )}
+                </div>
                 {/* Task list 區塊 — displayTasks 空時顯示對應空狀態,有任務時渲染清單 */}
                 {currentView === "inbox" && displayTasks.length === 0 ? (
                   <div className="flex flex-col items-center justify-center flex-1 py-12 px-4">
