@@ -180,7 +180,7 @@ export function AppShell({
   };
 
   return (
-    <div className="flex flex-col min-h-0 flex-1">
+    <div className="flex flex-col flex-1">
       {/* Top Header */}
       <header className="flex-shrink-0 glass sticky top-0 z-30">
         <div className="px-4 md:px-6 py-4">
@@ -352,14 +352,14 @@ export function AppShell({
         </div>
       </header>
 
-        {/* Main Content — Scroll wrapper provides explicit height chain */}
-        <main className={`flex-1 min-w-0 flex flex-row md:flex-row ${selectedTaskId ? "md:max-w-[calc(100vw-480px-1px)]" : ""}`}>
-          {/* Scroll wrapper: explicit height so inner flex-1 overflow-y-auto calculates bounds */}
-          <div className="flex flex-col min-h-0 h-full w-full">
+        {/* Main Content — explicit height chain via h-[calc(...)] */}
+        <main className={`flex-shrink-0 flex flex-row md:flex-row h-[calc(100dvh-var(--header-height,64px)-var(--search-bar-height,52px)-var(--safe-area-bottom,60px))] md:h-[calc(100vh-var(--header-height,64px)-var(--search-bar-height,52px))] ${selectedTaskId ? "md:max-w-[calc(100vw-480px-1px)]" : ""}`}>
+          {/* Scroll wrapper: explicit height so inner overflow-y-auto calculates bounds correctly */}
+          <div className="flex flex-col min-h-0 w-full h-full overflow-hidden">
           {/* Left: Task list — scroll container */}
           <div
             style={{ WebkitOverflowScrolling: "touch" }}
-            className={`flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-5 pb-[calc(72px+env(safe-area-inset-bottom,0px)+16px)] md:pb-5 ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}
+            className={`flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-5 pb-[calc(72px+env(safe-area-inset-bottom,0px)+16px)] h-full md:pb-5 ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}
           >
             {/* Viewer 唯讀提示 */}
             {isReadOnlyShared && (
