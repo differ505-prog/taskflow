@@ -61,7 +61,7 @@ export function PullToRefresh({ onRefresh, children, className = "" }: PullToRef
   return (
     <div
       ref={containerRef}
-      className={className}
+      className={`flex flex-col min-h-0 overflow-hidden ${className}`}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
