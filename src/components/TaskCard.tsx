@@ -251,11 +251,20 @@ export function TaskCard({
               {task.title}
             </h3>
 
-            {/* 右上角：旗子 / 標籤 / 附件 / 子任務 icon 三件套（quick actions） */}
+            {/* 右上角：刪除 / 旗子 / 標籤 / 附件 / 子任務 icon 三件套（quick actions） */}
             <div
-              className="flex-shrink-0 flex items-center gap-1"
+              className="flex-shrink-0 flex items-center gap-0.5"
               onClick={(e) => e.stopPropagation()}
             >
+              <button
+                onClick={handleDelete}
+                className="p-1 rounded-lg hover:bg-red-50 transition-all duration-150 active:scale-90"
+                style={{ color: "var(--text-tertiary)" }}
+                aria-label="刪除任務"
+                title="刪除"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
               {task.recurrence && (
                 <span className="p-1 rounded-lg" style={{ color: "var(--brand)" }} title="重複任務">
                   <Repeat className="w-3.5 h-3.5" />
@@ -486,7 +495,7 @@ export function TaskCard({
             onClose={() => setCommentsDrawerOpen(false)}
           />
 
-          {/* Bottom action bar: edit/delete/archive */}
+          {/* Bottom action bar: edit/archive */}
           <div
             className="flex items-center gap-1 mt-3 pt-3 border-t"
             style={{ borderColor: "var(--border)" }}
@@ -511,14 +520,6 @@ export function TaskCard({
                 <Archive className="w-4 h-4" />
               </button>
             )}
-            <button
-              onClick={handleDelete}
-              className="p-1.5 rounded-lg hover:bg-red-50 transition-all duration-150 active:scale-90"
-              style={{ color: "var(--text-tertiary)" }}
-              aria-label="刪除任務"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
           </div>
         </div>
       </div>
