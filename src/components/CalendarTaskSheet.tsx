@@ -48,6 +48,7 @@ export function CalendarTaskSheet({
 
   const {
     level,
+    open,
     toggleExpand,
     heightRatio,
     dragOffset,
@@ -68,6 +69,15 @@ export function CalendarTaskSheet({
       setIsOpen(false);
     }
   }, [level]);
+
+  // [Fix] selectedDate 有值時,主動 reset sheet 內部 level —
+  // 否則 ESC 時 useBottomSheet 把 internalLevel 設為 "closed",
+  // 下次點同一日期時 internalLevel 仍是 "closed",sheet 永遠不顯示
+  useEffect(() => {
+    if (selectedDate) {
+      open();
+    }
+  }, [selectedDate, open]);
 
   // 計算當日任務
   const selectedDateTasks = useMemo(() => {
