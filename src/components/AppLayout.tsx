@@ -128,7 +128,7 @@ function AppLayoutInner() {
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [isSettingsOpen, isPomodoroOpen, selectedTaskId, isMobileSidebarOpen, batchMode]);
+  }, [isSettingsOpen, isPomodoroOpen, selectedTaskId, calendarSelectedTask, isMobileSidebarOpen, batchMode]);
 
   // Detect mobile viewport
   useEffect(() => {

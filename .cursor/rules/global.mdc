@@ -170,6 +170,26 @@ alwaysApply: true
 - ❌ 「E3=6.5...等等重算後是 8.0」（悄悄修正，鎖定原則）
 - ✅ 「首選更新為 E3 (8.0)，原因是：...」+ 重新列出完整評分表
 
+#### 10.5 提問前重述公約（Question Restate Convention）
+
+**觸發**：**每次用戶提出問題或請求時**（不限於評分表觸發場景），AI 必須在給方案/動手之前先簡短重述用戶的問題，確認雙方對到同一件事。
+
+**規則**：
+
+1. **簡短重述（2-5 句）**：用自己的話說一次用戶在問什麼，列出我預期要做的事項，讓用戶能在 10 秒內判斷「AI 跟我說的是不是同一件事」
+2. **重述後才進方案**：重述完若有歧義，先用 `AskQuestion` 確認；無歧義才進 §10 評分表
+3. **方案數量強制 4 個**：給方案時若非 4 個，必須湊到 4 個（含 1 個勸退方案）
+4. **評分 + 推薦標注**：每個方案給評分；標注首選；未達 9 分 → 主動給「優化到 9 分的選項（可接受大改）」
+5. **打分預設期望 = 9+**：除非場景明顯不該達 9+（純 typo / 格式 / 純查詢），否則方案應努力達到 9.0 以上才標為合格
+
+**範例**：
+> 用戶：「怎麼修 X 比較好？」
+> AI：**先重述**「我理解你想修 X。目前狀態是 A，撞到 B。我打算這樣做：…」→ **才進** §10 評分表。
+
+**例外**：
+- 用戶已附截圖、明確標註目標元素、明確指定方案時 → 重述可一句帶過
+- 純 typo / 註解 / format / 查詢任務 → 整個 §10 可省略
+
 ### 10.3 修憲自評分公約 (Constitutional Amendment Self-Score)
 
 **問題**：過去修憲後只在「生效紀錄」追加一行分數，沒有結構化的自我評分框架，導致修憲品質參差不齊、偶有低品質條文混入。
@@ -759,6 +779,7 @@ alwaysApply: true
 | **L** | 跨平台/裝置方案評估時，沒查 MDN/caniuse 精準支援矩陣就自信「現代瀏覽器都支援」；更糟的是 feature-detect 用「近似 payload」測試（如用 `text/plain` 測 `canShare`，但實際分享的是 `application/json`），導致 `canShare` 誤判為 `true`、實際 `navigator.share` 才失敗 | 評估「X 平台支援」時，**實際上**該平台/版本有 MIME 嚴格限制、版本下限、或子集不支援；或程式上線後用戶回報「按了沒反應」「跳錯誤」 | 評估任何跨平台/裝置/Web API 方案時：(1) **第一步查 caniuse / MDN 精準支援矩陣**，列「最低版本」「不支援子集」「降級路徑」；(2) **feature-detect 一律用實際會呼叫的 payload**（MIME、副檔名、檔案大小、欄位組合），不能用「應該能過」的近似測試；(3) 評分表必須包含「支援矩陣」欄；(4) 寫入評分表前先 `WebSearch` 確認 |
 | **M** | Next.js App Router 把 client-side Context Provider 放在「可能不 mount 的 layout 內」（例如 `AppLayout` 內只包 modal flow），結果直連 URL（`/settings`、`/tags` 等用 Next.js route group + 各 `app/(main)/X/layout.tsx` 切出來的頁面）會繞過該 layout，Provider 子樹外的子元件 `useContext()` 拿到 null → throw「must be used within <Provider>」 | 「Provider 留在我以為永遠會在的 component tree 裡，沒想到它可以被路由旁路掉」 | **全域 client-side context Provider 一律掛在 `app/layout.tsx`（root layout），不在子 layout、不在 modal wrapper、不在任何「可被 router 旁路」的 component 內**。**判斷法**：每新增一個 Provider，**第一動作 grep `app/**/layout.tsx`**，看哪些 layout 不會包含 root layout 的 Provider；如果子 layout 直接 mount 同名 client component（`SettingsPage` / `TagsPage` 等），**就必須在 root layout 掛 Provider**。**驗證**：commit 前跑 `npx next build` 看 SSR/RSC 邊界錯誤與所有 routes 都有對應 chunk；不要只看 `tsc --noEmit`（type-only check 不會抓 runtime context 缺失） |
 | **N** | 嵌套 ternary 修錯層：修 ternary 內層結構（如 chip 渲染位置、toolbar 子元素順序）但**外層 ternary 仍切換走另一分支** | 整排 UI（chip / toolbar / filter row）一起消失、用戶找不到回頭路切回其他狀態；中央出現 EmptyState 看似「沒任務」其實有但被遮 | **拆解外層 ternary 為內部條件 + 永遠渲染 toolbar**（用 `currentView !== "inbox"` 等更窄條件永遠渲染外層），EmptyState 與 task list 改為 toolbar 下方的 conditional sibling。先走 §14.2 切換鏈盤點再動手，禁止「只修內層就當修完」 |
+| **O** | React `useEffect` 的 stale closure 漏 deps：事件 handler 或 callback 讀取某個 state 但 deps 陣列漏列，導致 handler closure 仍引用舊值、條件判斷失準 | 條件式清空/重置邏輯（如 ESC handler `if (selectedTaskId \|\| calendarSelectedTask)`）漏清某 state → 殘留 modal / sheet / overlay 擋住下層互動（點日期無反應、回到上頁失效） | (1) 動手前 `grep` 同檔所有 `useEffect` + `addEventListener`，對照 closure 內引用的 state 與 deps 陣列是否齊全（**§14.1 全鏈條精神**）(2) 啟用 `react-hooks/exhaustive-deps` ESLint rule，任何 `disable` 必須揭露理由 (3) 若是 keyboard / 全域 event 監聽，優先用 `useRef` 持最新值或 `useCallback` 包裝事件 handler 避免重訂閱 |
 
 3. **命中已知類別 → 直接套用標準修法，禁止重新推理**。評分表只寫「命中類別 X，套用修法」。
 4. **新類別 → 修完後主動追加**至本表（commit 內同步）。
@@ -784,3 +805,4 @@ alwaysApply: true
 | 2026-07-21 | 新增 §26 類別 M：Next.js App Router 把 client-side Context Provider 放在「可被路由旁路的 layout 內」（P0-2 hotfix: ConfirmProvider 留 AppLayout 但 `/settings` `/tags` 直連 URL 不掛 AppLayout → useConfirm throw）；本對話 commit `5ef2004` 已將 ConfirmProvider 上移至 root layout (`app/layout.tsx`)；類別 M 條文強調「Provider 一律掛 root layout」+ 「驗證必跑 `npx next build`」；觸發修憲前自評 9.1 | **9.1**（首輪達標，免二輪） |
 | 2026-07-21 | 修改 §11.1 推送流程：commit message 仍必填 `deploy: <main|preview-only|skip-deploy>` 前綴，但 AI **自行判斷推送目標**並直接寫入、不再反覆詢問使用者確認 SHA/branch/deploy 值（只在 deploy 明顯違反常理或 `git push --force` 主分支時警告）；精簡原因：使用者明確反饋「push 前詢問過多浪費 token」 | **9.0**（精簡流程，保留核心 deploy 前綴強制） |
 | 2026-07-21 | 新增 §14.2（UI 條件渲染切換鏈盤點）+ §26 類別 N（嵌套 ternary 修錯層）— 針對本對話 chip toolbar bug 連續 3 commit 才修對的具體根因（d1e204c → f3c4bac → 8775fe2，前兩次只修內層 ternary，第三次才找到外層切換點）；§14.2 動手前盤點切換鏈、§26 類別 N 治本拆解外層 ternary | **§14.2: 9.2 / §26-N: 9.2**（首輪達標，免二輪） |
+| 2026-07-22 | 新增 §26 類別 O（React `useEffect` stale closure 漏 deps — ESC handler 條件 `if (selectedTaskId \|\| calendarSelectedTask)` 因 `calendarSelectedTask` 漏在 deps 陣列 → handler closure 引用舊 null → ESC 後 calendarSelectedTask 永遠殘留 → modal 擋住日曆日期點擊）+ 新增 §10.5 提問前重述公約（每次提問 AI 必先重述確認對到同一件事 + 給 4 個方案含評分推廌標注 + 未達 9 分主動給優化到 9 的選項）。本對話 commit: AppLayout.tsx:131 deps 加 `calendarSelectedTask` | **§26-O: 9.3 / §10.5: 9.2**（首輪達標，免二輪） |
