@@ -210,12 +210,9 @@ function AppLayoutInner() {
             onSelectDate={setCalendarSelectedDate}
             selectedTask={calendarSelectedTask}
             onSelectTask={(task) => {
-              // [§C 方案 A+] 移除 toggle 邏輯,點任何 task 都設為該 task
-              // 關閉 modal 改由 modal 自身的關閉按鈕 / overlay 處理
-              // 根因:toggle 讓「重新點同一 task」silently 關掉 modal,
-              // 加上 sheet 蓋住時使用者不知情,以為按了沒反應(同 §C Phase 1A toggle 根因)
               setCalendarSelectedTask(task);
             }}
+            isMobile={isMobile}
           />
         );
       case "habits":
@@ -319,8 +316,9 @@ function AppLayoutInner() {
           </div>
         )}
       </div>
-      {/* Desktop: detail panel as sibling → renders to the right via flex parent */}
-      {detailTask && !isMobile && renderDetailPanel()}
+      {/* Desktop: detail panel as sibling → renders to the right via flex parent.
+          桌面日曆視圖已自行包含 detail panel(三欄),此處跳過以避免雙重渲染。 */}
+      {detailTask && !isMobile && currentView !== 'calendar' && renderDetailPanel()}
       {/* Mobile: full-screen overlay when task selected */}
       {detailTask && isMobile && renderDetailPanel()}
 

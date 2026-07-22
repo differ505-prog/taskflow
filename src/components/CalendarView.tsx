@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useApp } from "@/lib/AppContext";
 import { Task } from "@/lib/types";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { CalendarTaskSheet } from "./CalendarTaskSheet";
+import { ChevronLeft, ChevronRight, Plus, X, ChevronDown, ChevronRight as ChevronRightSm, Maximize2, Minimize2 } from "lucide-react";
+import { TaskDetailPanel } from "./TaskDetailPanel";
+import { SwipeableTaskCard } from "./SwipeableTaskCard";
+import { useBottomSheet } from "@/hooks/useBottomSheet";
+import { useRef } from "react";
 
 interface CalendarViewProps {
   /** YYYY-MM-DD;null = 不顯示 sheet。由 AppLayout 統一管理(§26 O' ESC 死鎖防護)。 */
@@ -15,9 +18,17 @@ interface CalendarViewProps {
   onSelectDate: (dateStr: string | null) => void;
   selectedTask: Task | null;
   onSelectTask: (task: Task) => void;
+  /** 從 AppLayout 傳入,區分 desktop/mobile 渲染策略 */
+  isMobile: boolean;
 }
 
-export function CalendarView({ selectedDate, onSelectDate, selectedTask, onSelectTask }: CalendarViewProps) {
+export function CalendarView({
+  selectedDate,
+  onSelectDate,
+  selectedTask,
+  onSelectTask,
+  isMobile,
+}: CalendarViewProps) {
   const { tasks, updateTask, toggleTaskStatus, addTask, deleteTask, searchQuery } = useApp();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [draggingTask, setDraggingTask] = useState<string | null>(null);
@@ -79,7 +90,6 @@ export function CalendarView({ selectedDate, onSelectDate, selectedTask, onSelec
   };
 
   // [§26-K guard] 搜尋期間:dayTasks 加上「符合搜尋的子集」屬性,用於格子高亮
-  // (since searchQuery is "highlight only", we don't filter visible tasks — only mark matching dates)
   const matchedDayHas = (dayTasks: Task[]): boolean => {
     if (!searchQuery.trim()) return false;
     const q = searchQuery.toLowerCase();
@@ -108,9 +118,6 @@ export function CalendarView({ selectedDate, onSelectDate, selectedTask, onSelec
   const prevMonth = () => setCurrentMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
   const nextMonth = () => setCurrentMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
 
-  // [Refactor] selectedDateTasks 由 CalendarTaskSheet 內部 useMemo 計算,
-  // 此處不再需要,避免重複 filter 任務陣列
-
   // Drag and drop
   const handleDragStart = (taskId: string) => setDraggingTask(taskId);
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
@@ -138,17 +145,36 @@ export function CalendarView({ selectedDate, onSelectDate, selectedTask, onSelec
   };
 
   const handleDayClick = (dateStr: string) => {
-    // [§C 方案 Phase 1A] 移除 toggle 邏輯,點任何日期都設為該日期
-    // 關閉 sheet 改由 sheet 自身的關閉按鈕 / overlay / 下滑手勢處理
-    // 根因:舊 toggle 邏輯會讓「重新點同一日期」silently 關掉 sheet,
-    // 加上 localStorage 還原後使用者不知情,以為 sheet 沒彈出。
     onSelectDate(dateStr);
   };
 
+  // ─── Desktop 三欄佈局 ───────────────────────────────
+  if (!isMobile) {
+    return (
+      <DesktopCalendarLayout
+        days={days}
+        currentMonth={currentMonth}
+        selectedDate={selectedDate}
+        tasks={tasks}
+        selectedTask={selectedTask}
+        onSelectDate={onSelectDate}
+        onSelectTask={onSelectTask}
+        onToggleStatus={toggleTaskStatus}
+        onDelete={deleteTask}
+        onQuickAdd={submitQuickAdd}
+        prevMonth={prevMonth}
+        nextMonth={nextMonth}
+        resetMonth={() => setCurrentMonth(new Date())}
+        getTasksForDay={getTasksForDay}
+        matchedDayHas={matchedDayHas}
+        searchQuery={searchQuery}
+      />
+    );
+  }
+
+  // ─── Mobile: 維持原有日曆 + bottom sheet ────────────
   return (
     <div className="flex flex-col h-full">
-      {/* 日曆區域 — flex-1 佔滿剩餘空間(panel 是獨立 viewport,不擠壓日曆)
-          flex-shrink-0:確保日曆不被 panel 擠壓 */}
       <div className="flex-1 min-h-0 p-4 md:p-6 flex flex-col overflow-hidden flex-shrink-0">
         {/* Month header */}
         <div className="flex items-center justify-between mb-4 md:mb-5 flex-shrink-0">
@@ -191,9 +217,7 @@ export function CalendarView({ selectedDate, onSelectDate, selectedTask, onSelec
           ))}
         </div>
 
-        {/* Calendar cells - 動態行數依 days.length 計算,避免 31/8/1 從 grid 下方溢出被「新增任務」輸入框擋住
-            [§26-K fix] 原 height: calc(56px * 5) 寫死 5 行,當月跨 6 行時(例 7/26 第一天落在週日)會切到 6 行,grid 被壓縮,row 高度變矮
-            改為 gridTemplateRows + auto-rows + overflow-hidden,確保每行固定 56px,多餘內容不外溢 */}
+        {/* Calendar cells */}
         <div
           className="grid grid-cols-7 grid-rows-6 gap-px overflow-hidden"
           style={{
@@ -208,10 +232,8 @@ export function CalendarView({ selectedDate, onSelectDate, selectedTask, onSelec
             const dayTasks = getTasksForDay(day);
             const isSelected = selectedDate === dateStr;
             const isSearchMatch = matchedDayHas(dayTasks);
-            // [§I 方案 v2] 格子內只顯示「未完成任務」標題 (用戶 1A+2A+3A+4A+5A+6A 全選)
             const pendingTasks = dayTasks.filter((t) => t.status !== "done");
             const pendingCount = pendingTasks.length;
-            // 最多渲染前 6 個,格子空間會自動截斷多餘任務
             const visibleTasks = pendingTasks.slice(0, 3);
             const overflowCount = pendingCount - visibleTasks.length;
 
@@ -231,7 +253,6 @@ export function CalendarView({ selectedDate, onSelectDate, selectedTask, onSelec
                 onDragOver={handleDragOver}
                 onDrop={() => handleDrop(day)}
               >
-                {/* Day number */}
                 <div className="flex flex-row items-center justify-between px-1 pt-0.5">
                   <span
                     className="w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-medium"
@@ -255,8 +276,6 @@ export function CalendarView({ selectedDate, onSelectDate, selectedTask, onSelec
                     </span>
                   )}
                 </div>
-
-                {/* Tasks: 最多 3 行,每行 10px,截尾顯示 */}
                 {visibleTasks.length > 0 && (
                   <div className="flex-1 min-h-0 px-1 pb-0.5 overflow-hidden flex flex-col">
                     {visibleTasks.map((task) => (
@@ -271,8 +290,6 @@ export function CalendarView({ selectedDate, onSelectDate, selectedTask, onSelec
                     ))}
                   </div>
                 )}
-
-                {/* 搜尋高亮「✓ 符合」標記 (即使沒任務也顯示) */}
                 {pendingCount === 0 && isSearchMatch && (
                   <div className="flex-1 flex items-start justify-center px-1 pt-0.5">
                     <span className="text-[10px] font-medium" style={{ color: "var(--brand)" }}>✓</span>
@@ -284,9 +301,8 @@ export function CalendarView({ selectedDate, onSelectDate, selectedTask, onSelec
         </div>
       </div>
 
-      {/* [Refactor: Bottom Sheet 改造] 任務面板從「日曆下方擠出來」改為「獨立底部彈出」,
-          不再參與日曆 flex chain,徹底消除 §26 類別 B 的 flex 高度塌縮根因。 */}
-      <CalendarTaskSheet
+      {/* Mobile bottom sheet — 僅 mobile 渲染 */}
+      <CalendarTaskSheetMobile
         selectedDate={mounted ? selectedDate : null}
         onClose={() => onSelectDate(null)}
         selectedTask={selectedTask}
@@ -297,8 +313,552 @@ export function CalendarView({ selectedDate, onSelectDate, selectedTask, onSelec
   );
 }
 
+// ─── Desktop 三欄佈局 ──────────────────────────────────────
+interface DesktopCalendarLayoutProps {
+  days: Date[];
+  currentMonth: Date;
+  selectedDate: string | null;
+  tasks: Task[];
+  selectedTask: Task | null;
+  onSelectDate: (d: string | null) => void;
+  onSelectTask: (task: Task) => void;
+  onToggleStatus: (id: string) => void;
+  onDelete: (id: string) => void;
+  onQuickAdd: (dateStr: string, title: string) => void;
+  prevMonth: () => void;
+  nextMonth: () => void;
+  resetMonth: () => void;
+  getTasksForDay: (d: Date) => Task[];
+  matchedDayHas: (tasks: Task[]) => boolean;
+  searchQuery: string;
+}
+
+function DesktopCalendarLayout({
+  days,
+  currentMonth,
+  selectedDate,
+  selectedTask,
+  onSelectDate,
+  onSelectTask,
+  onToggleStatus,
+  onDelete,
+  onQuickAdd,
+  prevMonth,
+  nextMonth,
+  resetMonth,
+  getTasksForDay,
+  matchedDayHas,
+}: DesktopCalendarLayoutProps) {
+
+  const selectedDateTasks = useMemo(() => {
+    if (!selectedDate) return [];
+    return getTasksForDay(parseISO(selectedDate));
+  }, [selectedDate, getTasksForDay]);
+
+  const todo = selectedDateTasks.filter((t) => t.status !== "done");
+  const done = selectedDateTasks.filter((t) => t.status === "done");
+
+  const [doneExpanded, setDoneExpanded] = useState<Record<string, boolean>>({});
+  const [quickAddTitle, setQuickAddTitle] = useState("");
+  const quickAddInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleQuickAddSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (quickAddTitle.trim() && selectedDate) {
+      onQuickAdd(selectedDate, quickAddTitle);
+      setQuickAddTitle("");
+    }
+  };
+
+  // selectedDate 變化 → 清空 quickAdd + 聚焦
+  useEffect(() => {
+    setQuickAddTitle("");
+    if (selectedDate && quickAddInputRef.current) {
+      setTimeout(() => quickAddInputRef.current?.focus(), 100);
+    }
+  }, [selectedDate]);
+
+  const dateObj = selectedDate ? parseISO(selectedDate) : null;
+
+  return (
+    <div className="flex flex-row h-full overflow-hidden">
+      {/* 左欄：日曆 */}
+      <div className="flex-shrink-0 w-[420px] border-r overflow-y-auto overscroll-contain p-6" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+        {/* Month header */}
+        <div className="flex items-center justify-between mb-5">
+          <h1 className="text-[18px] font-semibold" style={{ color: "var(--text-primary)" }}>
+            {format(currentMonth, "yyyy 年 M 月", { locale: zhTW })}
+          </h1>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={prevMonth}
+              className="p-2 rounded-xl hover:bg-black/5 transition-colors"
+              style={{ color: "var(--text-secondary)" }}
+              aria-label="上個月"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              onClick={resetMonth}
+              className="px-3 py-1.5 rounded-xl text-[13px] font-medium hover:bg-black/5 transition-colors"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              今天
+            </button>
+            <button
+              onClick={nextMonth}
+              className="p-2 rounded-xl hover:bg-black/5 transition-colors"
+              style={{ color: "var(--text-secondary)" }}
+              aria-label="下個月"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Weekday headers */}
+        <div className="grid grid-cols-7 mb-2">
+          {["日", "一", "二", "三", "四", "五", "六"].map((d) => (
+            <div key={d} className="text-center text-[12px] font-medium py-2" style={{ color: "var(--text-tertiary)" }}>
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar cells */}
+        <div
+          className="grid grid-cols-7 gap-px"
+          style={{
+            background: "var(--border)",
+            gridTemplateRows: `repeat(${Math.max(5, Math.ceil(days.length / 7))}, 56px)`,
+          }}
+        >
+          {days.map((day, i) => {
+            const isCurrentMonth = isSameMonth(day, currentMonth);
+            const isTodayDate = isToday(day);
+            const dateStr = format(day, "yyyy-MM-dd");
+            const dayTasks = getTasksForDay(day);
+            const isSelected = selectedDate === dateStr;
+            const isSearchMatch = matchedDayHas(dayTasks);
+            const pendingTasks = dayTasks.filter((t) => t.status !== "done");
+            const pendingCount = pendingTasks.length;
+            const visibleTasks = pendingTasks.slice(0, 3);
+            const overflowCount = pendingCount - visibleTasks.length;
+
+            return (
+              <div
+                key={i}
+                className="relative flex flex-col transition-colors duration-150 cursor-pointer"
+                style={{
+                  background: isSelected
+                    ? "var(--brand-tint)"
+                    : isCurrentMonth
+                    ? "var(--surface)"
+                    : "var(--surface-muted)",
+                  minHeight: 56,
+                }}
+                onClick={() => onSelectDate(dateStr)}
+              >
+                <div className="flex flex-row items-center justify-between px-1 pt-0.5">
+                  <span
+                    className="w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-medium"
+                    style={
+                      isTodayDate
+                        ? { background: "var(--brand)", color: "var(--brand-foreground)" }
+                        : isCurrentMonth
+                        ? { color: "var(--text-primary)" }
+                        : { color: "var(--text-tertiary)" }
+                    }
+                  >
+                    {format(day, "d")}
+                  </span>
+                  {overflowCount > 0 && (
+                    <span className="text-[10px] font-semibold tabular-nums pointer-events-none" style={{ color: "var(--text-tertiary)" }}>
+                      +{overflowCount}
+                    </span>
+                  )}
+                </div>
+                {visibleTasks.length > 0 && (
+                  <div className="flex-1 min-h-0 px-1 pb-0.5 overflow-hidden flex flex-col">
+                    {visibleTasks.map((task) => (
+                      <div key={task.id} className="text-[10px] leading-[11px] truncate" style={{ color: "var(--text-tertiary)" }} title={task.title}>
+                        {task.title}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {pendingCount === 0 && isSearchMatch && (
+                  <div className="flex-1 flex items-start justify-center px-1 pt-0.5">
+                    <span className="text-[10px] font-medium" style={{ color: "var(--brand)" }}>✓</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 中欄：任務列表 */}
+      <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden" style={{ background: "var(--surface)" }}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0">
+          {dateObj ? (
+            <h2 className="text-[15px] font-semibold flex items-center" style={{ color: "var(--text-primary)" }}>
+              {format(dateObj, "M 月 d 日", { locale: zhTW })}
+              {isToday(dateObj) && (
+                <span className="ml-2 text-[12px] font-normal" style={{ color: "var(--brand)" }}>今天</span>
+              )}
+              <span className="ml-2 text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+                {selectedDateTasks.length} 項任務
+              </span>
+            </h2>
+          ) : (
+            <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
+              選擇一個日期
+            </h2>
+          )}
+          {selectedDate && (
+            <button
+              onClick={() => onSelectDate(null)}
+              className="p-1.5 rounded-lg hover:bg-black/5 transition-colors"
+              style={{ color: "var(--text-tertiary)" }}
+              aria-label="關閉任務列"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Quick add */}
+        {selectedDate && (
+          <form onSubmit={handleQuickAddSubmit} className="flex items-center gap-2 px-5 mb-3 flex-shrink-0">
+            <input
+              ref={quickAddInputRef}
+              type="text"
+              value={quickAddTitle}
+              onChange={(e) => setQuickAddTitle(e.target.value)}
+              placeholder="新增任務…"
+              className="input flex-1"
+              style={{ fontSize: 14, padding: "10px 14px" }}
+              aria-label="新增任務"
+            />
+            <button type="submit" className="btn-primary py-2.5 px-4 flex items-center gap-1.5 flex-shrink-0" aria-label="新增">
+              <Plus className="w-4 h-4" />
+              新增
+            </button>
+          </form>
+        )}
+
+        {/* Task list */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pb-6">
+          {!selectedDate ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-2">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "var(--surface-muted)" }}>
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: "var(--text-tertiary)" }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <p className="text-[13px]" style={{ color: "var(--text-tertiary)" }}>
+                點選日期查看任務
+              </p>
+            </div>
+          ) : selectedDateTasks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-2">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "var(--surface-muted)" }}>
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: "var(--text-tertiary)" }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <p className="text-[13px]" style={{ color: "var(--text-tertiary)" }}>
+                這天沒有任務
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {todo.map((task) => (
+                <SwipeableTaskCard key={task.id} taskId={task.id} hideComplete onDelete={onDelete}>
+                  <CalendarTaskItem
+                    task={task}
+                    isSelected={selectedTask?.id === task.id}
+                    onClick={() => onSelectTask(task)}
+                    onToggleStatus={() => onToggleStatus(task.id)}
+                  />
+                </SwipeableTaskCard>
+              ))}
+              {done.length > 0 && (
+                <div className={todo.length > 0 ? "pt-2 border-t border-dashed" : ""} style={{ borderColor: "var(--border)" }}>
+                  <button
+                    type="button"
+                    onClick={() => setDoneExpanded((prev) => ({ ...prev, [selectedDate!]: !prev[selectedDate!] }))}
+                    className="flex items-center gap-1 text-[11px] font-medium transition-colors hover:opacity-80"
+                    style={{ color: "var(--text-tertiary)" }}
+                  >
+                    {doneExpanded[selectedDate!] ? (
+                      <ChevronDown className="w-3 h-3" />
+                    ) : (
+                      <ChevronRightSm className="w-3 h-3" />
+                    )}
+                    <span>已完成 ({done.length})</span>
+                  </button>
+                  {doneExpanded[selectedDate!] && (
+                    <div className="mt-2 space-y-2">
+                      {done.map((task) => (
+                        <SwipeableTaskCard key={task.id} taskId={task.id} hideComplete onDelete={onDelete}>
+                          <CalendarTaskItem
+                            task={task}
+                            isSelected={selectedTask?.id === task.id}
+                            onClick={() => onSelectTask(task)}
+                            onToggleStatus={() => onToggleStatus(task.id)}
+                          />
+                        </SwipeableTaskCard>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 右欄：任務詳情面板 */}
+      {selectedTask && (
+        <div className="w-[480px] flex-shrink-0 border-l overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+          <div className="h-full overflow-y-auto overscroll-contain">
+            <TaskDetailPanel
+              task={selectedTask}
+              onClose={() => onSelectTask(selectedTask)}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Mobile Bottom Sheet（從原 CalendarTaskSheet 拆分）───────
+function CalendarTaskSheetMobile({
+  selectedDate,
+  onClose,
+  selectedTask,
+  onSelectTask,
+  onQuickAdd,
+}: {
+  selectedDate: string | null;
+  onClose: () => void;
+  selectedTask: Task | null;
+  onSelectTask: (task: Task) => void;
+  onQuickAdd: (dateStr: string, title: string) => void;
+}) {
+  const { tasks, toggleTaskStatus, deleteTask } = useApp();
+  const [quickAddTitle, setQuickAddTitle] = useState("");
+  const [doneExpanded, setDoneExpanded] = useState<Record<string, boolean>>({});
+  const [isOpen, setIsOpen] = useState(false);
+
+  const sheetRef = useRef<HTMLDivElement | null>(null);
+  const handleRef = useRef<HTMLDivElement | null>(null);
+  const quickAddInputRef = useRef<HTMLInputElement | null>(null);
+
+  const { level, open, toggleExpand, heightRatio, dragOffset, isDragging } = useBottomSheet({
+    handleRef,
+    sheetRef,
+    defaultRatio: 0.7,
+    expandedRatio: 0.95,
+  });
+
+  useEffect(() => {
+    if (level !== "closed") {
+      requestAnimationFrame(() => setIsOpen(true));
+    } else {
+      setIsOpen(false);
+    }
+  }, [level]);
+
+  useEffect(() => {
+    if (selectedDate) {
+      open();
+    }
+  }, [selectedDate, open]);
+
+  const selectedDateTasks = useMemo(() => {
+    if (!selectedDate) return [];
+    return tasks.filter((t) => {
+      if (t.isArchived) return false;
+      const start = t.startDate;
+      const end = t.dueDate;
+      if (start && end) return selectedDate >= start && selectedDate <= end;
+      if (!start && end) return selectedDate === end;
+      if (start && !end) return selectedDate === start;
+      return false;
+    });
+  }, [tasks, selectedDate]);
+
+  useEffect(() => {
+    setQuickAddTitle("");
+    if (selectedDate && quickAddInputRef.current) {
+      setTimeout(() => quickAddInputRef.current?.focus(), 350);
+    }
+  }, [selectedDate]);
+
+  if (!selectedDate) return null;
+
+  const todo = selectedDateTasks.filter((t) => t.status !== "done");
+  const done = selectedDateTasks.filter((t) => t.status === "done");
+  const isDoneOpen = !!doneExpanded[selectedDate];
+  const dateObj = parseISO(selectedDate);
+
+  const handleQuickAddSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (quickAddTitle.trim()) {
+      onQuickAdd(selectedDate, quickAddTitle);
+      setQuickAddTitle("");
+    }
+  };
+
+  const translateY = level === "expanded" ? dragOffset : dragOffset > 0 ? dragOffset : 0;
+  const transitionStyle = isDragging ? "none" : "transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)";
+
+  return (
+    <>
+      <div
+        aria-hidden="true"
+        onClick={onClose}
+        className="fixed inset-0 z-40"
+        style={{
+          background: "rgba(15, 23, 42, 0)",
+          backdropFilter: isOpen ? "blur(2px)" : "blur(0px)",
+          WebkitBackdropFilter: isOpen ? "blur(2px)" : "blur(0px)",
+          opacity: isOpen ? 1 : 0,
+          pointerEvents: isOpen ? "auto" : "none",
+          transition: "background 0.3s ease-out, backdrop-filter 0.3s ease-out, opacity 0.3s ease-out",
+        }}
+      />
+      <div
+        ref={sheetRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${format(dateObj, "M 月 d 日", { locale: zhTW })}的任務`}
+        className="fixed left-0 right-0 bottom-0 z-50 flex flex-col"
+        style={{
+          background: "var(--surface)",
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+          height: `${heightRatio * 100}vh`,
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          transform: `translateY(${translateY}px)`,
+          transition: transitionStyle,
+          willChange: "transform",
+          boxShadow: "0 -10px 40px rgba(0, 0, 0, 0.08)",
+        }}
+      >
+        <div ref={handleRef} className="flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing touch-none" aria-hidden="true">
+          <div className="w-10 h-1 rounded-full" style={{ background: "var(--border)" }} />
+        </div>
+        <div className="flex items-center justify-between px-4 pb-3 flex-shrink-0">
+          <h2 className="text-[15px] font-semibold flex items-center" style={{ color: "var(--text-primary)" }}>
+            {format(dateObj, "M 月 d 日", { locale: zhTW })}
+            {isToday(dateObj) && <span className="ml-2 text-[12px] font-normal" style={{ color: "var(--brand)" }}>今天</span>}
+            <span className="ml-2 text-[12px]" style={{ color: "var(--text-tertiary)" }}>{selectedDateTasks.length} 項任務</span>
+          </h2>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={toggleExpand}
+              className="p-1.5 rounded-lg hover:bg-black/5 transition-colors"
+              style={{ color: "var(--text-tertiary)" }}
+              aria-label={level === "expanded" ? "收起" : "全螢幕展開"}
+            >
+              {level === "expanded" ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+            <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-black/5 transition-colors" style={{ color: "var(--text-tertiary)" }} aria-label="關閉">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        <form onSubmit={handleQuickAddSubmit} className="flex items-center gap-2 px-4 mb-3 flex-shrink-0">
+          <input
+            ref={quickAddInputRef}
+            type="text"
+            value={quickAddTitle}
+            onChange={(e) => setQuickAddTitle(e.target.value)}
+            placeholder="新增任務…"
+            className="input flex-1"
+            style={{ fontSize: 14, padding: "10px 14px" }}
+            aria-label="新增任務"
+          />
+          <button type="submit" className="btn-primary py-2.5 px-4 flex items-center gap-1.5 flex-shrink-0" aria-label="新增">
+            <Plus className="w-4 h-4" />
+            新增
+          </button>
+        </form>
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-8">
+          {selectedDateTasks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 gap-2">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "var(--surface-muted)" }}>
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: "var(--text-tertiary)" }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <p className="text-[13px]" style={{ color: "var(--text-tertiary)" }}>這天沒有任務</p>
+            </div>
+          ) : (
+            <div className="space-y-2 pb-2">
+              {todo.map((task) => (
+                <SwipeableTaskCard key={task.id} taskId={task.id} hideComplete onDelete={(id) => deleteTask(id)}>
+                  <CalendarTaskItem
+                    task={task}
+                    isSelected={selectedTask?.id === task.id}
+                    onClick={() => { onSelectTask(task); onClose(); }}
+                    onToggleStatus={() => toggleTaskStatus(task.id)}
+                  />
+                </SwipeableTaskCard>
+              ))}
+              {done.length > 0 && (
+                <div className={todo.length > 0 ? "pt-2 border-t border-dashed" : ""} style={{ borderColor: "var(--border)" }}>
+                  <button
+                    type="button"
+                    onClick={() => setDoneExpanded((prev) => ({ ...prev, [selectedDate]: !prev[selectedDate] }))}
+                    className="flex items-center gap-1 text-[11px] font-medium transition-colors hover:opacity-80"
+                    style={{ color: "var(--text-tertiary)" }}
+                  >
+                    {isDoneOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRightSm className="w-3 h-3" />}
+                    <span>已完成 ({done.length})</span>
+                  </button>
+                  {isDoneOpen && (
+                    <div className="mt-2 space-y-2">
+                      {done.map((task) => (
+                        <SwipeableTaskCard key={task.id} taskId={task.id} hideComplete onDelete={(id) => deleteTask(id)}>
+                          <CalendarTaskItem
+                            task={task}
+                            isSelected={selectedTask?.id === task.id}
+                            onClick={() => { onSelectTask(task); onClose(); }}
+                            onToggleStatus={() => toggleTaskStatus(task.id)}
+                          />
+                        </SwipeableTaskCard>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── 共用工具函式 ──────────────────────────────────────
+function getPriorityColor(priority: string): string {
+  switch (priority) {
+    case "do-now": return "#D70015";
+    case "schedule": return "#F97316";
+    case "delegate": return "#EAB308";
+    default: return "#9CA3AF";
+  }
+}
+
 // 日曆任務卡片 - 可點擊打開詳情
-// [Refactor: §5 DRY] 同時被 CalendarView 本身與 CalendarTaskSheet 使用
 export function CalendarTaskItem({
   task,
   isSelected,
@@ -369,18 +929,4 @@ export function CalendarTaskItem({
       </div>
     </div>
   );
-}
-
-function getPriorityColor(priority: string): string {
-  switch (priority) {
-    case "do-now": return "#D70015";
-    case "schedule": return "#F97316";
-    case "delegate": return "#EAB308";
-    default: return "#9CA3AF";
-  }
-}
-
-// 日曆格子內任務點（小圓點）：色彩鎖定來自 getPriorityColor（同色系統，§3）
-function getPriorityDotColor(priority: string): string {
-  return getPriorityColor(priority);
 }
