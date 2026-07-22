@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Mic, MicOff, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -17,6 +17,22 @@ import { useVoiceRecognition } from "@/lib/useVoiceRecognition";
 export function QuickVoiceFAB() {
   const { addTask } = useApp();
   const [open, setOpen] = useState(false);
+
+  // 桌面版鍵盤快捷鍵：Cmd/Ctrl + Shift + V 開啟語音建任務
+  const openVoiceInput = useCallback(() => {
+    setOpen(true);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "v") {
+        e.preventDefault();
+        openVoiceInput();
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [openVoiceInput]);
 
   const handleResult = (text: string) => {
     const trimmed = text.trim();
@@ -45,14 +61,12 @@ export function QuickVoiceFAB() {
 
   return (
     <>
-      {/* FAB button */}
+      {/* FAB button (mobile only — desktop uses keyboard shortcut Cmd+Shift+V) */}
       <motion.button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed z-50 rounded-full shadow-lg flex items-center justify-center text-white bottom-[calc(164px+env(safe-area-inset-bottom,0px))] right-[calc(20px+env(safe-area-inset-right,0px))] md:!bottom-6 md:!left-6 md:!right-auto"
+        className="md:hidden fixed z-50 rounded-full shadow-lg flex items-center justify-center text-white"
         style={{
-          // mobile: 「+」FAB(右 20, bottom 96, 56x56)正上方 12px → 164
-          // desktop: 左下 24（避開任務右上角功能鍵）
           bottom: "calc(164px + env(safe-area-inset-bottom, 0px))",
           right: "calc(20px + env(safe-area-inset-right, 0px))",
         }}
@@ -64,12 +78,7 @@ export function QuickVoiceFAB() {
         aria-label="快速語音建任務"
         title="快速語音建任務"
       >
-        {/* mobile: 44x44 小圓鈕,在「+」正上方(避免重疊);desktop: 完整 pill 鈕 */}
-        <span className="hidden md:flex items-center gap-2 px-5 h-14 rounded-full bg-[var(--brand)] text-white">
-          <Mic className="w-5 h-5" />
-          <span className="text-sm font-medium">語音建任務</span>
-        </span>
-        <span className="md:hidden w-11 h-11 rounded-full bg-[var(--brand)] flex items-center justify-center">
+        <span className="w-11 h-11 rounded-full bg-[var(--brand)] flex items-center justify-center">
           <Mic className="w-5 h-5" />
         </span>
       </motion.button>
