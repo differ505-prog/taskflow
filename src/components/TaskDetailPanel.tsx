@@ -210,6 +210,8 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
       // IME composition 防護（內聯，不依賴 React.KeyboardEvent）
       const native = (e as unknown as { nativeEvent?: { isComposing?: boolean } }).nativeEvent;
       if (native?.isComposing) return;
+      // ConfirmDialog 開著時跳過，避免 Enter 觸發儲存而非確認刪除
+      if (document.querySelector('[role="dialog"]')) return;
       if (e.key === "Escape" && onClose) { e.preventDefault(); onClose(); }
       if (e.key === "Enter") { e.preventDefault(); handleSave(); }
     };
