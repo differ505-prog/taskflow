@@ -180,7 +180,7 @@ export function AppShell({
   };
 
   return (
-    <div className="flex flex-col min-h-0 flex-1">
+    <div className="flex flex-col h-full">
       {/* Top Header */}
       <header className="flex-shrink-0 glass sticky top-0 z-30">
         <div className="px-4 md:px-6 py-4">
@@ -353,7 +353,9 @@ export function AppShell({
       </header>
 
         {/* Main Content — Mobile scrolls via inner div, Desktop split via flex-row */}
-        <main className={`flex-1 min-w-0 flex flex-col h-full md:flex-row ${selectedTaskId ? "md:max-w-[calc(100vw-480px-1px)]" : ""}`}>
+        <main className={`flex-1 min-w-0 flex flex-row md:flex-row ${selectedTaskId ? "md:max-w-[calc(100vw-480px-1px)]" : ""}`}>
+          {/* Scroll wrapper: provides explicit height so inner flex-1 scroll calculates bounds correctly */}
+          <div className="flex flex-col min-h-0 h-full w-full">
           {/* Left: Task list — scroll container with bottom padding for mobile nav */}
           <div
             style={{ WebkitOverflowScrolling: "touch" }}
@@ -596,6 +598,7 @@ export function AppShell({
               </>
             )}
           </div>
+          </div>{/* end scroll wrapper */}
         </main>
 
       {/* Task Form Modal */}
