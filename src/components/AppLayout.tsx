@@ -307,13 +307,17 @@ function AppLayoutInner() {
         <div className="hidden sm:flex justify-end px-4 md:px-6 pt-3 pb-1 flex-shrink-0">
           <GlobalSearchBar onSelectTask={(id) => setSelectedTaskId(id)} />
         </div>
-        <div className="flex-1 min-w-0 flex flex-col min-h-0">
+        {isMobile ? (
           <PullToRefresh onRefresh={forceReload} className="flex-1 min-w-0 flex flex-col min-h-0">
             <div className="flex-1 min-w-0 flex flex-col min-h-0">
               {renderView()}
             </div>
           </PullToRefresh>
-        </div>
+        ) : (
+          <div className="flex-1 min-w-0 flex flex-col min-h-0">
+            {renderView()}
+          </div>
+        )}
       </div>
       {/* Desktop: detail panel as sibling → renders to the right via flex parent */}
       {detailTask && !isMobile && renderDetailPanel()}
