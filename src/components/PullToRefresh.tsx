@@ -64,22 +64,16 @@ export function PullToRefresh({ onRefresh, children, className = "" }: PullToRef
   return (
     <div
       ref={containerRef}
-      className={`flex flex-col min-h-0 overflow-hidden ${className}`}
+      className={`relative flex flex-col min-h-0 ${className}`}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       style={{ touchAction: "pan-down", userSelect: "none" }}
     >
-      {/* Pull indicator */}
+      {/* Pull indicator — absolute over top, does not block scroll */}
       <div
-        style={{
-          height: indicatorHeight,
-          overflow: "hidden",
-          transition: refreshing ? "none" : "height 0.2s ease-out",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
+        className="absolute top-0 left-0 right-0 z-10 flex items-center justify-center overflow-hidden"
+        style={{ height: indicatorHeight, transition: refreshing ? "none" : "height 0.2s ease-out" }}
       >
         {pulling || refreshing ? (
           <div className="flex flex-col items-center gap-1">
@@ -101,8 +95,11 @@ export function PullToRefresh({ onRefresh, children, className = "" }: PullToRef
         ) : null}
       </div>
 
-      {/* Content */}
-      <div style={{ transform: pullDistance > 0 ? `translateY(${pullDistance}px)` : undefined, transition: refreshing ? "none" : "transform 0.2s ease-out" }}>
+      {/* Content — height driven by children, scroll handled by inner scroll container in AppShell */}
+      <div
+        className="relative z-0 flex-1 min-h-0"
+        style={{ transform: pullDistance > 0 ? `translateY(${pullDistance}px)` : undefined, transition: refreshing ? "none" : "transform 0.2s ease-out" }}
+      >
         {children}
       </div>
     </div>
