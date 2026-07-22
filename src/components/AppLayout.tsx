@@ -47,6 +47,10 @@ function AppLayoutInner() {
   const [incomingShareData, setIncomingShareData] = useState<{ sharedListId: string; snapshot: SharedListSnapshot } | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [calendarSelectedTask, setCalendarSelectedTask] = useState<Task | null>(null);
+  // [Fix] 從 CalendarView 提升上來,讓 ESC handler 能統一清掉,避免 sheet 死鎖
+  // (§26 O' 雙 hook 獨立 state 死鎖 — useBottomSheet 的 ESC listener 把 internalLevel 設為 closed,
+  // 但 selectedDate 沒被清 → 下次點同一日期不會重開 sheet → 任務再也點不開)
+  const [calendarSelectedDate, setCalendarSelectedDate] = useState<string | null>(null);
   const getBfcacheKey = useBfcacheKey();
   // ── 批次多選模式───────────────────────
   const [batchMode, setBatchMode] = useState(false);
@@ -103,6 +107,7 @@ function AppLayoutInner() {
   // Bug fix: clear task selection when switching lists or views
   useEffect(() => {
     setSelectedTaskId(null);
+    setCalendarSelectedDate(null); // 切換視圖時也清,避免殘留在別的視圖被打開
   }, [currentView, currentListId, currentSharedListId]);
 
   // 切換清單/視圖時自動退出批次模式,避免殘留
@@ -121,14 +126,25 @@ function AppLayoutInner() {
       if (e.key === "Escape") {
         if (isSettingsOpen) { setIsSettingsOpen(false); return; }
         if (isPomodoroOpen) { setIsPomodoroOpen(false); return; }
-        if (selectedTaskId || calendarSelectedTask) { setSelectedTaskId(null); setCalendarSelectedTask(null); return; }
+        if (selectedTaskId || calendarSelectedTask) {
+          setSelectedTaskId(null);
+          setCalendarSelectedTask(null);
+          // [Fix] ESC 也清掉 calendar selectedDate,讓 sheet 回到「未選日期」狀態 —
+          // 下次點日期時 useBottomSheet 重新 mount,internalLevel 重置為 "default",sheet 正常彈出
+          // (根因:之前 useBottomSheet 的 ESC 把 internalLevel 設為 closed,但 selectedDate 沒清,
+          // sheet 永久留在 closed 狀態,所有任務再也打不開)
+          setCalendarSelectedDate(null);
+          return;
+        }
+        // ESC 也清掉 calendar selectedDate(即使沒 task selected),讓用戶可以「ESC 退回純日曆」
+        if (calendarSelectedDate) { setCalendarSelectedDate(null); return; }
         if (isMobileSidebarOpen) { setIsMobileSidebarOpen(false); return; }
         if (batchMode) { exitBatchMode(); return; }
       }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [isSettingsOpen, isPomodoroOpen, selectedTaskId, calendarSelectedTask, isMobileSidebarOpen, batchMode]);
+  }, [isSettingsOpen, isPomodoroOpen, selectedTaskId, calendarSelectedTask, calendarSelectedDate, isMobileSidebarOpen, batchMode]);
 
   // Detect mobile viewport
   useEffect(() => {
@@ -190,6 +206,8 @@ function AppLayoutInner() {
         return (
           <CalendarView
             key={getBfcacheKey()}
+            selectedDate={calendarSelectedDate}
+            onSelectDate={setCalendarSelectedDate}
             selectedTask={calendarSelectedTask}
             onSelectTask={(task) => {
               // [§C 方案 A+] 移除 toggle 邏輯,點任何 task 都設為該 task

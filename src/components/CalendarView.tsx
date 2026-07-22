@@ -9,21 +9,17 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { CalendarTaskSheet } from "./CalendarTaskSheet";
 
 interface CalendarViewProps {
+  /** YYYY-MM-DD;null = 不顯示 sheet。由 AppLayout 統一管理(§26 O' ESC 死鎖防護)。 */
+  selectedDate: string | null;
+  /** 點日期時呼叫,由 AppLayout 提供 setter(狀態提升,避免與 useBottomSheet 雙 state 死鎖) */
+  onSelectDate: (dateStr: string | null) => void;
   selectedTask: Task | null;
   onSelectTask: (task: Task) => void;
 }
 
-export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) {
+export function CalendarView({ selectedDate, onSelectDate, selectedTask, onSelectTask }: CalendarViewProps) {
   const { tasks, updateTask, toggleTaskStatus, addTask, deleteTask, searchQuery } = useApp();
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("calendar_selectedDate");
-      // [§C 方案 Phase 1A] 防呆:空字串或 "null" 字串都視為 null,避免 toggle 邏輯誤判
-      return stored && stored !== "null" ? stored : null;
-    }
-    return null;
-  });
   const [draggingTask, setDraggingTask] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -31,7 +27,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
     setMounted(true);
   }, []);
 
-  // selectedDate 持久化
+  // selectedDate 持久化 (從 AppLayout 接手 — 之前在這裡 useState,因 §26 O' 死鎖改提升到 AppLayout)
   useEffect(() => {
     if (selectedDate) {
       localStorage.setItem("calendar_selectedDate", selectedDate);
@@ -146,7 +142,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
     // 關閉 sheet 改由 sheet 自身的關閉按鈕 / overlay / 下滑手勢處理
     // 根因:舊 toggle 邏輯會讓「重新點同一日期」silently 關掉 sheet,
     // 加上 localStorage 還原後使用者不知情,以為 sheet 沒彈出。
-    setSelectedDate(dateStr);
+    onSelectDate(dateStr);
   };
 
   return (
@@ -292,7 +288,7 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
           不再參與日曆 flex chain,徹底消除 §26 類別 B 的 flex 高度塌縮根因。 */}
       <CalendarTaskSheet
         selectedDate={mounted ? selectedDate : null}
-        onClose={() => setSelectedDate(null)}
+        onClose={() => onSelectDate(null)}
         selectedTask={selectedTask}
         onSelectTask={onSelectTask}
         onQuickAdd={submitQuickAdd}
