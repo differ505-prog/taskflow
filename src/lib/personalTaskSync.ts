@@ -72,16 +72,19 @@ export async function deleteTask(uid: string, taskId: string): Promise<void> {
  */
 export async function subscribeTasks(
   uid: string,
-  onUpdate: (tasks: Task[], deletedId?: string) => void,
+  onUpdate: (tasks: Task[], deletedId?: string, pendingDeletions?: string[]) => void,
   deletedIdsRef?: Set<string>
 ): Promise<Unsubscribe> {
   if (!supabase) return () => {};
 
   // 動態過濾：每次 realtime callback 讀取最新的 .size，避免快照僵化
-  const filterDeleted = (tasks: Task[]) =>
-    deletedIdsRef && deletedIdsRef.size > 0
-      ? tasks.filter((t) => !deletedIdsRef.has(t.id))
-      : tasks;
+  // extraDeleted 參數用於 INSERT/UPDATE callback 傳入 pendingDeletions 快照
+  const filterDeleted = (tasks: Task[], extraDeleted?: string[]) => {
+    if (!deletedIdsRef && !extraDeleted?.length) return tasks;
+    const allDeleted = new Set(deletedIdsRef ?? []);
+    extraDeleted?.forEach((id) => allDeleted.add(id));
+    return tasks.filter((t) => !allDeleted.has(t.id));
+  };
 
   // Supabase Realtime 的 postgres_changes INSERT/UPDATE 廣播會隨機延遲（觀察到 22 秒~數分鐘），
   // 且呈現「下一個事件觸發才廣播出來」特性。光靠 5 秒一次性 timer 只保護訂閱後前幾秒，
@@ -160,7 +163,9 @@ export async function subscribeTasks(
         try {
           const fresh = await loadTasks(uid);
           console.log(`[personalTaskSync] loadTasks 耗時 ${Date.now() - t0}ms，任務數: ${fresh.length}`);
-          onUpdate(filterDeleted(fresh));
+          // 傳入此刻 deletedIdsRef 快照，讓 merge 的刪除集合包含所有進行中的刪除
+          const pendingDeletions = deletedIdsRef && deletedIdsRef.size > 0 ? Array.from(deletedIdsRef) : [];
+          onUpdate(filterDeleted(fresh, pendingDeletions), undefined, pendingDeletions);
         } catch (err) {
           console.error("[personalTaskSync] loadTasks 失敗:", err);
         }
@@ -184,7 +189,9 @@ export async function subscribeTasks(
         try {
           const fresh = await loadTasks(uid);
           console.log(`[personalTaskSync] loadTasks 耗時 ${Date.now() - t0}ms，任務數: ${fresh.length}`);
-          onUpdate(filterDeleted(fresh));
+          // 傳入此刻 deletedIdsRef 快照，讓 merge 的刪除集合包含所有進行中的刪除
+          const pendingDeletions = deletedIdsRef && deletedIdsRef.size > 0 ? Array.from(deletedIdsRef) : [];
+          onUpdate(filterDeleted(fresh, pendingDeletions), undefined, pendingDeletions);
         } catch (err) {
           console.error("[personalTaskSync] loadTasks 失敗:", err);
         }

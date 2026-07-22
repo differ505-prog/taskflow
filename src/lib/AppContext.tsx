@@ -304,7 +304,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // ── 跨設備同步：Supabase Realtime 訂閱個人任務 + 清單 ──────
     if (user) {
       if (fbUnsubRef.current) fbUnsubRef.current();
-      subscribeTasks(user.uid, (fbTasks, deletedId) => {
+      subscribeTasks(user.uid, (fbTasks, deletedId, pendingDeletions) => {
         // 跳過第一次（空的初始資料），避免覆蓋本地尚未同步的任務
         if (!firstTasksLoadDone.current) {
           firstTasksLoadDone.current = true;
@@ -315,9 +315,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // 避免樂觀更新被雲端舊快照蓋回去（子任務 toggle / 任務狀態切換 第一次 tap 看似跳回）
         setTasks((prev) => {
           // 合併 deleted 集合：localOnly 邏輯用 deletedTaskIdsRef（本地刪除），
-          // supabase realtime 回呼帶 deletedId（剛刪除的 ID）
+          // supabase realtime 回呼帶 deletedId（剛刪除的 ID），
+          // 以及 pendingDeletions（INSERT/UPDATE callback 時刻所有進行中的刪除 ID）
           const deleted = new Set(deletedTaskIdsRef.current);
           if (deletedId) deleted.add(deletedId);
+          if (pendingDeletions) pendingDeletions.forEach((id) => deleted.add(id));
           // 移除處於「刪除中」狀態的本地任務，避免 DELETE realtime callback 到達時
           // deletedTaskIdsRef 已空、localOnly 邏輯把刪除目標又加回來
           const prevWithoutDeleted = prev.filter((t) => !deleted.has(t.id));

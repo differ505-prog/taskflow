@@ -49,10 +49,10 @@ export function QuickVoiceFAB() {
       <motion.button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed z-50 rounded-full shadow-lg flex items-center justify-center text-white bottom-[calc(164px+env(safe-area-inset-bottom,0px))] right-[calc(20px+env(safe-area-inset-right,0px))] md:!bottom-6 md:!right-6"
+        className="fixed z-50 rounded-full shadow-lg flex items-center justify-center text-white bottom-[calc(164px+env(safe-area-inset-bottom,0px))] right-[calc(20px+env(safe-area-inset-right,0px))] md:!bottom-6 md:!left-6 md:!right-auto"
         style={{
           // mobile: 「+」FAB(右 20, bottom 96, 56x56)正上方 12px → 164
-          // desktop: 右下 24
+          // desktop: 左下 24（避開任務右上角功能鍵）
           bottom: "calc(164px + env(safe-area-inset-bottom, 0px))",
           right: "calc(20px + env(safe-area-inset-right, 0px))",
         }}
