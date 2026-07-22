@@ -202,6 +202,21 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     setHasChanges(false);
   };
 
+  // ESC 取消 / Enter 儲存（全域鍵盤熱鍵，input 外才生效）
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+      // IME composition 防護（內聯，不依賴 React.KeyboardEvent）
+      const native = (e as unknown as { nativeEvent?: { isComposing?: boolean } }).nativeEvent;
+      if (native?.isComposing) return;
+      if (e.key === "Escape" && onClose) { e.preventDefault(); onClose(); }
+      if (e.key === "Enter") { e.preventDefault(); handleSave(); }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [handleSave, onClose]);
+
   // 將整個 task snapshot 送給 debounce：使用 ref 避免 debounce 內部 closure 抓舊值
   const snapshotRef = useRef({
     title: "",

@@ -55,6 +55,18 @@ export default function TaskCommentsDrawer({ taskId, taskTitle, open, onClose }:
   const [loading, setLoading] = useState(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // ESC 關閉 drawer
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && open) {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open, onClose]);
+
   useEffect(() => {
     if (!open || !user?.uid) return;
     setLoading(true);

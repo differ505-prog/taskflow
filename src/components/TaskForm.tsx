@@ -315,7 +315,14 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                     onChange={(e) => setTitle(e.target.value)}
                     onKeyDown={(e) => {
                       if (isComposingKey(e)) return;
-                      if (e.key === "Enter") e.preventDefault();
+                      // 編輯模式：Enter 送出表單；新建模式：擋 Enter（避免誤觸）
+                      if (e.key === "Enter" && initialData) {
+                        e.preventDefault();
+                        // 透用 form submit 機制送出
+                        (((e.target as HTMLElement).closest("form") as HTMLFormElement)?.requestSubmit());
+                      } else if (e.key === "Enter") {
+                        e.preventDefault();
+                      }
                     }}
                     placeholder="輸入任務名稱"
                     className={`input pr-12 ${errors.title ? "input-error" : ""}`}

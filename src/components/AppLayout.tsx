@@ -141,10 +141,16 @@ function AppLayoutInner() {
         if (isMobileSidebarOpen) { setIsMobileSidebarOpen(false); return; }
         if (batchMode) { exitBatchMode(); return; }
       }
+
+      // Batch mode 熱鍵（Enter 完成 / Delete 刪除）
+      if (batchMode && batchSelectedIds && batchSelectedIds.size > 0) {
+        if (e.key === "Enter") { e.preventDefault(); handleBatchComplete(); }
+        if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); handleBatchDelete(); }
+      }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [isSettingsOpen, isPomodoroOpen, selectedTaskId, calendarSelectedTask, calendarSelectedDate, isMobileSidebarOpen, batchMode]);
+  }, [isSettingsOpen, isPomodoroOpen, selectedTaskId, calendarSelectedTask, calendarSelectedDate, isMobileSidebarOpen, batchMode, batchSelectedIds, handleBatchComplete, handleBatchDelete, exitBatchMode]);
 
   // Detect mobile viewport
   useEffect(() => {
