@@ -18,7 +18,9 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("calendar_selectedDate");
+      const stored = localStorage.getItem("calendar_selectedDate");
+      // [§C 方案 Phase 1A] 防呆:空字串或 "null" 字串都視為 null,避免 toggle 邏輯誤判
+      return stored && stored !== "null" ? stored : null;
     }
     return null;
   });
@@ -140,7 +142,11 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
   };
 
   const handleDayClick = (dateStr: string) => {
-    setSelectedDate(selectedDate === dateStr ? null : dateStr);
+    // [§C 方案 Phase 1A] 移除 toggle 邏輯,點任何日期都設為該日期
+    // 關閉 sheet 改由 sheet 自身的關閉按鈕 / overlay / 下滑手勢處理
+    // 根因:舊 toggle 邏輯會讓「重新點同一日期」silently 關掉 sheet,
+    // 加上 localStorage 還原後使用者不知情,以為 sheet 沒彈出。
+    setSelectedDate(dateStr);
   };
 
   return (

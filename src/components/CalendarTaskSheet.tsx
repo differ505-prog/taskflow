@@ -264,7 +264,10 @@ export function CalendarTaskSheet({
                   <CalendarTaskItem
                     task={task}
                     isSelected={selectedTask?.id === task.id}
-                    onClick={() => onSelectTask(task)}
+                    onClick={() => {
+                      onSelectTask(task);
+                      onClose();
+                    }}
                     onToggleStatus={() => toggleTaskStatus(task.id)}
                   />
                 </SwipeableTaskCard>
@@ -310,7 +313,10 @@ export function CalendarTaskSheet({
                           <CalendarTaskItem
                             task={task}
                             isSelected={selectedTask?.id === task.id}
-                            onClick={() => onSelectTask(task)}
+                            onClick={() => {
+                              onSelectTask(task);
+                              onClose();
+                            }}
                             onToggleStatus={() => toggleTaskStatus(task.id)}
                           />
                         </SwipeableTaskCard>

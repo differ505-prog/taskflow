@@ -192,7 +192,11 @@ function AppLayoutInner() {
             key={getBfcacheKey()}
             selectedTask={calendarSelectedTask}
             onSelectTask={(task) => {
-              setCalendarSelectedTask((prev) => prev?.id === task.id ? null : task);
+              // [§C 方案 A+] 移除 toggle 邏輯,點任何 task 都設為該 task
+              // 關閉 modal 改由 modal 自身的關閉按鈕 / overlay 處理
+              // 根因:toggle 讓「重新點同一 task」silently 關掉 modal,
+              // 加上 sheet 蓋住時使用者不知情,以為按了沒反應(同 §C Phase 1A toggle 根因)
+              setCalendarSelectedTask(task);
             }}
           />
         );
