@@ -933,9 +933,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setLists(updated);
     saveLists(updated);
     if (user) deleteListFirebase(user.uid, id).catch(console.warn);
+    const affectedTasks = tasks.filter((t) => t.listId === id);
     const taskUpdated = tasks.map((t) => t.listId === id ? { ...t, listId: undefined } : t);
     setTasks(taskUpdated);
     saveTasks(taskUpdated);
+    // 同步受影響的任務到雲端（set listId: undefined = 未分類 = 收集箱）
+    if (user && affectedTasks.length > 0) {
+      batchSaveTasksFirebase(user.uid, affectedTasks.map((t) => ({ ...t, listId: undefined }))).catch(console.warn);
+    }
   }, [lists, tasks, user]);
 
   // ── 習慣 CRUD ─────────────────────────────────────────
