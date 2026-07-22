@@ -180,7 +180,7 @@ export function AppShell({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col min-h-0 flex-1">
       {/* Top Header */}
       <header className="flex-shrink-0 glass sticky top-0 z-30">
         <div className="px-4 md:px-6 py-4">
