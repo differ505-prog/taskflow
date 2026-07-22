@@ -234,8 +234,6 @@ export function CalendarView({
             const isSearchMatch = matchedDayHas(dayTasks);
             const pendingTasks = dayTasks.filter((t) => t.status !== "done");
             const pendingCount = pendingTasks.length;
-            const visibleTasks = pendingTasks.slice(0, 3);
-            const overflowCount = pendingCount - visibleTasks.length;
 
             return (
               <div
@@ -266,28 +264,16 @@ export function CalendarView({
                   >
                     {format(day, "d")}
                   </span>
-                  {overflowCount > 0 && (
-                    <span
-                      className="text-[10px] font-semibold tabular-nums pointer-events-none"
-                      style={{ color: "var(--text-tertiary)" }}
-                      aria-label={`還有 ${overflowCount} 項未完成任務未顯示`}
-                    >
-                      +{overflowCount}
-                    </span>
-                  )}
                 </div>
-                {visibleTasks.length > 0 && (
-                  <div className="flex-1 min-h-0 px-1 pb-0.5 overflow-hidden flex flex-col">
-                    {visibleTasks.map((task) => (
-                      <div
-                        key={task.id}
-                        className="text-[10px] leading-[11px] truncate"
-                        style={{ color: "var(--text-tertiary)" }}
-                        title={task.title}
-                      >
-                        {task.title}
-                      </div>
-                    ))}
+                {pendingCount > 0 && (
+                  <div className="flex-1 min-h-0 px-1 pb-0.5 flex items-start justify-center">
+                    <span
+                      className="min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-semibold px-1"
+                      style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+                      aria-label={`${pendingCount} 項未完成任務`}
+                    >
+                      {pendingCount}
+                    </span>
                   </div>
                 )}
                 {pendingCount === 0 && isSearchMatch && (
@@ -383,7 +369,7 @@ function DesktopCalendarLayout({
   return (
     <div className="flex flex-row h-full overflow-hidden">
       {/* 左欄：日曆 */}
-      <div className="flex-shrink-0 w-[420px] border-r overflow-y-auto overscroll-contain p-6" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+      <div className="flex-shrink-0 border-r overflow-y-auto overscroll-contain p-6" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
         {/* Month header */}
         <div className="flex items-center justify-between mb-5">
           <h1 className="text-[18px] font-semibold" style={{ color: "var(--text-primary)" }}>
@@ -442,8 +428,6 @@ function DesktopCalendarLayout({
             const isSearchMatch = matchedDayHas(dayTasks);
             const pendingTasks = dayTasks.filter((t) => t.status !== "done");
             const pendingCount = pendingTasks.length;
-            const visibleTasks = pendingTasks.slice(0, 3);
-            const overflowCount = pendingCount - visibleTasks.length;
 
             return (
               <div
@@ -472,19 +456,16 @@ function DesktopCalendarLayout({
                   >
                     {format(day, "d")}
                   </span>
-                  {overflowCount > 0 && (
-                    <span className="text-[10px] font-semibold tabular-nums pointer-events-none" style={{ color: "var(--text-tertiary)" }}>
-                      +{overflowCount}
-                    </span>
-                  )}
                 </div>
-                {visibleTasks.length > 0 && (
-                  <div className="flex-1 min-h-0 px-1 pb-0.5 overflow-hidden flex flex-col">
-                    {visibleTasks.map((task) => (
-                      <div key={task.id} className="text-[10px] leading-[11px] truncate" style={{ color: "var(--text-tertiary)" }} title={task.title}>
-                        {task.title}
-                      </div>
-                    ))}
+                {pendingCount > 0 && (
+                  <div className="flex-1 min-h-0 px-1 pb-0.5 flex items-start justify-center">
+                    <span
+                      className="min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-semibold px-1"
+                      style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+                      aria-label={`${pendingCount} 項未完成任務`}
+                    >
+                      {pendingCount}
+                    </span>
                   </div>
                 )}
                 {pendingCount === 0 && isSearchMatch && (
