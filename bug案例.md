@@ -134,3 +134,21 @@
 > ### 教訓（轉化成修憲候選 or 命中既有類別）
 > - <這次教訓值得新增哪條規則>
 > ```
+
+---
+
+## 修憲履歷（§26 類別由來）
+
+本區記錄每次新增 §26 bug 類別背後的觸發案例、修憲原因與自評分。資料來源：`.cursor/rules/global.mdc` 生效紀錄。
+
+| 日期 | 變更 | 自評分 |
+|------|------|--------|
+| 2026-07-19 | 新增 §10.3 修憲自評分公約 + §15.7 Runtime 預算揭露 + §15.8 悶做攔截 + §21.7 跨 repo SSOT + §26 類別 G/H（build 失敗隱形上線 / client/server 元件邊界衝突） | （本表自評） |
+| 2026-07-20 | 新增 §26 類別 I：PostgREST 把函式內部 PostgreSQL error 包裝為 404（42883 等），掩蓋真根因；本輪修了 4 輪才從 Logs 發現 SQLSTATE；新增前自評 9.2，達標 | **9.2**（首輪即達標，免二輪） |
+| 2026-07-20 | 新增 §14.1（build/type 報錯全鏈條清理）— 針對本輪 deletedIdsRef type 改了 3 輪才完整（每次 build 才看到下一錯）；新增 §26 類別 J（孤兒任務自動補推）— 針對「localOnly=15 跨裝置永遠看不到」的具體根因 | **§14.1: 9.3 / §26-J: 9.2**（均首輪達標，免二輪） |
+| 2026-07-20 | 新增 §24.1 瀏覽器子模式首次確認（涵蓋 PWA / Safari tab / WebView 子模式差異，避免把 Safari tab 行為誤套 PWA）+ §26 類別 K（瀏覽器子模式假設錯誤）；本輪 iOS PWA 同步延遲修了 N 輪才發現是 PWA 進背景 iOS 凍結 WebSocket — 治本加 PWA 喚醒同步（visibilitychange + pageshow + online 三事件）已驗證 < 1 秒同步 | **§24.1: 9.3 / §26-K: 9.2**（均首輪達標，免二輪） |
+| 2026-07-21 | 新增 §26 類別 L：跨平台/Web API 方案評估沒查 caniuse/MDN 精準支援矩陣，且 feature-detect 用「近似 payload」（如 `text/plain` 測 `canShare` 但實際分享 `application/json`）導致誤判；本輪 Web Share API 評估時自信「手機都適用」，實則 iOS <15、Chrome Android <86、Firefox Desktop 不支援，且 MIME 測試錯誤；commit f6f73e2 已修正 canShareFiles 用真實 JSON MIME 測試；觸發修憲前自評 9.1 | **9.1**（首輪達標，免二輪） |
+| 2026-07-21 | 新增 §26 類別 M：Next.js App Router 把 client-side Context Provider 放在「可被路由旁路的 layout 內」（P0-2 hotfix: ConfirmProvider 留 AppLayout 但 `/settings` `/tags` 直連 URL 不掛 AppLayout → useConfirm throw）；本對話 commit `5ef2004` 已將 ConfirmProvider 上移至 root layout (`app/layout.tsx`)；類別 M 條文強調「Provider 一律掛 root layout」+ 「驗證必跑 `npx next build`」；觸發修憲前自評 9.1 | **9.1**（首輪達標，免二輪） |
+| 2026-07-21 | 新增 §14.2（UI 條件渲染切換鏈盤點）+ §26 類別 N（嵌套 ternary 修錯層）— 針對本對話 chip toolbar bug 連續 3 commit 才修對的具體根因（d1e204c → f3c4bac → 8775fe2，前兩次只修內層 ternary，第三次才找到外層切換點）；§14.2 動手前盤點切換鏈、§26 類別 N 治本拆解外層 ternary | **§14.2: 9.2 / §26-N: 9.2**（首輪達標，免二輪） |
+| 2026-07-22 | 新增 §26 類別 O（React `useEffect` stale closure 漏 deps — ESC handler 條件 `if (selectedTaskId \ | \ |
+| 2026-07-22 | 新增 §26 類別 O'（雙 hook 獨立 state 死鎖 — 日曆 ESC 後 sheet 永久消失,useBottomSheet internalLevel 卡在 closed 只清 selectedDate 不夠,需呼叫 open() 重置）+ 同步更新 bug案例.md #003。本對話 commit: 69feb42 | **§26-O': 9.4**(首輪即達標,免二輪) |
