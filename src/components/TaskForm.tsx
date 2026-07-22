@@ -24,6 +24,8 @@ interface TaskFormProps {
   /** 當前視圖：新增任務時預設日期的參考 */
   currentView?: string;
   onDeleteAttachment?: (attachment: Attachment) => void;
+  /** 新增任務時的預設狀態（編輯模式忽略） */
+  initialStatus?: TaskStatus;
 }
 
 const RECURRENCE_OPTIONS = [
@@ -39,14 +41,14 @@ const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
 
 const SELECT_ARROW = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23999' strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E";
 
-export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId, currentView, onDeleteAttachment }: TaskFormProps) {
+export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId, currentView, onDeleteAttachment, initialStatus }: TaskFormProps) {
   const { lists, tasks, getTagCounts } = useApp();
   const keyboard = useKeyboardOffset();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   // 預設「暫緩」＝第 4 象限（艾森豪矩陣：避免決策疲勞，新任務預設最低優先）
   const [priority, setPriority] = useState<Priority>("none");
-  const [status, setStatus] = useState<TaskStatus>("todo");
+  const [status, setStatus] = useState<TaskStatus>(initialStatus ?? "todo");
   const [startDate, setStartDate] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [dueTime, setDueTime] = useState("");
@@ -185,7 +187,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
       setRecurrenceDaysOfWeek(initialData.recurrence?.daysOfWeek || []);
       setRecurrenceEndDate(initialData.recurrence?.endDate || "");
     } else {
-      setTitle(""); setDescription(""); setPriority("none"); setStatus("todo");
+      setTitle(""); setDescription(""); setPriority("none"); setStatus(initialStatus ?? "todo");
       setDueDate(currentView === "today" ? new Date().toISOString().split("T")[0] : ""); setStartDate(""); setDueTime(""); setListId(currentListId); setTags([]);
       setSubTaskInputs([]);
       setRecurrenceType("none"); setRecurrenceInterval(1);
@@ -197,7 +199,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
     setErrors({});
     const t = setTimeout(() => titleRef.current?.focus(), 120);
     return () => clearTimeout(t);
-  }, [isOpen, initialData, currentView, currentListId]);
+  }, [isOpen, initialData, currentView, currentListId, initialStatus]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape" && isOpen) onClose(); };

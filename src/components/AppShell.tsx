@@ -84,6 +84,8 @@ export function AppShell({
   const [quickAddInput, setQuickAddInput] = useState("");
   const [quickAddHint, setQuickAddHint] = useState(false);
   const [sharedQuickAddInput, setSharedQuickAddInput] = useState("");
+  // 「進行中」空白區的新增按鈕，點進來預設建立 in-progress 任務
+  const [formInitialStatus, setFormInitialStatus] = useState<"todo" | "in-progress">("todo");
   const sharedQuickAddRef = useRef<HTMLInputElement>(null);
   const quickAddRef = useRef<HTMLInputElement>(null);
   const brainDumpRef = useRef<HTMLTextAreaElement>(null);
@@ -246,7 +248,7 @@ export function AppShell({
               </button>
               {!currentSharedListId && (
               <button
-                onClick={() => setIsFormOpen(true)}
+                onClick={() => { setFormInitialStatus("todo"); setIsFormOpen(true); }}
                 className="btn-primary"
                 aria-label="新增任務"
               >
@@ -561,7 +563,11 @@ export function AppShell({
                   </div>
                 ) : displayTasks.length === 0 ? (
                   <EmptyState
-                    onAddTask={() => setIsFormOpen(true)}
+                    onAddTask={() => {
+                      // 「進行中」空白 → 預設建立 in-progress 任務，其他維持 todo
+                      setFormInitialStatus(activeFilter.status === "in-progress" ? "in-progress" : "todo");
+                      setIsFormOpen(true);
+                    }}
                     variant="general"
                   />
                 ) : (
@@ -611,13 +617,14 @@ export function AppShell({
         initialData={editingTask}
         currentListId={currentListId}
         currentView={currentView}
+        initialStatus={formInitialStatus}
       />
 
       {/* FAB — Mobile only, hidden in shared list view and when task selected */}
       {!currentSharedListId && !selectedTaskId && (
       <button
         className="md:hidden fab"
-        onClick={() => { setIsFormOpen(true); setEditingTask(null); }}
+        onClick={() => { setFormInitialStatus("todo"); setIsFormOpen(true); setEditingTask(null); }}
         aria-label="新增任務"
         style={{ animation: "fab-pop 300ms cubic-bezier(0.34,1.56,0.64,1)" }}
       >
