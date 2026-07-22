@@ -17,6 +17,7 @@
 |----|------|---------|-----------|------|
 | #001 | 點 chip filter 後 toolbar 整排消失（§26 類別 E + §26 類別 N 候選） | 修錯層 / 嵌套 ternary 外層未修 | `8775fe2` | 2026-07-21 |
 | #002 | 「今天先這樣」按鈕審計：commit `f3c4bac` 修了內層 ternary 沒修外層 | §26 類別 N 候選 / 嵌套 ternary 修錯層 | `8775fe2` | 2026-07-21 |
+| #003 | ESC 退回日曆後任務 sheet 永久消失，所有任務再也點不開 | §26 類別 O' / 雙 hook 獨立 state 死鎖 | `69feb42` | 2026-07-22 |
 
 ---
 
@@ -75,7 +76,42 @@
 
 ---
 
-## 待補案例（之後修 bug 時自動追加）
+## #003 — ESC 退回日曆後任務 sheet 永久消失
+
+### 症狀（用戶描述）
+- 在日曆視圖點某個日期 → 任務清單 sheet 彈出 ✅
+- 點某個任務 → 詳情面板跳出 ✅
+- 按 ESC 鍵 → 詳情面板關閉 ✅，但 **任務清單 sheet 也消失**
+- **之後點任何日期都不會再彈出任務清單 sheet**，所有任務再也點不到
+- 只能 reload 整頁才能恢復
+
+### Root Cause（§26 類別 O' / 雙 hook 獨立 state 死鎖）
+
+**雙 hook 獨立 state 死鎖**：
+1. `CalendarTaskSheet` 同時使用了兩個不相關的 state 來控制同一個 UI：
+   - `selectedDate`（由 `CalendarView` / `AppLayout` 管理）— 決定 sheet 是否渲染
+   - `useBottomSheet` 的 `internalLevel`（由 hook 自己管理）— 決定 sheet 內部展開狀態
+
+2. `useBottomSheet` 內部有一個 ESC listener：按下 ESC 時把 `internalLevel` 設為 `"closed"`
+
+3. **但** `CalendarTaskSheet` 的 `if (!selectedDate) return null` **不會 unmount sheet**，只是 return null 隱藏元素。sheet 元件仍在記憶體中，`useBottomSheet` 的 `internalLevel` 卡在 `"closed"`
+
+4. 下次點同一日期 → `selectedDate` 變有值 → sheet 重新顯示 → 但 `useBottomSheet` 內部 `internalLevel` 仍是 `"closed"` → `isOpen = false` → sheet 永遠不顯示
+
+### 修法
+- `CalendarTaskSheet` 內加 `useEffect`：當 `selectedDate` 有值時，主動呼叫 `useBottomSheet.open()` 把 `internalLevel` 重置為 `"default"`
+- `AppLayout` 同時把 `selectedDate` 狀態從 `CalendarView` 提升上來，讓 ESC handler 能統一清掉
+
+### 驗證（§12）
+- `tsc --noEmit` → clean
+- `npm run build` → success
+- 用戶在桌面 Chrome 確認：ESC 後再點同一日期，sheet 正常彈出 ✅
+- 用戶在桌面 Chrome 確認：點別的日期，sheet 正常彈出 ✅
+
+### 教訓（§26 新類別 O'）
+- **雙 hook 獨立 state 死鎖**：當一個 UI 元件同時由兩個不相關的 state 控制時，必須確保**兩者的狀態轉換是一致的**。尤其當其中一個 state 由 hook 內部管理（`useBottomSheet` 的 `internalLevel`）而另一個由外部 prop 傳入（`selectedDate`）時，外部 prop 變化必須主動同步內部狀態。
+- **第一次修失敗就停下問診**：本案例第一次修了 AppLayout（加 `setCalendarSelectedDate(null)`）但沒修到真切換點，浪費一次 commit。直到第二次確認真正根因在 `useBottomSheet` 的 `internalLevel`，才找到正確修法。
+- **commit `38e5abc` 沒生效**：第一次修完後即使用戶 hard reload、生產環境已部署，症狀依舊。提醒：tsc clean / build success 只是必要條件，不保證修法邏輯正確。
 
 > 每次修完 bug：複製下方模板，填入根因 + 修法 + commit hash，然後 commit。
 >
