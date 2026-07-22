@@ -586,6 +586,7 @@ export function AppShell({
                               onUpdatePriority={(id, p) => updateTask(id, { priority: p })}
                               onUpdateTags={(id, tags) => updateTask(id, { tags })}
                               onTogglePin={(id) => updateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
+                              onDelete={(id) => deleteTask(id)}
                               allTags={Object.keys(getTagCounts())}
                               batchMode={batchMode}
                               batchSelected={!!batchSelectedIds?.has(task.id)}

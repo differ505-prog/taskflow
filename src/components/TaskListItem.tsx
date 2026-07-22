@@ -8,6 +8,7 @@ import { Clock } from "lucide-react";
 import { getDeadlineStatus } from "@/lib/deadlineEngine";
 import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, ListChecks,
+  Trash2,
 } from "lucide-react";
 
 interface TaskListItemProps {
@@ -25,6 +26,7 @@ interface TaskListItemProps {
   batchSelected?: boolean;
   onLongPress?: () => void; // 長按 600ms 進入批次模式
   onBatchToggle?: () => void; // 在批次模式下點擊,切換勾選
+  onDelete?: (id: string) => void;
 }
 
 import { sortSubTasks } from "@/utils/subtaskSort";
@@ -47,6 +49,7 @@ export function TaskListItem({
   batchSelected = false,
   onLongPress,
   onBatchToggle,
+  onDelete,
 }: TaskListItemProps) {
   const subTasks = task.subTasks || [];
   const sortedSubTasks = sortSubTasks(subTasks);
@@ -164,17 +167,30 @@ export function TaskListItem({
             {task.title}
           </h3>
 
-          {/* 右上角：旗子 / 圖釘 / 標籤 / 附件 / 子任務 圖示區 */}
-          {(onUpdatePriority || onUpdateTags || onTogglePin) && (
-            <TaskQuickActions
-              task={task}
-              compact
-              onUpdatePriority={(p) => onUpdatePriority?.(task.id, p)}
-              onUpdateTags={(tags) => onUpdateTags?.(task.id, tags)}
-              onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
-              allTags={allTags}
-            />
-          )}
+          {/* 右上角：刪除 / 旗子 / 圖釘 / 標籤 / 附件 / 子任務 */}
+          <div className="flex-shrink-0 flex items-center gap-0.5">
+            {onDelete && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
+                className="p-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-50 transition-all duration-150 active:scale-90"
+                style={{ color: "var(--text-tertiary)" }}
+                aria-label="刪除任務"
+                title="刪除"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {(onUpdatePriority || onUpdateTags || onTogglePin) && (
+              <TaskQuickActions
+                task={task}
+                compact
+                onUpdatePriority={(p) => onUpdatePriority?.(task.id, p)}
+                onUpdateTags={(tags) => onUpdateTags?.(task.id, tags)}
+                onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
+                allTags={allTags}
+              />
+            )}
+          </div>
         </div>
 
         {/* 死線引擎：截止緊迫警示（帕金森定律視覺化） */}
