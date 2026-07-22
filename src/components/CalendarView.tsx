@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useApp } from "@/lib/AppContext";
 import { Task } from "@/lib/types";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus, ChevronDown, ChevronRight as ChevronRightSm } from "lucide-react";
-import { SwipeableTaskCard } from "./SwipeableTaskCard";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarTaskSheet } from "./CalendarTaskSheet";
 
 interface CalendarViewProps {
   selectedTask: Task | null;
@@ -24,10 +24,6 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
   });
   const [draggingTask, setDraggingTask] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [quickAddTitle, setQuickAddTitle] = useState("");
-  // 已完成任務摺疊：key = `${dateStr}`,value = 是否展開（未存 = 已折疊）
-  const [doneExpanded, setDoneExpanded] = useState<Record<string, boolean>>({});
-  const quickAddInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -39,12 +35,6 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
       localStorage.setItem("calendar_selectedDate", selectedDate);
     } else {
       localStorage.removeItem("calendar_selectedDate");
-    }
-  }, [selectedDate]);
-
-  useEffect(() => {
-    if (selectedDate && quickAddInputRef.current) {
-      quickAddInputRef.current.focus();
     }
   }, [selectedDate]);
 
@@ -115,23 +105,13 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
       dueDate: dateStr,
       tags: [],
     });
-    setQuickAddTitle("");
   };
 
   const prevMonth = () => setCurrentMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
   const nextMonth = () => setCurrentMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
 
-  const selectedDateTasks = selectedDate
-    ? tasks.filter((t) => {
-        if (t.isArchived) return false;
-        const start = t.startDate;
-        const end = t.dueDate;
-        if (start && end) return selectedDate >= start && selectedDate <= end;
-        if (!start && end) return selectedDate === end;
-        if (start && !end) return selectedDate === start;
-        return false;
-      })
-    : [];
+  // [Refactor] selectedDateTasks 由 CalendarTaskSheet 內部 useMemo 計算,
+  // 此處不再需要,避免重複 filter 任務陣列
 
   // Drag and drop
   const handleDragStart = (taskId: string) => setDraggingTask(taskId);
@@ -161,7 +141,6 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
 
   const handleDayClick = (dateStr: string) => {
     setSelectedDate(selectedDate === dateStr ? null : dateStr);
-    setQuickAddTitle("");
   };
 
   return (
@@ -303,149 +282,22 @@ export function CalendarView({ selectedTask, onSelectTask }: CalendarViewProps) 
         </div>
       </div>
 
-      {/* 任務列表展開區域 — 獨立 viewport,不參與日曆 flex chain
-          §26 類別 B 治本:flex-1 + maxHeight 720 + minHeight 280,
-          100% 解析:30 任務時內部獨立滾動,不撐爆 flex 鏈條
-          (前一版 height:min(720,75vh) 失敗,根因是 CalendarView root 缺 h-full,
-          內部 flex-1 拿不到父層高度約束 → 改為佔剩餘空間 + 上限) */}
-      {selectedDate && mounted && (
-        <div
-          className="calendar-task-panel border-t flex flex-col flex-shrink-0"
-          style={{
-            borderColor: "var(--border)",
-            background: "var(--surface)",
-            flex: "1 1 0",
-            minHeight: "280px",
-            maxHeight: "min(720px, 75vh)",
-          }}
-        >
-          <div className="px-4 pt-4 pb-6 flex flex-col overscroll-contain flex-1 min-h-0 overflow-y-auto">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
-                  {format(parseISO(selectedDate), "M 月 d 日", { locale: zhTW })}
-                  {isToday(parseISO(selectedDate)) && (
-                    <span className="ml-2 text-[12px] font-normal" style={{ color: "var(--brand)" }}>今天</span>
-                  )}
-                  <span className="ml-2 text-[12px]" style={{ color: "var(--text-tertiary)" }}>
-                    {selectedDateTasks.length} 項任務
-                  </span>
-                </h2>
-                <button
-                  onClick={() => setSelectedDate(null)}
-                  className="p-1.5 rounded-lg hover:bg-black/5 transition-colors"
-                  style={{ color: "var(--text-tertiary)" }}
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* 快速新增 */}
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (quickAddTitle.trim()) {
-                    submitQuickAdd(selectedDate, quickAddTitle);
-                  }
-                }}
-                className="flex items-center gap-2 mb-4"
-              >
-                <input
-                  ref={quickAddInputRef}
-                  type="text"
-                  value={quickAddTitle}
-                  onChange={(e) => setQuickAddTitle(e.target.value)}
-                  placeholder="新增任務…"
-                  className="input flex-1"
-                  style={{ fontSize: 14, padding: "10px 14px" }}
-                />
-                <button type="submit" className="btn-primary py-2.5 px-4 flex items-center gap-1.5 flex-shrink-0">
-                  <Plus className="w-4 h-4" />
-                  新增
-                </button>
-              </form>
-
-              {/* Task list - 任務可點擊，與日曆格子完全分離 */}
-              {selectedDateTasks.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 gap-2 flex-shrink-0">
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "var(--surface-muted)" }}>
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: "var(--text-tertiary)" }}>
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                  </div>
-                  <p className="text-[13px]" style={{ color: "var(--text-tertiary)" }}>這天沒有任務</p>
-                </div>
-              ) : (() => {
-                const todo = selectedDateTasks.filter((t) => t.status !== "done");
-                const done = selectedDateTasks.filter((t) => t.status === "done");
-                const isDoneOpen = !!doneExpanded[selectedDate];
-                return (
-                  <div className="space-y-2 flex flex-col">
-                    {todo.map((task) => (
-                      <SwipeableTaskCard
-                        key={task.id}
-                        taskId={task.id}
-                        hideComplete
-                        onDelete={(id) => deleteTask(id)}
-                      >
-                        <CalendarTaskItem
-                          task={task}
-                          isSelected={selectedTask?.id === task.id}
-                          onClick={() => onSelectTask(task)}
-                          onToggleStatus={() => toggleTaskStatus(task.id)}
-                        />
-                      </SwipeableTaskCard>
-                    ))}
-                    {done.length > 0 && (
-                      <div className={todo.length > 0 ? "pt-2 border-t border-dashed" : ""} style={{ borderColor: "var(--border)" }}>
-                        <button
-                          type="button"
-                          onClick={() => setDoneExpanded((prev) => ({ ...prev, [selectedDate]: !prev[selectedDate] }))}
-                          className="flex items-center gap-1 text-[11px] font-medium transition-colors hover:opacity-80"
-                          style={{ color: "var(--text-tertiary)" }}
-                          aria-expanded={isDoneOpen}
-                          aria-label={isDoneOpen ? `摺疊 ${done.length} 項已完成任務` : `展開 ${done.length} 項已完成任務`}
-                        >
-                          {isDoneOpen ? (
-                            <ChevronDown className="w-3 h-3" aria-hidden="true" />
-                          ) : (
-                            <ChevronRightSm className="w-3 h-3" aria-hidden="true" />
-                          )}
-                          <span>已完成 ({done.length})</span>
-                        </button>
-                        {isDoneOpen && (
-                          <div className="mt-2 space-y-2">
-                            {done.map((task) => (
-                              <SwipeableTaskCard
-                                key={task.id}
-                                taskId={task.id}
-                                hideComplete
-                                onDelete={(id) => deleteTask(id)}
-                              >
-                                <CalendarTaskItem
-                                  task={task}
-                                  isSelected={selectedTask?.id === task.id}
-                                  onClick={() => onSelectTask(task)}
-                                  onToggleStatus={() => toggleTaskStatus(task.id)}
-                                />
-                              </SwipeableTaskCard>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
-        )}
+      {/* [Refactor: Bottom Sheet 改造] 任務面板從「日曆下方擠出來」改為「獨立底部彈出」,
+          不再參與日曆 flex chain,徹底消除 §26 類別 B 的 flex 高度塌縮根因。 */}
+      <CalendarTaskSheet
+        selectedDate={mounted ? selectedDate : null}
+        onClose={() => setSelectedDate(null)}
+        selectedTask={selectedTask}
+        onSelectTask={onSelectTask}
+        onQuickAdd={submitQuickAdd}
+      />
     </div>
   );
 }
 
 // 日曆任務卡片 - 可點擊打開詳情
-function CalendarTaskItem({
+// [Refactor: §5 DRY] 同時被 CalendarView 本身與 CalendarTaskSheet 使用
+export function CalendarTaskItem({
   task,
   isSelected,
   onClick,
