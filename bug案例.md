@@ -18,6 +18,7 @@
 | #001 | 點 chip filter 後 toolbar 整排消失（§26 類別 E + §26 類別 N 候選） | 修錯層 / 嵌套 ternary 外層未修 | `8775fe2` | 2026-07-21 |
 | #002 | 「今天先這樣」按鈕審計：commit `f3c4bac` 修了內層 ternary 沒修外層 | §26 類別 N 候選 / 嵌套 ternary 修錯層 | `8775fe2` | 2026-07-21 |
 | #003 | ESC 退回日曆後任務 sheet 永久消失，所有任務再也點不開 | §26 類別 O' / 雙 hook 獨立 state 死鎖 | `69feb42` | 2026-07-22 |
+| #004 | 任務多時最後一個任務被底部截斷，滑不到 | 容器 `overflow-y-auto` 的 `pb` padding 在裁切邊界內失效 | `89082d7` | 2026-07-22 |
 
 ---
 
@@ -137,7 +138,53 @@
 
 ---
 
-## 修憲履歷（§26 類別由來）
+## #004 — 任務多時最後一個任務被底部截斷，滑不到
+
+### 症狀（用戶描述）
+- 任務數量足夠多、列表可滾動
+- 滾到底部時，最後一個任務被底部區域（FAB / 輸入框）截斷
+- 滑不到最後一個任務的完整內容
+
+### Root Cause（overflow padding 裁切邊界陷阱）
+
+`AppShell.tsx` 滾動容器的 `overflow-y-auto` 與 `pb-[calc(...)]` 共存於同一元素：
+
+```
+<div className="... overflow-y-auto px-6 py-5 pb-[calc(...)]">
+```
+
+`overflow` 會建立 **裁切邊界（BFC）**，`padding` 在邊界**內**計算。裁切邊界內的 padding-bottom 空間被裁掉，永遠不可見。
+
+**類似的已知陷阱**：當 `overflow: hidden` / `overflow: auto` 與 `padding` / `box-shadow` 同時存在，padding 和 shadow 會被裁切。
+
+### 修法
+
+將 `pb` 從滾動容器移到**內容層**：
+
+```tsx
+// 滾動容器：移除了 px py pb
+<div className="flex-1 min-h-0 overflow-y-auto overscroll-contain h-full md:pb-5 ...">
+
+// 新增內容層：接收原本的 padding
+<div className="px-6 py-5 pb-[calc(72px+env(safe-area-inset-bottom,0px)+16px)] min-w-0 flex flex-col flex-1">
+  {/* 實際內容：Viewer 提示、Shared List View、Normal View */}
+</div>
+</div>
+```
+
+`overflow-y-auto` 仍在容器層，裁切邊界仍在；但 `pb` 在內容層（裁切邊界**外**），padding 空間可正常發揮，最後一個任務完整可見。
+
+### 驗證（§12）
+- `npm run build` → exit 0
+- 推 main → Vercel production deployment 觸發
+- 用戶確認任務多時最後一個任務完整可見、可滾動到底
+
+### 教訓
+- **`overflow` 裁切邊界陷阱**：`overflow: auto/scroll/hidden` 會建立 BFC，該元素自身的 `padding` / `box-shadow` / `border-radius` 超出部分會被裁切。若需要有額外空間（底部墊 FAB 高度），padding 必須放在**內容層**，不能放在裁切元素自身。
+- **§15.3 佈局 Bug 第一刀**：視覺症狀「底部截斷」→ 檢查 `overflow` 屬性 + 父層 `overflow` 鍊 → 確認裁切邊界位置 → 將 padding 移至 overflow 容器內層。
+- **純 Tailwind 改動**：此修法是樣式重構，無跨元件邏輯影響，build clean 即為充分驗證。
+
+> 每次修完 bug：複製下方模板，填入根因 + 修法 + commit hash，然後 commit。
 
 本區記錄每次新增 §26 bug 類別背後的觸發案例、修憲原因與自評分。資料來源：`.cursor/rules/global.mdc` 生效紀錄。
 
