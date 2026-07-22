@@ -359,8 +359,9 @@ export function AppShell({
           {/* Left: Task list — scroll container */}
           <div
             style={{ WebkitOverflowScrolling: "touch" }}
-            className={`flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-5 pb-[calc(72px+env(safe-area-inset-bottom,0px)+16px)] h-full md:pb-5 ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}
+            className={`flex-1 min-h-0 overflow-y-auto overscroll-contain h-full md:pb-5 ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}
           >
+          <div className="px-6 py-5 pb-[calc(72px+env(safe-area-inset-bottom,0px)+16px)] min-w-0 flex flex-col flex-1">
             {/* Viewer 唯讀提示 */}
             {isReadOnlyShared && (
               <div
@@ -597,6 +598,7 @@ export function AppShell({
                 )}
               </>
             )}
+          </div>
           </div>
           </div>{/* end scroll wrapper */}
         </main>
