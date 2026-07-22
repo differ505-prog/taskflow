@@ -33,7 +33,10 @@ export function PullToRefresh({ onRefresh, children, className = "" }: PullToRef
     if (!pulling || touchStartY.current === null) return;
     const delta = e.touches[0].clientY - touchStartY.current;
     if (delta > 0) {
-      (e as unknown as { nativeEvent: TouchEvent }).nativeEvent.preventDefault?.();
+      // Only preventDefault once past threshold — allows native scroll below threshold
+      if (delta > PULL_THRESHOLD) {
+        (e as unknown as { nativeEvent: TouchEvent }).nativeEvent.preventDefault?.();
+      }
       setPullDistance(Math.min(delta, PULL_THRESHOLD * 1.5));
     }
   }, [pulling]);

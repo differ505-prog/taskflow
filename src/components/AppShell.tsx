@@ -353,9 +353,12 @@ export function AppShell({
       </header>
 
         {/* Main Content — Mobile scrolls via inner div, Desktop split via flex-row */}
-        <main className={`flex-1 min-w-0 flex flex-col h-full md:flex-row md:overflow-hidden will-change-transform ${selectedTaskId ? "md:max-w-[calc(100vw-480px-1px)]" : ""}`}>
+        <main className={`flex-1 min-w-0 flex flex-col h-full md:flex-row ${selectedTaskId ? "md:max-w-[calc(100vw-480px-1px)]" : ""}`}>
           {/* Left: Task list — scroll container with bottom padding for mobile nav */}
-          <div style={{ WebkitOverflowScrolling: "touch" }} className={`flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-5 pb-[calc(72px+env(safe-area-inset-bottom,0px)+16px)] md:pb-5 md:overflow-y-auto ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}>
+          <div
+            style={{ WebkitOverflowScrolling: "touch" }}
+            className={`flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 py-5 pb-[calc(72px+env(safe-area-inset-bottom,0px)+16px)] md:pb-5 ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}
+          >
             {/* Viewer 唯讀提示 */}
             {isReadOnlyShared && (
               <div
