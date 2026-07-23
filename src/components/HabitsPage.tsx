@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useApp } from "@/lib/AppContext";
 import { Habit } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
-import { Plus, X, CheckCircle2, Circle, Trash2, Edit3, Flame, Target, TrendingUp } from "lucide-react";
+import { Plus, X, CheckCircle2, Circle, Trash2, Edit3, Flame, Target, TrendingUp, Heart } from "lucide-react";
 import { useConfirm } from "@/hooks/useConfirm";
 
 const HABIT_COLORS = ["#4F6AF5", "#8B5CF6", "#EC4899", "#EF4444", "#F97316", "#EAB308", "#22C55E", "#14B8A6", "#06B6D4", "#636366"];
@@ -204,7 +204,7 @@ export function HabitsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-[18px] font-semibold" style={{ color: "var(--text-primary)" }}>習慣打卡</h1>
-          <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>
+          <p className="text-[12px] mt-1.5" style={{ color: "var(--text-tertiary)" }}>
             今日完成 {todayDone}/{activeHabits.length} 個習慣
             {archivedHabits.length > 0 && !showArchived && (
               <span className="ml-2">
@@ -303,7 +303,7 @@ export function HabitsPage() {
             )}
 
             {/* Color */}
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap justify-center">
               {HABIT_COLORS.map((c) => (
                 <button
                   key={c}
@@ -332,8 +332,12 @@ export function HabitsPage() {
       {/* Habits list */}
       {displayHabits.length === 0 && !showForm ? (
         <div className="card py-16 text-center">
+          <Heart className="w-10 h-10 mx-auto mb-3 opacity-20" style={{ color: "var(--text-tertiary)" }} />
           <p className="text-[14px]" style={{ color: "var(--text-tertiary)" }}>
-            {showArchived ? "沒有封存的習慣" : "還沒有習慣，點擊上方新增開始追蹤"}
+            {showArchived ? "沒有封存的習慣" : "還沒有習慣"}
+          </p>
+          <p className="text-[12px] mt-1" style={{ color: "var(--text-tertiary)" }}>
+            {showArchived ? "封存的習慣會保留所有打卡紀錄" : "點擊上方「新增習慣」開始追蹤你的第一個習慣"}
           </p>
         </div>
       ) : (
