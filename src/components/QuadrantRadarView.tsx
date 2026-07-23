@@ -134,8 +134,8 @@ function QuadrantCard({ quadrant, emoji, label, caption, colorHex, tasks, onTask
         </button>
       </div>
 
-      {/* 任務列表 */}
-      <div className="flex-1 min-h-0 px-3 py-2 overflow-y-auto">
+      {/* 任務列表 — 桌面 2x2 grid 下由 main 統一滾動,卡片自身不獨立 scroll;保留 min-h-[160px] 確保空象限也有可見高度 */}
+      <div className="flex-1 min-h-[160px] px-3 py-2">
         {visible.length === 0 ? (
           <p
             className="text-[12px] py-3 text-center"
@@ -237,7 +237,7 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
   const totalActive = grouped["do-now"].length + grouped["schedule"].length + grouped["delegate"].length + grouped["none"].length;
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="h-full flex flex-col">
       {/* Sticky Header */}
       <header className="sticky top-0 z-40 glass">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -273,7 +273,7 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
 
       {/* 2x2 雷達視圖（行動裝置:1欄 / 平板+:2x2） */}
       <main className="flex-1 min-h-0 overflow-y-auto max-w-5xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 h-full" style={{ gridAutoRows: "minmax(220px, 1fr)" }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 auto-rows-auto">
           {/* Q1: 速辦（左上 · 最關鍵位置） */}
           <QuadrantCard
             quadrant="do-now"
