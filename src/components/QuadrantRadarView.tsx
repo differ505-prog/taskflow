@@ -272,7 +272,7 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
       </header>
 
       {/* 2x2 雷達視圖（行動裝置:1欄 / 平板+:2x2） */}
-      <main className="flex-1 min-h-0 max-w-5xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 min-h-0 overflow-y-auto max-w-5xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 h-full" style={{ gridAutoRows: "minmax(220px, 1fr)" }}>
           {/* Q1: 速辦（左上 · 最關鍵位置） */}
           <QuadrantCard
