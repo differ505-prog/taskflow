@@ -26,6 +26,8 @@ interface TaskFormProps {
   onDeleteAttachment?: (attachment: Attachment) => void;
   /** 新增任務時的預設狀態（編輯模式忽略） */
   initialStatus?: TaskStatus;
+  /** 新增任務時的預設優先度（編輯模式忽略）— 用於象限視圖快速新增:從象限點 + → priority 直接對應該象限 */
+  initialPriority?: Priority;
 }
 
 const RECURRENCE_OPTIONS = [
@@ -41,7 +43,7 @@ const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
 
 const SELECT_ARROW = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23999' strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E";
 
-export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId, currentView, onDeleteAttachment, initialStatus }: TaskFormProps) {
+export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId, currentView, onDeleteAttachment, initialStatus, initialPriority }: TaskFormProps) {
   const { lists, tasks, getTagCounts } = useApp();
   const keyboard = useKeyboardOffset();
   const [title, setTitle] = useState("");
@@ -187,7 +189,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
       setRecurrenceDaysOfWeek(initialData.recurrence?.daysOfWeek || []);
       setRecurrenceEndDate(initialData.recurrence?.endDate || "");
     } else {
-      setTitle(""); setDescription(""); setPriority("none"); setStatus(initialStatus ?? "todo");
+      setTitle(""); setDescription(""); setPriority(initialPriority ?? "none"); setStatus(initialStatus ?? "todo");
       setDueDate(currentView === "today" ? new Date().toISOString().split("T")[0] : ""); setStartDate(""); setDueTime(""); setListId(currentListId); setTags([]);
       setSubTaskInputs([]);
       setRecurrenceType("none"); setRecurrenceInterval(1);
@@ -199,7 +201,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
     setErrors({});
     const t = setTimeout(() => titleRef.current?.focus(), 120);
     return () => clearTimeout(t);
-  }, [isOpen, initialData, currentView, currentListId, initialStatus]);
+  }, [isOpen, initialData, currentView, currentListId, initialStatus, initialPriority]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape" && isOpen) onClose(); };

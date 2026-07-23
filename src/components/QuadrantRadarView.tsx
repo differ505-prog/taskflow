@@ -39,9 +39,11 @@ interface QuadrantCardProps {
   onTaskClick: (taskId: string) => void;
   onToggleStatus: (taskId: string) => void;
   onDeleteTask: (taskId: string) => void;
+  /** 點象限 header 的 + → 開 TaskForm 並預填 priority = 此象限 */
+  onAddTask: () => void;
 }
 
-function QuadrantCard({ quadrant, emoji, label, caption, colorHex, tasks, onTaskClick, onToggleStatus, onDeleteTask }: QuadrantCardProps) {
+function QuadrantCard({ quadrant, emoji, label, caption, colorHex, tasks, onTaskClick, onToggleStatus, onDeleteTask, onAddTask }: QuadrantCardProps) {
   const count = tasks.length;
   // 顯示前 5 項未完成任務
   const visible = tasks.filter((t) => t.status !== "done").slice(0, 5);
@@ -115,6 +117,21 @@ function QuadrantCard({ quadrant, emoji, label, caption, colorHex, tasks, onTask
             {caption}
           </div>
         </div>
+
+        {/* 象限新增入口 — 點 + 直接開 TaskForm 並預填 priority = 此象限（§1 Stripe 資訊分層：入口在象限內） */}
+        <button
+          type="button"
+          onClick={onAddTask}
+          className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-lg transition-all duration-150 hover:scale-110 active:scale-95"
+          style={{
+            background: `${colorHex}20`,
+            color: colorHex,
+          }}
+          aria-label={`新增到「${label}」象限`}
+          title={`新增到「${label}」象限`}
+        >
+          <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
+        </button>
       </div>
 
       {/* 任務列表 */}
@@ -194,6 +211,12 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
   const { tasks, toggleTaskStatus, addTask, deleteTask } = useApp();
   // 本地 TaskForm state — 跟其他 view 一樣獨立持有,避免把 state 提升到 AppLayout (§13 最小變更)
   const [isFormOpen, setIsFormOpen] = useState(false);
+  // 預填 priority — 從象限 + 進入則對應該象限;從 header 預設 + 進入則 = "none"
+  const [pendingPriority, setPendingPriority] = useState<Priority>("none");
+  const handleOpenForm = (priority: Priority = "none") => {
+    setPendingPriority(priority);
+    setIsFormOpen(true);
+  };
 
   // 用 getEisenhowerVisual 取每個任務的即時象限（含 24h 自動提升 schedule → do-now）
   const grouped = useMemo(() => {
@@ -234,10 +257,10 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
                 {totalActive} 項進行中 · 艾森豪矩陣
               </p>
             </div>
-            {/* 新增任務 CTA — 在四象限視圖也能快速新增任務（與主畫 quickAdd 一致入口） */}
+            {/* 新增任務 CTA（無象限預設,priority = none）— 4 象限 header 各有專屬入口,這個是 fallback */}
             <button
               type="button"
-              onClick={() => setIsFormOpen(true)}
+              onClick={() => handleOpenForm()}
               className="btn-primary"
               aria-label="新增任務"
             >
@@ -262,6 +285,7 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
             onTaskClick={onTaskSelect}
             onToggleStatus={toggleTaskStatus}
             onDeleteTask={deleteTask}
+            onAddTask={() => handleOpenForm("do-now")}
           />
 
           {/* Q2: 排程（右上） */}
@@ -275,6 +299,7 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
             onTaskClick={onTaskSelect}
             onToggleStatus={toggleTaskStatus}
             onDeleteTask={deleteTask}
+            onAddTask={() => handleOpenForm("schedule")}
           />
 
           {/* Q3: 轉交（左下） */}
@@ -288,6 +313,7 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
             onTaskClick={onTaskSelect}
             onToggleStatus={toggleTaskStatus}
             onDeleteTask={deleteTask}
+            onAddTask={() => handleOpenForm("delegate")}
           />
 
           {/* Q4: 暫緩（右下） */}
@@ -301,6 +327,7 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
             onTaskClick={onTaskSelect}
             onToggleStatus={toggleTaskStatus}
             onDeleteTask={deleteTask}
+            onAddTask={() => handleOpenForm("none")}
           />
         </div>
       </main>
@@ -313,6 +340,7 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
         initialData={null}
         currentView="quadrant"
         initialStatus="todo"
+        initialPriority={pendingPriority}
       />
     </div>
   );
