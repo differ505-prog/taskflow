@@ -24,10 +24,11 @@ import { Task, Priority } from "@/lib/types";
 import { getEisenhowerVisual, EISENHOWER_URGENT_HOURS } from "@/lib/eisenhower";
 import { Info } from "lucide-react";
 import { TextWithLinks } from "./TextWithLinks";
-import { CheckCircle2, Circle, Plus } from "lucide-react";
+import { CheckCircle2, Circle, Plus, Trash2 } from "lucide-react";
 import { fireTaskDoneConfetti, playTaskDoneSound } from "@/lib/confetti";
 import { TaskForm } from "./TaskForm";
 import { SwipeableTaskCard } from "./SwipeableTaskCard";
+import { haptic } from "@/lib/haptics";
 
 interface QuadrantCardProps {
   quadrant: "do-now" | "schedule" | "delegate" | "none";
@@ -151,7 +152,7 @@ function QuadrantCard({ quadrant, emoji, label, caption, colorHex, tasks, onTask
                 <SwipeableTaskCard
                   taskId={task.id}
                   hideComplete={false}
-                  onDelete={(id) => onDeleteTask(id)}
+                  onDelete={(id) => { haptic("medium"); onDeleteTask(id); }}
                   onComplete={task.status === "done" ? undefined : () => {
                     const evt = { currentTarget: document.activeElement } as unknown as HTMLElement | null;
                                     onToggleStatus(task.id);
@@ -161,7 +162,7 @@ function QuadrantCard({ quadrant, emoji, label, caption, colorHex, tasks, onTask
                 >
                   <button
                     onClick={() => onTaskClick(task.id)}
-                    className="w-full text-left px-2.5 py-2 rounded-xl text-[12.5px] leading-snug hover:bg-black/5 transition-colors flex items-start gap-2"
+                    className="group relative w-full text-left px-2.5 py-2 rounded-xl text-[12.5px] leading-snug hover:bg-black/5 transition-colors flex items-start gap-2"
                     style={{ color: "var(--text-primary)" }}
                   >
                     {/* 檢核框 */}
@@ -184,6 +185,21 @@ function QuadrantCard({ quadrant, emoji, label, caption, colorHex, tasks, onTask
                     <span className="min-w-0 flex-1 truncate">
                       <TextWithLinks text={task.title} />
                     </span>
+                    {/* 桌面 hover 刪除入口 — 對齊 TaskListItem L222-232 pattern;mobile 仍走 swipe */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        haptic("medium");
+                        onDeleteTask(task.id);
+                      }}
+                      className="flex-shrink-0 -mr-1 p-1 rounded-lg opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-red-50 transition-all duration-150 active:scale-90 z-10"
+                      style={{ color: "var(--text-tertiary)" }}
+                      aria-label="刪除任務"
+                      title="刪除"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
                   </button>
                 </SwipeableTaskCard>
               </li>
