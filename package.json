@@ -4,9 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "predev": "node scripts/patch-sw.js",
     "build": "next build",
+    "postbuild": "node scripts/patch-sw.js",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "check:sw": "node --check public/sw.js"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

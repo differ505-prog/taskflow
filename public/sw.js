@@ -8,6 +8,8 @@
  * - 需要型別時用 JSDoc 註解（@type {ServiceWorkerGlobalScope}）保留 IDE 提示
  * - 改動後必跑 'node --check public/sw.js' 驗證語法（CI 可加 npm run check:sw）
  * - 若未來需要完整 TS workflow,改用 esbuild 編譯 sw.ts → sw.js + npm script
+ * - ⚠️ CACHE_NAME 會在 build 時由 scripts/patch-sw.js 自動注入唯一 hash
+ *   千萬不要手動改成單一固定值（如 taskflow-v1），會導致新 SW 無法清掉舊 cache（PWA 卡舊版）
  *
  * 功能：
  * 1. Cache-first 策略：靜態資源（JS/CSS/圖片）離線可用
@@ -19,9 +21,9 @@
  * - App Shell 架構：HTML + CSS + JS 全部離線
  * - API 請求不做離線寫入（任務資料以 Supabase Realtime 為準）
  */
-const CACHE_NAME = "taskflow-v1";
+const CACHE_NAME = "taskflow-XXX"; // ← build/dev 時由 scripts/patch-sw.js 自動替換為 taskflow-{hash}
+// STATIC_ASSETS 不再放 HTML("/") ，否則 cache-first 永遠命中舊 HTML 導致 SW 更新也吃不到新內容
 const STATIC_ASSETS = [
-  "/",
   "/manifest.json",
   "/favicon.svg",
 ];
@@ -86,13 +88,34 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // 靜態資源：cache-first（速度優先）
+  // 靜態資源（含 JS/CSS/圖片/_next/*）：cache-first（速度優先）
+  // 例外：HTML / 導航請求（request.mode === 'navigate'）改走 network-first
+  // 確保 SW 更新後，用戶重新整理能立刻拿到新版 HTML，不會被舊 cache 卡住
+  const isNavigation = request.mode === "navigate" ||
+    (request.method === "GET" && request.headers.get("accept")?.includes("text/html"));
+
+  if (isNavigation) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() =>
+          caches.match(request).then((cached) => cached || caches.match("/"))
+        )
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
       return fetch(request).then((response) => {
-        // 不快取 non-GET 或 opaque 響應
-        if (request.method !== "GET" || !response.ok) return response;
+        if (!response.ok) return response;
         const clone = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         return response;
