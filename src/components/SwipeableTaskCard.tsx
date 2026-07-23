@@ -29,7 +29,11 @@ export function SwipeableTaskCard({
   const [offset, setOffset] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const startXRef = useRef(0);
+  const startYRef = useRef(0);
   const currentOffsetRef = useRef(0);
+  // 方向鎖定：null=未定,true=水平意圖,false=垂直意圖（鎖定後不再更新）
+  // 前 12px 移動內決定意圖,避免「上下滑偏一點」被當左滑
+  const directionLockedRef = useRef<boolean | null>(null);
   const isProcessingRef = useRef(false); // 防止重複點擊
 
   const close = useCallback(() => {
@@ -40,14 +44,30 @@ export function SwipeableTaskCard({
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     startXRef.current = e.touches[0].clientX;
+    startYRef.current = e.touches[0].clientY;
+    directionLockedRef.current = null;
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    const delta = e.touches[0].clientX - startXRef.current;
+    const touch = e.touches[0];
+    const dx = touch.clientX - startXRef.current;
+    const dy = touch.clientY - startYRef.current;
     const max = hideComplete ? ACTION_WIDTH : ACTION_WIDTH * 2;
 
-    // Swipe left (delta < 0) reveals actions; swipe right closes
-    const next = Math.min(0, Math.max(-max, currentOffsetRef.current + delta));
+    // 方向鎖定：前 12px 內決定意圖（§E2：修「上下滑偏一下就觸發左滑」）
+    if (directionLockedRef.current === null) {
+      const totalMoved = Math.abs(dx) + Math.abs(dy);
+      if (totalMoved > 12) {
+        // |dy| > |dx| * 1.5 = 明確垂直意圖（容忍垂直滾動）,不允許 swipe
+        directionLockedRef.current = Math.abs(dy) > Math.abs(dx) * 1.5 ? false : true;
+      } else {
+        return; // 未達決定門檻,先不動
+      }
+    }
+    if (directionLockedRef.current === false) return; // 已鎖為垂直,不累積 offset
+
+    // Swipe left (dx < 0) reveals actions; swipe right closes
+    const next = Math.min(0, Math.max(-max, currentOffsetRef.current + dx));
     setOffset(next);
   }, [hideComplete]);
 
@@ -56,6 +76,9 @@ export function SwipeableTaskCard({
     isProcessingRef.current = true;
     setTimeout(() => { isProcessingRef.current = false; }, 300);
 
+    // 方向未定（使用者只上下滑未達 12px）→ 視為關閉
+    if (directionLockedRef.current !== true) { close(); return; }
+
     const max = hideComplete ? ACTION_WIDTH : ACTION_WIDTH * 2;
 
     if (offset < -max / 2) {
@@ -63,8 +86,8 @@ export function SwipeableTaskCard({
       setOffset(-max);
       currentOffsetRef.current = -max;
       setIsOpen(true);
-    } else if (offset < -10) {
-      // Partial open — snap to max
+    } else if (offset < -30) {
+      // Partial open — snap to max (門檻從 10px → 30px,避免 dy 干擾下誤觸)
       setOffset(-max);
       currentOffsetRef.current = -max;
       setIsOpen(true);
