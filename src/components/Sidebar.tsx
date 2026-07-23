@@ -410,7 +410,7 @@ function SortableListItem({
           ref={handleSetRef}
           type="button"
           aria-label={`拖曳排序 ${list.name}`}
-          className="flex-shrink-0 w-11 h-7 -ml-2 flex items-center justify-center rounded-md cursor-grab active:cursor-grabbing opacity-40 hover:opacity-100 focus:opacity-100 transition-opacity"
+          className="flex-shrink-0 w-11 h-7 -ml-2 flex items-center justify-center rounded-md cursor-grab active:cursor-grabbing hover:bg-black/5 dark:hover:bg-white/10 transition-all duration-150"
           style={{ color: "var(--text-tertiary)", touchAction: "none" }}
           {...attributes}
           {...listeners}
