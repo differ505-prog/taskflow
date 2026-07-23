@@ -42,6 +42,56 @@ export function CalendarView({
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [draggingTask, setDraggingTask] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+
+  // ─── 手機水平 swipe 換月（iOS/Android 原生行事曆慣例）───
+  // 對齊 TaskDetailPanel L424 80px 門檻;加方向鎖定避免與垂直 scroll 衝突
+  // 方向鎖定:首次 move 決定主軸,後續只處理主軸手勢
+  const SWIPE_THRESHOLD = 80; // px
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const lastDeltaRef = useRef<{ dx: number; dy: number } | null>(null);
+  const directionLockedRef = useRef<"h" | "v" | null>(null);
+
+  const handleSwipeTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    lastDeltaRef.current = null;
+    directionLockedRef.current = null;
+  }, []);
+
+  const handleSwipeTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    const dx = e.touches[0].clientX - touchStartRef.current.x;
+    const dy = e.touches[0].clientY - touchStartRef.current.y;
+    lastDeltaRef.current = { dx, dy };
+
+    if (directionLockedRef.current !== null) return;
+    // 至少 8px 才決定方向,避免靜止手抖
+    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+    if (Math.abs(dx) > Math.abs(dy) * 1.5) {
+      directionLockedRef.current = "h";
+    } else if (Math.abs(dy) > Math.abs(dx) * 1.5) {
+      directionLockedRef.current = "v";
+    }
+  }, []);
+
+  const handleSwipeTouchEnd = useCallback(() => {
+    const locked = directionLockedRef.current;
+    const delta = lastDeltaRef.current;
+    touchStartRef.current = null;
+    lastDeltaRef.current = null;
+    directionLockedRef.current = null;
+
+    // sheet 開啟時不解 swipe（避免與 SwipeableTaskCard 衝突）
+    if (selectedDate) return;
+    if (locked !== "h" || !delta) return;
+    if (Math.abs(delta.dx) < SWIPE_THRESHOLD) return;
+    // 向左滑 (dx < 0) → 下個月;向右滑 (dx > 0) → 上個月
+    haptic("selection");
+    if (delta.dx < 0) {
+      setCurrentMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
+    } else {
+      setCurrentMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
+    }
+  }, [selectedDate]);
   // 本地 TaskForm state — 與 QuadrantRadarView 同樣 own-state pattern
   // 已選定日期 → 預填 dueDate = selectedDate;否則 = 今日
   const initialDate = selectedDate ?? new Date().toISOString().slice(0, 10);
@@ -204,7 +254,12 @@ export function CalendarView({
 
   // ─── Mobile: 維持原有日曆 + bottom sheet ────────────
   return (
-    <div className="flex flex-col h-full">
+    <div
+      className="flex flex-col h-full"
+      onTouchStart={handleSwipeTouchStart}
+      onTouchMove={handleSwipeTouchMove}
+      onTouchEnd={handleSwipeTouchEnd}
+    >
       <div className="flex-1 min-h-0 p-4 md:p-6 flex flex-col overflow-hidden flex-shrink-0">
         {/* Month header */}
         <div className="flex items-center justify-between mb-4 md:mb-5 flex-shrink-0">
