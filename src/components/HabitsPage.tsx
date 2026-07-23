@@ -331,7 +331,7 @@ export function HabitsPage() {
 
       {/* Habits list */}
       {displayHabits.length === 0 && !showForm ? (
-        <div className="card py-16 text-center">
+        <div className="card px-6 py-16 text-center">
           <Heart className="w-10 h-10 mx-auto mb-3 opacity-20" style={{ color: "var(--text-tertiary)" }} />
           <p className="text-[14px]" style={{ color: "var(--text-tertiary)" }}>
             {showArchived ? "沒有封存的習慣" : "還沒有習慣"}
