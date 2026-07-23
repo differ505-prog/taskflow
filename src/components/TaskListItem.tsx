@@ -7,9 +7,11 @@ import { TextWithLinks } from "./TextWithLinks";
 import { Clock } from "lucide-react";
 import { getDeadlineStatus } from "@/lib/deadlineEngine";
 import {
-  CheckCircle2, Circle, ChevronDown, ChevronRight, ListChecks,
+  CheckCircle2, Circle, ChevronDown, ChevronRight, GripVertical, ListChecks,
   Trash2,
 } from "lucide-react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface TaskListItemProps {
   task: Task;
@@ -27,6 +29,9 @@ interface TaskListItemProps {
   onLongPress?: () => void; // 長按 600ms 進入批次模式
   onBatchToggle?: () => void; // 在批次模式下點擊,切換勾選
   onDelete?: (id: string) => void;
+  // O-007：拖曳 sortable hook 注入（AppShell 包 SortableContext 時傳入）
+  // undefined 表示此 task 不在 sortable 範圍內（例如 viewer 共用清單）
+  sortable?: ReturnType<typeof useSortable>;
 }
 
 import { sortSubTasks } from "@/utils/subtaskSort";
@@ -50,7 +55,21 @@ export function TaskListItem({
   onLongPress,
   onBatchToggle,
   onDelete,
+  sortable,
 }: TaskListItemProps) {
+  // O-007：sortable 拖曳狀態
+  // sortable.attributes：aria-*、role、tabIndex（給 KeyboardSensor 用）
+  // sortable.listeners：手柄專屬（attributes 給 outer container）
+  // sortable.setNodeRef：必填,否則 dnd-kit 不知道容器
+  // sortable.transform / transition：套到外層 style
+  const sortableStyle = sortable
+    ? {
+        transform: CSS.Transform.toString(sortable.transform),
+        transition: sortable.transition,
+        opacity: sortable.isDragging ? 0.4 : undefined,
+      }
+    : {};
+  // 拖曳中整列 opacity 0.4 → 虛影更高對比,讓 DragOverlay 浮起更明顯
   const subTasks = task.subTasks || [];
   const sortedSubTasks = sortSubTasks(subTasks);
   const isDone = task.status === "done";
@@ -117,6 +136,9 @@ export function TaskListItem({
 
   return (
     <div
+      ref={sortable?.setNodeRef}
+      style={sortableStyle}
+      {...(sortable?.attributes ?? {})}
       className={`
         flex items-start gap-2.5 px-3 py-3 rounded-2xl cursor-pointer
         transition-all duration-150 group select-none
@@ -124,6 +146,7 @@ export function TaskListItem({
         ${batchSelected ? "ring-2 ring-[var(--brand)] bg-[var(--brand-tint)]/40" : ""}
         ${batchMode ? "active:scale-[0.98]" : ""}
         ${isDone ? "opacity-60" : ""}
+        ${sortable?.isDragging ? "z-50 shadow-lg" : ""}
       `}
       onClick={handleClick}
       onPointerDown={handlePointerDown}
@@ -141,6 +164,26 @@ export function TaskListItem({
         }
       }}
     >
+      {/* O-007：拖曳手柄（左邊）；桌機 hover 顯示,手機永遠顯示 */}
+      {sortable && (
+        <button
+          type="button"
+          {...sortable.listeners}
+          aria-label={`拖曳任務「${task.title}」`}
+          className="
+            flex-shrink-0 mt-1 p-1 -ml-1 rounded-lg cursor-grab active:cursor-grabbing
+            text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100 touch-target
+            md:opacity-0 md:group-hover:opacity-100
+            max-md:opacity-60 max-md:group-hover:opacity-100
+            transition-opacity duration-150
+          "
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <GripVertical className="w-4 h-4" aria-hidden="true" />
+        </button>
+      )}
+
       {/* Checkbox */}
       <button
         onClick={handleCheckboxClick}

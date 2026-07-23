@@ -17,6 +17,16 @@ import {
   Share2, Shield, RotateCcw, Trash2, CheckCheck,
 } from "lucide-react";
 import { isComposingKey } from "@/utils/imeGuard";
+import {
+  DndContext, DragEndEvent, DragOverlay, DragStartEvent,
+  KeyboardSensor, PointerSensor, closestCenter,
+  useSensor, useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { SortableTaskItem } from "./SortableTaskItem";
 
 const VIEW_LABELS: Record<AppView, string> = {
   inbox: "收集箱",
@@ -72,6 +82,7 @@ export function AppShell({
     toggleSubTask, addSubTask, deleteSubTask, completeRecurringAndClone,
     quickAddToShared, updateSharedTask, deleteSharedTask,
     getMyRole,
+    reorderTasks,
   } = useApp();
   const confirm = useConfirm();
 
@@ -167,6 +178,31 @@ export function AppShell({
       : VIEW_LABELS[currentView];
 
   const selectedTask = selectedTaskId ? tasks.find((t) => t.id === selectedTaskId) ?? null : null;
+
+  // ── O-007：拖曳排序 ─────────────────────────────────────
+  // 僅同清單內（簡單版範圍）；shared list 跳過拖曳(viewer 唯讀 + 簡單版不跨清單)
+  // 拖曳中用 DragOverlay 顯示半透明浮起卡片,完成後從 displayTasks 算新 order 寫入 store
+  const canDrag = !currentSharedListId;
+  // activation distance 8px：避免手機 scroll-to-select 時誤觸發拖曳
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(String(event.active.id));
+  };
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveDragId(null);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = displayTasks.findIndex((t) => t.id === active.id);
+    const newIdx = displayTasks.findIndex((t) => t.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(displayTasks, oldIdx, newIdx);
+    reorderTasks(reordered);
+  };
+  const activeDragTask = activeDragId ? displayTasks.find((t) => t.id === activeDragId) : null;
 
   // Clear selection if selected task is deleted
   useEffect(() => {
@@ -568,35 +604,95 @@ export function AppShell({
                   />
                 ) : (
                   <div className="flex flex-col gap-1">
-                    <AnimatePresence mode="popLayout">
-                      {displayTasks.map((task) => (
-                        <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
-                          <TaskSwipeWrapper
-                            taskId={task.id}
-                            isDone={task.status === "done"}
-                            onComplete={() => updateTask(task.id, { status: task.status === "done" ? "todo" : "done" })}
-                            onDelete={(id) => deleteTask(id)}
-                          >
-                            <TaskListItem
-                              task={task}
-                              isSelected={task.id === selectedTaskId}
-                              onClick={() => handleSelectTask(task.id)}
-                              onToggleStatus={toggleTaskStatus}
-                              onToggleSubTask={toggleSubTask}
-                              onUpdatePriority={(id, p) => updateTask(id, { priority: p })}
-                              onUpdateTags={(id, tags) => updateTask(id, { tags })}
-                              onTogglePin={(id) => updateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
+                    {canDrag ? (
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                      >
+                        <SortableContext
+                          items={displayTasks.map((t) => t.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <AnimatePresence mode="popLayout">
+                            {displayTasks.map((task) => (
+                              <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
+                                <TaskSwipeWrapper
+                                  taskId={task.id}
+                                  isDone={task.status === "done"}
+                                  onComplete={() => updateTask(task.id, { status: task.status === "done" ? "todo" : "done" })}
+                                  onDelete={(id) => deleteTask(id)}
+                                >
+                                  <SortableTaskItem
+                                    task={task}
+                                    isSelected={task.id === selectedTaskId}
+                                    onClick={() => handleSelectTask(task.id)}
+                                    onToggleStatus={toggleTaskStatus}
+                                    onToggleSubTask={toggleSubTask}
+                                    onUpdatePriority={(id, p) => updateTask(id, { priority: p })}
+                                    onUpdateTags={(id, tags) => updateTask(id, { tags })}
+                                    onTogglePin={(id) => updateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
+                                    onDelete={(id) => deleteTask(id)}
+                                    allTags={Object.keys(getTagCounts())}
+                                    batchMode={batchMode}
+                                    batchSelected={!!batchSelectedIds?.has(task.id)}
+                                    onLongPress={() => onEnterBatchMode?.(task.id)}
+                                    onBatchToggle={() => onToggleBatchSelect?.(task.id)}
+                                  />
+                                </TaskSwipeWrapper>
+                              </motion.div>
+                            ))}
+                          </AnimatePresence>
+                        </SortableContext>
+                        <DragOverlay>
+                          {activeDragTask && (
+                            <div className="shadow-2xl rounded-2xl ring-2 ring-[var(--brand)] opacity-90">
+                              <TaskListItem
+                                task={activeDragTask}
+                                isSelected={false}
+                                onClick={() => {}}
+                                onToggleStatus={() => {}}
+                                onUpdatePriority={() => {}}
+                                onUpdateTags={() => {}}
+                                onDelete={() => {}}
+                                allTags={Object.keys(getTagCounts())}
+                              />
+                            </div>
+                          )}
+                        </DragOverlay>
+                      </DndContext>
+                    ) : (
+                      <AnimatePresence mode="popLayout">
+                        {displayTasks.map((task) => (
+                          <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
+                            <TaskSwipeWrapper
+                              taskId={task.id}
+                              isDone={task.status === "done"}
+                              onComplete={() => updateTask(task.id, { status: task.status === "done" ? "todo" : "done" })}
                               onDelete={(id) => deleteTask(id)}
-                              allTags={Object.keys(getTagCounts())}
-                              batchMode={batchMode}
-                              batchSelected={!!batchSelectedIds?.has(task.id)}
-                              onLongPress={() => onEnterBatchMode?.(task.id)}
-                              onBatchToggle={() => onToggleBatchSelect?.(task.id)}
-                            />
-                          </TaskSwipeWrapper>
-                        </motion.div>
-                      ))}
-                    </AnimatePresence>
+                            >
+                              <TaskListItem
+                                task={task}
+                                isSelected={task.id === selectedTaskId}
+                                onClick={() => handleSelectTask(task.id)}
+                                onToggleStatus={toggleTaskStatus}
+                                onToggleSubTask={toggleSubTask}
+                                onUpdatePriority={(id, p) => updateTask(id, { priority: p })}
+                                onUpdateTags={(id, tags) => updateTask(id, { tags })}
+                                onTogglePin={(id) => updateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
+                                onDelete={(id) => deleteTask(id)}
+                                allTags={Object.keys(getTagCounts())}
+                                batchMode={batchMode}
+                                batchSelected={!!batchSelectedIds?.has(task.id)}
+                                onLongPress={() => onEnterBatchMode?.(task.id)}
+                                onBatchToggle={() => onToggleBatchSelect?.(task.id)}
+                              />
+                            </TaskSwipeWrapper>
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    )}
                   </div>
                 )}
               </>

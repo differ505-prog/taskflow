@@ -125,6 +125,7 @@ interface AppContextValue {
    * 並批次推雲端；觸發後 5 秒內 realtime echo 不覆蓋本地（§26 類別 A）
    */
   reorderLists: (newListOrder: TaskList[]) => void;
+  reorderTasks: (reorderedTasks: Task[]) => void;
 
   // ── 習慣 CRUD ─────────────────────────────────────────
   addHabit: (data: Omit<Habit, "id" | "createdAt" | "updatedAt" | "checkins" | "streak" | "longestStreak">) => void;
@@ -1004,6 +1005,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (user) batchSaveListsFirebase(user.uid, updated).catch(console.warn);
   }, [lists, user]);
 
+  // O-007 簡單版：同清單內拖曳排序
+  // 對齊 reorderLists 模式：重編 order + bump updatedAt + 5 秒保護窗 + 一次 batch save
+  // 不跨清單(簡單版範圍),呼叫端要先把任務過濾成同 listId
+  const reorderTasks = useCallback((reorderedTasks: Task[]) => {
+    if (reorderedTasks.length === 0) return;
+    const now = new Date().toISOString();
+    // 重編 order,保留其他欄位
+    const updated: Task[] = reorderedTasks.map((t, idx) => ({
+      ...t,
+      order: idx,
+      updatedAt: now,
+    }));
+    // 合併回 tasks state（保留不在這批的 task）
+    const ids = new Set(updated.map((t) => t.id));
+    const merged = tasks.map((t) => ids.has(t.id) ? updated.find((u) => u.id === t.id)! : t);
+    setTasks(merged);
+    saveTasks(merged);
+    // 全部受影響 task 都打戳,5 秒內 subscribeTasks echo 不覆蓋(§26-A)
+    updated.forEach((t) => recentlyWrittenRef.current.set(t.id, Date.now()));
+    if (user) batchSaveTasksFirebase(user.uid, updated).catch((err) => console.error("[SUP SYNC] reorder 寫入失敗:", err));
+  }, [tasks, user]);
+
   // ── 習慣 CRUD ─────────────────────────────────────────
   const addHabit = useCallback((data: Omit<Habit, "id" | "createdAt" | "updatedAt" | "checkins" | "streak" | "longestStreak">) => {
     const newHabit: Habit = {
@@ -1642,7 +1665,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addTask, updateTask, deleteTask, toggleTaskStatus, archiveTask, unarchiveTask,
     addSubTask, toggleSubTask, deleteSubTask,
     completeRecurringAndClone,
-    addList, updateList, deleteList, reorderLists,
+    addList, updateList, deleteList, reorderLists, reorderTasks,
     addHabit, updateHabit, archiveHabit, unarchiveHabit, checkinHabit: checkinHabitFn,
     quickAdd,
     requestNotificationPermission, notificationPermission,
