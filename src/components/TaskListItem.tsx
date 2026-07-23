@@ -98,11 +98,15 @@ export function TaskListItem({
   };
 
   // ── 長按偵測：pointerdown 起算 600ms → 觸發 onLongPress ──────
+  // 排除拖曳手柄（data-drag-handle 標記）,避免拖曳時被誤觸發批次模式
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFiredRef = useRef(false);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (!onLongPress) return;
+    // 如果點的是拖曳手柄或其子孫,不啟動長按計時（dnd-kit 自己會處理 pointerdown）
+    const target = e.target as HTMLElement;
+    if (target.closest("[data-drag-handle]")) return;
     longPressFiredRef.current = false;
     longPressTimerRef.current = setTimeout(() => {
       longPressFiredRef.current = true;
@@ -165,20 +169,23 @@ export function TaskListItem({
       }}
     >
       {/* O-007：拖曳手柄（左邊）；桌機 hover 顯示,手機永遠顯示 */}
+      {/* ⚠️ sortable.listeners 含 onPointerDown 啟動拖曳 — 不能在後面再加 onPointerDown 覆蓋它
+          (否則 dnd-kit 收不到 pointerdown 永遠不會啟動)。
+          只加 onClick stopPropagation 防止點手柄誤觸外層開 detail panel。 */}
       {sortable && (
         <button
           type="button"
+          data-drag-handle
           {...sortable.listeners}
+          onClick={(e) => e.stopPropagation()}
           aria-label={`拖曳任務「${task.title}」`}
           className="
-            flex-shrink-0 mt-1 p-1 -ml-1 rounded-lg cursor-grab active:cursor-grabbing
-            text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100 touch-target
+            flex-shrink-0 mt-1 p-1 -ml-1 rounded-lg cursor-grab active:cursor-grabbing touch-target
+            text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100
             md:opacity-0 md:group-hover:opacity-100
             max-md:opacity-60 max-md:group-hover:opacity-100
             transition-opacity duration-150
           "
-          onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
         >
           <GripVertical className="w-4 h-4" aria-hidden="true" />
         </button>
