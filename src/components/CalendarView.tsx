@@ -5,12 +5,13 @@ import { useApp } from "@/lib/AppContext";
 import { Task } from "@/lib/types";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus, X, ChevronDown, ChevronRight as ChevronRightSm, Maximize2, Minimize2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, ChevronDown, ChevronRight as ChevronRightSm, Maximize2, Minimize2, Trash2 } from "lucide-react";
 import { TaskDetailPanel } from "./TaskDetailPanel";
 import { SwipeableTaskCard } from "./SwipeableTaskCard";
 import { TaskForm } from "./TaskForm";
 import { useBottomSheet } from "@/hooks/useBottomSheet";
 import { useRef } from "react";
+import { haptic } from "@/lib/haptics";
 
 interface CalendarViewProps {
   /** YYYY-MM-DD;null = 不顯示 sheet。由 AppLayout 統一管理(§26 O' ESC 死鎖防護)。 */
@@ -628,6 +629,7 @@ function DesktopCalendarLayout({
                     isSelected={selectedTask?.id === task.id}
                     onClick={() => onSelectTask(task)}
                     onToggleStatus={() => onToggleStatus(task.id)}
+                    onDelete={() => onDelete(task.id)}
                   />
                 </SwipeableTaskCard>
               ))}
@@ -655,6 +657,7 @@ function DesktopCalendarLayout({
                             isSelected={selectedTask?.id === task.id}
                             onClick={() => onSelectTask(task)}
                             onToggleStatus={() => onToggleStatus(task.id)}
+                            onDelete={() => onDelete(task.id)}
                           />
                         </SwipeableTaskCard>
                       ))}
@@ -856,6 +859,7 @@ function CalendarTaskSheetMobile({
                     isSelected={selectedTask?.id === task.id}
                     onClick={() => { onSelectTask(task); onClose(); }}
                     onToggleStatus={() => toggleTaskStatus(task.id)}
+                    onDelete={() => deleteTask(task.id)}
                   />
                 </SwipeableTaskCard>
               ))}
@@ -879,6 +883,7 @@ function CalendarTaskSheetMobile({
                             isSelected={selectedTask?.id === task.id}
                             onClick={() => { onSelectTask(task); onClose(); }}
                             onToggleStatus={() => toggleTaskStatus(task.id)}
+                            onDelete={() => deleteTask(task.id)}
                           />
                         </SwipeableTaskCard>
                       ))}
@@ -910,11 +915,13 @@ export function CalendarTaskItem({
   isSelected,
   onClick,
   onToggleStatus,
+  onDelete,
 }: {
   task: Task;
   isSelected: boolean;
   onClick: () => void;
   onToggleStatus: () => void;
+  onDelete?: () => void;
 }) {
   const isDone = task.status === "done";
   const priorityColor = getPriorityColor(task.priority);
@@ -923,7 +930,7 @@ export function CalendarTaskItem({
     <div
       onClick={onClick}
       className={`
-        flex items-start gap-3 px-4 py-3 rounded-xl cursor-pointer
+        group relative flex items-start gap-3 px-4 py-3 rounded-xl cursor-pointer
         transition-all duration-150 select-none
         ${isSelected ? "shadow-sm" : "hover:shadow-sm"}
       `}
@@ -968,6 +975,23 @@ export function CalendarTaskItem({
           )}
         </div>
       </div>
+      {/* 桌面 hover 刪除入口 — 對齊 TaskListItem L222-232 / QuadrantRadarView L188-203 pattern;mobile 仍走 swipe */}
+      {onDelete && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            haptic("medium");
+            onDelete();
+          }}
+          className="flex-shrink-0 -mr-2 p-1 rounded-lg opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-red-50 transition-all duration-150 active:scale-90"
+          style={{ color: "var(--text-tertiary)" }}
+          aria-label="刪除任務"
+          title="刪除"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
       <div className="flex-shrink-0 mt-1" style={{ color: "var(--text-tertiary)" }}>
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
