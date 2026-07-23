@@ -319,13 +319,10 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                     onChange={(e) => setTitle(e.target.value)}
                     onKeyDown={(e) => {
                       if (isComposingKey(e)) return;
-                      // 編輯模式：Enter 送出表單；新建模式：擋 Enter（避免誤觸）
-                      if (e.key === "Enter" && initialData) {
+                      // Enter → 觸發主表單 submit（編輯/新建模式一致：title 是 single-line input,Enter 直覺就是送出)
+                      if (e.key === "Enter") {
                         e.preventDefault();
-                        // 透用 form submit 機制送出
-                        (((e.target as HTMLElement).closest("form") as HTMLFormElement)?.requestSubmit());
-                      } else if (e.key === "Enter") {
-                        e.preventDefault();
+                        (e.target as HTMLInputElement).form?.requestSubmit();
                       }
                     }}
                     placeholder="輸入任務名稱"
