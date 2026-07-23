@@ -8,6 +8,7 @@ import { zhTW } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus, X, ChevronDown, ChevronRight as ChevronRightSm, Maximize2, Minimize2 } from "lucide-react";
 import { TaskDetailPanel } from "./TaskDetailPanel";
 import { SwipeableTaskCard } from "./SwipeableTaskCard";
+import { TaskForm } from "./TaskForm";
 import { useBottomSheet } from "@/hooks/useBottomSheet";
 import { useRef } from "react";
 
@@ -22,6 +23,13 @@ interface CalendarViewProps {
   isMobile: boolean;
 }
 
+interface CalendarViewCallbacks {
+  /** 開啟新增任務 TaskForm 的 setter（由外層持有,§13 最小變更 — 避免把 state 上抬到 AppLayout） */
+  onOpenTaskForm: () => void;
+  /** 是否已選定日期 — 用來讓 CTA 在已選日期時預填該日期 */
+  hasSelectedDate: boolean;
+}
+
 export function CalendarView({
   selectedDate,
   onSelectDate,
@@ -33,6 +41,15 @@ export function CalendarView({
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [draggingTask, setDraggingTask] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  // 本地 TaskForm state — 與 QuadrantRadarView 同樣 own-state pattern
+  // 已選定日期 → 預填 dueDate = selectedDate;否則 = 今日
+  const initialDate = selectedDate ?? new Date().toISOString().slice(0, 10);
+  const [quickFormPrefillDueDate, setQuickFormPrefillDueDate] = useState(initialDate);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const openTaskForm = useCallback(() => {
+    setQuickFormPrefillDueDate(selectedDate ?? new Date().toISOString().slice(0, 10));
+    setIsFormOpen(true);
+  }, [selectedDate]);
 
   useEffect(() => {
     setMounted(true);
@@ -151,6 +168,7 @@ export function CalendarView({
   // ─── Desktop 三欄佈局 ───────────────────────────────
   if (!isMobile) {
     return (
+      <>
       <DesktopCalendarLayout
         days={days}
         currentMonth={currentMonth}
@@ -162,6 +180,7 @@ export function CalendarView({
         onToggleStatus={toggleTaskStatus}
         onDelete={deleteTask}
         onQuickAdd={submitQuickAdd}
+        onOpenTaskForm={openTaskForm}
         prevMonth={prevMonth}
         nextMonth={nextMonth}
         resetMonth={() => setCurrentMonth(new Date())}
@@ -169,6 +188,16 @@ export function CalendarView({
         matchedDayHas={matchedDayHas}
         searchQuery={searchQuery}
       />
+      {/* Desktop 新增任務 TaskForm — 與 mobile layout 共用同一個 isOpen state */}
+      <TaskForm
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSubmit={(data) => { addTask(data); setIsFormOpen(false); }}
+        initialData={null}
+        currentView="calendar"
+        initialStatus="todo"
+      />
+      </>
     );
   }
 
@@ -204,6 +233,17 @@ export function CalendarView({
               aria-label="下個月"
             >
               <ChevronRight className="w-5 h-5" />
+            </button>
+            {/* 新增任務 CTA — Calendar view 永遠有入口（與 Quadrant header 一致） */}
+            <button
+              type="button"
+              onClick={openTaskForm}
+              className="p-2 rounded-xl hover:bg-black/5 transition-colors"
+              style={{ color: "var(--brand)" }}
+              aria-label="新增任務"
+              title="新增任務"
+            >
+              <Plus className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -295,6 +335,18 @@ export function CalendarView({
         onSelectTask={onSelectTask}
         onQuickAdd={submitQuickAdd}
       />
+
+      {/* 新增任務 TaskForm（與 quickAdd 的 selectedDate 預填邏輯一致：
+          - 已選日期 → 預填 dueDate = selectedDate
+          - 未選 → 預填今日 */}
+      <TaskForm
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSubmit={(data) => { addTask(data); setIsFormOpen(false); }}
+        initialData={null}
+        currentView="calendar"
+        initialStatus="todo"
+      />
     </div>
   );
 }
@@ -311,6 +363,7 @@ interface DesktopCalendarLayoutProps {
   onToggleStatus: (id: string) => void;
   onDelete: (id: string) => void;
   onQuickAdd: (dateStr: string, title: string) => void;
+  onOpenTaskForm: () => void;
   prevMonth: () => void;
   nextMonth: () => void;
   resetMonth: () => void;
@@ -329,6 +382,7 @@ function DesktopCalendarLayout({
   onToggleStatus,
   onDelete,
   onQuickAdd,
+  onOpenTaskForm,
   prevMonth,
   nextMonth,
   resetMonth,
@@ -398,6 +452,17 @@ function DesktopCalendarLayout({
               aria-label="下個月"
             >
               <ChevronRight className="w-5 h-5" />
+            </button>
+            {/* Calendar 新增任務 CTA — 開 TaskForm（已選日期預填 dueDate；未選 = 今日） */}
+            <button
+              type="button"
+              onClick={onOpenTaskForm}
+              className="p-2 rounded-xl hover:bg-black/5 transition-colors"
+              style={{ color: "var(--brand)" }}
+              aria-label="新增任務"
+              title="新增任務"
+            >
+              <Plus className="w-5 h-5" />
             </button>
           </div>
         </div>

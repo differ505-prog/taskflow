@@ -18,14 +18,16 @@
  * - 文字對比清晰,符合 Apple 極簡視覺
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useApp } from "@/lib/AppContext";
 import { Task, Priority } from "@/lib/types";
 import { getEisenhowerVisual, EISENHOWER_URGENT_HOURS } from "@/lib/eisenhower";
 import { Info } from "lucide-react";
 import { TextWithLinks } from "./TextWithLinks";
-import { CheckCircle2, Circle } from "lucide-react";
+import { CheckCircle2, Circle, Plus } from "lucide-react";
 import { fireTaskDoneConfetti, playTaskDoneSound } from "@/lib/confetti";
+import { TaskForm } from "./TaskForm";
+import { SwipeableTaskCard } from "./SwipeableTaskCard";
 
 interface QuadrantCardProps {
   quadrant: "do-now" | "schedule" | "delegate" | "none";
@@ -36,9 +38,10 @@ interface QuadrantCardProps {
   tasks: Task[];
   onTaskClick: (taskId: string) => void;
   onToggleStatus: (taskId: string) => void;
+  onDeleteTask: (taskId: string) => void;
 }
 
-function QuadrantCard({ quadrant, emoji, label, caption, colorHex, tasks, onTaskClick, onToggleStatus }: QuadrantCardProps) {
+function QuadrantCard({ quadrant, emoji, label, caption, colorHex, tasks, onTaskClick, onToggleStatus, onDeleteTask }: QuadrantCardProps) {
   const count = tasks.length;
   // 顯示前 5 項未完成任務
   const visible = tasks.filter((t) => t.status !== "done").slice(0, 5);
@@ -127,32 +130,45 @@ function QuadrantCard({ quadrant, emoji, label, caption, colorHex, tasks, onTask
           <ul className="flex flex-col gap-1">
             {visible.map((task) => (
               <li key={task.id}>
-                <button
-                  onClick={() => onTaskClick(task.id)}
-                  className="w-full text-left px-2.5 py-2 rounded-xl text-[12.5px] leading-snug hover:bg-black/5 transition-colors flex items-start gap-2"
-                  style={{ color: "var(--text-primary)" }}
+                {/* 用 SwipeableTaskCard 套 swipe 刪除手勢,children 是原本的 toggle button */}
+                <SwipeableTaskCard
+                  taskId={task.id}
+                  hideComplete={false}
+                  onDelete={(id) => onDeleteTask(id)}
+                  onComplete={task.status === "done" ? undefined : () => {
+                    const evt = { currentTarget: document.activeElement } as unknown as HTMLElement | null;
+                                    onToggleStatus(task.id);
+                                    fireTaskDoneConfetti(evt);
+                                    playTaskDoneSound();
+                                  }}
                 >
-                  {/* 檢核框 */}
                   <button
-                    onClick={(e) => handleCheckboxClick(e, task.id, task.status === "done")}
-                    className="flex-shrink-0 mt-0.5 transition-transform hover:scale-110 z-10"
-                    aria-label={task.status === "done" ? "標記未完成" : "標記完成"}
+                    onClick={() => onTaskClick(task.id)}
+                    className="w-full text-left px-2.5 py-2 rounded-xl text-[12.5px] leading-snug hover:bg-black/5 transition-colors flex items-start gap-2"
+                    style={{ color: "var(--text-primary)" }}
                   >
-                    {task.status === "done" ? (
-                      <CheckCircle2 className="w-[15px] h-[15px] text-[var(--status-success)]" />
-                    ) : (
-                      <Circle className="w-[15px] h-[15px] text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]" />
-                    )}
+                    {/* 檢核框 */}
+                    <button
+                      onClick={(e) => handleCheckboxClick(e, task.id, task.status === "done")}
+                      className="flex-shrink-0 mt-0.5 transition-transform hover:scale-110 z-10"
+                      aria-label={task.status === "done" ? "標記未完成" : "標記完成"}
+                    >
+                      {task.status === "done" ? (
+                        <CheckCircle2 className="w-[15px] h-[15px] text-[var(--status-success)]" />
+                      ) : (
+                        <Circle className="w-[15px] h-[15px] text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]" />
+                      )}
+                    </button>
+                    <span
+                      className="w-1 self-stretch rounded-full flex-shrink-0"
+                      style={{ background: colorHex }}
+                      aria-hidden="true"
+                    />
+                    <span className="min-w-0 flex-1 truncate">
+                      <TextWithLinks text={task.title} />
+                    </span>
                   </button>
-                  <span
-                    className="w-1 self-stretch rounded-full flex-shrink-0"
-                    style={{ background: colorHex }}
-                    aria-hidden="true"
-                  />
-                  <span className="min-w-0 flex-1 truncate">
-                    <TextWithLinks text={task.title} />
-                  </span>
-                </button>
+                </SwipeableTaskCard>
               </li>
             ))}
             {doneCount > 0 && (
@@ -175,7 +191,9 @@ interface QuadrantRadarViewProps {
 }
 
 export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
-  const { tasks, toggleTaskStatus } = useApp();
+  const { tasks, toggleTaskStatus, addTask, deleteTask } = useApp();
+  // 本地 TaskForm state — 跟其他 view 一樣獨立持有,避免把 state 提升到 AppLayout (§13 最小變更)
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
   // 用 getEisenhowerVisual 取每個任務的即時象限（含 24h 自動提升 schedule → do-now）
   const grouped = useMemo(() => {
@@ -216,6 +234,16 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
                 {totalActive} 項進行中 · 艾森豪矩陣
               </p>
             </div>
+            {/* 新增任務 CTA — 在四象限視圖也能快速新增任務（與主畫 quickAdd 一致入口） */}
+            <button
+              type="button"
+              onClick={() => setIsFormOpen(true)}
+              className="btn-primary"
+              aria-label="新增任務"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">新增</span>
+            </button>
           </div>
         </div>
       </header>
@@ -233,6 +261,7 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
             tasks={grouped["do-now"]}
             onTaskClick={onTaskSelect}
             onToggleStatus={toggleTaskStatus}
+            onDeleteTask={deleteTask}
           />
 
           {/* Q2: 排程（右上） */}
@@ -245,6 +274,7 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
             tasks={grouped["schedule"]}
             onTaskClick={onTaskSelect}
             onToggleStatus={toggleTaskStatus}
+            onDeleteTask={deleteTask}
           />
 
           {/* Q3: 轉交（左下） */}
@@ -257,6 +287,7 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
             tasks={grouped["delegate"]}
             onTaskClick={onTaskSelect}
             onToggleStatus={toggleTaskStatus}
+            onDeleteTask={deleteTask}
           />
 
           {/* Q4: 暫緩（右下） */}
@@ -269,9 +300,20 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
             tasks={grouped["none"]}
             onTaskClick={onTaskSelect}
             onToggleStatus={toggleTaskStatus}
+            onDeleteTask={deleteTask}
           />
         </div>
       </main>
+
+      {/* 本地 TaskForm modal — 與 AppShell 同 pattern(own isOpen state) */}
+      <TaskForm
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSubmit={(data) => { addTask(data); setIsFormOpen(false); }}
+        initialData={null}
+        currentView="quadrant"
+        initialStatus="todo"
+      />
     </div>
   );
 }
