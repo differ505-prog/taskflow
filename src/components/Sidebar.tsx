@@ -5,6 +5,24 @@ import { useApp } from "@/lib/AppContext";
 import { AppView, TaskList } from "@/lib/types";
 import { useConfirm } from "@/hooks/useConfirm";
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical } from "lucide-react";
+import {
   Inbox, Sun, CalendarDays, Layers, Tag, Clock,
   Plus, ChevronDown, ChevronRight, CheckCircle2,
   BarChart3, Timer, Heart, Settings, Archive,
@@ -36,7 +54,7 @@ interface SidebarProps {
 const LIST_ICONS = ["📋", "💼", "🏠", "🏃", "📚", "💡", "🎯", "🌟", "💰", "🏥", "✈️", "🎨", "🍽️", "🛠️", "📱", "💻"];
 
 export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditList, onDeleteList, onOpenPomodoro, onOpenShareModal, onOpenSharedLists, onOpenSharedList, onLeaveSharedList }: SidebarProps) {
-  const { currentView, currentListId, currentSharedListId, setCurrentView, viewCounts, lists, sharedLists, getListTaskCount, tasks } = useApp();
+  const { currentView, currentListId, currentSharedListId, setCurrentView, viewCounts, lists, reorderLists, sharedLists, getListTaskCount, tasks } = useApp();
   const confirm = useConfirm();
   const [listsExpanded, setListsExpanded] = useState(true);
   const [showListMenu, setShowListMenu] = useState<string | null>(null);
@@ -64,6 +82,26 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
   const isActive = (view: AppView, listId?: string) => {
     if (view === "list") return currentView === "list" && currentListId === listId;
     return currentView === view;
+  };
+
+  // §24.1：PointerSensor delay 200ms 容錯 5px，避免按下手柄時與 scroll 衝突
+  //         KeyboardSensor 為桌機 a11y
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  // 自有清單（排除「收集箱」/「已封存」等系統預設；只拖用戶自建清單）
+  const userLists = lists.filter((l) => l.name !== "收集箱");
+
+  const handleListDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = userLists.findIndex((l) => l.id === active.id);
+    const newIndex = userLists.findIndex((l) => l.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const next = arrayMove(userLists, oldIndex, newIndex);
+    reorderLists(next);
   };
 
   return (
@@ -170,76 +208,44 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
           </div>
 
           {listsExpanded && (
-            <div className="space-y-0.5">
-              {/* 過濾掉預設的「收集箱」清單 — 它在 mainNavItems 已由 virtual view 顯示,
-                  否則側邊欄會同時出現 2 個「收集箱」(一個帶 GTD badge,一個帶 📥 emoji 計數) */}
-              {lists.filter((l) => l.name !== "收集箱").map((list) => (
-                <div key={list.id} className="relative">
-                  <button
-                    onClick={() => setCurrentView("list", list.id)}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      setShowListMenu(showListMenu === list.id ? null : list.id);
-                    }}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[14px] font-medium transition-all duration-150"
-                    style={
-                      isActive("list", list.id)
-                        ? { background: "var(--brand-tint)", color: "var(--brand)" }
-                        : { color: "var(--text-secondary)" }
-                    }
-                  >
-                    <span className="flex-shrink-0 text-base leading-none">{list.icon}</span>
-                    <span className="flex-1 text-left truncate">{list.name}</span>
-                    <span className="text-[12px]" style={{ opacity: 0.5 }}>{getListTaskCount(list.id)}</span>
-                  </button>
-
-                  {/* List context menu */}
-                  {showListMenu === list.id && (
-                    <div
-                      className="absolute right-2 top-full z-50 mt-1 py-1 w-44 rounded-xl border"
-                      style={{ background: "var(--surface-elevated)", boxShadow: "var(--shadow-md)", borderColor: "var(--border)" }}
-                    >
-                      <button
-                        onClick={() => { onEditList?.(list); setShowListMenu(null); }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-                        style={{ color: "var(--text-primary)" }}
-                      >
-                        <Edit3 className="w-3.5 h-3.5" /> 編輯清單
-                      </button>
-                      {onOpenShareModal && (
-                        <button
-                          onClick={() => { onOpenShareModal(list, tasks.filter(t => t.listId === list.id)); setShowListMenu(null); }}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-                          style={{ color: "var(--brand)" }}
-                        >
-                          <Share2 className="w-3.5 h-3.5" /> 分享清單
-                        </button>
-                      )}
-                      <button
-                        onClick={async () => {
-                          const taskCount = tasks.filter((t) => t.listId === list.id && !t.isArchived).length;
-                          const ok = await confirm({
-                            title: `刪除清單「${list.name}」`,
-                            message: "此操作會將清單下的任務改為「未分類」,清單本身將永久移除。",
-                            impactDetail: taskCount > 0 ? `${taskCount} 項任務將改為未分類` : "此清單下沒有任務",
-                            confirmText: "刪除清單",
-                            tone: "danger",
-                          });
-                          if (ok) {
-                            onDeleteList?.(list.id);
-                            setShowListMenu(null);
-                          }
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-                        style={{ color: "var(--status-danger)" }}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" /> 刪除清單
-                      </button>
-                    </div>
-                  )}
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleListDragEnd}>
+              <SortableContext items={userLists.map((l) => l.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-0.5">
+                  {/* 過濾掉預設的「收集箱」清單 — 它在 mainNavItems 已由 virtual view 顯示,
+                      否則側邊欄會同時出現 2 個「收集箱」(一個帶 GTD badge,一個帶 📥 emoji 計數) */}
+                  {userLists.map((list) => (
+                    <SortableListItem
+                      key={list.id}
+                      list={list}
+                      isActive={isActive("list", list.id)}
+                      showMenu={showListMenu === list.id}
+                      onSelect={() => setCurrentView("list", list.id)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setShowListMenu(showListMenu === list.id ? null : list.id);
+                      }}
+                      taskCount={getListTaskCount(list.id)}
+                      onEdit={() => { onEditList?.(list); setShowListMenu(null); }}
+                      onShare={onOpenShareModal ? () => { onOpenShareModal(list, tasks.filter((t) => t.listId === list.id)); setShowListMenu(null); } : undefined}
+                      onDelete={onDeleteList ? async () => {
+                        const taskCount = tasks.filter((t) => t.listId === list.id && !t.isArchived).length;
+                        const ok = await confirm({
+                          title: `刪除清單「${list.name}」`,
+                          message: "此操作會將清單下的任務改為「未分類」,清單本身將永久移除。",
+                          impactDetail: taskCount > 0 ? `${taskCount} 項任務將改為未分類` : "此清單下沒有任務",
+                          confirmText: "刪除清單",
+                          tone: "danger",
+                        });
+                        if (ok) {
+                          onDeleteList(list.id);
+                          setShowListMenu(null);
+                        }
+                      } : undefined}
+                    />
+                  ))}
                 </div>
-              ))}
-            </div>
+              </SortableContext>
+            </DndContext>
           )}
         </div>
 
@@ -354,7 +360,115 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
   );
 }
 
-// ─── List Form Modal ──────────────────────────────────────────
+// ─── Sortable List Item (O-006) ──────────────────────────────────────
+// 只把 list 整列的拖曳 handlers 交給手柄按鈕，按鈕本體仍正常 click/cxtmenu 不衝突
+function SortableListItem({
+  list, isActive, showMenu, onSelect, onContextMenu, taskCount,
+  onEdit, onShare, onDelete,
+}: {
+  list: TaskList;
+  isActive: boolean;
+  showMenu: boolean;
+  onSelect: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+  taskCount: number;
+  onEdit: () => void;
+  onShare?: () => void;
+  onDelete?: () => void;
+}) {
+  const {
+    attributes, listeners, setNodeRef, transform, transition, isDragging,
+  } = useSortable({ id: list.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  // §24.1：桌機 hover 才出現手柄、手機永遠顯示
+  // 手柄需獨立 touch-action: none 避免 dnd-kit setPointerCapture + iOS Safari 觸控衝突
+  const handleSetRef = (el: HTMLButtonElement | null) => {
+    if (el) {
+      el.style.touchAction = "none";
+      el.style.userSelect = "none";
+    }
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="relative group">
+      <div
+        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-[14px] font-medium transition-all duration-150"
+        style={
+          isActive
+            ? { background: "var(--brand-tint)", color: "var(--brand)" }
+            : { color: "var(--text-secondary)" }
+        }
+      >
+        {/* 拖曳手柄：桌機 hover 才出現；手機永遠顯示。手柄 listeners + attributes 唯一拖曳入口 */}
+        <button
+          ref={handleSetRef}
+          type="button"
+          aria-label={`拖曳排序 ${list.name}`}
+          className="flex-shrink-0 w-4 h-7 flex items-center justify-center rounded-md cursor-grab active:cursor-grabbing md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-opacity"
+          style={{ color: "var(--text-tertiary)", touchAction: "none" }}
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="w-3.5 h-3.5" />
+        </button>
+
+        {/* 主按鈕：點擊切換 view / 右鍵 context menu。手柄外區域、與拖曳零衝突 */}
+        <button
+          type="button"
+          onClick={onSelect}
+          onContextMenu={onContextMenu}
+          className="flex-1 flex items-center gap-3 text-left min-w-0"
+        >
+          <span className="flex-shrink-0 text-base leading-none">{list.icon}</span>
+          <span className="flex-1 truncate">{list.name}</span>
+          <span className="text-[12px]" style={{ opacity: 0.5 }}>{taskCount}</span>
+        </button>
+      </div>
+
+      {/* Context menu */}
+      {showMenu && (
+        <div
+          className="absolute right-2 top-full z-50 mt-1 py-1 w-44 rounded-xl border"
+          style={{ background: "var(--surface-elevated)", boxShadow: "var(--shadow-md)", borderColor: "var(--border)" }}
+        >
+          <button
+            onClick={onEdit}
+            className="w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+            style={{ color: "var(--text-primary)" }}
+          >
+            <Edit3 className="w-3.5 h-3.5" /> 編輯清單
+          </button>
+          {onShare && (
+            <button
+              onClick={onShare}
+              className="w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+              style={{ color: "var(--brand)" }}
+            >
+              <Share2 className="w-3.5 h-3.5" /> 分享清單
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={onDelete}
+              className="w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+              style={{ color: "var(--status-danger)" }}
+            >
+              <Trash2 className="w-3.5 h-3.5" /> 刪除清單
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 interface ListFormProps {
   isOpen: boolean;
   onClose: () => void;

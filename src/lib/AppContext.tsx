@@ -120,6 +120,11 @@ interface AppContextValue {
   addList: (data: Omit<TaskList, "id" | "createdAt" | "updatedAt" | "order">) => string;
   updateList: (id: string, updates: Partial<TaskList>) => void;
   deleteList: (id: string) => void;
+  /**
+   * 重新排序清單。傳入新陣列順序，會依序重編 `order` 為連續整數（0,1,2…）
+   * 並批次推雲端；觸發後 5 秒內 realtime echo 不覆蓋本地（§26 類別 A）
+   */
+  reorderLists: (newListOrder: TaskList[]) => void;
 
   // ── 習慣 CRUD ─────────────────────────────────────────
   addHabit: (data: Omit<Habit, "id" | "createdAt" | "updatedAt" | "checkins" | "streak" | "longestStreak">) => void;
@@ -199,6 +204,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const EDIT_ACTIVITY_WINDOW_MS = 30_000; // 編輯活動窗(30 秒內有 keystroke 視為「正在編輯」)
   const firstTasksLoadDone = useRef(false); // 跳過 subscribeTasks 初次空資料覆蓋
   const firstListsLoadDone = useRef(false); // 跳過 subscribeListsSync 初次空資料覆蓋
+  // §26 類別 A：拖曳清單後 5 秒內 realtime echo 不覆蓋本地新順序（Map<id, ts>）
+  const recentlyWrittenListsRef = useRef<Map<string, number>>(new Map());
   const ACTIVE_THROTTLE_MS = 30_000;
 
   // 標記 task 為「剛寫入」；realtime 推送的 fbTask 在窗內不會覆蓋本地版本
@@ -388,7 +395,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // 修補：本地任務若指向被丟棄的清單 id，改指到 keeper，並回寫雲端
         rebindTasksToKeptLists(fbLists, deduped);
         lastCloudLists = deduped;
-        setLists(deduped);
+        // §26 類別 A：拖曳後 5 秒內的清單，order 與 updatedAt 保留本地，其他欄位吃雲端
+        // 避免 supabase realtime echo 把剛拖完的順序蓋回去
+        setLists((prev) => {
+          const localById = new Map(prev.map((l) => [l.id, l]));
+          const merged = deduped.map((fbL) => {
+            const local = localById.get(fbL.id);
+            // lazy GC：清過期的戳記
+            const ts = recentlyWrittenListsRef.current.get(fbL.id);
+            if (ts !== undefined && Date.now() - ts >= 5_000) {
+              recentlyWrittenListsRef.current.delete(fbL.id);
+            }
+            if (local && ts !== undefined && Date.now() - ts < 5_000) {
+              // 保護窗內：保留本地 order + updatedAt，其他欄位吃雲端
+              return { ...fbL, order: local.order, updatedAt: local.updatedAt };
+            }
+            return fbL;
+          });
+          return merged;
+        });
         saveLists(deduped);
       }).then((unsub) => {
         listsUnsubRef.current = unsub;
@@ -944,6 +969,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       batchSaveTasksFirebase(user.uid, affectedTasks.map((t) => ({ ...t, listId: undefined }))).catch(console.warn);
     }
   }, [lists, tasks, user]);
+
+  // §26 類別 A：拖曳後 realtime echo 5 秒內不覆蓋本地順序
+  const markListRecentlyWritten = useCallback((listId: string) => {
+    recentlyWrittenListsRef.current.set(listId, Date.now());
+  }, []);
+  const isListWithinRecentWriteWindow = useCallback((listId: string): boolean => {
+    const map = recentlyWrittenListsRef.current;
+    const ts = map.get(listId);
+    if (ts === undefined) return false;
+    const now = Date.now();
+    if (now - ts >= 5_000) {
+      map.delete(listId);
+      return false;
+    }
+    return true;
+  }, []);
+
+  const reorderLists = useCallback((newListOrder: TaskList[]) => {
+    // 將新陣列重編 order 為連續整數，順帶 bump updatedAt（觸發 §26 A realtime echo）
+    const now = new Date().toISOString();
+    const updated: TaskList[] = newListOrder.map((l, idx) => {
+      const existing = lists.find((cur) => cur.id === l.id);
+      const baseOrder = idx;
+      // 保留其他欄位（name/icon/color/createdAt），僅重編 order + updatedAt
+      return existing
+        ? { ...existing, order: baseOrder, updatedAt: now }
+        : { ...l, order: baseOrder, updatedAt: now };
+    });
+    setLists(updated);
+    saveLists(updated);
+    // 全部受影響 list 都打戳，5 秒內 subscribeListsSync echo 不覆蓋
+    updated.forEach((l) => recentlyWrittenListsRef.current.set(l.id, Date.now()));
+    if (user) batchSaveListsFirebase(user.uid, updated).catch(console.warn);
+  }, [lists, user]);
 
   // ── 習慣 CRUD ─────────────────────────────────────────
   const addHabit = useCallback((data: Omit<Habit, "id" | "createdAt" | "updatedAt" | "checkins" | "streak" | "longestStreak">) => {
@@ -1583,7 +1642,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addTask, updateTask, deleteTask, toggleTaskStatus, archiveTask, unarchiveTask,
     addSubTask, toggleSubTask, deleteSubTask,
     completeRecurringAndClone,
-    addList, updateList, deleteList,
+    addList, updateList, deleteList, reorderLists,
     addHabit, updateHabit, archiveHabit, unarchiveHabit, checkinHabit: checkinHabitFn,
     quickAdd,
     requestNotificationPermission, notificationPermission,
