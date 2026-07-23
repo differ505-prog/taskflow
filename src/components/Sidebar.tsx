@@ -410,12 +410,12 @@ function SortableListItem({
           ref={handleSetRef}
           type="button"
           aria-label={`拖曳排序 ${list.name}`}
-          className="flex-shrink-0 w-4 h-7 flex items-center justify-center rounded-md cursor-grab active:cursor-grabbing md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-opacity"
+          className="flex-shrink-0 w-11 h-7 -ml-2 flex items-center justify-center rounded-md cursor-grab active:cursor-grabbing opacity-40 hover:opacity-100 focus:opacity-100 transition-opacity"
           style={{ color: "var(--text-tertiary)", touchAction: "none" }}
           {...attributes}
           {...listeners}
         >
-          <GripVertical className="w-3.5 h-3.5" />
+          <GripVertical className="w-4 h-4" />
         </button>
 
         {/* 主按鈕：點擊切換 view / 右鍵 context menu。手柄外區域、與拖曳零衝突 */}
