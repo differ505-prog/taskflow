@@ -90,8 +90,24 @@ export function AppShell({
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [showCompleted, setShowCompleted] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  // L6.5「已完成任務預設折疊」：展開狀態持久化到 localStorage
+  // SSR/CSR 一致性:預設 true（折疊 = 安全預設）,mount 後從 localStorage 同步
+  const [completedExpanded, setCompletedExpanded] = useState(true);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("completed-collapsed");
+      if (stored === "false") setCompletedExpanded(true);
+      else setCompletedExpanded(false);
+    } catch { /* 維持預設 */ }
+  }, []);
+  const toggleCompletedExpanded = useCallback(() => {
+    setCompletedExpanded((prev) => {
+      const next = !prev;
+      try { localStorage.setItem("completed-collapsed", String(!next)); } catch {}
+      return next;
+    });
+  }, []);
   const [quickAddInput, setQuickAddInput] = useState("");
   const [quickAddHint, setQuickAddHint] = useState(false);
   const [sharedQuickAddInput, setSharedQuickAddInput] = useState("");
@@ -156,11 +172,17 @@ export function AppShell({
   };
 
   const filteredTasks = getFilteredTasks();
-  // 用戶主動點了「已完成」狀態標籤時，強制顯示已完成（忽略 showCompleted 開關）
+  // 用戶主動點了「已完成」狀態標籤時,只顯示已完成
   const explicitlyShowingDone = activeFilter.status === "done";
-  const displayTasks = showCompleted || explicitlyShowingDone || currentView === "today" || currentView === "next7days" || currentView === "list"
-    ? filteredTasks
-    : filteredTasks.filter((t) => t.status !== "done");
+  // L6.5:已完成任務一律顯示在底部折疊區,所以 displayTasks 永遠包含全部
+  const displayTasks = explicitlyShowingDone
+    ? filteredTasks.filter((t) => t.status === "done")
+    : currentView === "today" || currentView === "next7days" || currentView === "list"
+      ? filteredTasks
+      : filteredTasks;
+  // 拆分「進行中」與「已完成」,用於渲染時分區
+  const activeTasks = displayTasks.filter((t) => t.status !== "done");
+  const completedTasks = displayTasks.filter((t) => t.status === "done");
 
   const stats = {
     total: tasks.filter((t) => !t.isArchived).length,
@@ -179,10 +201,11 @@ export function AppShell({
 
   const selectedTask = selectedTaskId ? tasks.find((t) => t.id === selectedTaskId) ?? null : null;
 
-  // ── O-007：拖曳排序 ─────────────────────────────────────
-  // 僅同清單內（簡單版範圍）；shared list 跳過拖曳(viewer 唯讀 + 簡單版不跨清單)
-  // 拖曳中用 DragOverlay 顯示半透明浮起卡片,完成後從 displayTasks 算新 order 寫入 store
-  const canDrag = !currentSharedListId;
+// O-007：拖曳排序 ─────────────────────────────────────
+// 僅同清單內（簡單版範圍）；shared list 跳過拖曳(viewer 唯讀 + 簡單版不跨清單)
+// 拖曳中用 DragOverlay 顯示半透明浮起卡片,完成後從 activeTasks 算新 order 寫入 store
+// L6.5:已完成任務不可拖曳（它們已折疊於獨立區段,不參與 active 排序）
+const canDrag = !currentSharedListId;
   // activation distance 8px：避免手機 scroll-to-select 時誤觸發拖曳
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -196,13 +219,13 @@ export function AppShell({
     setActiveDragId(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIdx = displayTasks.findIndex((t) => t.id === active.id);
-    const newIdx = displayTasks.findIndex((t) => t.id === over.id);
+    const oldIdx = activeTasks.findIndex((t) => t.id === active.id);
+    const newIdx = activeTasks.findIndex((t) => t.id === over.id);
     if (oldIdx === -1 || newIdx === -1) return;
-    const reordered = arrayMove(displayTasks, oldIdx, newIdx);
+    const reordered = arrayMove(activeTasks, oldIdx, newIdx);
     reorderTasks(reordered);
   };
-  const activeDragTask = activeDragId ? displayTasks.find((t) => t.id === activeDragId) : null;
+  const activeDragTask = activeDragId ? activeTasks.find((t) => t.id === activeDragId) : null;
 
   // Clear selection if selected task is deleted
   useEffect(() => {
@@ -477,15 +500,7 @@ export function AppShell({
                           </button>
                         );
                       })}
-                      {!["today", "next7days", "list"].includes(currentView) &&
-                        tasks.some((t) => t.status === "done" && !t.isArchived) && (
-                        <button onClick={() => { setShowCompleted(!showCompleted); setActiveFilter({ ...activeFilter, status: undefined }); }} className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 rounded-full text-[12px] font-medium transition-all duration-150"
-                          style={!showCompleted ? { background: "var(--brand-tint)", color: "var(--brand)" } : { background: "rgba(0,0,0,0.04)", color: "var(--text-tertiary)" }}>
-                          <Archive className="w-3 h-3" />
-                          {showCompleted ? "隱藏完成" : "顯示完成"}
-                        </button>
-                      )}
-                    </div>
+                      </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {!["today", "next7days", "list", "archived"].includes(currentView) &&
                         filteredTasks.some((t) => t.status !== "done") && (
@@ -526,8 +541,8 @@ export function AppShell({
                       </div>
                     </div>
                 </div>
-                {/* Task list 區塊 — displayTasks 空時顯示對應空狀態,有任務時渲染清單 */}
-                {currentView === "inbox" && displayTasks.length === 0 ? (
+                {/* Task list 區塊 — activeTasks 空時顯示對應空狀態,有任務時渲染清單 */}
+                {currentView === "inbox" && activeTasks.length === 0 && completedTasks.length === 0 ? (
                   <div className="flex flex-col items-center justify-center flex-1 py-12 px-4">
                     <motion.div
                       className="w-full max-w-md"
@@ -593,7 +608,7 @@ export function AppShell({
                       </div>
                     </motion.div>
                   </div>
-                ) : displayTasks.length === 0 ? (
+                ) : activeTasks.length === 0 && completedTasks.length === 0 ? (
                   <EmptyState
                     onAddTask={() => {
                       // 「進行中」空白 → 預設建立 in-progress 任務，其他維持 todo
@@ -612,11 +627,11 @@ export function AppShell({
                         onDragEnd={handleDragEnd}
                       >
                         <SortableContext
-                          items={displayTasks.map((t) => t.id)}
+                          items={activeTasks.map((t) => t.id)}
                           strategy={verticalListSortingStrategy}
                         >
                           <AnimatePresence mode="popLayout">
-                            {displayTasks.map((task) => (
+                            {activeTasks.map((task) => (
                               <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
                                 <TaskSwipeWrapper
                                   taskId={task.id}
@@ -664,7 +679,7 @@ export function AppShell({
                       </DndContext>
                     ) : (
                       <AnimatePresence mode="popLayout">
-                        {displayTasks.map((task) => (
+                        {activeTasks.map((task) => (
                           <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
                             <TaskSwipeWrapper
                               taskId={task.id}
@@ -692,6 +707,77 @@ export function AppShell({
                           </motion.div>
                         ))}
                       </AnimatePresence>
+                    )}
+
+                    {/* L6.5「已完成任務」折疊區 — 預設 collapse;點 summary 展開 */}
+                    {!explicitlyShowingDone && completedTasks.length > 0 && (
+                      <details
+                        className="mt-3 group/completed"
+                        open={completedExpanded}
+                        onToggle={(e) => {
+                          const isOpen = (e.currentTarget as HTMLDetailsElement).open;
+                          if (isOpen !== completedExpanded) {
+                            setCompletedExpanded(isOpen);
+                            try { localStorage.setItem("completed-collapsed", String(!isOpen)); } catch {}
+                          }
+                        }}
+                      >
+                        <summary
+                          className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl cursor-pointer select-none transition-colors duration-150 hover:bg-black/[0.03] active:scale-[0.99] list-none [&::-webkit-details-marker]:hidden"
+                          style={{ color: "var(--text-tertiary)" }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <ChevronRight className="w-3.5 h-3.5 transition-transform duration-200 group-open/completed:rotate-90" style={{ color: "var(--text-tertiary)" }} />
+                            <span className="text-[12px] font-medium">
+                              已完成 {completedTasks.length} 項
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleCompletedExpanded();
+                            }}
+                            className="text-[11px] px-2 py-1 rounded-md transition-colors duration-150 hover:bg-black/5"
+                            style={{ color: "var(--text-tertiary)" }}
+                            aria-label={completedExpanded ? "全部收起" : "全部展開"}
+                          >
+                            {completedExpanded ? "全部收起" : "全部展開"}
+                          </button>
+                        </summary>
+                        <div className="flex flex-col gap-1 mt-1.5 pl-1">
+                          <AnimatePresence mode="popLayout">
+                            {completedTasks.map((task) => (
+                              <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
+                                <TaskSwipeWrapper
+                                  taskId={task.id}
+                                  isDone={task.status === "done"}
+                                  onComplete={() => updateTask(task.id, { status: task.status === "done" ? "todo" : "done" })}
+                                  onDelete={(id) => deleteTask(id)}
+                                >
+                                  <TaskListItem
+                                    task={task}
+                                    isSelected={task.id === selectedTaskId}
+                                    onClick={() => handleSelectTask(task.id)}
+                                    onToggleStatus={toggleTaskStatus}
+                                    onToggleSubTask={toggleSubTask}
+                                    onUpdatePriority={(id, p) => updateTask(id, { priority: p })}
+                                    onUpdateTags={(id, tags) => updateTask(id, { tags })}
+                                    onTogglePin={(id) => updateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
+                                    onDelete={(id) => deleteTask(id)}
+                                    allTags={Object.keys(getTagCounts())}
+                                    batchMode={batchMode}
+                                    batchSelected={!!batchSelectedIds?.has(task.id)}
+                                    onLongPress={() => onEnterBatchMode?.(task.id)}
+                                    onBatchToggle={() => onToggleBatchSelect?.(task.id)}
+                                  />
+                                </TaskSwipeWrapper>
+                              </motion.div>
+                            ))}
+                          </AnimatePresence>
+                        </div>
+                      </details>
                     )}
                   </div>
                 )}
