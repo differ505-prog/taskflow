@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import ZenHomeShell from "@/components/ZenHomeShell";
 import ZenDashboard from "@/components/ZenDashboard";
 
 export const metadata = {
@@ -6,5 +8,10 @@ export const metadata = {
 };
 
 export default function HomePage() {
-  return <ZenDashboard />;
+  // §26-G 預防:useSearchParams 必須在 Suspense 內,否則 build 失敗
+  return (
+    <Suspense fallback={<ZenDashboard />}>
+      <ZenHomeShell />
+    </Suspense>
+  );
 }

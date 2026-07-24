@@ -133,9 +133,9 @@ export default function ZenDashboard() {
         style={{ top: "max(1rem, env(safe-area-inset-top, 0px))" }}
       >
         <Link
-          href="/command-center"
+          href="/?board=1"
           className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-slate-500 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:text-slate-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
-          aria-label="進入軍機處：展開任務排程"
+          aria-label="進入任務大廳(收件箱) — 整理任務或快速 Brain Dump"
         >
           <svg
             aria-hidden
@@ -148,12 +148,12 @@ export default function ZenDashboard() {
             strokeLinecap="round"
             strokeLinejoin="round"
           >
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-            <line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" />
-            <line x1="3" y1="10" x2="21" y2="10" />
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" />
+            <rect x="14" y="14" width="7" height="7" rx="1" />
           </svg>
-          <span>軍機處</span>
+          <span>任務大廳</span>
         </Link>
       </div>
       <div className="mx-auto flex max-w-2xl flex-col gap-12">
@@ -328,11 +328,11 @@ function EmptyState() {
       <p className="text-balance text-base font-medium text-slate-600">今日討伐已全數淨空</p>
       <p className="text-balance text-sm text-slate-400">戰場很安靜，慢呼吸一下</p>
       <Link
-        href="/command-center"
+        href="/?board=1"
         className="mt-2 inline-flex items-center gap-2 rounded-full bg-slate-800 px-6 py-3 text-sm font-medium text-slate-50 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-slate-900 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
       >
-        <span aria-hidden>👁️</span>
-        <span>前往軍機處籌備任務</span>
+        <span aria-hidden>📥</span>
+        <span>開啟任務大廳</span>
       </Link>
     </div>
   );
