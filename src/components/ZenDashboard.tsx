@@ -32,6 +32,7 @@ import { useHunterStatus } from "@/hooks/useHunterStatus";
 import { useRankUpNotification, RankUpNotification } from "@/components/RankUpNotification";
 import { HunterStatusBadge } from "@/components/HunterStatusBadge";
 import { WarmupSection } from "@/components/WarmupSection";
+import PresenceDot from "@/components/PresenceDot";
 import { BASE_TASK_EXP } from "@/lib/hunterRank";
 import { useApp } from "@/lib/AppContext";
 import { Plus } from "lucide-react";
@@ -300,6 +301,11 @@ export default function ZenDashboard() {
           沿用既有 Habit 系統 checkinHabit 同步層
           手機隱藏(sm:flex),避免跟 mobile FAB 搶版面 */}
       <WarmupSection />
+
+      {/* 陪伴指示燈 — 右下角,跟左下 WarmupSection 對稱
+          §品牌承諾「真實與脆弱」:顯示估算範圍 + hover tooltip 揭露
+          桌機手機都顯示,右側無其他 fixed 元素競爭 */}
+      <PresenceDot />
 
       {/* Mobile FAB — 只在 md 以下顯示,桌機用 Cmd+K
           §15.4 mobile safe area:bottom padding 避 iOS home indicator
