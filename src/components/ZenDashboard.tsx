@@ -162,7 +162,8 @@ export default function ZenDashboard() {
       <RankUpNotification />
 
       {/* 頂部工具列 — §10.3 9.5 方案:
-          三欄 flex:Logo(左) / Zen Mode 標題(中,flex-1) / 任務大廳(右)
+          左群組(身份):Logo + Zen Mode 標題
+          右群組(導航):獵人徽章 + 任務大廳
           - 桌機:完整 Logo(色塊 + 「VibeList」文字)
           - 手機:Logo 自動縮成只有色塊,避免擠壓「任務大廳」按鈕
           - 從原本 floating 重構為 inline,不再遮擋內容 */}
@@ -170,60 +171,64 @@ export default function ZenDashboard() {
         className="mx-auto flex max-w-2xl items-center justify-between gap-3"
         style={{ marginTop: "max(0px, env(safe-area-inset-top, 0px))" }}
       >
-        {/* 左:品牌 Logo(手機自動縮成方塊) */}
-        <div className="flex items-center gap-2">
-          <div
-            className="flex h-8 w-8 items-center justify-center rounded-xl"
-            style={{ background: "var(--brand)" }}
-            aria-hidden
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path
-                d="M3 8L6.5 11.5L13 4.5"
-                stroke="white"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+        {/* 左群組:Logo + Zen Mode 標題(身份歸屬) */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div
+              className="flex h-8 w-8 items-center justify-center rounded-xl"
+              style={{ background: "var(--brand)" }}
+              aria-hidden
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M3 8L6.5 11.5L13 4.5"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+            <span className="hidden text-[16px] font-semibold tracking-tight text-slate-700 sm:inline">
+              VibeList
+            </span>
           </div>
-          <span className="hidden text-[16px] font-semibold tracking-tight text-slate-700 sm:inline">
-            VibeList
+          {/* Zen Mode 標題跟 Logo 群組(桌機才顯示),用極淡分隔線點出群組關係 */}
+          <span className="hidden text-balance text-sm font-medium uppercase tracking-widest text-slate-300 sm:inline">
+            ·
+          </span>
+          <span className="hidden text-balance text-sm font-medium uppercase tracking-widest text-slate-400 sm:inline">
+            Zen Mode
           </span>
         </div>
 
-        {/* 中:Zen Mode 標題 — 桌機才顯示標籤,讓三欄視覺平衡 */}
-        <span className="text-balance text-center text-sm font-medium uppercase tracking-widest text-slate-400 hidden sm:inline">
-          Zen Mode
-        </span>
-
-        {/* 中右:獵人公會常駐徽章(§10.3 9.2 方案) */}
-        <HunterStatusBadge />
-
-        {/* 右:退出禪模式入口(任務大廳) — §15.4 mobile safe area */}
-        <Link
-          href="/?board=1"
-          className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-2 text-sm font-medium text-slate-500 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:text-slate-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 sm:px-4"
-          aria-label="進入任務大廳(收件箱) — 整理任務或快速 Brain Dump"
-        >
-          <svg
-            aria-hidden
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        {/* 右群組:獵人徽章 + 任務大廳(導航歸屬) */}
+        <div className="flex items-center gap-3">
+          <HunterStatusBadge />
+          <Link
+            href="/?board=1"
+            className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-2 text-sm font-medium text-slate-500 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:text-slate-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 sm:px-4"
+            aria-label="進入任務大廳(收件箱) — 整理任務或快速 Brain Dump"
           >
-            <rect x="3" y="3" width="7" height="7" rx="1" />
-            <rect x="14" y="3" width="7" height="7" rx="1" />
-            <rect x="3" y="14" width="7" height="7" rx="1" />
-            <rect x="14" y="14" width="7" height="7" rx="1" />
-          </svg>
-          <span className="hidden sm:inline">任務大廳</span>
-        </Link>
+            <svg
+              aria-hidden
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+            </svg>
+            <span className="hidden sm:inline">任務大廳</span>
+          </Link>
+        </div>
       </div>
 
       <div className="mx-auto mt-12 flex max-w-2xl flex-col gap-12 pb-12">
@@ -334,7 +339,7 @@ function FocusCard({
         },
       }}
       exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.3 } }}
-      className="group relative w-full rounded-3xl bg-white p-12 shadow-sm ring-1 ring-slate-200/60"
+      className="group relative w-full rounded-3xl bg-white p-12 text-center shadow-sm ring-1 ring-slate-200/60"
       aria-label={`當前焦點任務: ${task.title}`}
     >
       <SlashOverlay active={isSlashing} />
