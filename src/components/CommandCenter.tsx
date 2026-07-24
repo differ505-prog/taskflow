@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import {
   DndContext,
   DragOverlay,
@@ -17,8 +18,8 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-
-type Task = { id: string; title: string };
+import { useApp } from "@/lib/AppContext";
+import type { Task } from "@/lib/types";
 
 type DateCell = {
   date: string; // YYYY-MM-DD
@@ -37,50 +38,25 @@ type ScheduledTask = {
   status: "done" | "pending";
 };
 
-type CommandCenterProps = {
-  /** 未排程任務（backlog） */
-  initialBacklog?: Task[];
-  /** 已排程任務（由 useState 管理，給後端接線時可換成真實資料流） */
-  initialScheduled?: Record<string, ScheduledTask[]>;
-  /** 月曆基準日（給後端整合時可注入真實日期） */
-  today?: Date;
-  /** 拖曳排程完成時觸發（後端整合入口） */
-  onSchedule?: (taskId: string, date: string) => void | Promise<void>;
-  /** 從排程區移回 backlog（給未來支援用） */
-  onUnschedule?: (taskId: string, date: string) => void | Promise<void>;
-};
+/** 未排程任務 = 沒 dueDate 且 status=todo、非封存、非子任務 */
+function selectBacklog(tasks: Task[]): Task[] {
+  return tasks.filter(
+    (t) => !t.isArchived && t.status === "todo" && !t.dueDate && !t.parentId
+  );
+}
 
-const DEFAULT_BACKLOG: Task[] = [
-  { id: "b1", title: "回覆客戶信件" },
-  { id: "b2", title: "整理專案 README" },
-  { id: "b3", title: "預約牙醫" },
-  { id: "b4", title: "購買下週日用品" },
-  { id: "b5", title: "寫一份學習筆記" },
-];
-
-// 依日期產生 mock 排程資料,讓過去有「破關多巴胺」,未來空蕩無壓力
-function buildMockScheduled(today: Date): Record<string, ScheduledTask[]> {
+/** 已排程任務 = 有 dueDate */
+function selectScheduledMap(tasks: Task[]): Record<string, ScheduledTask[]> {
   const map: Record<string, ScheduledTask[]> = {};
-  const year = today.getFullYear();
-  const month = today.getMonth();
-
-  // 過去的完成任務（給 amber/violet 暖色）
-  for (let i = 1; i <= 8; i++) {
-    const d = new Date(year, month, today.getDate() - i);
-    const key = toDateKey(d);
-    map[key] = [
-      { taskId: `past-${i}-1`, title: i % 2 === 0 ? "寫週報" : "運動 30 分鐘", status: "done" },
-      { taskId: `past-${i}-2`, title: "回覆信件", status: "done" },
-    ];
+  for (const t of tasks) {
+    if (!t.dueDate || t.isArchived || t.parentId) continue;
+    if (!map[t.dueDate]) map[t.dueDate] = [];
+    map[t.dueDate].push({
+      taskId: t.id,
+      title: t.title,
+      status: t.status === "done" ? "done" : "pending",
+    });
   }
-
-  // 一個過去的「未完成」任務,展示「不過期紅色」處理:用 zinc-400 灰色
-  const overdue = new Date(year, month, today.getDate() - 3);
-  map[toDateKey(overdue)] = [
-    ...(map[toDateKey(overdue)] ?? []),
-    { taskId: "overdue-1", title: "本來要做但忘了", status: "pending" },
-  ];
-
   return map;
 }
 
@@ -95,7 +71,6 @@ function buildMonthCells(anchor: Date): DateCell[] {
   const year = anchor.getFullYear();
   const month = anchor.getMonth();
   const firstOfMonth = new Date(year, month, 1);
-  // 週日為首日
   const firstWeekday = firstOfMonth.getDay();
   const start = new Date(year, month, 1 - firstWeekday);
 
@@ -122,22 +97,17 @@ function buildMonthCells(anchor: Date): DateCell[] {
 
 const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
 
-export function CommandCenter({
-  initialBacklog = DEFAULT_BACKLOG,
-  initialScheduled,
-  onSchedule,
-  onUnschedule,
-  today,
-}: CommandCenterProps) {
-  const anchorDate = useMemo(() => today ?? new Date(), [today]);
-  const [isOpen, setIsOpen] = useState(false);
+export function CommandCenter() {
+  const { tasks, updateTask, toggleTaskStatus } = useApp();
+  const router = useRouter();
+
+  const backlog = useMemo(() => selectBacklog(tasks), [tasks]);
+  const scheduled = useMemo(() => selectScheduledMap(tasks), [tasks]);
+
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [backlog, setBacklog] = useState<Task[]>(initialBacklog);
-  const [scheduled, setScheduled] = useState<Record<string, ScheduledTask[]>>(
-    () => initialScheduled ?? buildMockScheduled(anchorDate)
-  );
   const [monthOffset, setMonthOffset] = useState(0);
 
+  const anchorDate = useMemo(() => new Date(), []);
   const visibleMonth = useMemo(() => {
     const d = new Date(anchorDate);
     d.setDate(1);
@@ -178,111 +148,44 @@ export function CommandCenter({
     const targetDate = over.id as string;
     const activeTaskId = active.id as string;
 
-    // 從 backlog 拖到日期 → 加入排程
+    // 從 backlog 拖到日期 → 設定 dueDate
     const inBacklog = backlog.find((t) => t.id === activeTaskId);
     if (inBacklog) {
-      setScheduled((prev) => ({
-        ...prev,
-        [targetDate]: [
-          ...(prev[targetDate] ?? []),
-          { taskId: inBacklog.id, title: inBacklog.title, status: "pending" },
-        ],
-      }));
-      setBacklog((prev) => prev.filter((t) => t.id !== inBacklog.id));
-      onSchedule?.(inBacklog.id, targetDate);
+      updateTask(inBacklog.id, { dueDate: targetDate });
       return;
     }
 
-    // 從排程區拖到另一日期 → 搬移
-    let movedTask: ScheduledTask | null = null;
-    let sourceDate: string | null = null;
+    // 從排程區拖到另一日期 → 搬移 dueDate
     for (const date of Object.keys(scheduled)) {
       const found = scheduled[date].find((s) => s.taskId === activeTaskId);
-      if (found) {
-        movedTask = found;
-        sourceDate = date;
-        break;
+      if (found && date !== targetDate) {
+        updateTask(found.taskId, { dueDate: targetDate });
+        return;
       }
     }
-    if (movedTask && sourceDate && sourceDate !== targetDate) {
-      setScheduled((prev) => {
-        const next = { ...prev };
-        next[sourceDate!] = (next[sourceDate!] ?? []).filter((s) => s.taskId !== movedTask!.taskId);
-        next[targetDate] = [...(next[targetDate] ?? []), movedTask!];
-        return next;
-      });
-    }
   };
 
-  const handleToggleScheduledStatus = (taskId: string, date: string) => {
-    setScheduled((prev) => {
-      const next = { ...prev };
-      next[date] = (next[date] ?? []).map((s) =>
-        s.taskId === taskId ? { ...s, status: s.status === "done" ? "pending" : "done" } : s
-      );
-      return next;
-    });
+  const handleToggleScheduledStatus = (taskId: string) => {
+    // 透過 useApp.toggleTaskStatus 完成切換(status: todo ↔ done),同步層會持久化
+    toggleTaskStatus(taskId);
   };
 
-  const handleUnschedule = (taskId: string, date: string) => {
-    const task = (scheduled[date] ?? []).find((s) => s.taskId === taskId);
-    if (!task) return;
-    setScheduled((prev) => {
-      const next = { ...prev };
-      next[date] = (next[date] ?? []).filter((s) => s.taskId !== taskId);
-      return next;
-    });
-    setBacklog((prev) => [...prev, { id: task.taskId, title: task.title }]);
-    onUnschedule?.(taskId, date);
+  const handleUnschedule = (taskId: string) => {
+    // 移除 dueDate = 移回 backlog
+    updateTask(taskId, { dueDate: undefined });
   };
 
   return (
-    <>
-      {/* ── 入口按鈕：預設永遠可見,但毛玻璃淡化,符合「隱藏的入口」精神 ── */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-24 right-4 z-40 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-medium text-slate-500 shadow-sm backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-white/95 hover:text-slate-700 hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 sm:bottom-6 sm:right-6"
-        aria-label="展開軍機處：戰略排程模式"
-      >
-        <svg
-          aria-hidden
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-          <circle cx="12" cy="12" r="3" />
-        </svg>
-        <span className="hidden sm:inline">展開軍機處</span>
-        <span className="text-[11px] text-slate-400 sm:inline">戰略排程</span>
-      </button>
-
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            key="command-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className="fixed inset-0 z-[70] overflow-y-auto bg-slate-50/95 backdrop-blur"
-            role="dialog"
-            aria-modal="true"
-            aria-label="軍機處：戰略排程模式"
-          >
-            <motion.div
-              initial={{ y: 16, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 16, opacity: 0 }}
-              transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-              className="mx-auto flex min-h-screen max-w-7xl flex-col gap-6 px-4 pb-12 pt-6 sm:px-8"
-            >
+    <motion.div
+      initial={{ y: 16, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+      className="fixed inset-0 z-[70] overflow-y-auto bg-slate-50/95 backdrop-blur"
+      role="dialog"
+      aria-modal="true"
+      aria-label="軍機處：戰略排程模式"
+    >
+      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-6 px-4 pb-12 pt-6 sm:px-8">
               {/* ── Header：明顯的關閉/返回禪模式鈕 ── */}
               <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/60 pb-4">
                 <div className="flex flex-col">
@@ -344,7 +247,7 @@ export function CommandCenter({
                   {/* 關閉 */}
                   <button
                     type="button"
-                    onClick={() => setIsOpen(false)}
+                    onClick={() => router.push("/")}
                     className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium text-slate-500 transition-all duration-200 ease-out hover:bg-white hover:text-slate-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
                     aria-label="關閉軍機處"
                   >
@@ -380,11 +283,8 @@ export function CommandCenter({
                   ) : null}
                 </DragOverlay>
               </DndContext>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+      </div>
+    </motion.div>
   );
 }
 
@@ -465,8 +365,8 @@ function CalendarGrid({
 }: {
   cells: DateCell[];
   scheduled: Record<string, ScheduledTask[]>;
-  onToggleStatus: (taskId: string, date: string) => void;
-  onUnschedule: (taskId: string, date: string) => void;
+  onToggleStatus: (taskId: string) => void;
+  onUnschedule: (taskId: string) => void;
 }) {
   return (
     <section aria-label="月曆排程" className="flex flex-col gap-3">
@@ -506,8 +406,8 @@ function DateCellView({
 }: {
   cell: DateCell;
   tasks: ScheduledTask[];
-  onToggleStatus: (taskId: string, date: string) => void;
-  onUnschedule: (taskId: string, date: string) => void;
+  onToggleStatus: (taskId: string) => void;
+  onUnschedule: (taskId: string) => void;
 }) {
   const { isOver, setNodeRef } = useDroppable({ id: cell.date });
 
@@ -567,7 +467,7 @@ function DateCellView({
             >
               <button
                 type="button"
-                onClick={() => onToggleStatus(task.taskId, cell.date)}
+                onClick={() => onToggleStatus(task.taskId)}
                 className="flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center rounded-full transition-colors hover:bg-white/40"
                 aria-label={task.status === "done" ? "標記為未完成" : "標記為完成"}
               >
@@ -584,7 +484,7 @@ function DateCellView({
               </span>
               <button
                 type="button"
-                onClick={() => onUnschedule(task.taskId, cell.date)}
+                onClick={() => onUnschedule(task.taskId)}
                 className="flex-shrink-0 rounded p-0.5 opacity-0 transition-opacity hover:bg-white/40 group-hover/chip:opacity-100"
                 aria-label={`從 ${cell.date} 移除: ${task.title}`}
               >

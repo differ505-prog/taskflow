@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -17,7 +17,6 @@ import {
 } from "@dnd-kit/core";
 import {
   SortableContext,
-  arrayMove,
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
@@ -26,38 +25,22 @@ import { CSS } from "@dnd-kit/utilities";
 import { SlashOverlay } from "@/components/SlashOverlay";
 import { StatusWindow } from "@/components/StatusWindow";
 import { useStatusWindow } from "@/hooks/useStatusWindow";
+import { useApp } from "@/lib/AppContext";
+import type { Task } from "@/lib/types";
 
-type ZenTask = {
-  id: string;
-  title: string;
-};
+/** 禪模式看的任務樣態：排除已封存、已完成、子任務 */
+function selectZenTasks(tasks: Task[]): Task[] {
+  return tasks.filter(
+    (t) => !t.isArchived && t.status === "todo" && !t.parentId && !t.isArchived
+  );
+}
 
-type ZenDashboardProps = {
-  /** 完成任務時呼叫 — 後續可接 SVG 粉碎動畫 hook (見下方預設行為) */
-  onComplete?: (taskId: string) => void | Promise<void>;
-  /** 初始假資料 (規格要求「先寫死」) */
-  initialTasks?: ZenTask[];
-};
+export default function ZenDashboard() {
+  const { tasks, toggleTaskStatus } = useApp();
+  const visibleTasks = useMemo(() => selectZenTasks(tasks), [tasks]);
 
-const DEFAULT_TASKS: ZenTask[] = [
-  { id: "t-1", title: "回覆 Wade 寄來的提案信" },
-  { id: "t-2", title: "整理書桌，把昨天的雜物歸位" },
-  { id: "t-3", title: "讀 30 頁《Deep Work》" },
-  { id: "t-4", title: "寫一篇今天的學習筆記" },
-  { id: "t-5", title: "練習 15 分鐘呼吸冥想" },
-];
-
-export default function ZenDashboard({
-  onComplete,
-  initialTasks = DEFAULT_TASKS,
-}: ZenDashboardProps) {
-  const [tasks, setTasks] = useState<ZenTask[]>(initialTasks);
   const [activeId, setActiveId] = useState<string | null>(null);
   // 斬擊 / 崩解狀態 — 嚴格對齊規格時間軸
-  // t=0: isSlashing=true (SVG 斬擊)
-  // t=300ms: isCrashing=true (卡片崩解) + 移除任務
-  // t=500ms: 狀態窗降臨
-  // t=2750ms: 崩解結束,UI 可繼續
   const [isSlashing, setIsSlashing] = useState(false);
   const [isCrashing, setIsCrashing] = useState(false);
   const showWindow = useStatusWindow();
@@ -68,8 +51,8 @@ export default function ZenDashboard({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const focus = tasks[0];
-  const queue = tasks.slice(1);
+  const focus = visibleTasks[0];
+  const queue = visibleTasks.slice(1);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -79,35 +62,26 @@ export default function ZenDashboard({
     const { active, over } = event;
     setActiveId(null);
     if (!over || active.id === over.id) return;
-
-    setTasks((items) => {
-      const oldIndex = items.findIndex((t) => t.id === active.id);
-      const newIndex = items.findIndex((t) => t.id === over.id);
-      if (oldIndex < 0 || newIndex < 0) return items;
-      return arrayMove(items, oldIndex, newIndex);
-    });
+    // 禪模式不支援持久化排序 — 排序由主清單 (AppShell) 統一管理,禪模式自動反映
+    // 此處僅更新 UI 拖曳狀態(已由 setActiveId(null) 重置)
   };
 
   const handleComplete = async (taskId: string) => {
-    const completedTask = tasks.find((t) => t.id === taskId);
+    const completedTask = visibleTasks.find((t) => t.id === taskId);
     if (!completedTask) return;
 
     // 0.0s — 斬擊啟動
     setIsSlashing(true);
 
-    // 0.3s — 斬擊結束,同時觸發崩解 + 移除任務 + 呼叫 onComplete
+    // 0.3s — 斬擊結束,同時觸發崩解 + 呼叫 toggleTaskStatus(status: todo → done)
     window.setTimeout(() => {
       setIsSlashing(false);
       setIsCrashing(true);
-      setTasks((items) => items.filter((t) => t.id !== taskId));
-      if (onComplete) {
-        void onComplete(taskId);
-      } else {
-        console.log(`[ZenDashboard] complete task: ${taskId}`);
-      }
+      // 真實狀態切換 — 同步層會處理 supabase realtime echo 與保護窗(§26-A)
+      toggleTaskStatus(taskId);
     }, 300);
 
-    // 0.5s — 狀態窗降臨 (§10.2 工程詮釋:崩解期間新焦點已遞補,狀態窗「慶祝」剛完成的那個任務)
+    // 0.5s — 狀態窗降臨
     window.setTimeout(() => {
       showWindow({
         title: "任務完成",
@@ -117,13 +91,13 @@ export default function ZenDashboard({
       });
     }, 500);
 
-    // 2.75s — 崩解動畫結束,UI 可繼續
+    // 2.75s — 崩解動畫結束
     window.setTimeout(() => {
       setIsCrashing(false);
     }, 2750);
   };
 
-  const activeTask = activeId ? tasks.find((t) => t.id === activeId) : null;
+  const activeTask = activeId ? visibleTasks.find((t) => t.id === activeId) : null;
 
   return (
     <main className="relative min-h-screen bg-slate-50 px-4 py-10 sm:px-8">
@@ -246,7 +220,7 @@ function FocusCard({
   isCrashing,
   onComplete,
 }: {
-  task: ZenTask;
+  task: Task;
   isSlashing: boolean;
   isCrashing: boolean;
   onComplete: () => void;
@@ -286,7 +260,7 @@ function FocusCard({
   );
 }
 
-function SortableQueueItem({ task }: { task: ZenTask }) {
+function SortableQueueItem({ task }: { task: Task }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
   });
@@ -318,7 +292,7 @@ function SortableQueueItem({ task }: { task: ZenTask }) {
   );
 }
 
-function QueueItemCard({ task, isDragging = false }: { task: ZenTask; isDragging?: boolean }) {
+function QueueItemCard({ task, isDragging = false }: { task: Task; isDragging?: boolean }) {
   return (
     <span
       className={`flex-1 truncate text-sm text-slate-600 ${isDragging ? "rounded-2xl bg-white px-4 py-3 shadow-lg ring-1 ring-slate-200" : ""}`}

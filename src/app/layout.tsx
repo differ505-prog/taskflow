@@ -4,6 +4,7 @@ import "./globals.css";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { ConfirmProvider } from "@/hooks/useConfirm";
 import { BfcacheHandler } from "@/components/BfcacheHandler";
+import { AppProviders } from "@/components/AppProviders";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -59,7 +60,9 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen antialiased bg-[var(--surface-muted)]">
         <BfcacheHandler />
-        <ConfirmProvider>{children}</ConfirmProvider>
+        <ConfirmProvider>
+          <AppProviders>{children}</AppProviders>
+        </ConfirmProvider>
         <ServiceWorkerRegister />
       </body>
     </html>

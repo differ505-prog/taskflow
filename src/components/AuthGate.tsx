@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { AuthPage } from "@/components/AuthPage";
 import { Loader2 } from "lucide-react";
@@ -11,9 +12,19 @@ interface AuthGateProps {
   onGuestEnter: () => void;
 }
 
+/** 路徑不需登入(登入/註冊頁本身、auth callback、PWA manifest 等) */
+const PUBLIC_PATHS = ["/login", "/reset-password", "/waitlist", "/auth/callback", "/terms", "/privacy"];
+
+function isPublicPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
 export function AuthGate({ children, onGuestEnter }: AuthGateProps) {
   const { user, loading } = useAuth();
   const [guestMode, setGuestMode] = useState(false);
+  const pathname = usePathname();
+  const isPublic = isPublicPath(pathname);
 
   // Check for guest mode flag
   useEffect(() => {
@@ -26,6 +37,11 @@ export function AuthGate({ children, onGuestEnter }: AuthGateProps) {
     setGuestMode(true);
     onGuestEnter();
   };
+
+  // Public 路由(登入/條款等)直接渲染,不做登入檢查(避免死循環)
+  if (isPublic) {
+    return <>{children}</>;
+  }
 
   // Loading state
   if (loading) {

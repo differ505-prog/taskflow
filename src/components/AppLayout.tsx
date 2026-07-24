@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { AuthProvider, useAuth } from "@/lib/AuthContext";
-import { AppProvider, useApp } from "@/lib/AppContext";
+import { useAuth } from "@/lib/AuthContext";
+import { useApp } from "@/lib/AppContext";
 import { Sidebar, ListForm } from "@/components/Sidebar";
 import { AppShell } from "@/components/AppShell";
 import { TaskDetailPanel } from "@/components/TaskDetailPanel";
@@ -14,11 +14,8 @@ import { TagsPage } from "@/components/TagsPage";
 import { QuadrantRadarView } from "@/components/QuadrantRadarView";
 import { PomodoroTimer } from "@/components/PomodoroTimer";
 import { useBfcacheKey } from "@/components/BfcacheHandler";
-import { ZenFlowProvider } from "@/lib/ZenFlowProvider";
 import { BottomNavigation } from "@/components/BottomNavigation";
 import { UserMenu } from "@/components/UserMenu";
-import { AuthGate } from "@/components/AuthGate";
-import { FirebaseDataProvider, SyncWriter } from "@/components/FirebaseDataProvider";
 import { ShareListModal } from "@/components/ShareListModal";
 import { GlobalSearchBar } from "@/components/GlobalSearchBar";
 import { PullToRefresh } from "@/components/PullToRefresh";
@@ -26,7 +23,6 @@ import { TaskList, SharedListSnapshot, Task } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
 import { useFeatureGate } from "@/lib/useFeatureGate";
 import { UpgradeModal } from "@/components/UpgradeModal";
-import { ToastProvider } from "@/components/ToastProvider";
 import { Onboarding } from "@/components/Onboarding";
 import { IOSInstallPrompt, AndroidInstallPrompt, AhaMoment } from "@/components/PwaPrompts";
 import { QuickVoiceFAB } from "@/components/QuickVoiceFAB";
@@ -412,34 +408,8 @@ function AppLayoutInner() {
   );
 }
 
-// ─── App with Firebase sync ────────────────────────────────
-function AppWithFirebase() {
-  const { user } = useAuth();
-
-  return (
-    <FirebaseDataProvider>
-      {/* SyncWriter: writes localStorage changes → Firestore */}
-      {user && <SyncWriter userId={user.uid} />}
-      <ToastProvider />
-      <AppLayoutInner />
-    </FirebaseDataProvider>
-  );
-}
-
 // ─── Root layout ───────────────────────────────────────────
+// 純業務元件容器 — Provider 鏈已上移至 app/layout.tsx (見 AppProviders)
 export function AppLayout() {
-  const [guestModeEntered, setGuestModeEntered] = useState(false);
-  const omnisonicUrl = process.env.NEXT_PUBLIC_OMNISONIC_URL ?? "";
-
-  return (
-    <AuthProvider>
-      <AuthGate onGuestEnter={() => setGuestModeEntered(true)}>
-        <AppProvider>
-          <ZenFlowProvider omnisonicBaseUrl={omnisonicUrl}>
-            <AppWithFirebase />
-          </ZenFlowProvider>
-        </AppProvider>
-      </AuthGate>
-    </AuthProvider>
-  );
+  return <AppLayoutInner />;
 }
