@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   DndContext,
   DragOverlay,
@@ -88,7 +89,30 @@ export default function ZenDashboard({
   const activeTask = activeId ? tasks.find((t) => t.id === activeId) : null;
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-10 sm:px-8">
+    <main className="relative min-h-screen bg-slate-50 px-4 py-10 sm:px-8">
+      {/* 退出禪模式 — floating 右上角,符合 §15.4 mobile safe area */}
+      <Link
+        href="/"
+        className="fixed right-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-slate-500 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:text-slate-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+        style={{ top: "max(1rem, env(safe-area-inset-top, 0px))" }}
+        aria-label="退出禪模式，回到主頁"
+      >
+        <svg
+          aria-hidden
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M19 12H5" />
+          <path d="m12 19-7-7 7-7" />
+        </svg>
+        <span>退出</span>
+      </Link>
       <div className="mx-auto flex max-w-2xl flex-col gap-12">
         <header className="text-balance text-sm font-medium uppercase tracking-widest text-slate-400">
           Zen Mode

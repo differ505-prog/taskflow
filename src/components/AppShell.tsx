@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import Link from "next/link";
 import { useApp } from "@/lib/AppContext";
 import { useConfirm } from "@/hooks/useConfirm";
 import { Task, AppView, TaskList } from "@/lib/types";
@@ -14,7 +15,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   X, LayoutGrid, List,
   Plus, Archive, Zap, ChevronRight, Timer,
-  Share2, Shield, RotateCcw, Trash2, CheckCheck,
+  Share2, Shield, RotateCcw, Trash2, CheckCheck, Sparkles,
 } from "lucide-react";
 import { isComposingKey } from "@/utils/imeGuard";
 import {
@@ -296,6 +297,15 @@ const canDrag = !currentSharedListId;
             {/* Header actions — desktop only (mobile uses FAB) */}
             <div className="hidden md:flex items-center gap-2">
               {userMenu}
+              <Link
+                href="/zen"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-150 hover:opacity-80"
+                style={{ background: "var(--surface-muted)", color: "var(--text-secondary)" }}
+                aria-label="進入禪模式：一次只做一件事"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>禪模式</span>
+              </Link>
               <button
                 onClick={onOpenPomodoro}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-150"

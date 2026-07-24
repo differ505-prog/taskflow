@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import Link from "next/link";
 import {
   Inbox, Sun, CalendarDays, Layers, Tag, BarChart3, CalendarRange,
-  Settings, List as ListIcon, Timer,
+  Settings, List as ListIcon, Timer, Sparkles,
 } from "lucide-react";
 import { AppView, TaskList } from "@/lib/types";
 import { haptic } from "@/lib/haptics";
@@ -165,6 +166,19 @@ function MorePopover({ onItem, onPomodoro, onSettings, onSelectList, onOpenSideb
             <div style={{ height: "1px", background: "var(--border)" }} />
           </>
         )}
+
+        {/* 禪模式：手機版主要入口，蕃茄鐘下方 */}
+        <Link
+          href="/zen"
+          className="flex items-center gap-3 px-5 py-3.5 text-[14px] font-medium w-full text-left transition-colors hover:bg-[var(--surface-hover)]"
+          style={{ color: "var(--text-primary)" }}
+          role="menuitem"
+          onClick={onClose}
+        >
+          <Sparkles className="w-[22px] h-[22px]" />
+          禪模式
+        </Link>
+        <div style={{ height: "1px", background: "var(--border)" }} />
 
         {/* 清單 section */}
         {lists.length > 0 && (
