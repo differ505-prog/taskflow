@@ -28,6 +28,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { SortableTaskItem } from "./SortableTaskItem";
+import LostAndFound from "@/components/LostAndFound";
 
 const VIEW_LABELS: Record<AppView, string> = {
   inbox: "收集箱",
@@ -434,6 +435,11 @@ const canDrag = !currentSharedListId;
             className={`flex-1 min-h-0 overflow-y-auto overscroll-contain h-full md:pb-5 ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}
           >
           <div className="px-6 py-5 pb-[calc(72px+env(safe-area-inset-bottom,0px)+16px)] min-w-0 flex flex-col flex-1">
+            {/* 失物招領 — 昨日未完成的溫柔處置區(品牌承諾「真實與脆弱」)
+                §零壓力:復活 / 無罪赦免,手動決定而非自動循環
+                只在任務列表頂端顯示,不影響其他專注視圖 */}
+            <LostAndFound />
+
             {/* Viewer 唯讀提示 */}
             {isReadOnlyShared && (
               <div
