@@ -30,6 +30,7 @@ import { ToastProvider } from "@/components/ToastProvider";
 import { Onboarding } from "@/components/Onboarding";
 import { IOSInstallPrompt, AndroidInstallPrompt, AhaMoment } from "@/components/PwaPrompts";
 import { QuickVoiceFAB } from "@/components/QuickVoiceFAB";
+import { StatusWindow } from "@/components/StatusWindow";
 import { useConfirm } from "@/hooks/useConfirm";
 
 // ─── Inner app (has access to useApp) ───────────────────────
@@ -402,6 +403,9 @@ function AppLayoutInner() {
 
       {/* Quick Voice FAB — 永遠顯示,跨頁面捕捉靈感 */}
       <QuickVoiceFAB />
+
+      {/* StatusWindow — 全域 RPG 狀態窗,跨頁面通用 */}
+      <StatusWindow />
 
       </div>
     </>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   DndContext,
   DragOverlay,
@@ -22,6 +23,9 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { SlashOverlay } from "@/components/SlashOverlay";
+import { StatusWindow } from "@/components/StatusWindow";
+import { useStatusWindow } from "@/hooks/useStatusWindow";
 
 type ZenTask = {
   id: string;
@@ -49,6 +53,14 @@ export default function ZenDashboard({
 }: ZenDashboardProps) {
   const [tasks, setTasks] = useState<ZenTask[]>(initialTasks);
   const [activeId, setActiveId] = useState<string | null>(null);
+  // 斬擊 / 崩解狀態 — 嚴格對齊規格時間軸
+  // t=0: isSlashing=true (SVG 斬擊)
+  // t=300ms: isCrashing=true (卡片崩解) + 移除任務
+  // t=500ms: 狀態窗降臨
+  // t=2750ms: 崩解結束,UI 可繼續
+  const [isSlashing, setIsSlashing] = useState(false);
+  const [isCrashing, setIsCrashing] = useState(false);
+  const showWindow = useStatusWindow();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -77,19 +89,47 @@ export default function ZenDashboard({
   };
 
   const handleComplete = async (taskId: string) => {
-    if (onComplete) {
-      await onComplete(taskId);
-    } else {
-      // 預設行為：靜默移除 (後續可接 personalTaskSync 或 SVG 粉碎動畫)
-      console.log(`[ZenDashboard] complete task: ${taskId}`);
-    }
-    setTasks((items) => items.filter((t) => t.id !== taskId));
+    const completedTask = tasks.find((t) => t.id === taskId);
+    if (!completedTask) return;
+
+    // 0.0s — 斬擊啟動
+    setIsSlashing(true);
+
+    // 0.3s — 斬擊結束,同時觸發崩解 + 移除任務 + 呼叫 onComplete
+    window.setTimeout(() => {
+      setIsSlashing(false);
+      setIsCrashing(true);
+      setTasks((items) => items.filter((t) => t.id !== taskId));
+      if (onComplete) {
+        void onComplete(taskId);
+      } else {
+        console.log(`[ZenDashboard] complete task: ${taskId}`);
+      }
+    }, 300);
+
+    // 0.5s — 狀態窗降臨 (§10.2 工程詮釋:崩解期間新焦點已遞補,狀態窗「慶祝」剛完成的那個任務)
+    window.setTimeout(() => {
+      showWindow({
+        title: "任務完成",
+        message: `已討伐「${completedTask.title}」`,
+        xpDelta: 100,
+        icon: "⚔️",
+      });
+    }, 500);
+
+    // 2.75s — 崩解動畫結束,UI 可繼續
+    window.setTimeout(() => {
+      setIsCrashing(false);
+    }, 2750);
   };
 
   const activeTask = activeId ? tasks.find((t) => t.id === activeId) : null;
 
   return (
     <main className="relative min-h-screen bg-slate-50 px-4 py-10 sm:px-8">
+      {/* StatusWindow — 禪模式獨立路由不經 AppLayout,需自掛一份 */}
+      <StatusWindow />
+
       {/* 退出禪模式 — floating 右上角,符合 §15.4 mobile safe area */}
       <div
         className="fixed right-4 z-10 flex items-center gap-2"
@@ -150,11 +190,19 @@ export default function ZenDashboard({
           <h1 id="focus-heading" className="sr-only">
             當前焦點
           </h1>
-          {focus ? (
-            <FocusCard task={focus} onComplete={() => handleComplete(focus.id)} />
-          ) : (
-            <EmptyState />
-          )}
+          <AnimatePresence mode="wait">
+            {focus ? (
+              <FocusCard
+                key={focus.id}
+                task={focus}
+                isSlashing={isSlashing}
+                isCrashing={isCrashing}
+                onComplete={() => handleComplete(focus.id)}
+              />
+            ) : (
+              <EmptyState key="empty" />
+            )}
+          </AnimatePresence>
         </section>
 
         {/* 排程區 */}
@@ -192,24 +240,49 @@ export default function ZenDashboard({
 
 /* ============== 子元件 ============== */
 
-function FocusCard({ task, onComplete }: { task: ZenTask; onComplete: () => void }) {
+function FocusCard({
+  task,
+  isSlashing,
+  isCrashing,
+  onComplete,
+}: {
+  task: ZenTask;
+  isSlashing: boolean;
+  isCrashing: boolean;
+  onComplete: () => void;
+}) {
   return (
-    <article
-      className="group relative w-full rounded-3xl bg-white p-12 shadow-sm ring-1 ring-slate-200/60 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md"
+    <motion.article
+      layout
+      initial={{ opacity: 0, y: 8, scale: 0.96 }}
+      animate={{
+        opacity: isCrashing ? 0 : 1,
+        y: 0,
+        scale: isCrashing ? 0.92 : 1,
+        transition: {
+          opacity: { duration: 0.3, ease: "easeOut" },
+          scale: { duration: 0.3, ease: "easeOut" },
+        },
+      }}
+      exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.3 } }}
+      className="group relative w-full rounded-3xl bg-white p-12 shadow-sm ring-1 ring-slate-200/60"
       aria-label={`當前焦點任務: ${task.title}`}
     >
+      <SlashOverlay active={isSlashing} />
+
       <p className="text-balance text-2xl font-medium leading-snug text-slate-800 sm:text-3xl">
         {task.title}
       </p>
       <button
         type="button"
         onClick={onComplete}
-        className="mt-8 inline-flex items-center gap-2 rounded-full bg-slate-800 px-6 py-3 text-sm font-medium text-slate-50 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-slate-900 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+        disabled={isSlashing || isCrashing}
+        className="mt-8 inline-flex items-center gap-2 rounded-full bg-slate-800 px-6 py-3 text-sm font-medium text-slate-50 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-slate-900 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
       >
-        <span aria-hidden>粉碎</span>
+        <span aria-hidden>⚔️ 討伐</span>
         <span className="sr-only">完成任務</span>
       </button>
-    </article>
+    </motion.article>
   );
 }
 
