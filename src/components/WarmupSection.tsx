@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/AppContext";
 import { useStatusWindow } from "@/hooks/useStatusWindow";
 import { useHunterStatus } from "@/hooks/useHunterStatus";
@@ -39,6 +40,7 @@ export function WarmupSection() {
   const showWindow = useStatusWindow();
   const { addExp } = useHunterStatus();
   const rankUp = useRankUpNotification();
+  const router = useRouter();
 
   // 過濾：今日尚未 checkin + 未封存
   const today = getToday();
@@ -82,7 +84,14 @@ export function WarmupSection() {
         </p>
         <button
           type="button"
-          onClick={() => setCurrentView("habits")}
+          // §10.3 9.0 修正:Habits 在 AppLayout 抽屜內
+          // 兩個動作:(1) 設 view state (2) 開抽屜
+          // - 沒有第 1 步:抽屜開了但顯示 inbox
+          // - 沒有第 2 步:view 改了但用戶視覺沒動(回報「沒反應」的根因)
+          onClick={() => {
+            setCurrentView("habits");
+            router.push("/?board=1", { scroll: false });
+          }}
           className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-2 text-xs font-medium text-slate-500 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:text-slate-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
           aria-label="前往習慣頁建立第一個暖身習慣"
         >
