@@ -28,6 +28,10 @@ import { StatusWindow } from "@/components/StatusWindow";
 import { useStatusWindow } from "@/hooks/useStatusWindow";
 import { QuickCaptureModal } from "@/components/QuickCaptureModal";
 import { useQuickCaptureShortcut } from "@/hooks/useQuickCaptureShortcut";
+import { useHunterStatus } from "@/hooks/useHunterStatus";
+import { useRankUpNotification, RankUpNotification } from "@/components/RankUpNotification";
+import { HunterStatusBadge } from "@/components/HunterStatusBadge";
+import { BASE_TASK_EXP } from "@/lib/hunterRank";
 import { useApp } from "@/lib/AppContext";
 import { Plus } from "lucide-react";
 import type { Task } from "@/lib/types";
@@ -67,6 +71,11 @@ export default function ZenDashboard() {
     () => setQuickCaptureOpen(true),
     true,
   );
+
+  // §10.3 9.2 方案:獵人公會 — 完成任務累計 EXP + 升級動畫序列
+  // (toast 2.5s → 結束瞬間 → 全螢幕晉升動畫 3s)
+  const { addExp } = useHunterStatus();
+  const rankUp = useRankUpNotification();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -116,14 +125,23 @@ export default function ZenDashboard() {
       toggleTaskStatus(taskId);
     }, 300);
 
-    // 0.5s — 狀態窗降臨
+    // 0.5s — 狀態窗降臨 + 累計 EXP(同步觸發升級判斷)
+    // §10.3 9.2 方案:addExp 回傳 leveledUpTo,序列化播放晉升動畫
     window.setTimeout(() => {
       showWindow({
         title: "任務完成",
         message: `已討伐「${completedTask.title}」`,
-        xpDelta: 100,
+        xpDelta: BASE_TASK_EXP,
         icon: "⚔️",
       });
+      const { leveledUpTo } = addExp(BASE_TASK_EXP);
+      // 序列化播放:StatusWindow 2.5s + 動畫緩衝 → 緊接著觸發晉升動畫
+      // 避免兩個動畫同時出現造成視覺競爭
+      if (leveledUpTo) {
+        window.setTimeout(() => {
+          rankUp.show(leveledUpTo);
+        }, 2700); // 略長於 StatusWindow 自動 dismiss 時間(2.5s)
+      }
     }, 500);
 
     // 2.75s — 崩解動畫結束
@@ -138,6 +156,10 @@ export default function ZenDashboard() {
     <main className="relative min-h-screen bg-slate-50 px-4 py-10 sm:px-8">
       {/* StatusWindow — 禪模式獨立路由不經 AppLayout,需自掛一份 */}
       <StatusWindow />
+
+      {/* RankUpNotification — 全螢幕階級晉升動畫(§10.3 9.2 方案)
+          透過 useRankUpNotification() 觸發;序列化播放確保不與 StatusWindow 衝突 */}
+      <RankUpNotification />
 
       {/* 頂部工具列 — §10.3 9.5 方案:
           三欄 flex:Logo(左) / Zen Mode 標題(中,flex-1) / 任務大廳(右)
@@ -174,6 +196,9 @@ export default function ZenDashboard() {
         <span className="text-balance text-center text-sm font-medium uppercase tracking-widest text-slate-400 hidden sm:inline">
           Zen Mode
         </span>
+
+        {/* 中右:獵人公會常駐徽章(§10.3 9.2 方案) */}
+        <HunterStatusBadge />
 
         {/* 右:退出禪模式入口(任務大廳) — §15.4 mobile safe area */}
         <Link

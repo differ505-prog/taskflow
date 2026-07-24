@@ -28,6 +28,8 @@ import { IOSInstallPrompt, AndroidInstallPrompt, AhaMoment } from "@/components/
 import { QuickVoiceFAB } from "@/components/QuickVoiceFAB";
 import { StatusWindow } from "@/components/StatusWindow";
 import { CommandCenter } from "@/components/CommandCenter";
+import { HunterStatusBadge } from "@/components/HunterStatusBadge";
+import { RankUpNotification } from "@/components/RankUpNotification";
 import { useConfirm } from "@/hooks/useConfirm";
 import { Clock, Flame } from "lucide-react";
 
@@ -421,6 +423,10 @@ function AppLayoutInner() {
 
       {/* StatusWindow — 全域 RPG 狀態窗,跨頁面通用 */}
       <StatusWindow />
+
+      {/* RankUpNotification — 全域階級晉升動畫(§10.3 9.2 方案)
+          portal 到 body,確保 z-index 高於其他 overlay */}
+      <RankUpNotification />
 
       </div>
     </>

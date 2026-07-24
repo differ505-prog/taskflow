@@ -29,6 +29,7 @@ import {
   MoreHorizontal, Edit3, Trash2, X, Share2, Users,
   Pin, Gauge, Flame,
 } from "lucide-react";
+import { HunterStatusBadge } from "@/components/HunterStatusBadge";
 
 interface NavItem {
   view: AppView;
@@ -334,6 +335,11 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Hunter guild badge — §10.3 9.2 方案:常駐獵人公會狀態,提示詞「在 user profile 旁」精神 */}
+      <div className="px-3 pb-2">
+        <HunterStatusBadge />
       </div>
 
       {/* Bottom actions */}
