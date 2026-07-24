@@ -159,8 +159,8 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen">
-      {/* Header — 共用 PageHeader(§25 reuse)+ 注入 UserMenu 提供登入/登出入口 */}
-      <PageHeader icon={SettingsIcon} title="設定">
+      {/* Header — 共用 PageHeader(§25 reuse)+ 注入 UserMenu 提供登入/登出入口 + backHref 提供返回首頁入口 */}
+      <PageHeader icon={SettingsIcon} title="設定" backHref="/">
         <UserMenu />
       </PageHeader>
 
