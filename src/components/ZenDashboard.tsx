@@ -31,6 +31,7 @@ import { useQuickCaptureShortcut } from "@/hooks/useQuickCaptureShortcut";
 import { useHunterStatus } from "@/hooks/useHunterStatus";
 import { useRankUpNotification, RankUpNotification } from "@/components/RankUpNotification";
 import { HunterStatusBadge } from "@/components/HunterStatusBadge";
+import { WarmupSection } from "@/components/WarmupSection";
 import { BASE_TASK_EXP } from "@/lib/hunterRank";
 import { useApp } from "@/lib/AppContext";
 import { Plus } from "lucide-react";
@@ -287,13 +288,18 @@ export default function ZenDashboard() {
         )}
       </div>
 
-      {/* §10.3 9.5 方案:Spotlight 風格「大腦傾倒」浮動輸入框
+      {/* §10.3 9.2 方案:Spotlight 風格「大腦傾倒」浮動輸入框
           Cmd/Ctrl+K(桌機)或 mobile FAB(手機)召喚
           沿用 useApp().addTask({ listId: undefined }) → 收件箱路徑 */}
       <QuickCaptureModal
         open={quickCaptureOpen}
         onOpenChange={setQuickCaptureOpen}
       />
+
+      {/* WarmupSection — 暖身區塊(左下角)
+          沿用既有 Habit 系統 checkinHabit 同步層
+          手機隱藏(sm:flex),避免跟 mobile FAB 搶版面 */}
+      <WarmupSection />
 
       {/* Mobile FAB — 只在 md 以下顯示,桌機用 Cmd+K
           §15.4 mobile safe area:bottom padding 避 iOS home indicator

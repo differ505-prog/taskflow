@@ -22,6 +22,13 @@ import type { HunterRank } from "./hunterRankTypes";
 export const BASE_TASK_EXP = 100;
 
 /**
+ * 單次完成暖身習慣獲得的基礎 EXP
+ * 比任務低 10 倍(任務 100 vs 習慣 10),強調「微量多巴胺」而非主要進度源
+ * 設計哲學:Habit 是「啟動暖身」,不是「主進度」
+ */
+export const BASE_HABIT_EXP = 10;
+
+/**
  * 6 階級 EXP 門檻表（提示詞規格）
  * - min:晉升到該階級所需最低 EXP（含）
  * - max:晉升到下一階級所需 EXP（不含,Infinity 代表最高階級）
