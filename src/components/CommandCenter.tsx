@@ -227,7 +227,7 @@ export function CommandCenter() {
 
                   {/* 返回禪模式 */}
                   <Link
-                    href="/zen"
+                    href="/"
                     className="inline-flex items-center gap-1.5 rounded-full bg-slate-800 px-4 py-2 text-sm font-medium text-slate-50 shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-slate-900 hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
                     aria-label="返回禪模式"
                   >

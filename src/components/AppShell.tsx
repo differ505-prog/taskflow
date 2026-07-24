@@ -298,7 +298,7 @@ const canDrag = !currentSharedListId;
             <div className="hidden md:flex items-center gap-2">
               {userMenu}
               <Link
-                href="/zen"
+                href="/"
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-150 hover:opacity-80"
                 style={{ background: "var(--surface-muted)", color: "var(--text-secondary)" }}
                 aria-label="進入禪模式：一次只做一件事"

@@ -169,7 +169,7 @@ function MorePopover({ onItem, onPomodoro, onSettings, onSelectList, onOpenSideb
 
         {/* 禪模式：手機版主要入口，蕃茄鐘下方 */}
         <Link
-          href="/zen"
+          href="/"
           className="flex items-center gap-3 px-5 py-3.5 text-[14px] font-medium w-full text-left transition-colors hover:bg-[var(--surface-hover)]"
           style={{ color: "var(--text-primary)" }}
           role="menuitem"
