@@ -27,7 +27,9 @@ import { SlashOverlay } from "@/components/SlashOverlay";
 import { StatusWindow } from "@/components/StatusWindow";
 import { useStatusWindow } from "@/hooks/useStatusWindow";
 import { QuickCaptureModal } from "@/components/QuickCaptureModal";
+import { useQuickCaptureShortcut } from "@/hooks/useQuickCaptureShortcut";
 import { useApp } from "@/lib/AppContext";
+import { Plus } from "lucide-react";
 import type { Task } from "@/lib/types";
 
 /** 禪模式看的任務樣態：嚴格「今日討伐清單 (The Today Rule)」
@@ -57,9 +59,14 @@ export default function ZenDashboard() {
   const [isCrashing, setIsCrashing] = useState(false);
   const showWindow = useStatusWindow();
 
-  // §10.3 9.2 方案：ZenDashboard 改用 QuickCaptureModal（spotlight 浮動）
-  // Cmd/Ctrl+K 由 QuickCaptureModal 內部的 useQuickCaptureShortcut 接管
-  // — 移除原本的底部 input 與雙重快捷鍵監聽，避免與 modal 競爭
+  // §10.3 9.5 方案:QuickCaptureModal 受控,ZenDashboard 管 open state
+  // - Cmd/Ctrl+K 召喚(桌機快捷鍵)
+  // - 底部 FAB 點擊召喚(手機入口)
+  const [quickCaptureOpen, setQuickCaptureOpen] = useState(false);
+  useQuickCaptureShortcut(
+    () => setQuickCaptureOpen(true),
+    true,
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -132,41 +139,46 @@ export default function ZenDashboard() {
       {/* StatusWindow — 禪模式獨立路由不經 AppLayout,需自掛一份 */}
       <StatusWindow />
 
-      {/* 品牌 Logo — 浮動左上,呼應 Sidebar 風格(§3 色彩紀律:僅 CTA 用品牌色) */}
+      {/* 頂部工具列 — §10.3 9.5 方案:
+          三欄 flex:Logo(左) / Zen Mode 標題(中,flex-1) / 任務大廳(右)
+          - 桌機:完整 Logo(色塊 + 「VibeList」文字)
+          - 手機:Logo 自動縮成只有色塊,避免擠壓「任務大廳」按鈕
+          - 從原本 floating 重構為 inline,不再遮擋內容 */}
       <div
-        className="fixed left-4 z-10 flex items-center gap-2"
-        style={{ top: "max(1rem, env(safe-area-inset-top, 0px))" }}
+        className="mx-auto flex max-w-2xl items-center justify-between gap-3"
+        style={{ marginTop: "max(0px, env(safe-area-inset-top, 0px))" }}
       >
-        <div
-          className="flex h-8 w-8 items-center justify-center rounded-xl"
-          style={{ background: "var(--brand)" }}
-          aria-hidden
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path
-              d="M3 8L6.5 11.5L13 4.5"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+        {/* 左:品牌 Logo(手機自動縮成方塊) */}
+        <div className="flex items-center gap-2">
+          <div
+            className="flex h-8 w-8 items-center justify-center rounded-xl"
+            style={{ background: "var(--brand)" }}
+            aria-hidden
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M3 8L6.5 11.5L13 4.5"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+          <span className="hidden text-[16px] font-semibold tracking-tight text-slate-700 sm:inline">
+            VibeList
+          </span>
         </div>
-        <span
-          className="text-[16px] font-semibold tracking-tight text-slate-700"
-        >
-          VibeList
-        </span>
-      </div>
 
-      {/* 退出禪模式 — floating 右上角,符合 §15.4 mobile safe area */}
-      <div
-        className="fixed right-4 z-10 flex items-center gap-2"
-        style={{ top: "max(1rem, env(safe-area-inset-top, 0px))" }}
-      >
+        {/* 中:Zen Mode 標題 — 桌機才顯示標籤,讓三欄視覺平衡 */}
+        <span className="text-balance text-center text-sm font-medium uppercase tracking-widest text-slate-400 hidden sm:inline">
+          Zen Mode
+        </span>
+
+        {/* 右:退出禪模式入口(任務大廳) — §15.4 mobile safe area */}
         <Link
           href="/?board=1"
-          className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-slate-500 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:text-slate-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+          className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-2 text-sm font-medium text-slate-500 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:text-slate-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 sm:px-4"
           aria-label="進入任務大廳(收件箱) — 整理任務或快速 Brain Dump"
         >
           <svg
@@ -185,15 +197,14 @@ export default function ZenDashboard() {
             <rect x="3" y="14" width="7" height="7" rx="1" />
             <rect x="14" y="14" width="7" height="7" rx="1" />
           </svg>
-          <span>任務大廳</span>
+          <span className="hidden sm:inline">任務大廳</span>
         </Link>
       </div>
-      <div className="mx-auto flex max-w-2xl flex-col gap-12 pb-12">
-        <header className="text-balance text-sm font-medium uppercase tracking-widest text-slate-400">
+
+      <div className="mx-auto mt-12 flex max-w-2xl flex-col gap-12 pb-12">
+        {/* Zen Mode 標題 — 手機才顯示在這裡(桌機已在頂部工具列中央顯示) */}
+        <header className="text-balance text-sm font-medium uppercase tracking-widest text-slate-400 sm:hidden">
           Zen Mode
-          <span className="ml-3 text-[11px] font-normal normal-case tracking-normal text-slate-400/80">
-            · 按 <kbd className="rounded bg-slate-200/60 px-1 py-0.5 text-[10px] font-medium">⌘ K</kbd> 捕捉靈感
-          </span>
         </header>
 
         {/* 焦點區 */}
@@ -246,10 +257,27 @@ export default function ZenDashboard() {
         )}
       </div>
 
-      {/* §10.3 9.2 方案:Spotlight 風格「大腦傾倒」浮動輸入框
-          Cmd/Ctrl+K 召喚,送出後默默關閉,任務不顯示於當前頁
+      {/* §10.3 9.5 方案:Spotlight 風格「大腦傾倒」浮動輸入框
+          Cmd/Ctrl+K(桌機)或 mobile FAB(手機)召喚
           沿用 useApp().addTask({ listId: undefined }) → 收件箱路徑 */}
-      <QuickCaptureModal />
+      <QuickCaptureModal
+        open={quickCaptureOpen}
+        onOpenChange={setQuickCaptureOpen}
+      />
+
+      {/* Mobile FAB — 只在 md 以下顯示,桌機用 Cmd+K
+          §15.4 mobile safe area:bottom padding 避 iOS home indicator
+          「捕捉靈感」label 跟著 FAB,視覺一目了然 */}
+      <button
+        type="button"
+        onClick={() => setQuickCaptureOpen(true)}
+        aria-label="捕捉靈感到收件箱"
+        className="md:hidden fixed bottom-6 left-1/2 z-30 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-slate-800 px-5 py-3 text-sm font-medium text-slate-50 shadow-lg ring-1 ring-slate-900/10 backdrop-blur-md transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-slate-700 hover:shadow-xl active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+        style={{ bottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))" }}
+      >
+        <Plus className="h-4 w-4" aria-hidden />
+        <span>捕捉靈感</span>
+      </button>
     </main>
   );
 }

@@ -4,12 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/lib/AppContext";
-import { useQuickCaptureShortcut } from "@/hooks/useQuickCaptureShortcut";
 
 /**
  * QuickCaptureModal — Spotlight 風格的「發射後不理」大腦傾倒輸入框
  *
- * 設計哲學(對應教練 §10.3 9.2 方案):
+ * 設計哲學(對應教練 §10.3 9.5 方案):
  * 1. ADHD 焦點保護:用戶丟進去的靈感**不顯示於當前頁面**(默默進 Inbox)
  * 2. Fire-and-forget:送出瞬間 modal 關閉,絕不開「新增成功」對話框
  * 3. 視覺對齊 Spotlight / Linear command menu:中央偏上浮動 + 毛玻璃暗化背景
@@ -18,19 +17,24 @@ import { useQuickCaptureShortcut } from "@/hooks/useQuickCaptureShortcut";
  * 6. Esc 關閉 / 點 backdrop 關閉(§18 全域 modal 標準行為)
  * 7. 沿用現有 addTask({ listId: undefined }) = 收件箱路徑,與原 QuickCapture 一致
  * 8. 背景滾動鎖定(modal 開啟期間),避免閃爍
- * 9. 全域快捷鍵:Cmd/Ctrl + K 召喚;已在其他 input focus 時不搶(沿用既有 hook 邏輯)
+ * 9. 受控設計:`open` + `onOpenChange` 由外部 owner 管理
+ *    — ZenDashboard 統一管 Cmd+K 召喚 + mobile FAB 點擊
+ *    — 內部不再監聽 Cmd+K(避免重複觸發,符合 §26 reuse)
  *
  * 沿用既有實作:
- * - useQuickCaptureShortcut(已實作 Cmd/Ctrl+K + IME safe + input 內不搶)
  * - addTask 介面不變(已支援 status: "todo" + priority: "delegate" + listId: undefined)
  * - 色彩 token:var(--brand-tint) / var(--brand) / var(--status-success)
  */
 
 const FLASH_DURATION_MS = 480;
 
-export function QuickCaptureModal() {
+export interface QuickCaptureModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps) {
   const { addTask } = useApp();
-  const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [value, setValue] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
@@ -44,29 +48,29 @@ export function QuickCaptureModal() {
 
   // §15.4:背景 scroll 鎖定
   useEffect(() => {
-    if (!isOpen) return;
+    if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [isOpen]);
+  }, [open]);
 
   const close = useCallback(() => {
-    setIsOpen(false);
+    onOpenChange(false);
     setValue("");
-  }, []);
+  }, [onOpenChange]);
 
   // 開啟時自動 focus(spotlight 招牌行為)
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       // 微延遲等 framer-motion 進場動畫開始
       const t = window.setTimeout(() => {
         inputRef.current?.focus();
       }, 50);
       return () => window.clearTimeout(t);
     }
-  }, [isOpen]);
+  }, [open]);
 
   const handleSubmit = useCallback(() => {
     const trimmed = value.trim();
@@ -102,17 +106,9 @@ export function QuickCaptureModal() {
     [handleSubmit],
   );
 
-  // 全域快捷鍵:Cmd/Ctrl + K 召喚(沿用既有 hook,僅在 modal 關閉時觸發開啟)
-  useQuickCaptureShortcut(
-    () => {
-      if (!isOpen) setIsOpen(true);
-    },
-    !isOpen, // modal 開啟時暫停快捷鍵,避免 Enter 連按時誤關
-  );
-
   // Esc 關閉(只在 modal 開啟時接)
   useEffect(() => {
-    if (!isOpen) return;
+    if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !e.isComposing) {
         e.preventDefault();
@@ -121,13 +117,13 @@ export function QuickCaptureModal() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isOpen, close]);
+  }, [open, close]);
 
   if (!mounted) return null;
 
   return createPortal(
     <AnimatePresence>
-      {isOpen && (
+      {open && (
         <motion.div
           key="quick-capture-backdrop"
           role="presentation"
