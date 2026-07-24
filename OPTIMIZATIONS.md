@@ -90,6 +90,7 @@
 
 | # | 標題 | 延後原因 | 何時重啟 |
 |---|------|---------|---------|
+| **O-009** | [Future] Shareable Rank-Up Card — 一鍵生成 9:16 IG Stories 風格晉升分享圖,搭配 `navigator.share()` 推播,目標 $0 病毒擴散 | **品牌憲法衝突**:`global.mdc` 「真實與脆弱」拒絕操縱式行銷。晉升動畫是「多巴胺瞬間」,**不該承擔推廣職責**。此外 `RankUpNotification.tsx` 註解明寫「3 秒自動淡出,不需要用戶點擊(絕對 ADHD 地雷)」,加按鈕破壞此設計 | 待**社群黏著度驗證後**再啟動:若 D30 retention ≥ 25% 並有用戶主動在 Discord/X 詢問「可以分享嗎?」,則啟動 RFC 重評 §10 評分表(屆時優先採 SnapDOM / html-to-image,而非 html2canvas) |
 | ~~O-005~~ | ~~任務支援 markdown 描述預覽~~ | 目前點開 detail 才看到,符合「資料與視圖分離」 | 暫不重啟 |
 
 ---
