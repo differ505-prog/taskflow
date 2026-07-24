@@ -18,10 +18,16 @@ import {
 import { useApp } from "@/lib/AppContext";
 import type { Task } from "@/lib/types";
 
+/**
+ * CommandCenter — 軍機處戰略排程視圖(暫存版本)
+ *
+ * 重構狀態:已抽出 useMonthGrid hook 但 plan 模式拖放未整合(@dnd-kit vs HTML5 不相容)
+ * 當前仍用自寫網格 + 拖放,待下一步決策後修齊
+ */
 type DateCell = {
-  date: string; // YYYY-MM-DD
+  date: string;
   day: number;
-  month: number; // 0-11
+  month: number;
   year: number;
   isToday: boolean;
   isPast: boolean;
@@ -35,14 +41,12 @@ type ScheduledTask = {
   status: "done" | "pending";
 };
 
-/** 未排程任務 = 沒 dueDate 且 status=todo、非封存、非子任務 */
 function selectBacklog(tasks: Task[]): Task[] {
   return tasks.filter(
     (t) => !t.isArchived && t.status === "todo" && !t.dueDate && !t.parentId
   );
 }
 
-/** 已排程任務 = 有 dueDate */
 function selectScheduledMap(tasks: Task[]): Record<string, ScheduledTask[]> {
   const map: Record<string, ScheduledTask[]> = {};
   for (const t of tasks) {
@@ -103,13 +107,12 @@ export function CommandCenter({ onClose }: { onClose: () => void }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [monthOffset, setMonthOffset] = useState(0);
 
-  const anchorDate = useMemo(() => new Date(), []);
   const visibleMonth = useMemo(() => {
-    const d = new Date(anchorDate);
+    const d = new Date();
     d.setDate(1);
     d.setMonth(d.getMonth() + monthOffset);
     return d;
-  }, [anchorDate, monthOffset]);
+  }, [monthOffset]);
 
   const cells = useMemo(() => buildMonthCells(visibleMonth), [visibleMonth]);
 
@@ -144,14 +147,12 @@ export function CommandCenter({ onClose }: { onClose: () => void }) {
     const targetDate = over.id as string;
     const activeTaskId = active.id as string;
 
-    // 從 backlog 拖到日期 → 設定 dueDate
     const inBacklog = backlog.find((t) => t.id === activeTaskId);
     if (inBacklog) {
       updateTask(inBacklog.id, { dueDate: targetDate });
       return;
     }
 
-    // 從排程區拖到另一日期 → 搬移 dueDate
     for (const date of Object.keys(scheduled)) {
       const found = scheduled[date].find((s) => s.taskId === activeTaskId);
       if (found && date !== targetDate) {
@@ -162,12 +163,10 @@ export function CommandCenter({ onClose }: { onClose: () => void }) {
   };
 
   const handleToggleScheduledStatus = (taskId: string) => {
-    // 透過 useApp.toggleTaskStatus 完成切換(status: todo ↔ done),同步層會持久化
     toggleTaskStatus(taskId);
   };
 
   const handleUnschedule = (taskId: string) => {
-    // 移除 dueDate = 移回 backlog
     updateTask(taskId, { dueDate: undefined });
   };
 
@@ -178,97 +177,89 @@ export function CommandCenter({ onClose }: { onClose: () => void }) {
       aria-label="軍機處：戰略排程模式"
     >
       <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6">
-              {/* ── Header：明顯的返回收件箱鈕 ── */}
-              <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/60 pb-4">
-                <div className="flex flex-col">
-                  <h1 className="text-balance text-lg font-semibold tracking-tight text-slate-800 sm:text-xl">
-                    軍機處 · 戰略排程
-                  </h1>
-                  <p className="text-balance text-xs text-slate-400">
-                    拖曳待命任務到任一日期 · 過去的破關會微微發光,未來模糊無壓
-                  </p>
-                </div>
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/60 pb-4">
+          <div className="flex flex-col">
+            <h1 className="text-balance text-lg font-semibold tracking-tight text-slate-800 sm:text-xl">
+              軍機處 · 沙盤推演
+            </h1>
+            <p className="text-balance text-xs text-slate-400">
+              拖曳待命任務到任一日期 · 過去的破關會微微發光,未來模糊無壓
+            </p>
+          </div>
 
-                <div className="flex items-center gap-2">
-                  {/* 月份切換 */}
-                  <div className="flex items-center gap-1 rounded-full bg-white/70 px-2 py-1 ring-1 ring-slate-200/60">
-                    <button
-                      type="button"
-                      onClick={() => setMonthOffset((v) => v - 1)}
-                      className="flex h-8 w-8 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 active:scale-95"
-                      aria-label="上個月"
-                    >
-                      <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="m15 18-6-6 6-6" />
-                      </svg>
-                    </button>
-                    <span className="min-w-[88px] text-center text-sm font-medium text-slate-600">
-                      {visibleMonth.getFullYear()} 年 {visibleMonth.getMonth() + 1} 月
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setMonthOffset((v) => v + 1)}
-                      className="flex h-8 w-8 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 active:scale-95"
-                      aria-label="下個月"
-                    >
-                      <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="m9 18 6-6-6-6" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  {/* 返回收件箱 */}
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-slate-800 px-4 py-2 text-sm font-medium text-slate-50 shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-slate-900 hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
-                    aria-label="返回收件箱"
-                  >
-                    <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="m15 18-6-6 6-6" />
-                    </svg>
-                    <span>返回收件箱</span>
-                  </button>
-
-                  {/* 關閉 */}
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium text-slate-500 transition-all duration-200 ease-out hover:bg-white hover:text-slate-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
-                    aria-label="關閉軍機處,返回收件箱"
-                  >
-                    <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M18 6 6 18" />
-                      <path d="m6 6 12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </header>
-
-              {/* ── 內容區：左 backlog · 右 月視圖 ── */}
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 rounded-full bg-white/70 px-2 py-1 ring-1 ring-slate-200/60">
+              <button
+                type="button"
+                onClick={() => setMonthOffset((v) => v - 1)}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 active:scale-95"
+                aria-label="上個月"
               >
-                <div className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
-                  <BacklogPanel tasks={backlog} />
-                  <CalendarGrid
-                    cells={cells}
-                    scheduled={scheduled}
-                    onToggleStatus={handleToggleScheduledStatus}
-                    onUnschedule={handleUnschedule}
-                  />
-                </div>
-                <DragOverlay>
-                  {activeTask ? (
-                    <div className="rounded-xl bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-xl ring-1 ring-slate-300">
-                      {activeTask.title}
-                    </div>
-                  ) : null}
-                </DragOverlay>
-              </DndContext>
+                <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m15 18-6-6 6-6" />
+                </svg>
+              </button>
+              <span className="min-w-[88px] text-center text-sm font-medium text-slate-600">
+                {visibleMonth.getFullYear()} 年 {visibleMonth.getMonth() + 1} 月
+              </span>
+              <button
+                type="button"
+                onClick={() => setMonthOffset((v) => v + 1)}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 active:scale-95"
+                aria-label="下個月"
+              >
+                <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m9 18 6-6-6-6" />
+                </svg>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setMonthOffset(0)}
+              className="flex h-8 items-center gap-1 rounded-full bg-white/70 px-3 text-[12px] font-medium text-slate-600 ring-1 ring-slate-200/60 transition-all hover:bg-white hover:text-slate-800 active:scale-95"
+              aria-label="跳回今天"
+            >
+              今天
+            </button>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center gap-1.5 rounded-full bg-slate-800 px-4 py-2 text-sm font-medium text-slate-50 shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-slate-900 hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+              aria-label="返回收件箱"
+            >
+              <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+              <span>返回收件箱</span>
+            </button>
+          </div>
+        </header>
+
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
+            <BacklogPanel tasks={backlog} />
+            <CalendarGrid
+              cells={cells}
+              scheduled={scheduled}
+              onToggleStatus={handleToggleScheduledStatus}
+              onUnschedule={handleUnschedule}
+            />
+          </div>
+          <DragOverlay>
+            {activeTask ? (
+              <div className="rounded-xl bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-xl ring-1 ring-slate-300">
+                {activeTask.title}
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </div>
     </div>
   );
@@ -356,7 +347,6 @@ function CalendarGrid({
 }) {
   return (
     <section aria-label="月曆排程" className="flex flex-col gap-3">
-      {/* 週標題 */}
       <div className="grid grid-cols-7 gap-1.5 px-0.5">
         {WEEKDAY_LABELS.map((label) => (
           <div
@@ -368,7 +358,6 @@ function CalendarGrid({
         ))}
       </div>
 
-      {/* 日期格 */}
       <div className="grid grid-cols-7 gap-1.5">
         {cells.map((cell) => (
           <DateCellView
@@ -397,12 +386,11 @@ function DateCellView({
 }) {
   const { isOver, setNodeRef } = useDroppable({ id: cell.date });
 
-  // 視覺淡化策略
   const containerClass = cell.isFuture
     ? "bg-zinc-50/30 ring-zinc-200/30 text-zinc-400"
     : cell.isPast
     ? "bg-white/70 ring-slate-200/60"
-    : "bg-white ring-slate-200"; // today
+    : "bg-white ring-slate-200";
 
   const todayHighlight = cell.isToday ? "ring-2 ring-slate-700 shadow-sm" : "";
   const nonCurrentMonth = !cell.isCurrentMonth ? "opacity-40" : "";
@@ -423,68 +411,61 @@ function DateCellView({
               : cell.isFuture
               ? "text-zinc-400"
               : cell.isCurrentMonth
-              ? "font-medium text-slate-600"
-              : "text-slate-300"
+              ? "text-slate-700"
+              : "text-slate-400"
           }`}
         >
           {cell.day}
         </span>
       </div>
-
-      {/* 過去：暖色多巴胺膠囊 / 未來：模糊低調 / 今天：清晰 */}
-      <ul className="flex flex-col gap-1">
-        {tasks.map((task, idx) => {
-          const warmPalette = ["bg-amber-50/80 text-amber-800 ring-amber-200/50", "bg-violet-50/80 text-violet-800 ring-violet-200/50"];
-          const pastColor = warmPalette[idx % warmPalette.length];
-          const futureColor = "bg-white/50 text-zinc-500 ring-zinc-200/40";
-          const pendingPastColor = "bg-white/60 text-zinc-400 ring-zinc-200/40"; // 過去未完成 → 灰色,絕不紅色
-
-          let chipClass = futureColor;
-          if (cell.isPast) {
-            chipClass = task.status === "done" ? pastColor : pendingPastColor;
-          } else if (cell.isCurrentMonth && !cell.isFuture && !cell.isPast) {
-            chipClass = "bg-slate-100 text-slate-700 ring-slate-200";
-          }
-
-          return (
-            <li
-              key={task.taskId}
-              className={`group/chip flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] ring-1 transition-all duration-150 ${chipClass}`}
+      <div className="flex flex-col gap-1">
+        {tasks.map((task) => (
+          <div
+            key={task.taskId}
+            className={`group/task flex items-center gap-1 truncate rounded-md px-1.5 py-0.5 text-[11px] ${
+              task.status === "done"
+                ? "bg-amber-50/60 text-slate-400 line-through"
+                : "bg-slate-100/80 text-slate-700"
+            }`}
+            title={task.title}
+          >
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleStatus(task.taskId);
+              }}
+              className="flex h-3 w-3 flex-shrink-0 items-center justify-center rounded-full border border-slate-300 transition-colors hover:border-slate-500"
+              aria-label={task.status === "done" ? "標記為未完成" : "標記為完成"}
             >
-              <button
-                type="button"
-                onClick={() => onToggleStatus(task.taskId)}
-                className="flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center rounded-full transition-colors hover:bg-white/40"
-                aria-label={task.status === "done" ? "標記為未完成" : "標記為完成"}
-              >
-                {task.status === "done" ? (
-                  <svg aria-hidden width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 6 9 17l-5-5" />
-                  </svg>
-                ) : (
-                  <span className="block h-2 w-2 rounded-full bg-current opacity-30" />
-                )}
-              </button>
-              <span className={`flex-1 truncate ${task.status === "done" ? "line-through opacity-70" : ""}`}>
-                {task.title}
-              </span>
-              <button
-                type="button"
-                onClick={() => onUnschedule(task.taskId)}
-                className="flex-shrink-0 rounded p-0.5 opacity-0 transition-opacity hover:bg-white/40 group-hover/chip:opacity-100"
-                aria-label={`從 ${cell.date} 移除: ${task.title}`}
-              >
+              {task.status === "done" && (
                 <svg aria-hidden width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 6 6 18" />
-                  <path d="m6 6 12 12" />
+                  <path d="M20 6 9 17l-5-5" />
                 </svg>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+              )}
+            </button>
+            <span className="flex-1 truncate">{task.title}</span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onUnschedule(task.taskId);
+              }}
+              className="flex-shrink-0 text-slate-300 opacity-0 transition-opacity hover:text-slate-500 group-hover/task:opacity-100"
+              aria-label="取消排程"
+              title="取消排程"
+            >
+              <svg aria-hidden width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+              </svg>
+            </button>
+          </div>
+        ))}
+        {tasks.length === 0 && cell.isPast && (
+          <span className="text-[10px] text-amber-500/60">✦</span>
+        )}
+      </div>
     </div>
   );
 }
-
-export default CommandCenter;

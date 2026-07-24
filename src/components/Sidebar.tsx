@@ -72,8 +72,8 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
   const pinnedCount = tasks.filter((t) => t.isPinned && !t.isArchived && t.status !== "done").length;
 
   const bottomNavItems: NavItem[] = [
-    { view: "calendar", label: "日曆視圖", icon: <Clock className="w-[18px] h-[18px]" /> },
-    { view: "command-center", label: "軍機處", icon: <Flame className="w-[18px] h-[18px]" />, badge: "戰略" },
+    { view: "calendar", label: "日曆視圖", icon: <Clock className="w-[18px] h-[18px]" />, badge: "戰報" },
+    { view: "command-center", label: "軍機處", icon: <Flame className="w-[18px] h-[18px]" />, badge: "沙盤" },
     { view: "habits", label: "習慣打卡", icon: <Heart className="w-[18px] h-[18px]" /> },
     { view: "tags", label: "標籤管理", icon: <Tag className="w-[18px] h-[18px]" /> },
     { view: "stats", label: "統計分析", icon: <BarChart3 className="w-[18px] h-[18px]" /> },

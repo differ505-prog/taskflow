@@ -282,6 +282,21 @@ export function CalendarView({
             <h1 className="text-[18px] font-semibold truncate" style={{ color: "var(--text-primary)" }}>
               {format(currentMonth, "yyyy 年 M 月", { locale: zhTW })}
             </h1>
+            <span
+              className="hidden sm:inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold flex-shrink-0"
+              style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+              aria-label="日曆視圖定位為戰報"
+              title="戰報：看見已排程的任務"
+            >
+              <svg aria-hidden width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <path d="M14 2v6h6" />
+                <path d="M16 13H8" />
+                <path d="M16 17H8" />
+                <path d="M10 9H8" />
+              </svg>
+              戰報
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -499,9 +514,26 @@ function DesktopCalendarLayout({
       <div className="flex-shrink-0 border-r overflow-y-auto overscroll-contain p-6" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
         {/* Month header */}
         <div className="flex items-center justify-between mb-5">
-          <h1 className="text-[18px] font-semibold" style={{ color: "var(--text-primary)" }}>
-            {format(currentMonth, "yyyy 年 M 月", { locale: zhTW })}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-[18px] font-semibold" style={{ color: "var(--text-primary)" }}>
+              {format(currentMonth, "yyyy 年 M 月", { locale: zhTW })}
+            </h1>
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+              style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+              aria-label="日曆視圖定位為戰報"
+              title="戰報：看見已排程的任務"
+            >
+              <svg aria-hidden width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <path d="M14 2v6h6" />
+                <path d="M16 13H8" />
+                <path d="M16 17H8" />
+                <path d="M10 9H8" />
+              </svg>
+              戰報
+            </span>
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={prevMonth}
