@@ -17,6 +17,7 @@ import {
 } from "@dnd-kit/core";
 import {
   SortableContext,
+  arrayMove,
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
@@ -28,15 +29,25 @@ import { useStatusWindow } from "@/hooks/useStatusWindow";
 import { useApp } from "@/lib/AppContext";
 import type { Task } from "@/lib/types";
 
-/** 禪模式看的任務樣態：排除已封存、已完成、子任務 */
+/** 禪模式看的任務樣態：嚴格「今日討伐清單 (The Today Rule)」
+ *  - 排除已封存、已完成、子任務
+ *  - dueDate === 今天的本地日期（YYYY-MM-DD）
+ * 避免 ADHD 用戶一次性看到全部 backlog 觸發「啟動癱瘓」；
+ * 軍機處負責「把任務排到今天」，禪模式只專注「今天」。
+ */
 function selectZenTasks(tasks: Task[]): Task[] {
+  const today = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD（本地時區）
   return tasks.filter(
-    (t) => !t.isArchived && t.status === "todo" && !t.parentId && !t.isArchived
+    (t) =>
+      !t.isArchived &&
+      t.status === "todo" &&
+      !t.parentId &&
+      t.dueDate === today,
   );
 }
 
 export default function ZenDashboard() {
-  const { tasks, toggleTaskStatus } = useApp();
+  const { tasks, toggleTaskStatus, reorderTasks } = useApp();
   const visibleTasks = useMemo(() => selectZenTasks(tasks), [tasks]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -62,8 +73,20 @@ export default function ZenDashboard() {
     const { active, over } = event;
     setActiveId(null);
     if (!over || active.id === over.id) return;
-    // 禪模式不支援持久化排序 — 排序由主清單 (AppShell) 統一管理,禪模式自動反映
-    // 此處僅更新 UI 拖曳狀態(已由 setActiveId(null) 重置)
+
+    // 禪模式拖曳需持久化（不然下次進禪模式焦點又跳回原 order）。
+    // reorderTasks 只對傳入陣列重編 order,其餘任務的 order 保留,
+    // 所以必須把「todayTasks 新順序 + 其他任務」串成全域陣列再傳,
+    // 才能讓 today 範圍內的順序變更反映到主清單,同時不打亂其他任務。
+    const queueIds = queue.map((t) => t.id);
+    const oldIndex = queueIds.indexOf(active.id as string);
+    const newIndex = queueIds.indexOf(over.id as string);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const newQueue = arrayMove(queue, oldIndex, newIndex);
+    const todayIds = new Set(visibleTasks.map((t) => t.id));
+    const otherTasks = tasks.filter((t) => !todayIds.has(t.id));
+    reorderTasks([...newQueue, ...otherTasks]);
   };
 
   const handleComplete = async (taskId: string) => {
@@ -323,8 +346,15 @@ function EmptyState() {
         <path d="M5 15c2 0 4 1 4 4" />
         <path d="M19 15c-2 0-4 1-4 4" />
       </svg>
-      <p className="text-balance text-base font-medium text-slate-600">所有任務都完成了</p>
-      <p className="text-balance text-sm text-slate-400">慢呼吸一下，準備好再出發</p>
+      <p className="text-balance text-base font-medium text-slate-600">今日討伐已全數淨空</p>
+      <p className="text-balance text-sm text-slate-400">戰場很安靜，慢呼吸一下</p>
+      <Link
+        href="/command-center"
+        className="mt-2 inline-flex items-center gap-2 rounded-full bg-slate-800 px-6 py-3 text-sm font-medium text-slate-50 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-slate-900 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+      >
+        <span aria-hidden>👁️</span>
+        <span>前往軍機處籌備任務</span>
+      </Link>
     </div>
   );
 }
