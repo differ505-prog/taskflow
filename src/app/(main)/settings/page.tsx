@@ -5,6 +5,8 @@ import { Settings as SettingsIcon, Trash2, Download, Moon, Bell, Shield, Info, C
 import { getTasks } from "@/lib/storage";
 import { downloadICal } from "@/lib/ical";
 import DefaultLaunchViewSection from "@/components/DefaultLaunchViewSection";
+import PageHeader from "@/components/PageHeader";
+import { UserMenu } from "@/components/UserMenu";
 
 export default function SettingsPage() {
   type SettingsItem =
@@ -157,17 +159,10 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <header className="sticky top-0 z-40 glass">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3 h-16">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "var(--brand-tint)" }}>
-              <SettingsIcon className="w-4 h-4" style={{ color: "var(--brand)" }} aria-hidden="true" />
-            </div>
-            <h1 className="text-[17px] font-semibold text-[var(--text-primary)]">設定</h1>
-          </div>
-        </div>
-      </header>
+      {/* Header — 共用 PageHeader(§25 reuse)+ 注入 UserMenu 提供登入/登出入口 */}
+      <PageHeader icon={SettingsIcon} title="設定">
+        <UserMenu />
+      </PageHeader>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* 啟動偏好 — 預設啟動畫卷（第一個群組,最高優先） */}

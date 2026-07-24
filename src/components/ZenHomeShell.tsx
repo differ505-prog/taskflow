@@ -27,6 +27,11 @@ export default function ZenHomeShell() {
   const isBoardOpen = searchParams.get("board") === "1";
   const { defaultView, isHydrated } = useUserPreferences();
 
+  // §15.6 對齊:SSR 期間 defaultView = "zen"(SSR-safe lazy init)
+  // hydration 完成後才決定是否全螢幕渲染任務大廳
+  // §26-G 預防:SSR 渲染的 DOM 結構必須與首次 client render 一致
+  const shouldRenderBoardFullscreen = isHydrated && defaultView === "board";
+
   const closeBoard = () => {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("board");
@@ -34,16 +39,16 @@ export default function ZenHomeShell() {
     router.push(qs ? `/?${qs}` : "/", { scroll: false });
   };
 
-  // 偏好 hydration 完成後 + 抽屜尚未開啟 + 偏好為 board → 自動開抽屜
-  // 用 replace 而非 push,避免 back 按鈕在禪模式/任務大廳間無限循環
+  // 暫時開啟任務大廳抽屜(用戶在禪模式頁想看任務列表時用,沿用既有 ?board=1 行為)
+  // 用 router.push 而非 replace — 保留 back 按鈕回到禪模式
   useEffect(() => {
     if (!isHydrated) return;
     if (isBoardOpen) return;
-    if (defaultView !== "board") return;
-    router.replace("/?board=1", { scroll: false });
-    // §15.4 對齊:此 effect 只在 isHydrated 變化或路由變化時跑
+    if (!shouldRenderBoardFullscreen) return;
+    // 全螢幕模式:直接渲染 AppLayout,不開 query
+    // (此 effect 留著是為了 SSR/CSR 邊界統一 — 進入 / 後無 query 直接渲染任務大廳)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isHydrated, isBoardOpen, defaultView]);
+  }, [isHydrated, shouldRenderBoardFullscreen]);
 
   // Esc 關閉抽屜
   useEffect(() => {
@@ -68,12 +73,18 @@ export default function ZenHomeShell() {
 
   return (
     <>
-      <ZenDashboard />
-      <BoardDrawer
-        isOpen={isBoardOpen}
-        onClose={closeBoard}
-        content={<AppLayout />}
-      />
+      {shouldRenderBoardFullscreen ? (
+        <AppLayout />
+      ) : (
+        <>
+          <ZenDashboard />
+          <BoardDrawer
+            isOpen={isBoardOpen}
+            onClose={closeBoard}
+            content={<AppLayout />}
+          />
+        </>
+      )}
     </>
   );
 }
