@@ -43,6 +43,7 @@ const VIEW_LABELS: Record<AppView, string> = {
   archived: "已封存",
   pinned: "置頂",
   quadrant: "緩急圖",
+  "command-center": "軍機處",
 };
 
 interface AppShellProps {

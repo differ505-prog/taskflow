@@ -27,7 +27,7 @@ import {
   Plus, ChevronDown, ChevronRight, CheckCircle2,
   BarChart3, Timer, Heart, Settings, Archive,
   MoreHorizontal, Edit3, Trash2, X, Share2, Users,
-  Pin, Gauge,
+  Pin, Gauge, Flame,
 } from "lucide-react";
 
 interface NavItem {
@@ -72,8 +72,9 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
   const pinnedCount = tasks.filter((t) => t.isPinned && !t.isArchived && t.status !== "done").length;
 
   const bottomNavItems: NavItem[] = [
-    { view: "habits", label: "習慣打卡", icon: <Heart className="w-[18px] h-[18px]" /> },
     { view: "calendar", label: "日曆視圖", icon: <Clock className="w-[18px] h-[18px]" /> },
+    { view: "command-center", label: "軍機處", icon: <Flame className="w-[18px] h-[18px]" />, badge: "戰略" },
+    { view: "habits", label: "習慣打卡", icon: <Heart className="w-[18px] h-[18px]" /> },
     { view: "tags", label: "標籤管理", icon: <Tag className="w-[18px] h-[18px]" /> },
     { view: "stats", label: "統計分析", icon: <BarChart3 className="w-[18px] h-[18px]" /> },
     { view: "archived", label: "已封存", icon: <Archive className="w-[18px] h-[18px]" />, count: archivedCount },

@@ -1,9 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import {
   DndContext,
   DragOverlay,
@@ -97,9 +94,8 @@ function buildMonthCells(anchor: Date): DateCell[] {
 
 const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
 
-export function CommandCenter() {
+export function CommandCenter({ onClose }: { onClose: () => void }) {
   const { tasks, updateTask, toggleTaskStatus } = useApp();
-  const router = useRouter();
 
   const backlog = useMemo(() => selectBacklog(tasks), [tasks]);
   const scheduled = useMemo(() => selectScheduledMap(tasks), [tasks]);
@@ -176,17 +172,13 @@ export function CommandCenter() {
   };
 
   return (
-    <motion.div
-      initial={{ y: 16, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-      className="fixed inset-0 z-[70] overflow-y-auto bg-slate-50/95 backdrop-blur"
-      role="dialog"
-      aria-modal="true"
+    <div
+      className="flex h-full min-h-0 flex-col gap-6 bg-slate-50/95 p-4 sm:p-6"
+      role="region"
       aria-label="軍機處：戰略排程模式"
     >
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col gap-6 px-4 pb-12 pt-6 sm:px-8">
-              {/* ── Header：明顯的關閉/返回禪模式鈕 ── */}
+      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6">
+              {/* ── Header：明顯的返回收件箱鈕 ── */}
               <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/60 pb-4">
                 <div className="flex flex-col">
                   <h1 className="text-balance text-lg font-semibold tracking-tight text-slate-800 sm:text-xl">
@@ -225,31 +217,25 @@ export function CommandCenter() {
                     </button>
                   </div>
 
-                  {/* 返回禪模式 */}
-                  <Link
-                    href="/"
+                  {/* 返回收件箱 */}
+                  <button
+                    type="button"
+                    onClick={onClose}
                     className="inline-flex items-center gap-1.5 rounded-full bg-slate-800 px-4 py-2 text-sm font-medium text-slate-50 shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-slate-900 hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
-                    aria-label="返回禪模式"
+                    aria-label="返回收件箱"
                   >
                     <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 3v3" />
-                      <path d="M12 18v3" />
-                      <path d="M5 12H2" />
-                      <path d="M22 12h-3" />
-                      <path d="m19.07 4.93-2.12 2.12" />
-                      <path d="M7.05 16.95l-2.12 2.12" />
-                      <path d="m19.07 19.07-2.12-2.12" />
-                      <path d="M7.05 7.05 4.93 4.93" />
+                      <path d="m15 18-6-6 6-6" />
                     </svg>
-                    <span>返回禪模式</span>
-                  </Link>
+                    <span>返回收件箱</span>
+                  </button>
 
                   {/* 關閉 */}
                   <button
                     type="button"
-                    onClick={() => router.push("/")}
+                    onClick={onClose}
                     className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium text-slate-500 transition-all duration-200 ease-out hover:bg-white hover:text-slate-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
-                    aria-label="關閉軍機處"
+                    aria-label="關閉軍機處,返回收件箱"
                   >
                     <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M18 6 6 18" />
@@ -284,7 +270,7 @@ export function CommandCenter() {
                 </DragOverlay>
               </DndContext>
       </div>
-    </motion.div>
+    </div>
   );
 }
 

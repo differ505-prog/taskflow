@@ -193,7 +193,7 @@ export interface TaskFilter {
   view?: AppView;
 }
 
-export type AppView = "inbox" | "today" | "next7days" | "all" | "calendar" | "habits" | "tags" | "list" | "stats" | "shared" | "archived" | "pinned" | "quadrant";
+export type AppView = "inbox" | "today" | "next7days" | "all" | "calendar" | "habits" | "tags" | "list" | "stats" | "shared" | "archived" | "pinned" | "quadrant" | "command-center";
 
 export interface Tag {
   id: string;

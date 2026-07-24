@@ -27,6 +27,7 @@ import { Onboarding } from "@/components/Onboarding";
 import { IOSInstallPrompt, AndroidInstallPrompt, AhaMoment } from "@/components/PwaPrompts";
 import { QuickVoiceFAB } from "@/components/QuickVoiceFAB";
 import { StatusWindow } from "@/components/StatusWindow";
+import { CommandCenter } from "@/components/CommandCenter";
 import { useConfirm } from "@/hooks/useConfirm";
 
 // ─── Inner app (has access to useApp) ───────────────────────
@@ -227,6 +228,12 @@ function AppLayoutInner() {
         return <StatsClient />;
       case "quadrant":
         return <QuadrantRadarView onTaskSelect={(id) => setSelectedTaskId(id)} />;
+      case "command-center":
+        return (
+          <CommandCenter
+            onClose={() => setCurrentView("inbox")}
+          />
+        );
       default:
         return (
           <AppShell
