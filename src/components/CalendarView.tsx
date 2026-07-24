@@ -22,6 +22,8 @@ interface CalendarViewProps {
   onSelectTask: (task: Task) => void;
   /** 從 AppLayout 傳入,區分 desktop/mobile 渲染策略 */
   isMobile: boolean;
+  /** 由 AppLayout 傳入的 mobile 漢堡觸發器(§13 最小變更:不把 sidebar state 上抬到 context) */
+  onOpenMobileSidebar?: () => void;
 }
 
 interface CalendarViewCallbacks {
@@ -37,6 +39,7 @@ export function CalendarView({
   selectedTask,
   onSelectTask,
   isMobile,
+  onOpenMobileSidebar,
 }: CalendarViewProps) {
   const { tasks, updateTask, toggleTaskStatus, addTask, deleteTask, searchQuery } = useApp();
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -263,9 +266,23 @@ export function CalendarView({
       <div className="flex-1 min-h-0 p-4 md:p-6 flex flex-col overflow-hidden flex-shrink-0">
         {/* Month header */}
         <div className="flex items-center justify-between mb-4 md:mb-5 flex-shrink-0">
-          <h1 className="text-[18px] font-semibold" style={{ color: "var(--text-primary)" }}>
-            {format(currentMonth, "yyyy 年 M 月", { locale: zhTW })}
-          </h1>
+          <div className="flex items-center gap-2 min-w-0">
+            {isMobile && onOpenMobileSidebar && (
+              <button
+                onClick={onOpenMobileSidebar}
+                className="md:hidden p-2 rounded-xl press-effect touch-target flex-shrink-0"
+                style={{ color: "var(--text-primary)", background: "var(--surface-muted)" }}
+                aria-label="開啟側邊欄"
+              >
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <path d="M2 4.5h14M2 9h14M2 13.5h14" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+                </svg>
+              </button>
+            )}
+            <h1 className="text-[18px] font-semibold truncate" style={{ color: "var(--text-primary)" }}>
+              {format(currentMonth, "yyyy 年 M 月", { locale: zhTW })}
+            </h1>
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={prevMonth}

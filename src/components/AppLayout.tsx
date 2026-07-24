@@ -210,16 +210,17 @@ function AppLayoutInner() {
     switch (currentView) {
       case "calendar":
         return (
-          <CalendarView
-            key={getBfcacheKey()}
-            selectedDate={calendarSelectedDate}
-            onSelectDate={setCalendarSelectedDate}
-            selectedTask={calendarSelectedTask}
-            onSelectTask={(task) => {
-              setCalendarSelectedTask(task);
-            }}
-            isMobile={isMobile}
-          />
+        <CalendarView
+          key={getBfcacheKey()}
+          selectedDate={calendarSelectedDate}
+          onSelectDate={setCalendarSelectedDate}
+          selectedTask={calendarSelectedTask}
+          onSelectTask={(task) => {
+            setCalendarSelectedTask(task);
+          }}
+          isMobile={isMobile}
+          onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
+        />
         );
       case "habits":
         return <HabitsPage />;
@@ -303,21 +304,6 @@ function AppLayoutInner() {
           onLeaveSharedList={handleLeaveSharedList}
         />
       </div>
-
-      {/* Mobile Sidebar Trigger — 統一給所有非 list-style view (calendar/habits/tags/stats/quadrant) 用的漢堡鈕,
-          對齊 AppShell L252-263 視覺。List-style view (inbox/today/list/...) 走 AppShell,內含自己的漢堡,不重複。 */}
-      {isMobile && (currentView === "calendar" || currentView === "habits" || currentView === "tags" || currentView === "stats" || currentView === "quadrant") && (
-        <button
-          onClick={() => setIsMobileSidebarOpen(true)}
-          className="md:hidden fixed top-3 left-3 z-30 p-2.5 rounded-xl press-effect touch-target flex-shrink-0"
-          style={{ color: "var(--text-primary)", background: "var(--surface-muted)" }}
-          aria-label="開啟側邊欄"
-        >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-            <path d="M2 4.5h14M2 9h14M2 13.5h14" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-          </svg>
-        </button>
-      )}
 
       {/* Main content — flex column, AppShell scrolls within */}
       <div className="flex-1 min-w-0 flex flex-col pb-[calc(60px+env(safe-area-inset-bottom,0px)+12px)] md:pb-0">
