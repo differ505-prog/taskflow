@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -26,6 +26,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { SlashOverlay } from "@/components/SlashOverlay";
 import { StatusWindow } from "@/components/StatusWindow";
 import { useStatusWindow } from "@/hooks/useStatusWindow";
+import { useQuickCaptureShortcut } from "@/hooks/useQuickCaptureShortcut";
+import { QuickCapture } from "@/components/QuickCapture";
 import { useApp } from "@/lib/AppContext";
 import type { Task } from "@/lib/types";
 
@@ -55,6 +57,14 @@ export default function ZenDashboard() {
   const [isSlashing, setIsSlashing] = useState(false);
   const [isCrashing, setIsCrashing] = useState(false);
   const showWindow = useStatusWindow();
+
+  // §10.3 9.3 方案:QuickCapture 底部輸入框 + Cmd/Ctrl+K 快捷鍵
+  // 目的：ADHD 用戶在禪模式專注時,可「投幣」捕捉突發靈感,不打斷 flow
+  const focusQuickCaptureRef = useRef<(() => void) | null>(null);
+  useQuickCaptureShortcut(
+    () => focusQuickCaptureRef.current?.(),
+    true,
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -156,7 +166,8 @@ export default function ZenDashboard() {
           <span>任務大廳</span>
         </Link>
       </div>
-      <div className="mx-auto flex max-w-2xl flex-col gap-12">
+      {/* pb-32 預留 QuickCapture 底部空間,避免焦點任務被輸入框遮住 */}
+      <div className="mx-auto flex max-w-2xl flex-col gap-12 pb-32">
         <header className="text-balance text-sm font-medium uppercase tracking-widest text-slate-400">
           Zen Mode
         </header>
@@ -206,10 +217,13 @@ export default function ZenDashboard() {
               <DragOverlay>
                 {activeTask ? <QueueItemCard task={activeTask} isDragging /> : null}
               </DragOverlay>
-            </DndContext>
+              </DndContext>
           </section>
         )}
       </div>
+
+      {/* 底部 QuickCapture — §10.3 9.3 方案:ADHD 焦點保護的「投幣口」 */}
+      <QuickCapture focusRef={focusQuickCaptureRef} />
     </main>
   );
 }
