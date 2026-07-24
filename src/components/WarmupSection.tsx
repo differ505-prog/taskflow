@@ -8,7 +8,6 @@ import { useHunterStatus } from "@/hooks/useHunterStatus";
 import { useRankUpNotification } from "@/components/RankUpNotification";
 import { BASE_HABIT_EXP } from "@/lib/hunterRank";
 import { Heart, ArrowRight } from "lucide-react";
-import Link from "next/link";
 
 /**
  * WarmupSection — 禪模式暖身區塊（角落固定）
@@ -36,7 +35,7 @@ function getToday(): string {
 }
 
 export function WarmupSection() {
-  const { habits, checkinHabit } = useApp();
+  const { habits, checkinHabit, setCurrentView } = useApp();
   const showWindow = useStatusWindow();
   const { addExp } = useHunterStatus();
   const rankUp = useRankUpNotification();
@@ -81,15 +80,16 @@ export function WarmupSection() {
         <p className="text-balance text-[11px] font-medium uppercase tracking-widest text-slate-400">
           Warmup
         </p>
-        <Link
-          href="/?board=1&view=habits"
+        <button
+          type="button"
+          onClick={() => setCurrentView("habits")}
           className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-2 text-xs font-medium text-slate-500 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:text-slate-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
           aria-label="前往習慣頁建立第一個暖身習慣"
         >
           <Heart className="h-3.5 w-3.5" aria-hidden />
           <span>建立第一個暖身</span>
           <ArrowRight className="h-3 w-3" aria-hidden />
-        </Link>
+        </button>
       </motion.div>
     );
   }
