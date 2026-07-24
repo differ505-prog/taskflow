@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { AppLayout } from "@/components/AppLayout";
 import ZenDashboard from "@/components/ZenDashboard";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 /**
  * 禪模式家頁 / 抽屜殼
@@ -13,11 +14,18 @@ import ZenDashboard from "@/components/ZenDashboard";
  * - Esc 鍵關閉 + 背景點擊關閉
  * - 手機全寬 / 桌面 1024px 限寬
  * - 抽屜內 AppLayout 自帶 sidebar(內含「軍機處」+ 全部視圖切換)
+ *
+ * 啟動偏好讀取(useUserPreferences):
+ * - 出廠預設 "zen":開啟禪模式背景 + 不開抽屜
+ * - 用戶偏好 "board":自動加 `?board=1` query 開啟任務大廳抽屜
+ * - SSR 期間不讀 localStorage(避免 hydration mismatch)
+ * - 偏好設定 hydration 完成後才決定是否 redirect
  */
 export default function ZenHomeShell() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isBoardOpen = searchParams.get("board") === "1";
+  const { defaultView, isHydrated } = useUserPreferences();
 
   const closeBoard = () => {
     const params = new URLSearchParams(searchParams.toString());
@@ -25,6 +33,17 @@ export default function ZenHomeShell() {
     const qs = params.toString();
     router.push(qs ? `/?${qs}` : "/", { scroll: false });
   };
+
+  // 偏好 hydration 完成後 + 抽屜尚未開啟 + 偏好為 board → 自動開抽屜
+  // 用 replace 而非 push,避免 back 按鈕在禪模式/任務大廳間無限循環
+  useEffect(() => {
+    if (!isHydrated) return;
+    if (isBoardOpen) return;
+    if (defaultView !== "board") return;
+    router.replace("/?board=1", { scroll: false });
+    // §15.4 對齊:此 effect 只在 isHydrated 變化或路由變化時跑
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHydrated, isBoardOpen, defaultView]);
 
   // Esc 關閉抽屜
   useEffect(() => {

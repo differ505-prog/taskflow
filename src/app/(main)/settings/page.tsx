@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Settings as SettingsIcon, Trash2, Download, Moon, Bell, Shield, Info, CalendarDays, Copy, Check, type LucideIcon } from "lucide-react";
 import { getTasks } from "@/lib/storage";
 import { downloadICal } from "@/lib/ical";
+import DefaultLaunchViewSection from "@/components/DefaultLaunchViewSection";
 
 export default function SettingsPage() {
   type SettingsItem =
@@ -169,6 +170,9 @@ export default function SettingsPage() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* 啟動偏好 — 預設啟動畫卷（第一個群組,最高優先） */}
+        <DefaultLaunchViewSection />
+
         {settingsGroups.map((group) => (
           <section key={group.title} aria-labelledby={`settings-${group.title}`}>
             {group.isTheory ? (
