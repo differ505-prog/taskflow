@@ -26,8 +26,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { SlashOverlay } from "@/components/SlashOverlay";
 import { StatusWindow } from "@/components/StatusWindow";
 import { useStatusWindow } from "@/hooks/useStatusWindow";
-import { useQuickCaptureShortcut } from "@/hooks/useQuickCaptureShortcut";
-import { QuickCapture } from "@/components/QuickCapture";
+import { QuickCaptureModal } from "@/components/QuickCaptureModal";
 import { useApp } from "@/lib/AppContext";
 import type { Task } from "@/lib/types";
 
@@ -58,13 +57,9 @@ export default function ZenDashboard() {
   const [isCrashing, setIsCrashing] = useState(false);
   const showWindow = useStatusWindow();
 
-  // §10.3 9.3 方案:QuickCapture 底部輸入框 + Cmd/Ctrl+K 快捷鍵
-  // 目的：ADHD 用戶在禪模式專注時,可「投幣」捕捉突發靈感,不打斷 flow
-  const focusQuickCaptureRef = useRef<(() => void) | null>(null);
-  useQuickCaptureShortcut(
-    () => focusQuickCaptureRef.current?.(),
-    true,
-  );
+  // §10.3 9.2 方案：ZenDashboard 改用 QuickCaptureModal（spotlight 浮動）
+  // Cmd/Ctrl+K 由 QuickCaptureModal 內部的 useQuickCaptureShortcut 接管
+  // — 移除原本的底部 input 與雙重快捷鍵監聽，避免與 modal 競爭
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -193,10 +188,12 @@ export default function ZenDashboard() {
           <span>任務大廳</span>
         </Link>
       </div>
-      {/* pb-32 預留 QuickCapture 底部空間,避免焦點任務被輸入框遮住 */}
-      <div className="mx-auto flex max-w-2xl flex-col gap-12 pb-32">
+      <div className="mx-auto flex max-w-2xl flex-col gap-12 pb-12">
         <header className="text-balance text-sm font-medium uppercase tracking-widest text-slate-400">
           Zen Mode
+          <span className="ml-3 text-[11px] font-normal normal-case tracking-normal text-slate-400/80">
+            · 按 <kbd className="rounded bg-slate-200/60 px-1 py-0.5 text-[10px] font-medium">⌘ K</kbd> 捕捉靈感
+          </span>
         </header>
 
         {/* 焦點區 */}
@@ -249,8 +246,10 @@ export default function ZenDashboard() {
         )}
       </div>
 
-      {/* 底部 QuickCapture — §10.3 9.3 方案:ADHD 焦點保護的「投幣口」 */}
-      <QuickCapture focusRef={focusQuickCaptureRef} />
+      {/* §10.3 9.2 方案:Spotlight 風格「大腦傾倒」浮動輸入框
+          Cmd/Ctrl+K 召喚,送出後默默關閉,任務不顯示於當前頁
+          沿用 useApp().addTask({ listId: undefined }) → 收件箱路徑 */}
+      <QuickCaptureModal />
     </main>
   );
 }
