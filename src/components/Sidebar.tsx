@@ -23,7 +23,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 import {
-  Inbox, Sun, CalendarDays, Layers, Tag, Clock,
+  Inbox, Sun, CalendarDays, CalendarRange, Layers, Tag, Clock,
   Plus, ChevronDown, ChevronRight, CheckCircle2,
   BarChart3, Timer, Heart, Settings, Archive,
   MoreHorizontal, Edit3, Trash2, X, Share2, Users,
@@ -72,8 +72,7 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
   const pinnedCount = tasks.filter((t) => t.isPinned && !t.isArchived && t.status !== "done").length;
 
   const bottomNavItems: NavItem[] = [
-    { view: "calendar", label: "日曆視圖", icon: <Clock className="w-[18px] h-[18px]" />, badge: "戰報" },
-    { view: "command-center", label: "軍機處", icon: <Flame className="w-[18px] h-[18px]" />, badge: "沙盤" },
+    { view: "calendar", label: "月視圖", icon: <CalendarRange className="w-[18px] h-[18px]" />, badge: "戰報 · 沙盤" },
     { view: "habits", label: "習慣打卡", icon: <Heart className="w-[18px] h-[18px]" /> },
     { view: "tags", label: "標籤管理", icon: <Tag className="w-[18px] h-[18px]" /> },
     { view: "stats", label: "統計分析", icon: <BarChart3 className="w-[18px] h-[18px]" /> },
@@ -82,6 +81,8 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
 
   const isActive = (view: AppView, listId?: string) => {
     if (view === "list") return currentView === "list" && currentListId === listId;
+    // 月視圖按鈕涵蓋 calendar + command-center(同一個入口)
+    if (view === "calendar") return currentView === "calendar" || currentView === "command-center";
     return currentView === view;
   };
 

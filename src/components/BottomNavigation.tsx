@@ -24,7 +24,6 @@ const NAV_ITEMS: BottomNavItem[] = [
 
 const MORE_ITEMS: BottomNavItem[] = [
   { view: "next7days", label: "七日", icon: <CalendarRange className="w-[22px] h-[22px]" /> },
-  { view: "command-center", label: "軍機處", icon: <Flame className="w-[22px] h-[22px]" /> },
   { view: "habits", label: "習慣", icon: <BarChart3 className="w-[22px] h-[22px]" /> },
   { view: "tags", label: "標籤", icon: <Tag className="w-[22px] h-[22px]" /> },
   { view: "stats", label: "統計", icon: <Layers className="w-[22px] h-[22px]" /> },

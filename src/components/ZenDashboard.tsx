@@ -137,6 +137,33 @@ export default function ZenDashboard() {
       {/* StatusWindow — 禪模式獨立路由不經 AppLayout,需自掛一份 */}
       <StatusWindow />
 
+      {/* 品牌 Logo — 浮動左上,呼應 Sidebar 風格(§3 色彩紀律:僅 CTA 用品牌色) */}
+      <div
+        className="fixed left-4 z-10 flex items-center gap-2"
+        style={{ top: "max(1rem, env(safe-area-inset-top, 0px))" }}
+      >
+        <div
+          className="flex h-8 w-8 items-center justify-center rounded-xl"
+          style={{ background: "var(--brand)" }}
+          aria-hidden
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path
+              d="M3 8L6.5 11.5L13 4.5"
+              stroke="white"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+        <span
+          className="text-[16px] font-semibold tracking-tight text-slate-700"
+        >
+          VibeList
+        </span>
+      </div>
+
       {/* 退出禪模式 — floating 右上角,符合 §15.4 mobile safe area */}
       <div
         className="fixed right-4 z-10 flex items-center gap-2"

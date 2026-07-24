@@ -29,6 +29,7 @@ import { QuickVoiceFAB } from "@/components/QuickVoiceFAB";
 import { StatusWindow } from "@/components/StatusWindow";
 import { CommandCenter } from "@/components/CommandCenter";
 import { useConfirm } from "@/hooks/useConfirm";
+import { Clock, Flame } from "lucide-react";
 
 // ─── Inner app (has access to useApp) ───────────────────────
 function AppLayoutInner() {
@@ -259,6 +260,11 @@ function AppLayoutInner() {
     }
   };
 
+  // 月視圖 tabs(戰報 / 沙盤)— §10.3 9.4 方案:
+  // 同一個入口進入,內頁用 tabs 切換,view 內部 state 透過不重設 key 保留
+  const showMonthTabs = currentView === "calendar" || currentView === "command-center";
+  const activeTab = currentView === "command-center" ? "command-center" : "calendar";
+
   const renderDetailPanel = () => (
     <AnimatePresence>
       {detailTask && (
@@ -318,11 +324,17 @@ function AppLayoutInner() {
         {isMobile ? (
           <PullToRefresh onRefresh={forceReload} className="flex-1 min-w-0 flex flex-col min-h-0">
             <div className="flex-1 min-w-0 flex flex-col min-h-0">
+              {showMonthTabs && (
+                <MonthViewTabs activeTab={activeTab} onChange={(v) => setCurrentView(v)} />
+              )}
               {renderView()}
             </div>
           </PullToRefresh>
         ) : (
           <div className="flex-1 min-w-0 flex flex-col min-h-0">
+            {showMonthTabs && (
+              <MonthViewTabs activeTab={activeTab} onChange={(v) => setCurrentView(v)} />
+            )}
             {renderView()}
           </div>
         )}
@@ -412,6 +424,64 @@ function AppLayoutInner() {
 
       </div>
     </>
+  );
+}
+
+/**
+ * MonthViewTabs — 月視圖內 sub-tabs(戰報 / 沙盤)
+ *
+ * §10.3 9.4 方案關鍵:
+ * - 同一個入口進入後,內頁用 tabs 切換(無 modal、無 sheet、無 full page nav)
+ * - 不重設 view 內部 key → CalendarView 的 selectedDate / CommandCenter 的拖曳任務清單完全保留
+ * - 樣式與 Sidebar 視覺一致:同色系、同尺寸,符合 §3 色彩紀律
+ *
+ * 為什麼不在 CalendarView / CommandCenter 內自己加 tab?
+ * - 因為這兩個 view 是獨立 component,tabs 是 shell 概念,不是 view 內部概念
+ * - 放 shell 讓兩個 view 互不污染,符合 §5 DRY
+ */
+function MonthViewTabs({
+  activeTab,
+  onChange,
+}: {
+  activeTab: "calendar" | "command-center";
+  onChange: (v: "calendar" | "command-center") => void;
+}) {
+  const tabs = [
+    { id: "calendar" as const, label: "戰報", sub: "看月視圖", icon: <Clock className="w-4 h-4" /> },
+    { id: "command-center" as const, label: "沙盤", sub: "軍機處排程", icon: <Flame className="w-4 h-4" /> },
+  ];
+  return (
+    <div
+      role="tablist"
+      aria-label="月視圖模式"
+      className="mx-4 md:mx-6 mt-2 mb-1 inline-flex items-center gap-1 rounded-2xl bg-white p-1 shadow-sm ring-1 ring-slate-200/60 self-start"
+    >
+      {tabs.map((t) => {
+        const active = t.id === activeTab;
+        return (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={active}
+            aria-controls={`tab-panel-${t.id}`}
+            onClick={() => onChange(t.id)}
+            className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 ${
+              active
+                ? "bg-slate-800 text-slate-50 shadow-sm"
+                : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+            }`}
+          >
+            <span aria-hidden className={active ? "text-slate-50" : "text-slate-400"}>
+              {t.icon}
+            </span>
+            <span>{t.label}</span>
+            <span className={`text-[11px] ${active ? "text-slate-300" : "text-slate-400"}`}>
+              {t.sub}
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
