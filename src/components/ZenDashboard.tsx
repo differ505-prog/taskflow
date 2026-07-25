@@ -206,6 +206,20 @@ export default function ZenDashboard() {
 
         {/* 右群組:獵人徽章 + 任務大廳(導航歸屬) */}
         <div className="flex items-center gap-3">
+          {/* §10.3 9.1 方案:常駐熱鍵提示 chip
+              桌機才顯示 — 手機 FAB「捕捉靈感」已是視覺入口,毋需重複
+              點擊同樣召喚 QuickCaptureModal,桌機用戶不背熱鍵也能直觀觸達 */}
+          <button
+            type="button"
+            onClick={() => setQuickCaptureOpen(true)}
+            aria-label="快速新增任務(⌘ K / Ctrl K)"
+            className="hidden items-center gap-1.5 rounded-full bg-white/80 px-3 py-2 text-sm font-medium text-slate-500 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:text-slate-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 md:inline-flex"
+          >
+            <kbd className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-slate-700">
+              ⌘ K
+            </kbd>
+            <span>新增任務</span>
+          </button>
           <HunterStatusBadge />
           <Link
             href="/?board=1"
