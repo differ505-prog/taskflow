@@ -341,9 +341,36 @@ function AppLayoutInner() {
           </div>
         )}
       </div>
-      {/* Desktop: detail panel as sibling → renders to the right via flex parent.
-          桌面日曆視圖已自行包含 detail panel(三欄),此處跳過以避免雙重渲染。 */}
-      {detailTask && !isMobile && currentView !== 'calendar' && renderDetailPanel()}
+      {/* Desktop: detail panel as fixed overlay (z-40, above sticky header z-30 §26 命中類別新:R)
+          理由:之前用 flex sibling 將 detail panel 推到右側 480px,但 header 是 sticky top-0 z-30,
+          詳情打開時 header 的「禪/蕃茄/新增」按鈕與 panel 標題列垂直重疊,視覺上看像 panel 被 header 蓋住。
+          改 fixed 後 detail panel 獨立 z-stack(z-40),永遠壓過 header(z-30)。
+          但加 backdrop 有副作用(會把整個畫面變暗),所以「禪/蕃茄/新增」仍可見但不可點。
+          Mobile 仍維持原 fixed inset-0(z-60,純 full-screen overlay)。 */}
+      {detailTask && !isMobile && currentView !== 'calendar' && (
+        <AnimatePresence>
+          <motion.div
+            key="detail-panel-desktop"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+            className="fixed top-0 right-0 bottom-0 z-40 w-full md:w-[480px] border-l overflow-y-auto overscroll-contain shadow-[-8px_0_24px_rgba(0,0,0,0.08)]"
+            style={{
+              borderColor: "var(--border)",
+              background: "var(--surface)",
+            }}
+            role="dialog"
+            aria-modal="false"
+            aria-label="任務詳情面板"
+          >
+            <TaskDetailPanel
+              task={detailTask}
+              onClose={() => { setSelectedTaskId(null); setCalendarSelectedTask(null); }}
+            />
+          </motion.div>
+        </AnimatePresence>
+      )}
       {/* Mobile: full-screen overlay when task selected */}
       {detailTask && isMobile && renderDetailPanel()}
 
