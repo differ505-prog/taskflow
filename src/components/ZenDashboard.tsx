@@ -36,6 +36,10 @@ import { FeedbackButton } from "@/components/FeedbackButton";
 import PresenceDot from "@/components/PresenceDot";
 import { BASE_TASK_EXP } from "@/lib/hunterRank";
 import { QuickCaptureTrigger } from "@/components/QuickCaptureTrigger";
+import { GhostButton } from "@/components/GhostButton";
+import { ProWaitlistModal } from "@/components/ProWaitlistModal";
+import { useGhostButton } from "@/hooks/useGhostButton";
+import { Hourglass } from "lucide-react";
 import { useApp } from "@/lib/AppContext";
 import type { Task } from "@/lib/types";
 
@@ -85,6 +89,10 @@ export default function ZenDashboard() {
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
+
+  // §假門測試 A:時間盲防禦條 — 禪模式焦點卡片上的幽靈按鈕
+  // 驗證 ADHD 用戶對「將抽象時間具象化」的需求強弱
+  const timebarGhost = useGhostButton({ buttonId: "timebar" });
 
   const focus = visibleTasks[0];
   const queue = visibleTasks.slice(1);
@@ -264,6 +272,15 @@ export default function ZenDashboard() {
                 isSlashing={isSlashing}
                 isCrashing={isCrashing}
                 onComplete={() => handleComplete(focus.id)}
+                ghostButton={
+                  <GhostButton
+                    onClick={timebarGhost.handleClick}
+                    variant="muted"
+                    icon={Hourglass}
+                  >
+                    啟動魔力消耗條
+                  </GhostButton>
+                }
               />
             ) : (
               <EmptyState key="empty" />
@@ -325,6 +342,13 @@ export default function ZenDashboard() {
         variant="mobile"
         onClick={() => setQuickCaptureOpen(true)}
       />
+
+      {/* 假門測試 A — 時間盲防禦條 Modal (幽靈按鈕點擊後彈出) */}
+      <ProWaitlistModal
+        open={timebarGhost.open}
+        onClose={timebarGhost.handleDismiss}
+        onJoin={timebarGhost.handleJoin}
+      />
     </main>
   );
 }
@@ -336,11 +360,13 @@ function FocusCard({
   isSlashing,
   isCrashing,
   onComplete,
+  ghostButton,
 }: {
   task: Task;
   isSlashing: boolean;
   isCrashing: boolean;
   onComplete: () => void;
+  ghostButton?: React.ReactNode;
 }) {
   return (
     <motion.article
@@ -360,6 +386,11 @@ function FocusCard({
       aria-label={`當前焦點任務: ${task.title}`}
     >
       <SlashOverlay active={isSlashing} />
+
+      {/* 幽靈按鈕 — 絕對定位於卡片右上,§假門測試用 */}
+      {ghostButton && (
+        <div className="absolute right-4 top-4">{ghostButton}</div>
+      )}
 
       <p className="text-balance text-2xl font-medium leading-snug text-slate-800 sm:text-3xl">
         {task.title}

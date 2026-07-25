@@ -11,6 +11,9 @@ import { ProtectedUploadButton } from "./ProtectedUploadButton";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 import { ProGhostButton } from "./ProGhostButton";
 import { useAIShredder } from "@/hooks/useAIShredder";
+import { useGhostButton } from "@/hooks/useGhostButton";
+import { GhostButton } from "./GhostButton";
+import { ProWaitlistModal } from "./ProWaitlistModal";
 import { deleteFile } from "@/lib/storageUpload";
 import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
 import { getEisenhowerVisual } from "@/lib/eisenhower";
@@ -48,6 +51,8 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
   const { lists, tasks, getTagCounts } = useApp();
   const keyboard = useKeyboardOffset();
   const aiShredder = useAIShredder();
+  // §假門測試 B:無限次 AI 粉碎 — 額度用完時切換為幽靈按鈕
+  const unlimitedShredGhost = useGhostButton({ buttonId: "unlimited_shred" });
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   // 預設「暫緩」＝第 4 象限（艾森豪矩陣：避免決策疲勞，新任務預設最低優先）
@@ -349,59 +354,58 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
 
               {/* AI 自動任務拆解 (AI Task Shredder)
                   - 與上方 input 分區:用 mt-1 (對齊 input error message 間距) + 視覺換色 (中性灰藍) 與 mic 紫色拉開
+                  - 額度未用完: 顯示正常按鈕
+                  - 額度用完: 切換為假門測試 B 幽靈按鈕 (金色微光 + Lock icon)
                   - 嚴禁拖曳:生成的子步驟是單向線性,不用 dnd-kit */}
               <div className="mt-3">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!title.trim()) {
-                      titleRef.current?.focus();
-                      return;
-                    }
-                    if (aiShredder.isLimitReached) return;
-                    const steps = await aiShredder.shred(title);
-                    if (steps && steps.length > 0) {
-                      // 將 AI 拆解結果灌入 subTaskInputs
-                      // 嚴禁拖曳:不使用 dnd-kit SortableContext,子任務按順序固定
-                      setSubTaskInputs(steps);
-                    }
-                  }}
-                  disabled={!title.trim() || aiShredder.loading || aiShredder.isLimitReached}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                  style={{
-                    background: aiShredder.isLimitReached
-                      ? "var(--surface-muted)"
-                      : "var(--surface-hover)",
-                    color: aiShredder.isLimitReached
-                      ? "var(--text-tertiary)"
-                      : "var(--text-secondary)",
-                    border: `1px solid ${aiShredder.isLimitReached ? "var(--border)" : "var(--border-hover)"}`,
-                  }}
-                  aria-label={aiShredder.isLimitReached ? "今日 AI 拆解已用完" : "用 AI 拆解任務"}
-                  title={
-                    aiShredder.isLimitReached
-                      ? "今日已用完 3 次,明天再來"
-                      : "把任務拆解成 3-5 個微小步驟,打破啟動癱瘓"
-                  }
-                >
-                  {aiShredder.loading ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-                      <span>AI 拆解中...</span>
-                    </>
-                  ) : aiShredder.isLimitReached ? (
-                    <>
-                      <Sparkles className="w-3.5 h-3.5" aria-hidden />
-                      <span>今日已用完 ({aiShredder.usedCount}/{aiShredder.dailyLimit})</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-3.5 h-3.5" aria-hidden />
-                      <span>AI 拆解 ({aiShredder.remainingCount}/{aiShredder.dailyLimit})</span>
-                    </>
-                  )}
-                </button>
-                {aiShredder.error && (
+                {aiShredder.isLimitReached ? (
+                  // §假門測試 B:無限次 AI 粉碎 — 點擊 → ProWaitlistModal
+                  <GhostButton
+                    onClick={unlimitedShredGhost.handleClick}
+                    variant="glowing"
+                    icon={Sparkles}
+                  >
+                    解鎖無限次粉碎
+                  </GhostButton>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!title.trim()) {
+                        titleRef.current?.focus();
+                        return;
+                      }
+                      const steps = await aiShredder.shred(title);
+                      if (steps && steps.length > 0) {
+                        // 將 AI 拆解結果灌入 subTaskInputs
+                        // 嚴禁拖曳:不使用 dnd-kit SortableContext,子任務按順序固定
+                        setSubTaskInputs(steps);
+                      }
+                    }}
+                    disabled={!title.trim() || aiShredder.loading}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                    style={{
+                      background: "var(--surface-hover)",
+                      color: "var(--text-secondary)",
+                      border: "1px solid var(--border-hover)",
+                    }}
+                    aria-label="用 AI 拆解任務"
+                    title="把任務拆解成 3-5 個微小步驟,打破啟動癱瘓"
+                  >
+                    {aiShredder.loading ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                        <span>AI 拆解中...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5" aria-hidden />
+                        <span>AI 拆解 ({aiShredder.remainingCount}/{aiShredder.dailyLimit})</span>
+                      </>
+                    )}
+                  </button>
+                )}
+                {aiShredder.error && !aiShredder.isLimitReached && (
                   <p className="mt-1.5 text-[11px] px-2.5 py-1 rounded-lg" style={{ background: "rgba(239, 68, 68, 0.08)", color: "var(--status-danger)" }}>
                     {aiShredder.error}
                   </p>
@@ -723,6 +727,13 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
           </motion.div>
         </div>
       )}
+
+      {/* §假門測試 B:無限次 AI 粉碎 Modal (幽靈按鈕點擊後彈出) */}
+      <ProWaitlistModal
+        open={unlimitedShredGhost.open}
+        onClose={unlimitedShredGhost.handleDismiss}
+        onJoin={unlimitedShredGhost.handleJoin}
+      />
     </AnimatePresence>
   );
 }
