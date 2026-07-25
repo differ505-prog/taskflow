@@ -6,10 +6,11 @@ import { PRIORITY_CONFIG } from "@/lib/types";
 import { useApp } from "@/lib/AppContext";
 import { getTagColors, getOrphanTags } from "@/lib/storage";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Plus, Repeat, Calendar, Mic, MicOff, Hash, AlertCircle, Sparkles } from "lucide-react";
+import { X, Plus, Repeat, Calendar, Mic, MicOff, Hash, AlertCircle, Sparkles, Loader2 } from "lucide-react";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 import { ProGhostButton } from "./ProGhostButton";
+import { useAIShredder } from "@/hooks/useAIShredder";
 import { deleteFile } from "@/lib/storageUpload";
 import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
 import { getEisenhowerVisual } from "@/lib/eisenhower";
@@ -46,6 +47,7 @@ const SELECT_ARROW = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
 export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId, currentView, onDeleteAttachment, initialStatus, initialPriority }: TaskFormProps) {
   const { lists, tasks, getTagCounts } = useApp();
   const keyboard = useKeyboardOffset();
+  const aiShredder = useAIShredder();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   // 預設「暫緩」＝第 4 象限（艾森豪矩陣：避免決策疲勞，新任務預設最低優先）
@@ -345,11 +347,64 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                 {errors.title && <p className="mt-1.5 text-[12px] px-2.5 py-1.5 rounded-lg" style={{ background: "rgba(239,68,68,0.08)", color: "var(--status-danger)" }}>{errors.title}</p>}
               </div>
 
-              {/* AI 自動任務拆解（PRO 幽靈按鈕） */}
-              <ProGhostButton feature="advanced-tags" variant="inline" className="mb-4">
-                <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
-                <span>AI 拆解</span>
-              </ProGhostButton>
+              {/* AI 自動任務拆解 (AI Task Shredder) */}
+              <div className="mb-4">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!title.trim()) {
+                      titleRef.current?.focus();
+                      return;
+                    }
+                    if (aiShredder.isLimitReached) return;
+                    const steps = await aiShredder.shred(title);
+                    if (steps && steps.length > 0) {
+                      // 將 AI 拆解結果灌入 subTaskInputs
+                      // 嚴禁拖曳:不使用 dnd-kit SortableContext,子任務按順序固定
+                      setSubTaskInputs(steps);
+                    }
+                  }}
+                  disabled={!title.trim() || aiShredder.loading || aiShredder.isLimitReached}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  style={{
+                    background: aiShredder.isLimitReached
+                      ? "var(--surface-muted)"
+                      : "linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.1))",
+                    color: aiShredder.isLimitReached
+                      ? "var(--text-tertiary)"
+                      : "#7c3aed",
+                    border: `1px solid ${aiShredder.isLimitReached ? "var(--border)" : "rgba(139, 92, 246, 0.25)"}`,
+                  }}
+                  aria-label={aiShredder.isLimitReached ? "今日 AI 拆解已用完" : "用 AI 拆解任務"}
+                  title={
+                    aiShredder.isLimitReached
+                      ? "今日已用完 3 次,明天再來"
+                      : "把任務拆解成 3-5 個微小步驟,打破啟動癱瘓"
+                  }
+                >
+                  {aiShredder.loading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                      <span>AI 拆解中...</span>
+                    </>
+                  ) : aiShredder.isLimitReached ? (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" aria-hidden />
+                      <span>今日已用完 ({aiShredder.usedCount}/{aiShredder.dailyLimit})</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" aria-hidden />
+                      <span>AI 拆解 ({aiShredder.remainingCount}/{aiShredder.dailyLimit})</span>
+                    </>
+                  )}
+                </button>
+                {aiShredder.error && (
+                  <p className="mt-1.5 text-[11px] px-2.5 py-1 rounded-lg" style={{ background: "rgba(239, 68, 68, 0.08)", color: "var(--status-danger)" }}>
+                    {aiShredder.error}
+                  </p>
+                )}
+              </div>
 
               {/* Description */}
               <div>

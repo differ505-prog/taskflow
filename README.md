@@ -34,6 +34,24 @@ npm run dev
 - 響應式設計 (桌機/平板/手機)
 - 資料本地持久化
 - **附件上傳**（限管理員 / Beta 用戶，使用 Firebase Storage）
+- **AI 任務粉碎機** (Gemini 1.5 Flash,幫 ADHD 把任務拆成 3-5 個極微小步驟;每日 3 次上限)
+
+## 環境變數
+
+複製 `.env.example` 為 `.env.local` 並填入對應值:
+
+```bash
+cp .env.example .env.local
+```
+
+必要:
+- `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase 連線
+- `GEMINI_API_KEY` — AI 任務粉碎機(從 [Google AI Studio](https://aistudio.google.com/apikey) 取得)
+
+選填(production 才需要):
+- `SUPABASE_SERVICE_ROLE_KEY` — Vercel Cron 用
+- `RESEND_API_KEY` / `RESEND_FROM_EMAIL` / `RESEND_FROM_NAME` — Email 通知
+- `CRON_SECRET` — Vercel Cron 驗證
 
 ---
 
