@@ -39,7 +39,7 @@ import { QuickCaptureTrigger } from "@/components/QuickCaptureTrigger";
 import { GhostButton } from "@/components/GhostButton";
 import { ProWaitlistModal } from "@/components/ProWaitlistModal";
 import { useGhostButton } from "@/hooks/useGhostButton";
-import { Hourglass } from "lucide-react";
+import { Hourglass, Users } from "lucide-react";
 import { useApp } from "@/lib/AppContext";
 import type { Task } from "@/lib/types";
 
@@ -93,6 +93,10 @@ export default function ZenDashboard() {
   // §假門測試 A:時間盲防禦條 — 禪模式焦點卡片上的幽靈按鈕
   // 驗證 ADHD 用戶對「將抽象時間具象化」的需求強弱
   const timebarGhost = useGhostButton({ buttonId: "timebar" });
+
+  // §假門測試 D:無聲討伐營地 (body_doubling) — Zen toolbar 右側入口
+  // 與 time_bar 分區,訊號清晰,進入「我要專注」的高意圖時刻自然看到
+  const bodyDoublingGhost = useGhostButton({ buttonId: "body_doubling" });
 
   const focus = visibleTasks[0];
   const queue = visibleTasks.slice(1);
@@ -227,6 +231,17 @@ export default function ZenDashboard() {
             onClick={() => setQuickCaptureOpen(true)}
           />
           <HunterStatusBadge />
+          {/* §假門測試 D — 無聲討伐營地 (body_doubling)
+              位置:任務大廳 icon 左側,獨立入口,與 time_bar(右上角焦點卡片)分區
+              訊號清晰:用戶在「我要專注」時看到,直覺路徑 1 click 內 */}
+          <GhostButton
+            onClick={bodyDoublingGhost.handleClick}
+            variant="glowing"
+            icon={Users}
+            featureId="body_doubling"
+          >
+            無聲營地
+          </GhostButton>
           <Link
             href="/?board=1"
             className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-2 text-sm font-medium text-slate-500 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:text-slate-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 sm:px-4"
@@ -277,6 +292,7 @@ export default function ZenDashboard() {
                     onClick={timebarGhost.handleClick}
                     variant="muted"
                     icon={Hourglass}
+                    featureId="time_bar"
                   >
                     啟動魔力消耗條
                   </GhostButton>
@@ -348,6 +364,15 @@ export default function ZenDashboard() {
         open={timebarGhost.open}
         onClose={timebarGhost.handleDismiss}
         onJoin={timebarGhost.handleJoin}
+        featureId="time_bar"
+      />
+
+      {/* 假門測試 D — 無聲討伐營地 Modal */}
+      <ProWaitlistModal
+        open={bodyDoublingGhost.open}
+        onClose={bodyDoublingGhost.handleDismiss}
+        onJoin={bodyDoublingGhost.handleJoin}
+        featureId="body_doubling"
       />
     </main>
   );

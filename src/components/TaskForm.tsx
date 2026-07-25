@@ -364,6 +364,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                     onClick={unlimitedShredGhost.handleClick}
                     variant="glowing"
                     icon={Sparkles}
+                    featureId="infinite_ai"
                   >
                     解鎖無限次粉碎
                   </GhostButton>
@@ -733,6 +734,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
         open={unlimitedShredGhost.open}
         onClose={unlimitedShredGhost.handleDismiss}
         onJoin={unlimitedShredGhost.handleJoin}
+        featureId="infinite_ai"
       />
     </AnimatePresence>
   );

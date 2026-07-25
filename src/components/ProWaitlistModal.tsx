@@ -4,34 +4,64 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles } from "lucide-react";
+import type { GhostFeatureId } from "./GhostButton";
 
 /**
  * ProWaitlistModal — 幽靈按鈕統一候補名單 Modal
  *
- * 用途：
- *   點擊任一幽靈按鈕(時間盲防禦條 / 無限 AI 粉碎)後彈出,
+ * 用途:
+ *   點擊任一幽靈按鈕(4 個 featureId)後彈出,
  *   誠實告知用戶「功能還沒做好」,並收集加入 Pro 候補意願。
  *
+ * 4 個 featureId 對應文案(教練任務 spec,完全照抄):
+ *   - time_bar      : ⏳ 時間感知魔法醞釀中...
+ *   - infinite_ai   : ✨ 無限粉碎魔法醞釀中...
+ *   - pro_themes    : 👑 S 級獵人特權醞釀中...
+ *   - body_doubling : 🎧 無聲討伐營地醞釀中...
+ *
  * 設計哲學(對應教練任務規範 §3 嚴格禁止地雷):
- * 1. 🚫 禁止欺騙感 — 標題用「正在星空中醞釀...」誠實幽默地表達
+ * 1. 🚫 禁止欺騙感 — 標題用「正在醞釀...」誠實幽默地表達
  * 2. 🚫 禁止付費要求 — Modal 內絕不出現信用卡 / Email 輸入欄位
  * 3. 🚫 禁止煩人 — 透過 useGhostButton hook 管理 1 週靜默
  * 4. 深灰玻璃擬物背景 — 對齊 §3 設計紀律(不要純黑)
  * 5. 兩個 CTA:主按鈕「加入候補」 + 次按鈕「先不用了」
  *
- * 沿用既有 modal pattern：
+ * 沿用既有 modal pattern:
  *   - createPortal + framer-motion (與 QuickCaptureModal 一致)
  *   - Esc 關閉 / 點 backdrop 關閉
  *   - 背景 scroll lock
  */
+
+/** 4 個 featureId 對應文案(SSOT — 教練任務 spec §假門測試) */
+const PRO_WAITLIST_COPY: Record<GhostFeatureId, { title: string; body: string }> = {
+  time_bar: {
+    title: "⏳ 時間感知魔法醞釀中...",
+    body: "「你發現了未來的 Pro 版能力!魔力消耗條將抽象的時間具象化為色塊倒數,徹底治癒時間盲。想第一時間獲得解鎖通知嗎?」",
+  },
+  infinite_ai: {
+    title: "✨ 無限粉碎魔法醞釀中...",
+    body: "「你發現了未來的 Pro 版能力!解除每日 3 次限制,讓 AI 成為你大腦永遠的外接運算單元,告別啟動癱瘓。想第一時間獲得解鎖通知嗎?」",
+  },
+  pro_themes: {
+    title: "👑 S 級獵人特權醞釀中...",
+    body: "「你發現了未來的 Pro 版能力!解鎖專屬的華麗斬擊動畫、客製化稱號,以及極致降噪的深黑主題。想第一時間獲得解鎖通知嗎?」",
+  },
+  body_doubling: {
+    title: "🎧 無聲討伐營地醞釀中...",
+    body: "「你發現了未來的隱藏空間!沒有語音、沒有鏡頭、零社交壓力。這是一個與全球獵人一起無聲奮戰的虛擬專注室。想第一時間獲得解鎖通知嗎?」",
+  },
+};
+
 export interface ProWaitlistModalProps {
   open: boolean;
   onClose: () => void;
+  /** 功能 ID — 決定 Modal 標題與內文(必填,防止忘記傳) */
+  featureId: GhostFeatureId;
   /** 點擊「加入候補名單」後呼叫(通常串 API 標記 waitlist) */
   onJoin?: () => void | Promise<void>;
 }
 
-export function ProWaitlistModal({ open, onClose, onJoin }: ProWaitlistModalProps) {
+export function ProWaitlistModal({ open, onClose, featureId, onJoin }: ProWaitlistModalProps) {
   const [mounted, setMounted] = useState(false);
   const [joining, setJoining] = useState(false);
 
@@ -75,6 +105,8 @@ export function ProWaitlistModal({ open, onClose, onJoin }: ProWaitlistModalProp
   };
 
   if (!mounted) return null;
+
+  const copy = PRO_WAITLIST_COPY[featureId];
 
   return createPortal(
     <AnimatePresence>
@@ -143,14 +175,14 @@ export function ProWaitlistModal({ open, onClose, onJoin }: ProWaitlistModalProp
                 id="pro-waitlist-title"
                 className="mb-3 text-balance text-[19px] font-semibold leading-snug text-white"
               >
-                這個高階魔法正在星空中醞釀... 🌌
+                {copy.title}
               </h2>
 
               <p
                 id="pro-waitlist-desc"
                 className="mb-7 text-balance text-[14px] leading-relaxed text-slate-300"
               >
-                你發現了未來的 Pro 版專屬能力！我們正在全力開發這個功能。想要在它降臨時第一時間獲得通知，並取得早期優惠嗎？
+                {copy.body}
               </p>
 
               {/* CTA 主按鈕 — 紫色漸層(對應幽靈按鈕 B 同色系) */}

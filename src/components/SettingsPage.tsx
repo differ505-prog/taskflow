@@ -26,6 +26,10 @@ import { toast } from "sonner";
 import { useConfirm } from "@/hooks/useConfirm";
 import { isComposingKey } from "@/utils/imeGuard";
 import { ProGhostButton } from "./ProGhostButton";
+import { GhostButton } from "./GhostButton";
+import { ProWaitlistModal } from "./ProWaitlistModal";
+import { useGhostButton } from "@/hooks/useGhostButton";
+import { Palette } from "lucide-react";
 
 interface SettingsPageProps {
   isOpen: boolean;
@@ -36,6 +40,9 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
   const { notificationPermission, requestNotificationPermission, tasks, habits, lists, addTask, addHabit, addList } = useApp();
   const { user, role, roleConfig, isAdmin } = useAuth();
   const confirm = useConfirm();
+  // §假門測試 C:S 級獵人特權 (pro_themes) — 設定頁 PRO 功能區
+  // 與既有 ProGhostButton 並列,但走 ProWaitlistModal 系統
+  const proThemesGhost = useGhostButton({ buttonId: "pro_themes" });
   const [theme, setTheme] = useState<"light" | "dark" | "system">("light");
   const [exportMsg, setExportMsg] = useState<string | null>(null);
   const [importMsg, setImportMsg] = useState<string | null>(null);
@@ -369,7 +376,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                 </ProGhostButton>
               </div>
 
-              {/* 儲存空間管理（幽靈） */}
+              {/* 加大儲存空間（幽靈） */}
               <div className="card px-4 py-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div
@@ -388,6 +395,34 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                 <ProGhostButton feature="storage-cleaner" variant="inline" title="管理儲存空間（PRO 專屬）">
                   <span>管理</span>
                 </ProGhostButton>
+              </div>
+
+              {/* §假門測試 C: S 級獵人特權 (pro_themes) — 主題客製 + 斬擊動畫
+                  與既有的 ProGhostButton 並列,但走 ProWaitlistModal 系統
+                  (教練任務 §假門測試 spec: 文案「👑 S 級獵人特權醞釀中...」) */}
+              <div className="card px-4 py-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: "rgba(251, 191, 36, 0.10)" }}
+                  >
+                    <Palette className="w-4 h-4" style={{ color: "#fbbf24" }} aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>S 級獵人特權</p>
+                    <p className="text-[12px] truncate" style={{ color: "var(--text-tertiary)" }}>
+                      華麗斬擊動畫 · 客製化稱號 · 極致降噪深黑主題
+                    </p>
+                  </div>
+                </div>
+                <GhostButton
+                  onClick={proThemesGhost.handleClick}
+                  variant="glowing"
+                  icon={Palette}
+                  featureId="pro_themes"
+                >
+                  解鎖
+                </GhostButton>
               </div>
             </div>
           </section>
@@ -1231,6 +1266,14 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
           </section>
         </div>
       </motion.div>
+
+      {/* §假門測試 C: S 級獵人特權 (pro_themes) Modal */}
+      <ProWaitlistModal
+        open={proThemesGhost.open}
+        onClose={proThemesGhost.handleDismiss}
+        onJoin={proThemesGhost.handleJoin}
+        featureId="pro_themes"
+      />
     </motion.div>
   );
 }

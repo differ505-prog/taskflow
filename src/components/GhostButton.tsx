@@ -5,23 +5,30 @@ import { Lock, type LucideIcon } from "lucide-react";
 /**
  * GhostButton — 幽靈按鈕共用視覺元件
  *
- * 用途：
+ * 用途:
  *   假門測試 (Fake Door Test) 用,點擊後觸發 ProWaitlistModal
  *
- * 兩種變體：
- *   - `muted`: 灰色低調,帶 Pro 鎖頭 (對應幽靈按鈕 A:時間盲防禦)
- *   - `glowing`: 金/紫微光,搶眼,引導渴望 (對應幽靈按鈕 B:無限 AI 粉碎)
+ * 4 個 featureId(對應教練任務 §假門測試 spec):
+ *   - `time_bar`     : 時間感知魔法(禪模式焦點卡片)
+ *   - `infinite_ai`  : 無限粉碎魔法(任務表單 AI 拆解旁)
+ *   - `pro_themes`   : S 級獵人特權(設定頁外觀區)
+ *   - `body_doubling`: 無聲討伐營地(Zen toolbar 右上)
  *
- * 設計紀律 (§3 色彩紀律)：
- *   - 都不是主品牌色(主品牌色留給 main CTA)
- *   - 微光變體用「看起來像付費功能」的金/紫漸層,符合假門測試意圖
- *   - 鎖頭 icon 永遠可見:明確標示「這是 Pro 功能」,符合誠實原則
+ * 兩種變體:
+ *   - `muted`: 灰色低調,帶 Pro 鎖頭
+ *   - `glowing`: 金/紫微光,搶眼,引導渴望
  *
- * 不耦合 useGhostButton hook：
+ * 不耦合 useGhostButton hook:
  *   此元件純視覺,點擊行為由 onClick 傳入,允許在不同場景重用
  */
 
 export type GhostButtonVariant = "muted" | "glowing";
+
+export type GhostFeatureId =
+  | "time_bar"
+  | "infinite_ai"
+  | "pro_themes"
+  | "body_doubling";
 
 export interface GhostButtonProps {
   /** 點擊事件(由父層傳入,通常接 useGhostButton.handleClick) */
@@ -32,6 +39,8 @@ export interface GhostButtonProps {
   icon: LucideIcon;
   /** 按鈕文字 */
   children: React.ReactNode;
+  /** 功能 ID(用於追蹤 + Modal 文案來源) */
+  featureId?: GhostFeatureId;
   /** 是否為「已被拒絕過」的靜默狀態(只追蹤不開 modal) */
   dismissed?: boolean;
   /** 額外 className */
@@ -45,6 +54,7 @@ export function GhostButton({
   variant,
   icon: Icon,
   children,
+  featureId,
   dismissed = false,
   className,
   style,
@@ -71,6 +81,7 @@ export function GhostButton({
     <button
       type="button"
       onClick={onClick}
+      data-feature-id={featureId}
       className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] ${className ?? ""}`}
       style={{ ...baseStyle, ...style }}
       aria-label={dismissed ? `${typeof children === "string" ? children : ""} (已記錄,但不重複彈窗)` : undefined}
