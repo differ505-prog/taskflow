@@ -202,6 +202,17 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     setHasChanges(false);
   };
 
+  // §A 9.1 方案:一鍵清除任務日期(startDate + dueDate)
+  // - 直接呼叫 updateTask 跳過 handleSave,因為編輯器 state 可能跟 task 不一致(§23 sync 對齊)
+  // - 同步清 local state,避免 hasChanges 殘留誤觸發未儲存提示
+  // - 不影響 dueTime / status / listId / priority(只清日期)
+  const handleClearDate = useCallback(() => {
+    updateTask(task.id, { startDate: undefined, dueDate: undefined });
+    setStartDate("");
+    setDueDate("");
+    setHasChanges(false);
+  }, [task.id, updateTask]);
+
   // ESC 取消 / Enter 儲存（全域鍵盤熱鍵，input 外才生效）
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -855,11 +866,30 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             </div>
           </div>
           {(startDate || dueDate) && (
-            <div className="text-[12px] flex items-center gap-1.5" style={{ color: "var(--text-tertiary)" }}>
+            <div
+              className="group flex items-center gap-1.5"
+              style={{ color: "var(--text-tertiary)" }}
+            >
               <Calendar className="w-3 h-3" />
-              {startDate && dueDate && startDate !== dueDate
-                ? `${formatDateLabel(startDate)} ~ ${formatDateLabel(dueDate)}`
-                : formatDateLabel(startDate || dueDate)}
+              <span className="text-[12px]">
+                {startDate && dueDate && startDate !== dueDate
+                  ? `${formatDateLabel(startDate)} ~ ${formatDateLabel(dueDate)}`
+                  : formatDateLabel(startDate || dueDate)}
+              </span>
+              {/* §A 9.1 方案:一鍵清除日期按鈕
+                  - 桌機:hover 該行時現形(避免視覺雜訊)
+                  - 手機:直接顯示(無 hover,符合 §1 觸控發現性)
+                  - 顏色:rose 提示「刪除」語意,與完成按鈕(綠/白)區分
+                  - 點擊區 24x24 符合 §6 觸控標準 */}
+              <button
+                type="button"
+                onClick={handleClearDate}
+                aria-label="清除任務日期"
+                title="清除日期"
+                className="ml-1 flex h-6 w-6 items-center justify-center rounded-full text-slate-300 transition-all duration-200 ease-out hover:bg-rose-50 hover:text-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 sm:opacity-0 sm:group-hover:opacity-100"
+              >
+                <X className="h-3 w-3" aria-hidden />
+              </button>
             </div>
           )}
           <div>
