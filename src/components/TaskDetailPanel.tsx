@@ -877,16 +877,16 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
                   : formatDateLabel(startDate || dueDate)}
               </span>
               {/* §A 9.1 方案:一鍵清除日期按鈕
-                  - 桌機:hover 該行時現形(避免視覺雜訊)
-                  - 手機:直接顯示(無 hover,符合 §1 觸控發現性)
-                  - 顏色:rose 提示「刪除」語意,與完成按鈕(綠/白)區分
+                  - 全時間可見(slate-300 輕淡),不靠 hover 觸發(先前設計過於隱晦、用戶看不到)
+                  - hover 該行時玫瑰色加深,提示「刪除」語意
+                  - 顏色:rose-500 與完成按鈕(綠/白)區分
                   - 點擊區 24x24 符合 §6 觸控標準 */}
               <button
                 type="button"
                 onClick={handleClearDate}
                 aria-label="清除任務日期"
                 title="清除日期"
-                className="ml-1 flex h-6 w-6 items-center justify-center rounded-full text-slate-300 transition-all duration-200 ease-out hover:bg-rose-50 hover:text-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 sm:opacity-0 sm:group-hover:opacity-100"
+                className="ml-1 flex h-6 w-6 items-center justify-center rounded-full text-slate-300 transition-all duration-200 ease-out hover:bg-rose-50 hover:text-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
               >
                 <X className="h-3 w-3" aria-hidden />
               </button>
