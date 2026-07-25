@@ -143,21 +143,3 @@ export function collectContext(): FeedbackContextPayload {
     collectedAt: new Date().toISOString(),
   };
 }
-
-/**
- * 複製時用的 LLM 整理 prompt 模板。
- * 開發者按「📋 複製 + AI 整理」時,會複製包含 prompt + 多筆 feedback 的 markdown。
- */
-export const FEEDBACK_LLM_PROMPT = `以下是 VibeList 封測/公測期用戶反饋批次,請幫忙歸納:
-
-1. **重複出現的問題**:依出現次數排序,標出每個問題的代表訊息
-2. **熱區路由/元件**:哪個路由 / 元件最常被提及
-3. **優先級建議**:P0(必修)/ P1(下個迭代)/ P2(可有可無)
-4. **新功能建議**:哪些值得做(已用戶主動提)
-5. **假訊號過濾**:哪些是 spurious / 噪音 / 使用者誤會
-
-回應格式:中文 markdown,每條結論附原始反饋編號。
-
----
-
-`;

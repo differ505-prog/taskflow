@@ -1,13 +1,16 @@
 "use client";
 
 /**
- * FeedbackButton + FeedbackModal — 封測/公測反饋浮動入口
+ * FeedbackButton + FeedbackModal — 封測/公測反饋浮動入口(使用者面向)
  *
  * 設計動機(§B 評分 9.2):
  *   - 右下角永遠浮動「📣」按鈕,BetaTester / Pro / Admin 看到
  *   - 點擊 → Modal 自動預填 metadata(§3 feedbackContext)
  *   - 使用者可選打字 1 句話,送出即同步至 Supabase + Discord 開發者通知
- *   - 「📋 複製 + AI 整理」按鈕:備齊 LLM prompt 模板,開發者一鍵複製貼到 Cursor/Claude
+ *
+ * 注意(§A 修正):
+ *   - 「📋 複製 + AI 整理」**不是**使用者功能,是開發者後台(/admin/feedback)的功能
+ *   - 因此本檔**只提供送出**,不提供複製按鈕
  *
  * 對齊既有 pattern(§25):
  *   - Modal 對齊 ConfirmDialog 的 AnimatePresence + focus trap + ESC 監聽
@@ -17,20 +20,18 @@
  * 反覆根因預防(§26):
  *   - §M Provider 旁路:本元件在 AppProviders 內 mount,所有 routes 都看得到
  *   - §O' 雙 hook 死鎖:open state 單一(useState),不混用 hook 內部狀態
- *   - §L navigator.clipboard:Vercel HTTPS 環境原生支援,失敗 fallback execCommand
  *   - §4 高級微互動:200ms transition,hover scale,active scale 0.98
  */
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { MessageSquare, X, ClipboardCopy, Send } from "lucide-react";
+import { MessageSquare, X, Send } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
 import {
   collectContext,
   installFeedbackInterceptors,
   type FeedbackContextPayload,
-  FEEDBACK_LLM_PROMPT,
 } from "@/lib/feedbackContext";
 
 const Z_INDEX = 200; // 對齊 ConfirmDialog
@@ -168,29 +169,6 @@ function FeedbackModal({ open, onClose, userEmail, userRole }: FeedbackModalProp
     }
   };
 
-  const handleCopyForAI = async () => {
-    const payload = `${FEEDBACK_LLM_PROMPT}**單筆反饋**:\n\n- 訊息: ${message || "(無)"}\n- 用戶: ${userEmail ?? "訪客"} (${userRole})\n- 路由: ${context?.route ?? ""}\n- App 版本: ${context?.appVersion ?? ""}\n- Console errors: ${context?.recentConsoleErrors ?? 0}\n- 時間: ${context?.collectedAt ?? ""}\n- 最後操作: ${JSON.stringify(context?.lastActions ?? [], null, 2)}\n- 最近 console errors: ${JSON.stringify(context?.lastConsoleErrors ?? [], null, 2)}`;
-    try {
-      // §L primary path
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(payload);
-      } else {
-        // §L fallback
-        const ta = document.createElement("textarea");
-        ta.value = payload;
-        ta.style.position = "fixed";
-        ta.style.opacity = "0";
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
-      }
-      toast.success("已複製 ✨ — 貼到 Cursor / Claude 即可整理");
-    } catch {
-      toast.error("複製失敗,請手動選取");
-    }
-  };
-
   return (
     <AnimatePresence>
       {open && (
@@ -305,16 +283,6 @@ function FeedbackModal({ open, onClose, userEmail, userRole }: FeedbackModalProp
 
             {/* Footer */}
             <div className="flex items-center gap-2 px-5 py-3 border-t" style={{ borderColor: "var(--border)" }}>
-              <button
-                type="button"
-                onClick={handleCopyForAI}
-                disabled={sending}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12.5px] font-medium transition-all duration-200 hover:bg-black/5 active:scale-95 disabled:opacity-50"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                <ClipboardCopy className="w-3.5 h-3.5" aria-hidden="true" />
-                複製 + AI 整理
-              </button>
               <div className="flex-1" />
               <button
                 type="button"
