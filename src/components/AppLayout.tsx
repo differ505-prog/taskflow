@@ -31,7 +31,7 @@ import { CommandCenter } from "@/components/CommandCenter";
 import { HunterStatusBadge } from "@/components/HunterStatusBadge";
 import { RankUpNotification } from "@/components/RankUpNotification";
 import { useConfirm } from "@/hooks/useConfirm";
-import { Clock, Flame } from "lucide-react";
+import { Calendar, Clock, Eye, Flame } from "lucide-react";
 
 // ─── Inner app (has access to useApp) ───────────────────────
 function AppLayoutInner() {
@@ -262,10 +262,12 @@ function AppLayoutInner() {
     }
   };
 
-  // 月視圖 tabs(戰報 / 沙盤)— §10.3 9.4 方案:
-  // 同一個入口進入,內頁用 tabs 切換,view 內部 state 透過不重設 key 保留
+  // 月視圖模式 (§A9.3 合併):同一入口,內部 mode 切換
+  // - mode="view"(預設)→ 戰報,看月視圖
+  // - mode="plan"→ 沙盤,拖曳任務到日期
+  // 不重設 view 內部 key(CalendarView selectedDate / CommandCenter 拖曳清單) → 切回來保留狀態
   const showMonthTabs = currentView === "calendar" || currentView === "command-center";
-  const activeTab = currentView === "command-center" ? "command-center" : "calendar";
+  const calendarMonthMode: "view" | "plan" = currentView === "command-center" ? "plan" : "view";
 
   const renderDetailPanel = () => (
     <AnimatePresence>
@@ -327,7 +329,7 @@ function AppLayoutInner() {
           <PullToRefresh onRefresh={forceReload} className="flex-1 min-w-0 flex flex-col min-h-0">
             <div className="flex-1 min-w-0 flex flex-col min-h-0">
               {showMonthTabs && (
-                <MonthViewTabs activeTab={activeTab} onChange={(v) => setCurrentView(v)} />
+                <MonthViewTabs mode={calendarMonthMode} onToggle={() => setCurrentView(calendarMonthMode === "plan" ? "calendar" : "command-center")} />
               )}
               {renderView()}
             </div>
@@ -335,7 +337,7 @@ function AppLayoutInner() {
         ) : (
           <div className="flex-1 min-w-0 flex flex-col min-h-0">
             {showMonthTabs && (
-              <MonthViewTabs activeTab={activeTab} onChange={(v) => setCurrentView(v)} />
+              <MonthViewTabs mode={calendarMonthMode} onToggle={() => setCurrentView(calendarMonthMode === "plan" ? "calendar" : "command-center")} />
             )}
             {renderView()}
           </div>
@@ -461,59 +463,55 @@ function AppLayoutInner() {
 }
 
 /**
- * MonthViewTabs — 月視圖內 sub-tabs(戰報 / 沙盤)
+ * MonthViewTabs — 月視圖單入口 + mode toggle (§A9.3 方案)
  *
- * §10.3 9.4 方案關鍵:
- * - 同一個入口進入後,內頁用 tabs 切換(無 modal、無 sheet、無 full page nav)
- * - 不重設 view 內部 key → CalendarView 的 selectedDate / CommandCenter 的拖曳任務清單完全保留
- * - 樣式與 Sidebar 視覺一致:同色系、同尺寸,符合 §3 色彩紀律
+ * 設計動機:
+ * - 原本「戰報 / 沙盤」雙 tab 視覺同質,使用者反饋兩者長很像、感覺只須一個
+ * - 合併為單一「月視圖」入口,內部用右上 icon button 切 mode
+ *   - mode="view"(預設): 戰報 — 看月視圖、點日期看任務細節
+ *   - mode="plan": 沙盤 — 拖曳 inbox 任務到日期
+ * - 切換時不重設 view component 的 key → 兩 mode 的內部 state(選擇的日期、拖曳中任務)全保留
  *
- * 為什麼不在 CalendarView / CommandCenter 內自己加 tab?
- * - 因為這兩個 view 是獨立 component,tabs 是 shell 概念,不是 view 內部概念
- * - 放 shell 讓兩個 view 互不污染,符合 §5 DRY
+ * 為什麼放 shell 而不放 view 內?
+ * - CalendarView / CommandCenter 是獨立 component,mode 是 shell 概念(視覺層),不是 view 邏輯
+ * - 放 shell 維持 component 職責分離(§5 DRY)
  */
 function MonthViewTabs({
-  activeTab,
-  onChange,
+  mode,
+  onToggle,
 }: {
-  activeTab: "calendar" | "command-center";
-  onChange: (v: "calendar" | "command-center") => void;
+  mode: "view" | "plan";
+  onToggle: () => void;
 }) {
-  const tabs = [
-    { id: "calendar" as const, label: "戰報", sub: "看月視圖", icon: <Clock className="w-4 h-4" /> },
-    { id: "command-center" as const, label: "沙盤", sub: "軍機處排程", icon: <Flame className="w-4 h-4" /> },
-  ];
+  const isPlan = mode === "plan";
   return (
     <div
-      role="tablist"
-      aria-label="月視圖模式"
-      className="mx-4 md:mx-6 mt-2 mb-1 inline-flex items-center gap-1 rounded-2xl bg-white p-1 shadow-sm ring-1 ring-slate-200/60 self-start"
+      className="mx-4 md:mx-6 mt-2 mb-1 inline-flex items-center gap-2 self-start"
     >
-      {tabs.map((t) => {
-        const active = t.id === activeTab;
-        return (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={active}
-            aria-controls={`tab-panel-${t.id}`}
-            onClick={() => onChange(t.id)}
-            className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 ${
-              active
-                ? "bg-slate-800 text-slate-50 shadow-sm"
-                : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-            }`}
-          >
-            <span aria-hidden className={active ? "text-slate-50" : "text-slate-400"}>
-              {t.icon}
-            </span>
-            <span>{t.label}</span>
-            <span className={`text-[11px] ${active ? "text-slate-300" : "text-slate-400"}`}>
-              {t.sub}
-            </span>
-          </button>
-        );
-      })}
+      {/* 標題區塊 — 永遠顯示,建立「同一個東西」視覺一致感 */}
+      <div className="inline-flex items-center gap-2 rounded-2xl bg-white px-3.5 py-2 shadow-sm ring-1 ring-slate-200/60">
+        <Calendar className="w-4 h-4 text-slate-500" aria-hidden />
+        <span className="text-[13px] font-medium text-slate-700">月視圖</span>
+        <span className={`text-[11px] ${isPlan ? "text-amber-600 font-medium" : "text-slate-400"}`}>
+          {isPlan ? "沙盤模式 · 拖曳排程" : "戰報模式 · 看月視圖"}
+        </span>
+      </div>
+
+      {/* mode toggle button — 右上 icon switch,符合「一個入口兩種動作」概念 */}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={isPlan ? "切換到戰報模式(看月視圖)" : "切換到沙盤模式(拖曳排程)"}
+        aria-pressed={isPlan}
+        title={isPlan ? "切到戰報" : "切到沙盤"}
+        className={`inline-flex items-center justify-center w-9 h-9 rounded-xl ring-1 transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 ${
+          isPlan
+            ? "bg-amber-50 text-amber-700 ring-amber-200 hover:bg-amber-100"
+            : "bg-white text-slate-500 ring-slate-200/60 hover:bg-slate-50 hover:text-slate-700"
+        }`}
+      >
+        {isPlan ? <Eye className="w-4 h-4" aria-hidden /> : <Flame className="w-4 h-4" aria-hidden />}
+      </button>
     </div>
   );
 }
