@@ -151,8 +151,54 @@ export async function notifyFirstTaskDone(
 }
 
 /**
- * 每日總結報表（由外部 cron/scheduler 呼叫）
- * 格式：今日新註冊人數、任務完成數、活躍用戶
+ * 反饋通知(對齊既有 notify 函式風格)
+ * 觸發條件:用戶按下「📣 送出反饋」按鈕
+ * 調用方:/api/feedback/route.ts
+ */
+export async function notifyFeedback(data: {
+  userEmail: string | null;
+  userRole: string;
+  route: string;
+  previewText: string;
+  context?: unknown;
+}): Promise<void> {
+  if (!WEBHOOK_URL) return;
+
+  const timestamp = new Date().toISOString();
+  const userLabel = data.userEmail
+    ? `${data.userEmail} (${data.userRole})`
+    : `訪客 (${data.userRole})`;
+
+  const embed: DiscordEmbed = {
+    title: "📣 收到用戶反饋",
+    description: data.previewText
+      ? `**${userLabel}** 在 \`${data.route || "—"}\` 留下反饋:\n> ${data.previewText}`
+      : `**${userLabel}** 在 \`${data.route || "—"}\` 送出反饋(僅 metadata,無文字)`,
+    color: BRAND_COLOR,
+    fields: [
+      {
+        name: "📍 路由",
+        value: data.route || "—",
+        inline: true,
+      },
+      {
+        name: "👤 用戶",
+        value: userLabel,
+        inline: true,
+      },
+    ],
+    footer: {
+      text: "TaskFlow — 封測/公測反饋收集",
+    },
+    timestamp,
+  };
+
+  await sendDiscord([embed]);
+}
+
+/**
+ * 每日總結報表(由外部 cron/scheduler 呼叫)
+ * 格式:今日新註冊人數、任務完成數、活躍用戶
  */
 export async function notifyDailySummary(data: {
   newUsers: number;
