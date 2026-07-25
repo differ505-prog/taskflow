@@ -56,7 +56,7 @@ export function FeedbackButton() {
         onClick={() => setOpen(true)}
         aria-label="送出反饋"
         title="📣 任何想法 / bug / 優化建議都歡迎"
-        className="fixed bottom-20 right-4 z-[150] flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-all duration-200 ease-out hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+        className="fixed bottom-4 right-4 z-[150] flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-all duration-200 ease-out hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
         style={{
           background: "var(--brand)",
           color: "var(--brand-foreground, white)",

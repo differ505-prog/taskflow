@@ -32,6 +32,7 @@ import { useHunterStatus } from "@/hooks/useHunterStatus";
 import { useRankUpNotification, RankUpNotification } from "@/components/RankUpNotification";
 import { HunterStatusBadge } from "@/components/HunterStatusBadge";
 import { WarmupSection } from "@/components/WarmupSection";
+import { FeedbackButton } from "@/components/FeedbackButton";
 import PresenceDot from "@/components/PresenceDot";
 import { BASE_TASK_EXP } from "@/lib/hunterRank";
 import { QuickCaptureTrigger } from "@/components/QuickCaptureTrigger";
@@ -155,7 +156,12 @@ export default function ZenDashboard() {
   const activeTask = activeId ? visibleTasks.find((t) => t.id === activeId) : null;
 
   return (
-    <main className="relative min-h-screen bg-slate-50 px-4 pb-36 pt-10 sm:px-8 sm:pb-24">
+    <main className="relative min-h-screen bg-slate-50 px-4 pb-32 pt-10 sm:px-8 sm:pb-28">
+      {/* §M §26 命中類別新:P 全域 floating CTA 與 fullscreen 內容區避讓策略
+          ZenDashboard 是 full-screen 禪模式,FAB 的 fixed bottom-4 在小視窗會
+          飄進 UPCOMING QUEUE 區上方。給 main pb-32(128px)= FAB 飄在 viewport 底
+          16px + h-12=48px + 安全緩衝 64px,確保內容區底部留白足以避開。 */}
+
       {/* StatusWindow — 禪模式獨立路由不經 AppLayout,需自掛一份 */}
       <StatusWindow />
 
