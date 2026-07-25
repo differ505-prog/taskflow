@@ -34,8 +34,8 @@ import { HunterStatusBadge } from "@/components/HunterStatusBadge";
 import { WarmupSection } from "@/components/WarmupSection";
 import PresenceDot from "@/components/PresenceDot";
 import { BASE_TASK_EXP } from "@/lib/hunterRank";
+import { QuickCaptureTrigger } from "@/components/QuickCaptureTrigger";
 import { useApp } from "@/lib/AppContext";
-import { Plus } from "lucide-react";
 import type { Task } from "@/lib/types";
 
 /** 禪模式看的任務樣態：嚴格「今日討伐清單 (The Today Rule)」
@@ -206,20 +206,12 @@ export default function ZenDashboard() {
 
         {/* 右群組:獵人徽章 + 任務大廳(導航歸屬) */}
         <div className="flex items-center gap-3">
-          {/* §10.3 9.1 方案:常駐熱鍵提示 chip
-              桌機才顯示 — 手機 FAB「捕捉靈感」已是視覺入口,毋需重複
-              點擊同樣召喚 QuickCaptureModal,桌機用戶不背熱鍵也能直觀觸達 */}
-          <button
-            type="button"
+          {/* QuickCaptureTrigger §10.3 9.1 → §C2 9.2:桌機專用 CTA(品牌色)
+              ⌘K 提示 hover 才揭示,符合「按鈕為主、熱鍵為輔」雙平台一致原則 */}
+          <QuickCaptureTrigger
+            variant="desktop"
             onClick={() => setQuickCaptureOpen(true)}
-            aria-label="快速新增任務(⌘ K / Ctrl K)"
-            className="hidden items-center gap-1.5 rounded-full bg-white/80 px-3 py-2 text-sm font-medium text-slate-500 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:text-slate-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 md:inline-flex"
-          >
-            <kbd className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-slate-700">
-              ⌘ K
-            </kbd>
-            <span>新增任務</span>
-          </button>
+          />
           <HunterStatusBadge />
           <Link
             href="/?board=1"
@@ -321,19 +313,12 @@ export default function ZenDashboard() {
           桌機手機都顯示,右側無其他 fixed 元素競爭 */}
       <PresenceDot />
 
-      {/* Mobile FAB — 只在 md 以下顯示,桌機用 Cmd+K
-          §15.4 mobile safe area:bottom padding 避 iOS home indicator
-          「捕捉靈感」label 跟著 FAB,視覺一目了然 */}
-      <button
-        type="button"
+      {/* Mobile FAB — §C2 9.2:共用 QuickCaptureTrigger 元件,桌機手機視覺強度對齊
+          §15.4 mobile safe area:bottom padding 避 iOS home indicator */}
+      <QuickCaptureTrigger
+        variant="mobile"
         onClick={() => setQuickCaptureOpen(true)}
-        aria-label="捕捉靈感到收件箱"
-        className="md:hidden fixed bottom-6 left-1/2 z-30 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-slate-800 px-5 py-3 text-sm font-medium text-slate-50 shadow-lg ring-1 ring-slate-900/10 backdrop-blur-md transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-slate-700 hover:shadow-xl active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
-        style={{ bottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))" }}
-      >
-        <Plus className="h-4 w-4" aria-hidden />
-        <span>捕捉靈感</span>
-      </button>
+      />
     </main>
   );
 }
