@@ -155,7 +155,7 @@ export default function ZenDashboard() {
   const activeTask = activeId ? visibleTasks.find((t) => t.id === activeId) : null;
 
   return (
-    <main className="relative min-h-screen bg-slate-50 px-4 py-10 sm:px-8">
+    <main className="relative min-h-screen bg-slate-50 px-4 pb-36 pt-10 sm:px-8 sm:pb-24">
       {/* StatusWindow — 禪模式獨立路由不經 AppLayout,需自掛一份 */}
       <StatusWindow />
 
