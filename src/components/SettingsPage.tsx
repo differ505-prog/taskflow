@@ -420,6 +420,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                   variant="glowing"
                   icon={Palette}
                   featureId="pro_themes"
+                  dismissed={proThemesGhost.dismissed}
                 >
                   解鎖
                 </GhostButton>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { logEvent } from "@/lib/eventLog";
 
 /**
@@ -71,6 +72,8 @@ export interface UseGhostButtonOptions {
 export interface UseGhostButtonReturn {
   /** Modal 是否開啟 */
   open: boolean;
+  /** 該按鈕是否已訂閱提醒（1 週內不再彈窗）— 父層可據此渲染徽章,避免「按鍵故障」誤判 */
+  dismissed: boolean;
   /** 點擊幽靈按鈕(對外暴露的單一入口) */
   handleClick: () => void;
   /** Modal 內「先不用了」 */
@@ -90,11 +93,14 @@ export function useGhostButton(options: UseGhostButtonOptions): UseGhostButtonRe
   }, [buttonId]);
 
   const handleClick = useCallback(() => {
-    // 已拒絕過(且未過期)→ 點擊不再彈,只記點擊事件(統計用)
+    // 已拒絕過(且未過期)→ 點擊不再彈,只記點擊事件(統計用) + 提示用戶「已訂閱」
     if (dismissed) {
       logEvent(clickEvent ?? `click_ghost_button_${buttonId}`, {
         buttonId,
         metadata: { suppressed: true },
+      });
+      toast.success("已加入提醒,1 週內不再彈窗", {
+        description: "這是尚未推出的 Pro 功能預約,到時會通知你。",
       });
       return;
     }
@@ -128,6 +134,7 @@ export function useGhostButton(options: UseGhostButtonOptions): UseGhostButtonRe
 
   return {
     open,
+    dismissed,
     handleClick,
     handleDismiss,
     handleJoin,

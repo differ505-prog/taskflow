@@ -365,6 +365,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                     variant="glowing"
                     icon={Sparkles}
                     featureId="infinite_ai"
+                    dismissed={unlimitedShredGhost.dismissed}
                   >
                     解鎖無限次粉碎
                   </GhostButton>

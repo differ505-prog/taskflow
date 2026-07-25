@@ -20,6 +20,7 @@
 | #003 | ESC 退回日曆後任務 sheet 永久消失，所有任務再也點不開 | §26 類別 O' / 雙 hook 獨立 state 死鎖 | `69feb42` | 2026-07-22 |
 | #004 | 任務多時最後一個任務被底部截斷，滑不到 | 容器 `overflow-y-auto` 的 `pb` padding 在裁切邊界內失效 | `89082d7` | 2026-07-22 |
 | #005 | 象限雷達桌面 2x2 滾動錯位（單獨一卡片能滑、其他三張靜止），且 grid 高度被 1fr 鎖死 | view pattern vs page pattern 混用（候選 §26 類別 P） | `6f5c2ca` | 2026-07-24 |
+| #006 | 幽靈按鈕 1 週靜默期後再點無反應，客人以為按鍵故障 | hook 出口缺失 + GhostButton 已實作 `dismissed` prop 但無父層傳入 | (待 commit) | 2026-07-26 |
 
 ---
 
@@ -268,3 +269,50 @@ return (
 | 2026-07-22 | 新增 §26 類別 O（React `useEffect` stale closure 漏 deps — ESC handler 條件 `if (selectedTaskId \ | \ |
 | 2026-07-22 | 新增 §26 類別 O'（雙 hook 獨立 state 死鎖 — 日曆 ESC 後 sheet 永久消失,useBottomSheet internalLevel 卡在 closed 只清 selectedDate 不夠,需呼叫 open() 重置）+ 同步更新 bug案例.md #003。本對話 commit: 69feb42 | **§26-O': 9.4**(首輪即達標,免二輪) |
 | 2026-07-24 | 登記 §26 類別 P 候選（view pattern vs page pattern 混用 — QuadrantRadarView 用 min-h-screen 但被 AppLayout 嵌入）+ 同步更新 bug案例.md #005。本對話 commit: 6f5c2ca。**只登記候選、不寫正式公約**：目前僅 QuadrantRadarView 單一個案，未來累積到 ≥2 個同類 bug 再正式提公約 | **候選自評 8.8**（已達累計門檻 9.0 之下,故不正式入條；本筆記供未來參考） |
+
+---
+
+## #006 — 幽靈按鈕 1 週靜默期後再點無反應，客人以為按鍵故障
+
+### 症狀（用戶描述）
+- 點「無聲營地」或「啟動魔力消耗條」幽靈按鈕 → 第一次 Modal 出來
+- 點 Modal 任何位置（背景 backdrop / 「先不用了」 / 「加入候補」 / ESC）後 Modal 關閉
+- **1 週內再次點同按鈕 → 完全無反應**（沒有 modal、沒有任何視覺/聽覺回饋）
+- **重新整理網頁後再點 → 仍然無反應**
+- 客人直覺判斷為「按鍵壞了」,不會知道是設計意圖的「禁止煩人」靜默期
+
+### Root Cause（hook 出口缺失 + GhostButton 視覺盲點）
+
+兩個並行問題：
+
+1. **`useGhostButton` 沒有把 `dismissed` 出口給父層**
+   - hook 內部有 `dismissed` state（行 87）追蹤用戶是否已訂閱
+   - 但 `UseGhostButtonReturn` interface **只暴露 `open` / `handleClick` / `handleDismiss` / `handleJoin`**
+   - 父層無法知道目前是 dismissed 狀態,只能繼續渲染「未訂閱」樣式
+   - §18d 重述確認：這是 §13「最小變更」鐵律下的設計失序 — 為了不擴大範圍，**hook 沒出口 dismissed**，**結果把「視覺永遠正常」當成默認**,沒人意識到「dismissed 後視覺應該變」
+
+2. **`GhostButton` 元件已實作 `dismissed` prop 但無父層傳入**
+   - 元件 interface 早就定義了 `dismissed?: boolean`（行 45），且 `aria-label` 也有對應處理
+   - **但 5 個幽靈按鈕使用點（`timebar` / `body_doubling` / `unlimited_shred` / `pro_themes` / 共用元件）都沒人傳 `dismissed={...}`**
+   - 永遠 `dismissed = false` 預設值 → 按鈕永遠顯示「未訂閱」樣式
+   - §14.1 全鏈條掃描才能發現這個失序 — 從單一檔案看會以為「元件已支援」,實際上沒人用
+
+兩個問題疊加 → 1 週靜默期內,**視覺永遠是「未訂閱」樣式**,點擊卻 **永遠無反應**,客人只能猜是 bug。
+
+### 修法（B4 雙保險方案）
+
+| 改動 | 檔案 | 範圍 |
+|---|---|---|
+| 1. `useGhostButton` 加 `dismissed` 出口 + 點擊 dismissed 時呼 toast | `src/hooks/useGhostButton.ts` | hook return 多一個 `dismissed: boolean` 欄位；行 94-100 dismissed 分支加 `toast.success("已加入提醒,1 週內不再彈窗", { description: "這是尚未推出的 Pro 功能預約,到時會通知你。" })` |
+| 2. `GhostButton` 已訂閱狀態顯示「已記錄」徽章（取代鎖頭） | `src/components/GhostButton.tsx` | 改 import `BellRing` 取代單一 `Lock`；按鈕根元素加 `data-dismissed` 屬性 + `title` tooltip；`dismissed` 為 true 時改用 dashed border + 降透明度（不要灰到完全看不出是 Pro）+ BellRing 圖示（取代 Lock）；新增 `data-testid="ghost-button-subscribed-badge"` |
+| 3. 4 個使用點傳 `dismissed={ghost.dismissed}` | `ZenDashboard.tsx` / `TaskForm.tsx` / `SettingsPage.tsx` | 每個 `<GhostButton>` 加 prop（涵蓋 `timebar` / `body_doubling` / `unlimited_shred` / `pro_themes` 全部） |
+
+### 驗證（§12）
+- `npx tsc --noEmit` → exit 0，clean
+- `npm run build` → exit 0，25 routes + middleware 全部 build 成功（用戶案例 #006 之前）
+
+### 教訓（轉化成 §26 修憲候選）
+- **§26 類別 Q 候選 — hook 出口缺失 + 元件 prop 已實作但無父層傳入**：當元件 interface 已定義某個可選 prop（如 `dismissed`）但無任何使用點傳入時，**等於 prop 形同虛設**。判定法：grep 元件 prop 定義 + grep 所有使用點，確認 prop 真的有值傳入。**治本**：typeScript 應該讓必填 prop 不能無值傳入，但這會破壞 API 彈性。
+- **§25 既有防護對齊**：使用既有 `sonner` toast API（§15 之外的標準 pattern），不重發明 toast hook。
+- **§7 防禦性 UI 延伸**：客人不會知道 1 週靜默期設計 — **靜默期的視覺狀態必須可辨識**(已記錄/已訂閱)，不能讓按鍵「看起來能按但按了沒反應」。
+- **§13 最小變更鐵律反思**：為了不擴大範圍，hook 沒出口 `dismissed` 是合理選擇；**但若配合元件的 `dismissed` prop 也沒人用**，失序就累積了。**教訓**：元件已實作但未使用的 prop 是「半完成 state」，code review 應主動揭露。

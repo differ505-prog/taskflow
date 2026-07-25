@@ -239,6 +239,7 @@ export default function ZenDashboard() {
             variant="glowing"
             icon={Users}
             featureId="body_doubling"
+            dismissed={bodyDoublingGhost.dismissed}
           >
             無聲營地
           </GhostButton>
@@ -293,6 +294,7 @@ export default function ZenDashboard() {
                     variant="muted"
                     icon={Hourglass}
                     featureId="time_bar"
+                    dismissed={timebarGhost.dismissed}
                   >
                     啟動魔力消耗條
                   </GhostButton>
