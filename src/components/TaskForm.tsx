@@ -347,8 +347,10 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                 {errors.title && <p className="mt-1.5 text-[12px] px-2.5 py-1.5 rounded-lg" style={{ background: "rgba(239,68,68,0.08)", color: "var(--status-danger)" }}>{errors.title}</p>}
               </div>
 
-              {/* AI 自動任務拆解 (AI Task Shredder) */}
-              <div className="mb-4">
+              {/* AI 自動任務拆解 (AI Task Shredder)
+                  - 與上方 input 分區:用 mt-1 (對齊 input error message 間距) + 視覺換色 (中性灰藍) 與 mic 紫色拉開
+                  - 嚴禁拖曳:生成的子步驟是單向線性,不用 dnd-kit */}
+              <div className="mt-3">
                 <button
                   type="button"
                   onClick={async () => {
@@ -369,11 +371,11 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                   style={{
                     background: aiShredder.isLimitReached
                       ? "var(--surface-muted)"
-                      : "linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.1))",
+                      : "var(--surface-hover)",
                     color: aiShredder.isLimitReached
                       ? "var(--text-tertiary)"
-                      : "#7c3aed",
-                    border: `1px solid ${aiShredder.isLimitReached ? "var(--border)" : "rgba(139, 92, 246, 0.25)"}`,
+                      : "var(--text-secondary)",
+                    border: `1px solid ${aiShredder.isLimitReached ? "var(--border)" : "var(--border-hover)"}`,
                   }}
                   aria-label={aiShredder.isLimitReached ? "今日 AI 拆解已用完" : "用 AI 拆解任務"}
                   title={
