@@ -31,25 +31,34 @@ import { renderAmnestiaEmail, renderWeeklyReportEmail } from "@/emails";
 
 // ─── 環境變數 ────────────────────────────────────────────────────────────
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "VibeList <noreply@vibelist.app>";
 const RESEND_FROM_NAME = process.env.RESEND_FROM_NAME ?? "VibeList Guild";
 
 // Vercel Cron 自動注入的 secret；本地測試可用 ?secret=xxx 蓋過
 const CRON_SECRET = process.env.CRON_SECRET;
 
-// ─── Supabase Admin Client（讀取 user 資料） ─────────────────────────────
+// ─── Lazy client factory ──────────────────────────────────────────────────
+//
+// §26 命中類別 H (Build 失敗導致改動「隱形上線」陷阱)：
+// 原本 supabaseAdmin / resend 在 module top-level 就 create,
+// Next.js build 階段 collect page data 會 evaluate 此模組,
+// 若 SUPABASE_SERVICE_ROLE_KEY 缺 → throw "supabaseKey is required" → build 失敗。
+// 改為函式內 lazy init：module load 不評估 env,只在 cron 實際觸發時才檢查,
+// 不影響 build,但 runtime 時缺 env 仍會回 500(行為不變)。
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error("Supabase admin client not configured (missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)");
+  }
+  return createClient(url, key);
+}
 
-// ─── Resend Client ───────────────────────────────────────────────────────
-
-const resend = RESEND_API_KEY
-  ? new Resend(RESEND_API_KEY)
-  : null;
+function getResend(): Resend | null {
+  const key = process.env.RESEND_API_KEY;
+  return key ? new Resend(key) : null;
+}
 
 // ─── GET handler ──────────────────────────────────────────────────────────
 
@@ -70,6 +79,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const resend = getResend();
   if (!resend) {
     return NextResponse.json(
       { error: "RESEND_API_KEY not configured" },
@@ -78,11 +88,21 @@ export async function GET(request: NextRequest) {
   }
 
   // ── 3. 分派任務 ────────────────────────────────────────────
+  let supabaseAdmin;
+  try {
+    supabaseAdmin = getSupabaseAdmin();
+  } catch (err) {
+    return NextResponse.json(
+      { error: "Supabase admin not configured", detail: String(err) },
+      { status: 500 }
+    );
+  }
+
   try {
     const result =
       type === "amnestia"
-        ? await sendAmnestiaBatch()
-        : await sendWeeklyReportBatch();
+        ? await sendAmnestiaBatch(supabaseAdmin, resend)
+        : await sendWeeklyReportBatch(supabaseAdmin, resend);
 
     return NextResponse.json(result, { status: 200 });
   } catch (err) {
@@ -96,7 +116,7 @@ export async function GET(request: NextRequest) {
 
 // ─── 批次 A：3 天未登入喚回信 ────────────────────────────────────────────
 
-async function sendAmnestiaBatch() {
+async function sendAmnestiaBatch(supabaseAdmin: ReturnType<typeof getSupabaseAdmin>, resend: Resend) {
   const threeDaysAgo = new Date();
   threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
@@ -146,7 +166,7 @@ async function sendAmnestiaBatch() {
 
 // ─── 批次 B：週末戰報（每週五，僅發給當週活躍用戶） ──────────────────────
 
-async function sendWeeklyReportBatch() {
+async function sendWeeklyReportBatch(supabaseAdmin: ReturnType<typeof getSupabaseAdmin>, resend: Resend) {
   const weekStart = new Date();
   weekStart.setDate(weekStart.getDate() - weekStart.getDay() - 6); // 本週一
   weekStart.setHours(0, 0, 0, 0);
