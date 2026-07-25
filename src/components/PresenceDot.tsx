@@ -29,7 +29,7 @@ export default function PresenceDot() {
     <div
       className="fixed right-6 z-20 inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-2 backdrop-blur"
       style={{
-        bottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))",
+        bottom: "max(5rem, env(safe-area-inset-bottom, 0px))",
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
