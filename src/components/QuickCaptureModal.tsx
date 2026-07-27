@@ -139,11 +139,11 @@ export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps
             role="dialog"
             aria-modal="true"
             aria-label="快速捕捉任務到收件箱"
-            initial={{ opacity: 0, y: -12, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+            initial={{ opacity: 0, y: -12, x: "-50%", scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, x: "-50%", scale: 1 }}
+            exit={{ opacity: 0, y: -8, x: "-50%", scale: 0.98 }}
             transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-            className="absolute left-1/2 top-[18vh] -translate-x-1/2 w-[min(640px,calc(100dvw-32px))]"
+            className="absolute left-1/2 top-[18vh] w-[min(640px,calc(100dvw-32px))]"
             onClick={(e) => e.stopPropagation()}
           >
             <div
