@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useApp } from "@/lib/AppContext";
 import { Task } from "@/lib/types";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
+import { format, isToday, isSameMonth, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus, X, ChevronDown, ChevronRight as ChevronRightSm, Maximize2, Minimize2, Trash2 } from "lucide-react";
 import { TaskDetailPanel } from "./TaskDetailPanel";
@@ -12,6 +12,7 @@ import { TaskForm } from "./TaskForm";
 import { useBottomSheet } from "@/hooks/useBottomSheet";
 import { useRef } from "react";
 import { haptic } from "@/lib/haptics";
+import { useMonthGrid } from "@/hooks/useMonthGrid";
 
 interface CalendarViewProps {
   /** YYYY-MM-DD;null = 不顯示 sheet。由 AppLayout 統一管理(§26 O' ESC 死鎖防護)。 */
@@ -42,59 +43,57 @@ export function CalendarView({
   onOpenMobileSidebar,
 }: CalendarViewProps) {
   const { tasks, updateTask, toggleTaskStatus, addTask, deleteTask, searchQuery } = useApp();
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [draggingTask, setDraggingTask] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  // ─── 手機水平 swipe 換月（iOS/Android 原生行事曆慣例）───
-  // 對齊 TaskDetailPanel L424 80px 門檻;加方向鎖定避免與垂直 scroll 衝突
-  // 方向鎖定:首次 move 決定主軸,後續只處理主軸手勢
-  const SWIPE_THRESHOLD = 80; // px
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-  const lastDeltaRef = useRef<{ dx: number; dy: number } | null>(null);
-  const directionLockedRef = useRef<"h" | "v" | null>(null);
+  // ─── 月視圖邏輯抽出 useMonthGrid(§A1 整合:共用元件+hook)───
+  const {
+    days,
+    currentMonth,
+    prevMonth: hookPrevMonth,
+    nextMonth: hookNextMonth,
+    resetMonth,
+    getTasksForDay,
+    matchedDayHas,
+    handleDragOver,
+    handleDrop: hookHandleDrop,
+    draggingTaskId,
+    swipeTouchHandlers,
+  } = useMonthGrid({
+    tasks,
+    searchQuery,
+    onUpdateTaskDates: (taskId, startDate, dueDate) =>
+      updateTask(taskId, { startDate, dueDate }),
+    enableSwipe: true,
+  });
 
-  const handleSwipeTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    lastDeltaRef.current = null;
-    directionLockedRef.current = null;
-  }, []);
-
-  const handleSwipeTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!touchStartRef.current) return;
-    const dx = e.touches[0].clientX - touchStartRef.current.x;
-    const dy = e.touches[0].clientY - touchStartRef.current.y;
-    lastDeltaRef.current = { dx, dy };
-
-    if (directionLockedRef.current !== null) return;
-    // 至少 8px 才決定方向,避免靜止手抖
-    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-    if (Math.abs(dx) > Math.abs(dy) * 1.5) {
-      directionLockedRef.current = "h";
-    } else if (Math.abs(dy) > Math.abs(dx) * 1.5) {
-      directionLockedRef.current = "v";
-    }
-  }, []);
-
+  // 包裝 swipe handlers — 月曆月切換觸發 haptic 提示
+  const handleSwipeTouchStart = useCallback(
+    swipeTouchHandlers.onTouchStart,
+    [swipeTouchHandlers.onTouchStart],
+  );
+  const handleSwipeTouchMove = useCallback(
+    swipeTouchHandlers.onTouchMove,
+    [swipeTouchHandlers.onTouchMove],
+  );
   const handleSwipeTouchEnd = useCallback(() => {
-    const locked = directionLockedRef.current;
-    const delta = lastDeltaRef.current;
-    touchStartRef.current = null;
-    lastDeltaRef.current = null;
-    directionLockedRef.current = null;
-
-    // sheet 開啟時不解 swipe（避免與 SwipeableTaskCard 衝突）
-    if (selectedDate) return;
-    if (locked !== "h" || !delta) return;
-    if (Math.abs(delta.dx) < SWIPE_THRESHOLD) return;
-    // 向左滑 (dx < 0) → 下個月;向右滑 (dx > 0) → 上個月
-    haptic("selection");
-    if (delta.dx < 0) {
-      setCurrentMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
-    } else {
-      setCurrentMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
+    // 月切換 haptic 提示交給 currentMonth 變化的 useEffect 觸發(避免在未達門檻時誤觸)
+    swipeTouchHandlers.onTouchEnd();
+  }, [swipeTouchHandlers]);
+  const prevMonth = () => {
+    hookPrevMonth();
+  };
+  const nextMonth = () => {
+    hookNextMonth();
+  };
+  // 月切換 haptic 提示
+  const prevMonthRef = useRef(currentMonth);
+  useEffect(() => {
+    if (prevMonthRef.current.getTime() !== currentMonth.getTime()) {
+      haptic("selection");
+      prevMonthRef.current = currentMonth;
     }
-  }, [selectedDate]);
+  }, [currentMonth]);
+
   // 本地 TaskForm state — 與 QuadrantRadarView 同樣 own-state pattern
   // 已選定日期 → 預填 dueDate = selectedDate;否則 = 今日
   const initialDate = selectedDate ?? new Date().toISOString().slice(0, 10);
@@ -104,6 +103,10 @@ export function CalendarView({
     setQuickFormPrefillDueDate(selectedDate ?? new Date().toISOString().slice(0, 10));
     setIsFormOpen(true);
   }, [selectedDate]);
+
+  const handleDayClick = (dateStr: string) => {
+    onSelectDate(dateStr);
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -118,61 +121,6 @@ export function CalendarView({
     }
   }, [selectedDate]);
 
-  const days = useMemo(() => {
-    const start = startOfMonth(currentMonth);
-    const end = endOfMonth(currentMonth);
-    const allDays = eachDayOfInterval({ start, end });
-
-    // Pad start
-    const startDay = start.getDay();
-    const padBefore = Array.from({ length: startDay }, (_, i) => {
-      const d = new Date(start);
-      d.setDate(d.getDate() - (startDay - i));
-      return d;
-    });
-
-    // Pad end to complete the last week
-    // [§26-K fix] 原 (7 - endDay - 1) % 7 + 1 在 endDay=5 時算 (7-5-1)%7+1 = 2%7+1 = 3,pad 出 3 天但只需要 2 天(7/31 五→8/2 日)
-    // 改為 (7 - endDay) % 7: 7/31 五(endDay=5)→(7-5)%7=2 ✓
-    const endDay = end.getDay();
-    const padAfterLen = (7 - endDay) % 7;
-    const padAfter = Array.from({ length: padAfterLen }, (_, i) => {
-      const d = new Date(end);
-      d.setDate(d.getDate() + i + 1);
-      return d;
-    });
-
-    return [...padBefore, ...allDays, ...padAfter];
-  }, [currentMonth]);
-
-  const getTasksForDay = (date: Date): Task[] => {
-    const dateStr = format(date, "yyyy-MM-dd");
-    const result = tasks.filter((t) => {
-      if (t.isArchived) return false;
-      const start = t.startDate;
-      const end = t.dueDate;
-      // 有日期：顯示在該日期範圍內的任務；沒日期：只要有 dueDate 就顯示在那天
-      if (start && end) return dateStr >= start && dateStr <= end;
-      if (!start && end) return dateStr === end;
-      if (start && !end) return dateStr === start;
-      return false;
-    });
-    return result;
-  };
-
-  // [§26-K guard] 搜尋期間:dayTasks 加上「符合搜尋的子集」屬性,用於格子高亮
-  const matchedDayHas = (dayTasks: Task[]): boolean => {
-    if (!searchQuery.trim()) return false;
-    const q = searchQuery.toLowerCase();
-    return dayTasks.some(
-      (t) =>
-        t.title.toLowerCase().includes(q) ||
-        t.description?.toLowerCase().includes(q) ||
-        t.tags.some((tag) => tag.toLowerCase().includes(q)) ||
-        t.subTasks?.some((s) => s.title.toLowerCase().includes(q))
-    );
-  };
-
   const submitQuickAdd = (dateStr: string, title: string) => {
     const trimmed = title.trim();
     if (!trimmed) return;
@@ -186,37 +134,20 @@ export function CalendarView({
     });
   };
 
-  const prevMonth = () => setCurrentMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
-  const nextMonth = () => setCurrentMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
-
-  // Drag and drop
-  const handleDragStart = (taskId: string) => setDraggingTask(taskId);
-  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
+  // [§A1 整合] CalendarView 原本 handleDrop 在「找不到 task 時」會直接更新 dueDate;
+  // useMonthGrid 的 hook 版本只保留 lengthDays 統一規則。
+  // 這裡維持原本 CalendarView 行為:找不到 task 時也設 dueDate。
   const handleDrop = (date: Date) => {
-    if (!draggingTask) return;
+    if (!draggingTaskId) return;
     const dateStr = format(date, "yyyy-MM-dd");
-    const task = tasks.find((t) => t.id === draggingTask);
-    if (task) {
-      const oldStart = task.startDate || task.dueDate || dateStr;
-      const oldEnd = task.dueDate || task.startDate || dateStr;
-      const lengthDays = Math.round(
-        (parseISO(oldEnd).getTime() - parseISO(oldStart).getTime()) / 86400000
-      );
-      const newStart = dateStr;
-      const newEndDate = new Date(parseISO(newStart).getTime() + lengthDays * 86400000);
-      const newEnd = format(newEndDate, "yyyy-MM-dd");
-      updateTask(draggingTask, {
-        startDate: newStart,
-        dueDate: newEnd,
-      });
-    } else {
-      updateTask(draggingTask, { startDate: dateStr, dueDate: dateStr });
+    const task = tasks.find((t) => t.id === draggingTaskId);
+    if (!task) {
+      // 保留原本行為:直接設 dueDate(即使 task 找不到也視為「放下到某天」)
+      updateTask(draggingTaskId, { startDate: dateStr, dueDate: dateStr });
+      return;
     }
-    setDraggingTask(null);
-  };
-
-  const handleDayClick = (dateStr: string) => {
-    onSelectDate(dateStr);
+    // 否則用 hook 統一規則(保留 lengthDays)
+    hookHandleDrop(date);
   };
 
   // ─── Desktop 三欄佈局 ───────────────────────────────
@@ -237,7 +168,7 @@ export function CalendarView({
         onOpenTaskForm={openTaskForm}
         prevMonth={prevMonth}
         nextMonth={nextMonth}
-        resetMonth={() => setCurrentMonth(new Date())}
+        resetMonth={resetMonth}
         getTasksForDay={getTasksForDay}
         matchedDayHas={matchedDayHas}
         searchQuery={searchQuery}
@@ -308,7 +239,7 @@ export function CalendarView({
               <ChevronLeft className="w-5 h-5" />
             </button>
             <button
-              onClick={() => setCurrentMonth(new Date())}
+              onClick={resetMonth}
               className="px-3 py-1.5 rounded-xl text-[13px] font-medium hover:bg-black/5 transition-colors"
               style={{ color: "var(--text-secondary)" }}
             >
@@ -355,7 +286,7 @@ export function CalendarView({
         >
           {days.map((day, i) => {
             const isCurrentMonth = isSameMonth(day, currentMonth);
-            const isTodayDate = isToday(day);
+            const isToday_ = isToday(day);
             const dateStr = format(day, "yyyy-MM-dd");
             const dayTasks = getTasksForDay(day);
             const isSelected = selectedDate === dateStr;
@@ -383,7 +314,7 @@ export function CalendarView({
                   <span
                     className="w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-medium"
                     style={
-                      isTodayDate
+                      isToday_
                         ? { background: "var(--brand)", color: "var(--brand-foreground)" }
                         : isCurrentMonth
                         ? { color: "var(--text-primary)" }
@@ -591,7 +522,7 @@ function DesktopCalendarLayout({
         >
           {days.map((day, i) => {
             const isCurrentMonth = isSameMonth(day, currentMonth);
-            const isTodayDate = isToday(day);
+            const isToday_ = isToday(day);
             const dateStr = format(day, "yyyy-MM-dd");
             const dayTasks = getTasksForDay(day);
             const isSelected = selectedDate === dateStr;
@@ -617,7 +548,7 @@ function DesktopCalendarLayout({
                   <span
                     className="w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-medium"
                     style={
-                      isTodayDate
+                      isToday_
                         ? { background: "var(--brand)", color: "var(--brand-foreground)" }
                         : isCurrentMonth
                         ? { color: "var(--text-primary)" }
