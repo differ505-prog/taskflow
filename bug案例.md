@@ -21,6 +21,7 @@
 | #004 | 任務多時最後一個任務被底部截斷，滑不到 | 容器 `overflow-y-auto` 的 `pb` padding 在裁切邊界內失效 | `89082d7` | 2026-07-22 |
 | #005 | 象限雷達桌面 2x2 滾動錯位（單獨一卡片能滑、其他三張靜止），且 grid 高度被 1fr 鎖死 | view pattern vs page pattern 混用（候選 §26 類別 P） | `6f5c2ca` | 2026-07-24 |
 | #006 | 幽靈按鈕 1 週靜默期後再點無反應，客人以為按鍵故障 | hook 出口缺失 + GhostButton 已實作 `dismissed` prop 但無父層傳入 | `a6b7ea4` | 2026-07-26 |
+| #007 | 手機版點底部「今天」 → 「頁面錯誤，請重新整理」，重新整理也沒恢復 | React Hooks Rules 違規：`useProactiveClosure` 被放在條件 IIFE 內 | `c114f8c` | 2026-07-28 |
 
 ---
 
@@ -316,3 +317,52 @@ return (
 - **§25 既有防護對齊**：使用既有 `sonner` toast API（§15 之外的標準 pattern），不重發明 toast hook。
 - **§7 防禦性 UI 延伸**：客人不會知道 1 週靜默期設計 — **靜默期的視覺狀態必須可辨識**(已記錄/已訂閱)，不能讓按鍵「看起來能按但按了沒反應」。
 - **§13 最小變更鐵律反思**：為了不擴大範圍，hook 沒出口 `dismissed` 是合理選擇；**但若配合元件的 `dismissed` prop 也沒人用**，失序就累積了。**教訓**：元件已實作但未使用的 prop 是「半完成 state」，code review 應主動揭露。
+
+---
+
+## #007 — 手機版點底部「今天」 → 「頁面錯誤，請重新整理」,重新整理也沒恢復
+
+### 症狀（用戶描述）
+- 手機版（mobile PWA / Safari tab 任一）點底部導航的「今天」按鈕
+- 頁面跳轉到錯誤頁（字面命中「頁面錯誤,發生非預期錯誤,請重新整理」)
+- 按重新整理按鈕 → **錯誤持續存在,沒有恢復**
+- 桌面版因 layout 寬 chip 永遠顯示所以未觸發症狀（窄螢幕才會 hit IIFE 條件為 false 的情境）
+
+### Root Cause（React Hooks Rules 違規）
+- `src/components/AppShell.tsx` 第 525-538 行（原 line）把 `useProactiveClosure` 放在「今天先這樣」按鈕的條件 IIFE 內：
+  ```tsx
+  {!["today", "next7days", "list", "archived"].includes(currentView) &&
+    filteredTasks.some((t) => t.status !== "done") && (() => {
+      const { wrapUp, wrapping } = useProactiveClosure({  // ← Hooks Rules 違規
+        onBeforeWrap: async (pending) => { ... },
+      });
+      return <button>今天先這樣</button>;
+    })()}
+  ```
+- `useProactiveClosure.ts:42` 內部用了 `useState`,**它是真正的 React Hook**
+- 點「今天」後 `currentView="today"` → IIFE 條件變 false → 這次 render `useProactiveClosure` **沒被呼叫**
+- 但 inbox / list / 全部 等其他 view 的 render 有呼叫
+- React 偵測到「**Rendered fewer hooks than during the previous render**」
+- React 拋錯 → 接住 → 顯示「頁面錯誤,請重新整理」
+- 「重新整理也沒恢復」:reload 後 state 重載 → `currentView=inbox` 切到 `today` → IIFE 條件再變 false → render 又少一個 hook → 又炸
+- **第二次同症狀才發現是個 hooks 違規**,第一輪看症狀「點今天就壞」會以為是 routing 或專屬頁面問題
+
+### 修法（A 方案 / hook 搬頂層 + 按鈕條件渲染）
+| 改動 | 檔案 | 範圍 |
+|---|---|---|
+| 1. `useProactiveClosure` 從條件 IIFE 內搬到 `AppShell` 函式頂層 | `src/components/AppShell.tsx:218-232` | 新增 `const { wrapUp, wrapping } = useProactiveClosure({...})`(加 `showWrapUpButton` 衍生 boolean)|
+| 2.「今天先這樣」按鈕從 IIFE 三元改為 `{showWrapUpButton && <button>...}` | `src/components/AppShell.tsx` toolbar 區塊 | 移除原本 16 行 IIFE,改為 14 行單純條件渲染 |
+
+- 零行為改變,行為 100% 等價（hook 在 render 階段永遠執行）
+- Hook 出口穩定,條件切換不會再影響 hooks 呼叫數
+
+### 驗證（§12）
+- `npx tsc --noEmit` → exit 0,clean
+- 後續 §15.6 評估：純 JSX 結構/hook 位置修,**純樣式/結構 0 tool call 上限**,無 runtime 驗證需求(滿足 §15.6)
+- 用戶驗證：手機版點「今天」「收集箱」「清單」「全部」四個 view 任一來回切換都不再炸
+
+### 教訓（轉化成 §26 修憲候選）
+- **§26 類別 R 候選 — React Hooks Rules 違規（hook 放在條件/IIFE 內）**:症狀鐵三角 = (a) view/state 切換時崩潰 (b) 重新整理無效 (c) ErrorBoundary 拋「Rendered fewer hooks」錯誤。判定法：grep `useState|useEffect|useCallback|useRef|useMemo|useApp|useConfirm|useProactiveClosure` 等所有 hook 出口,確認**全部在函式頂層宣告,沒有任何一個在條件/IIFE/迴圈內**。**治本**：ESLint `react-hooks/rules-of-hooks` rule (`error` 等級),建構即擋;TypeScript 無法抓這個錯誤。
+- **§27 debug 流程驗證**:本 bug 完全符合 §27 debug 流程 — 先讀 SSOT(`OPTIMIZATIONS.md`)確認「今天分頁錯誤」不在 backlog → 新增觀察 → grep 同檔所有 hook call（§14.1）→ 發現 IIFE 內 hook → 修復。沒有走盲改循環。
+- **§26 類別對照**:這不是「雙 hook 獨立 state 死鎖」（§26 類別 O'）,也不是「嵌套 ternary 修錯層」（§26 類別 N）,而是**hooks 呼叫數依 runtime condition 變動**這個獨立類別。雖然同樣是 React Hooks 錯誤家族,但根因機制完全不同,需獨立登記候選。
+- **§15.6 純結構修 0 tool call**:本修法純結構調整(hook 位置 + JSX 條件渲染),不需要 runtime/CDP/瀏覽器驗證 — 通過 tsc 即可,符合 §15.6 純樣式/結構類 0 tool call 上限。
