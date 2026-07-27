@@ -250,6 +250,8 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
       title,
       status: initialData?.subTasks?.[i]?.status || "todo" as const,
       createdAt: initialData?.subTasks?.[i]?.createdAt || new Date().toISOString(),
+      // O-008:若 initialData 有 order 保留,新子任務用 i 作 order
+      order: initialData?.subTasks?.[i]?.order ?? i,
     }));
     // 區間：未填截止日但有起始日 → 自動把截止日 = 起始日（單日任務）
     // Today 視圖新建時：未填截止日 → 預設為今天（符合 Smart Defaults 原則）

@@ -156,6 +156,8 @@ export interface SubTask {
   title: string;
   status: "todo" | "done";
   createdAt: string;
+  /** 拖曳排序位置:在「未完成」區內由小到大;舊資料 undefined 視為建立順序 lazy migrate */
+  order: number;
 }
 
 export interface Task {

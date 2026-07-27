@@ -91,11 +91,13 @@ export function applyTemplate(template: Template, ctx: ApplyContext): ApplyResul
 
   const taskIds: string[] = [];
   for (const t of template.tasks) {
-    const subTasks: SubTask[] | undefined = t.subTasks?.map((s) => ({
+    const subTasks: SubTask[] | undefined = t.subTasks?.map((s, idx) => ({
       id: crypto.randomUUID(),
       title: s.title,
       status: "todo" as const,
       createdAt: now.toISOString(),
+      // O-008:模板子任務用 idx 作 order
+      order: idx,
     }));
 
     const id = ctx.addTask({

@@ -112,6 +112,8 @@ interface AppContextValue {
   addSubTask: (parentId: string, title: string) => void;
   toggleSubTask: (parentId: string, subId: string) => void;
   deleteSubTask: (parentId: string, subId: string) => void;
+  /** O-008:拖曳排序後重編「未完成」子任務 order;已完成區不動 */
+  reorderSubTasks: (parentId: string, newTodoSubs: SubTask[]) => void;
 
   // ── 週期 ──────────────────────────────────────────────
   completeRecurringAndClone: (taskId: string) => void;
@@ -893,8 +895,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const addSubTask = useCallback((parentId: string, title: string) => {
     const task = tasks.find((t) => t.id === parentId);
     if (!task) return;
-    const subTask: SubTask = { id: generateId(), title, status: "todo", createdAt: new Date().toISOString() };
-    updateTask(parentId, { subTasks: [...(task.subTasks || []), subTask] });
+    // O-008:新子任務 order = 既有長度(append 在最尾端)
+    const existingSubs = task.subTasks || [];
+    const subTask: SubTask = {
+      id: generateId(),
+      title,
+      status: "todo",
+      createdAt: new Date().toISOString(),
+      order: existingSubs.length,
+    };
+    updateTask(parentId, { subTasks: [...existingSubs, subTask] });
   }, [tasks, updateTask]);
 
   const toggleSubTask = useCallback((parentId: string, subId: string) => {
@@ -911,6 +921,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!task) return;
     const subTasks = (task.subTasks || []).filter((s) => s.id !== subId);
     updateTask(parentId, { subTasks });
+  }, [tasks, updateTask]);
+
+  // O-008:拖曳後重編 order。陣列傳入即新順序(僅「未完成」區);保持 createdAt/title/status 不變
+  const reorderSubTasks = useCallback((parentId: string, newTodoSubs: SubTask[]) => {
+    const task = tasks.find((t) => t.id === parentId);
+    if (!task) return;
+    const existingSubs = task.subTasks || [];
+    const doneSubs = existingSubs.filter((s) => s.status === "done");
+    // 重編未完成區 order 為 0..N-1;已完成區保留原 order 不動
+    const renumbered: SubTask[] = newTodoSubs.map((s, idx) => ({ ...s, order: idx }));
+    const merged = [...renumbered, ...doneSubs];
+    updateTask(parentId, { subTasks: merged });
   }, [tasks, updateTask]);
 
   // ── 週期任務 ────────────────────────────────────────────
@@ -1663,7 +1685,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     searchQuery, setSearchQuery,
     activeFilter, setActiveFilter,
     addTask, updateTask, deleteTask, toggleTaskStatus, archiveTask, unarchiveTask,
-    addSubTask, toggleSubTask, deleteSubTask,
+    addSubTask, toggleSubTask, deleteSubTask, reorderSubTasks,
     completeRecurringAndClone,
     addList, updateList, deleteList, reorderLists, reorderTasks,
     addHabit, updateHabit, archiveHabit, unarchiveHabit, checkinHabit: checkinHabitFn,

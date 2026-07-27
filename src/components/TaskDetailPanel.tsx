@@ -18,6 +18,16 @@ import { sortSubTasks } from "@/utils/subtaskSort";
 import { useSubTaskCollapse } from "@/utils/useSubTaskCollapse";
 import { isComposingKey, isComposingSubmit } from "@/utils/imeGuard";
 import { useDebouncedField } from "@/utils/useDebouncedField";
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor,
+  useSensor, useSensors, DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove, SortableContext, sortableKeyboardCoordinates,
+  useSortable, verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical } from "lucide-react";
 import { ListChipPicker } from "./ListChipPicker";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
 import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
@@ -51,7 +61,7 @@ interface TaskDetailPanelProps {
 const SELECT_ARROW = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23999' strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E";
 
 export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
-  const { updateTask, deleteTask, lists, getTagCounts, markEditingActivity, clearEditingActivity } = useApp();
+  const { updateTask, deleteTask, lists, getTagCounts, markEditingActivity, clearEditingActivity, reorderSubTasks } = useApp();
   const { user } = useAuth();
   const confirm = useConfirm();
   const keyboard = useKeyboardOffset();
@@ -355,6 +365,8 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
       title: t,
       status: "todo" as const,
       createdAt: new Date().toISOString(),
+      // O-008:新子任務 order = 既有長度(append 在最尾端)
+      order: subTasks.length,
     };
     const updated: SubTask[] = [...subTasks, newSub];
     setSubTasks(updated);
@@ -391,6 +403,29 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     setSubTasks(updated);
     updateTask(task.id, { subTasks: updated });
     setEditingSubId(null);
+  };
+
+  // ─── O-008 子任務拖曳排序 ───────────────────────────
+  // 只拖「未完成」區;已完成區維持摺疊不動
+  const subTaskSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleSubTaskDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const sorted = sortSubTasks(subTasks);
+    const todoSubs = sorted.filter((s) => s.status !== "done");
+    const oldIndex = todoSubs.findIndex((s) => s.id === active.id);
+    const newIndex = todoSubs.findIndex((s) => s.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const nextTodo = arrayMove(todoSubs, oldIndex, newIndex);
+    // 樂觀更新本地 state(與 reorderTasks 同模式)
+    const doneSubs = subTasks.filter((s) => s.status === "done");
+    const renumberedTodo = nextTodo.map((s, idx) => ({ ...s, order: idx }));
+    setSubTasks([...renumberedTodo, ...doneSubs]);
+    reorderSubTasks(task.id, nextTodo);
   };
 
   const selectStyle = {
@@ -633,17 +668,22 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             const doneSubs = sorted.filter((s) => s.status === "done");
             return (
               <>
-                {todoSubs.map((sub) => (
-                  <SwipeableSubTask
-                    key={sub.id}
-                    sub={sub}
-                    isEditing={editingSubId === sub.id}
-                    onToggle={() => toggleSubTask(sub.id)}
-                    onEdit={() => setEditingSubId(sub.id)}
-                    onEditCommit={(title) => commitEditSubTask(sub.id, title)}
-                    onDelete={() => deleteSubTask(sub.id)}
-                  />
-                ))}
+                {/* O-008:子任務拖曳排序 — 只拖未完成區 */}
+                <DndContext sensors={subTaskSensors} collisionDetection={closestCenter} onDragEnd={handleSubTaskDragEnd}>
+                  <SortableContext items={todoSubs.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+                    {todoSubs.map((sub) => (
+                      <SortableSwipeableSubTask
+                        key={sub.id}
+                        sub={sub}
+                        isEditing={editingSubId === sub.id}
+                        onToggle={() => toggleSubTask(sub.id)}
+                        onEdit={() => setEditingSubId(sub.id)}
+                        onEditCommit={(title) => commitEditSubTask(sub.id, title)}
+                        onDelete={() => deleteSubTask(sub.id)}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
                 {doneSubs.length > 0 && (
                   <div className="mt-1.5 pt-1.5 border-t border-dashed" style={{ borderColor: "var(--border)" }}>
                     <button
@@ -966,6 +1006,64 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
           taskTitle={task.title}
           open={commentsDrawerOpen}
           onClose={() => setCommentsDrawerOpen(false)}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── O-008 Sortable 包裹層 — 不汙染原 SwipeableSubTask (§17-P 精神)───
+// 只把外層 setNodeRef + 手柄按鈕的 sortable listeners 包進來,內部仍用原 SwipeableSubTask
+function SortableSwipeableSubTask({
+  sub, isEditing, onToggle, onEdit, onEditCommit, onDelete,
+}: {
+  sub: SubTask;
+  isEditing: boolean;
+  onToggle: () => void;
+  onEdit: () => void;
+  onEditCommit: (title: string) => void;
+  onDelete: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sub.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  // 手柄:桌機 hover 才出現,手機永遠顯示(對齊 O-006 SortableListItem)
+  // touch-action: none 避 iOS Safari dnd-kit setPointerCapture 衝突
+  const handleSetRef = (el: HTMLButtonElement | null) => {
+    if (el) {
+      el.style.touchAction = "none";
+      el.style.userSelect = "none";
+    }
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="relative group/sub flex items-center gap-1">
+      {/* 拖曳手柄 — sortable 唯一入口,attributes+listeners 全部掛這 */}
+      <button
+        ref={handleSetRef}
+        type="button"
+        aria-label={`拖曳排序子任務 ${sub.title}`}
+        className="flex-shrink-0 w-5 h-7 flex items-center justify-center rounded-md cursor-grab active:cursor-grabbing opacity-0 group-hover/sub:opacity-100 transition-opacity duration-150"
+        style={{ color: "var(--text-tertiary)", touchAction: "none" }}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="w-3.5 h-3.5" />
+      </button>
+
+      <div className="flex-1 min-w-0">
+        <SwipeableSubTask
+          sub={sub}
+          isEditing={isEditing}
+          onToggle={onToggle}
+          onEdit={onEdit}
+          onEditCommit={onEditCommit}
+          onDelete={onDelete}
         />
       </div>
     </div>
