@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useApp } from "@/lib/AppContext";
 import { useConfirm } from "@/hooks/useConfirm";
+import { useProactiveClosure } from "@/hooks/useProactiveClosure";
 import { Task, AppView, TaskList } from "@/lib/types";
 import { TaskCard } from "./TaskCard";
 import { TaskSwipeWrapper } from "./SwipeableTaskCard";
@@ -80,7 +81,7 @@ export function AppShell({
     lists,
     activeFilter, setActiveFilter,
     addTask, updateTask, deleteTask, toggleTaskStatus,
-    archiveTask, quickAdd, getFilteredTasks, viewCounts,
+    quickAdd, getFilteredTasks, viewCounts,
     getTagCounts,
     toggleSubTask, addSubTask, deleteSubTask, completeRecurringAndClone,
     quickAddToShared, updateSharedTask, deleteSharedTask,
@@ -520,24 +521,26 @@ const canDrag = !currentSharedListId;
                       </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {!["today", "next7days", "list", "archived"].includes(currentView) &&
-                        filteredTasks.some((t) => t.status !== "done") && (
+                        filteredTasks.some((t) => t.status !== "done") && (() => {
+                          // 透過 useProactiveClosure 統一資料流
+                          // 與 Zen 模式 TodayWrapUpButton 共用 hook,行為鎖死一致
+                          const { wrapUp: proactiveWrap, wrapping: proactiveWrapping } = useProactiveClosure({
+                            onBeforeWrap: async (pending) => {
+                              const ok = await confirm({
+                                title: "今天先這樣？",
+                                message: `把 ${pending.length} 項未完成的任務收起來,明天又是新的開始。`,
+                                confirmText: "好,明天再說",
+                                cancelText: "再想想",
+                                tone: "info",
+                              });
+                              return ok;
+                            },
+                          });
+                          return (
                         <button
-                          onClick={async () => {
-                            const pendingCount = filteredTasks.filter((t) => t.status !== "done").length;
-                            const ok = await confirm({
-                              title: "今天先這樣？",
-                              message: `把 ${pendingCount} 項未完成的任務收起來,明天又是新的開始。`,
-                              confirmText: "好,明天再說",
-                              cancelText: "再想想",
-                              tone: "info",
-                            });
-                            if (ok) {
-                              filteredTasks
-                                .filter((t) => t.status !== "done")
-                                .forEach((t) => archiveTask(t.id));
-                            }
-                          }}
-                          className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 rounded-full text-[12px] font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
+                          onClick={() => { void proactiveWrap(filteredTasks); }}
+                          disabled={proactiveWrapping}
+                          className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 rounded-full text-[12px] font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                           style={{ background: "rgba(120,119,198,0.12)", color: "var(--text-secondary)" }}
                           title="把未完成的任務收起來,給自己一個乾淨的開始"
                         >
@@ -547,7 +550,8 @@ const canDrag = !currentSharedListId;
                           </svg>
                           今天先這樣
                         </button>
-                      )}
+                          );
+                        })()}
                       <div className="flex items-center gap-0.5 p-1 rounded-xl" style={{ background: "rgba(0,0,0,0.04)" }}>
                         <button onClick={() => setViewMode("list")} className="p-1.5 rounded-lg transition-all duration-150" style={viewMode === "list" ? { background: "var(--surface)", boxShadow: "var(--shadow-xs)", color: "var(--text-primary)" } : { color: "var(--text-tertiary)" }} aria-label="列表檢視">
                           <List className="w-4 h-4" />
