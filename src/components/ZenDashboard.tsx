@@ -38,6 +38,7 @@ import { BASE_TASK_EXP } from "@/lib/hunterRank";
 import { QuickCaptureTrigger } from "@/components/QuickCaptureTrigger";
 import { GhostButton } from "@/components/GhostButton";
 import { ProWaitlistModal } from "@/components/ProWaitlistModal";
+import { TodayWrapUpButton } from "@/components/TodayWrapUpButton";
 import { useGhostButton } from "@/hooks/useGhostButton";
 import { Hourglass, Users } from "lucide-react";
 import { useApp } from "@/lib/AppContext";
@@ -334,6 +335,9 @@ export default function ZenDashboard() {
               </DndContext>
           </section>
         )}
+
+        {/* 「今天先這樣」 — 禪模式主動封存,只剩焦點卡時也可單獨封存 */}
+        <TodayWrapUpButton tasks={visibleTasks} />
       </div>
 
       {/* §10.3 9.2 方案:Spotlight 風格「大腦傾倒」浮動輸入框
