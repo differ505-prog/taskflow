@@ -24,30 +24,6 @@ function useTaskStats() {
   return { tasks, isLoaded };
 }
 
-// 計算連續完成天數（streak）
-function calcStreak(completedDates: string[]): number {
-  if (completedDates.length === 0) return 0;
-  const sorted = [...new Set(completedDates)].sort().reverse();
-  const today = new Date().toISOString().split("T")[0];
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
-
-  // 必須今天或昨天有完成才視為有效 streak
-  if (sorted[0] !== today && sorted[0] !== yesterday) return 0;
-
-  let streak = 1;
-  for (let i = 1; i < sorted.length; i++) {
-    const prev = new Date(sorted[i - 1]);
-    const curr = new Date(sorted[i]);
-    const diff = (prev.getTime() - curr.getTime()) / 86400000;
-    if (diff === 1) {
-      streak++;
-    } else {
-      break;
-    }
-  }
-  return streak;
-}
-
 // 計算每週完成數
 function calcWeeklyDone(tasks: Task[]): { thisWeek: number; lastWeek: number; bestDay: { date: string; count: number } } {
   const now = new Date();
@@ -119,8 +95,8 @@ export default function StatsClient() {
     if (!isLoaded) return null;
 
     const done = tasks.filter((t) => t.status === "done");
-    const completedDates = done.map((t) => t.completedAt?.split("T")[0]).filter(Boolean) as string[];
-    const streak = calcStreak(completedDates);
+    const todayKey = new Date().toISOString().split("T")[0];
+    const todayDone = done.filter((t) => t.completedAt?.split("T")[0] === todayKey).length;
     const weekly = calcWeeklyDone(tasks);
     const doneCount = done.length;
     const milestone = getMilestoneMessage(doneCount);
@@ -129,7 +105,7 @@ export default function StatsClient() {
       ? Math.round(((weekly.thisWeek - weekly.lastWeek) / weekly.lastWeek) * 100)
       : weekly.thisWeek > 0 ? 100 : 0;
 
-    return { doneCount, streak, weekly, milestone, thisWeekPct };
+    return { doneCount, todayDone, weekly, milestone, thisWeekPct };
   }, [tasks, isLoaded]);
 
   if (!isLoaded) {
@@ -184,7 +160,7 @@ export default function StatsClient() {
                     你已完成 {stats.doneCount} 個任務
                   </p>
                   <p className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
-                    {stats.streak > 1 ? `🔥 連續 ${stats.streak} 天` : "今天開始你的旅程"}
+                    {stats.todayDone > 0 ? `今天已完成 ${stats.todayDone} 個任務` : "今天開始你的旅程"}
                   </p>
                 </div>
               </div>
@@ -267,7 +243,7 @@ export default function StatsClient() {
 
         {/* 核心快樂指標 */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {/* 連續天數 */}
+          {/* 今日完成 */}
           <motion.div
             className="card px-5 py-5"
             initial={{ opacity: 0, y: 12 }}
@@ -276,22 +252,20 @@ export default function StatsClient() {
           >
             <div className="flex items-center justify-between mb-3">
               <span className="text-[12px] font-medium uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
-                專注火種
+                今日完成
               </span>
-              <Flame className="w-4 h-4" style={{ color: stats?.streak && stats.streak >= 3 ? "#F97316" : "var(--text-tertiary)" }} aria-hidden="true" />
+              <CheckCircle2 className="w-4 h-4" style={{ color: "var(--status-success)" }} aria-hidden="true" />
             </div>
             <div className="flex items-end gap-2">
               <span className="text-[32px] font-bold leading-none" style={{ color: "var(--text-primary)" }}>
-                {stats?.streak ?? 0}
+                {stats?.todayDone ?? 0}
               </span>
-              <span className="text-[14px] pb-1" style={{ color: "var(--text-secondary)" }}>天</span>
+              <span className="text-[14px] pb-1" style={{ color: "var(--text-secondary)" }}>個</span>
             </div>
             <p className="text-[12px] mt-1.5" style={{ color: "var(--text-tertiary)" }}>
-              {stats?.streak && stats.streak >= 3
-                ? `🔥 保持燃燒！`
-                : stats?.streak === 1
-                ? "今天開始你的旅程"
-                : "連續完成任務來累積"}
+              {stats && stats.todayDone > 0
+                ? "✨ 今天已經開始累積獎勵"
+                : "完成一個任務來啟動今日"}
             </p>
           </motion.div>
 

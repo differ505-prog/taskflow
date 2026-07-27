@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useApp } from "@/lib/AppContext";
 import { Habit } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
-import { Plus, X, CheckCircle2, Circle, Trash2, Edit3, Flame, Target, TrendingUp, Heart } from "lucide-react";
+import { Plus, X, CheckCircle2, Circle, Trash2, Edit3, TrendingUp, Heart } from "lucide-react";
 import { useConfirm } from "@/hooks/useConfirm";
 
 const HABIT_COLORS = ["#4F6AF5", "#8B5CF6", "#EC4899", "#EF4444", "#F97316", "#EAB308", "#22C55E", "#14B8A6", "#06B6D4", "#636366"];
@@ -75,16 +75,6 @@ function HabitRow({ habit, onCheckin, onDelete, onUpdate, onRestore }: {
           <div className="flex items-start justify-between gap-2">
             <div>
               <h3 className="text-[15px] font-medium" style={{ color: "var(--text-primary)" }}>{habit.title}</h3>
-              <div className="flex items-center gap-3 mt-1">
-                <span className="flex items-center gap-1 text-[12px]" style={{ color: "var(--status-danger)" }}>
-                  <Flame className="w-3.5 h-3.5" />
-                  {habit.streak} 天
-                </span>
-                <span className="flex items-center gap-1 text-[12px]" style={{ color: "var(--text-tertiary)" }}>
-                  <Target className="w-3.5 h-3.5" />
-                  最佳 {habit.longestStreak} 天
-                </span>
-              </div>
             </div>
             <div className="flex gap-1">
               <button
