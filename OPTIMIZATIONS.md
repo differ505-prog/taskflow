@@ -16,6 +16,7 @@
 | 4 | 日曆 task panel 滾輪連續滾動時「任務超慢出現」 | ① 全域 `scroll-behavior: smooth` 對 panel 來說是雷：wheel event 連發 = 排一堆 smooth 動畫 queue = frame 卡住。改 panel 加 `.calendar-task-panel { scroll-behavior: auto }` 覆寫;② panel `transition-all duration-200` 在滾動期間任何子元素 transition 都會重新觸發動畫 → 拿掉;③ ResizeObserver 加 `requestAnimationFrame` debounce + window resize 主動重算。驗證:`npm run build` clean | `c526b3f` | 2026-07-21 |
 | 5 | **O-006 清單拖曳排序(自有清單)** | dnd-kit `<DndContext>` + `<SortableContext>` + `SortableListItem`;手柄按鈕(GripVertical),桌機 hover 顯示 / 手機永遠顯示;touch-action: none 避 iOS Safari 衝突;PointerSensor delay 200ms tolerance 5px 避按下手柄時與 scroll 衝突;KeyboardSensor 為 a11y;`reorderLists` 重編 order + 5 秒 §26-A 保護窗 + batchSaveLists;排除系統預設「收集箱」清單(只拖用戶自建) | `5e6b2bc` | 已上線 |
 | 6 | **O-007 主任務拖曳排序(同清單內)** | `reorderTasks` 對齊 `reorderLists` 模式:重編 order + bump updatedAt + §26-A 5 秒保護窗 + batchSaveTasks;AppShell `handleDragEnd` + ZenDashboard 禪模式焦點隊列拖曳已接上;註解明示「不跨清單(簡單版範圍)」,O-007 跨清單版待評估 | `acb222e` | 已上線 |
+| 7 | **O-008 子任務拖曳排序** | SubTask schema 加 `order: number` 欄位 + lazy migrate 用 createdAt 兜底;`sortSubTasks` 改為 status 分組 + order 升冪;DndContext + SortableContext 包「未完成」區(已完成區維持摺疊不動);`SortableSwipeableSubTask` 包裹層不汙染原 SwipeableSubTask(§17-P 精神);PointerSensor delay 200ms/tolerance 5px + KeyboardSensor a11y;`reorderSubTasks(parentId, newTodoSubs)` 走 `updateTask` 既有鏈(子任務跨裝置同步衝突機率低,免 §26-A 保護窗) | `3eebe17` | 已上線 |
 
 ---
 
@@ -39,16 +40,8 @@
 - **狀態**:📐 架構規劃中,本次未動工
 - **動手前**:必須先寫詳細 RFC + 評分表 ≥ 9 分方案
 
-### O-008 子任務拖曳排序
-- **痛點**:子任務新增順序就是列表順序,沒辦法調整優先度(原 O-004 觀察中,本次升級為待評估)
-- **理想**:dnd-kit sortable + 手柄,在 `TaskDetailPanel` 內拖曳排序
-- **影響**:
-  - UI:`src/components/TaskDetailPanel.tsx` 子任務區塊加 SortableContext
-  - State:子任務目前是 `Task.subTasks: SubTask[]` 扁平字串陣列(無 order 欄位)
-  - 同步:子任務隨母任務整包同步,`Task.updatedAt` 觸發
-- **估算成本**:2-3 小時(待 O-006 / O-007 確認手感後再啟動)
-- **動手前**:需先決定子任務要不要加 `order` 欄位(若升級為獨立任務見 O-001 則不用)
-- **狀態**:📐 前置 O-006 / O-007 簡單版都已上線 ✅,可啟動 RFC
+### ~~O-008 子任務拖曳排序~~ ✅ 已上線
+- **完成方式**:見 ✅ 已完成 #7 (`3eebe17`)
 
 ---
 
