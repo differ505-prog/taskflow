@@ -349,8 +349,8 @@ const canDrag = !currentSharedListId;
                 onFocus={() => setQuickAddHint(true)}
                 onBlur={() => setTimeout(() => setQuickAddHint(false), 200)}
                 placeholder="快速新增：明天 3pm 開會 p1 #工作"
-                className="input pl-10 pr-10"
-                style={{ fontSize: 14 }}
+                className="input pl-10 pr-10 text-[16px]"
+                style={{ touchAction: "manipulation" }}
               />
               {quickAddInput && (
                 <button
@@ -404,7 +404,7 @@ const canDrag = !currentSharedListId;
                       if (e.key === "Escape") { setSharedQuickAddInput(""); sharedQuickAddRef.current?.blur(); }
                     }}
                     placeholder="新增任務至共用清單..."
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl text-[14px] transition-all duration-150 focus-visible:outline-none"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl text-[16px] transition-all duration-150 focus-visible:outline-none"
                     style={{
                       background: "var(--surface-muted)",
                       border: "1px solid var(--border)",
