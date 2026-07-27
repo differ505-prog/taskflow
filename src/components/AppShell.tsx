@@ -216,6 +216,25 @@ const canDrag = !currentSharedListId;
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
+  // 「今天先這樣」按鈕透過 useProactiveClosure 統一資料流
+  // 與 Zen 模式 TodayWrapUpButton 共用 hook,行為鎖死一致
+  // §Hooks-Rules:hook 必須在條件外呼叫;按鈕本身用條件渲染控制可見性
+  const { wrapUp: proactiveWrap, wrapping: proactiveWrapping } = useProactiveClosure({
+    onBeforeWrap: async (pending) => {
+      const ok = await confirm({
+        title: "今天先這樣？",
+        message: `把 ${pending.length} 項未完成的任務收起來,明天又是新的開始。`,
+        confirmText: "好,明天再說",
+        cancelText: "再想想",
+        tone: "info",
+      });
+      return ok;
+    },
+  });
+  const showWrapUpButton =
+    !["today", "next7days", "list", "archived"].includes(currentView) &&
+    filteredTasks.some((t) => t.status !== "done");
   const handleDragStart = (event: DragStartEvent) => {
     setActiveDragId(String(event.active.id));
   };
@@ -520,23 +539,7 @@ const canDrag = !currentSharedListId;
                       })}
                       </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {!["today", "next7days", "list", "archived"].includes(currentView) &&
-                        filteredTasks.some((t) => t.status !== "done") && (() => {
-                          // 透過 useProactiveClosure 統一資料流
-                          // 與 Zen 模式 TodayWrapUpButton 共用 hook,行為鎖死一致
-                          const { wrapUp: proactiveWrap, wrapping: proactiveWrapping } = useProactiveClosure({
-                            onBeforeWrap: async (pending) => {
-                              const ok = await confirm({
-                                title: "今天先這樣？",
-                                message: `把 ${pending.length} 項未完成的任務收起來,明天又是新的開始。`,
-                                confirmText: "好,明天再說",
-                                cancelText: "再想想",
-                                tone: "info",
-                              });
-                              return ok;
-                            },
-                          });
-                          return (
+                      {showWrapUpButton && (
                         <button
                           onClick={() => { void proactiveWrap(filteredTasks); }}
                           disabled={proactiveWrapping}
@@ -550,8 +553,7 @@ const canDrag = !currentSharedListId;
                           </svg>
                           今天先這樣
                         </button>
-                          );
-                        })()}
+                      )}
                       <div className="flex items-center gap-0.5 p-1 rounded-xl" style={{ background: "rgba(0,0,0,0.04)" }}>
                         <button onClick={() => setViewMode("list")} className="p-1.5 rounded-lg transition-all duration-150" style={viewMode === "list" ? { background: "var(--surface)", boxShadow: "var(--shadow-xs)", color: "var(--text-primary)" } : { color: "var(--text-tertiary)" }} aria-label="列表檢視">
                           <List className="w-4 h-4" />
