@@ -14,33 +14,19 @@
 | 2 | 子任務勾選圈圈太小 | 點擊區 28×28,圖示 18×18 + 文字可點開編輯 | `ca182cb` | 2026-07-15 |
 | 3 | 子任務勾選按兩次才完成 | 移除 hover 陰影 + active scale,讓 hover 跟按下視覺一致,跟母任務圈圈行為對齊 | (本次) | 2026-07-15 |
 | 4 | 日曆 task panel 滾輪連續滾動時「任務超慢出現」 | ① 全域 `scroll-behavior: smooth` 對 panel 來說是雷：wheel event 連發 = 排一堆 smooth 動畫 queue = frame 卡住。改 panel 加 `.calendar-task-panel { scroll-behavior: auto }` 覆寫;② panel `transition-all duration-200` 在滾動期間任何子元素 transition 都會重新觸發動畫 → 拿掉;③ ResizeObserver 加 `requestAnimationFrame` debounce + window resize 主動重算。驗證:`npm run build` clean | `c526b3f` | 2026-07-21 |
+| 5 | **O-006 清單拖曳排序(自有清單)** | dnd-kit `<DndContext>` + `<SortableContext>` + `SortableListItem`;手柄按鈕(GripVertical),桌機 hover 顯示 / 手機永遠顯示;touch-action: none 避 iOS Safari 衝突;PointerSensor delay 200ms tolerance 5px 避按下手柄時與 scroll 衝突;KeyboardSensor 為 a11y;`reorderLists` 重編 order + 5 秒 §26-A 保護窗 + batchSaveLists;排除系統預設「收集箱」清單(只拖用戶自建) | `5e6b2bc` | 已上線 |
+| 6 | **O-007 主任務拖曳排序(同清單內)** | `reorderTasks` 對齊 `reorderLists` 模式:重編 order + bump updatedAt + §26-A 5 秒保護窗 + batchSaveTasks;AppShell `handleDragEnd` + ZenDashboard 禪模式焦點隊列拖曳已接上;註解明示「不跨清單(簡單版範圍)」,O-007 跨清單版待評估 | `acb222e` | 已上線 |
 
 ---
 
 ## 🟡 待評估(已確認需求,待動手)
 
-### O-006 清單拖曳排序（自有清單）
-- **痛點**:目前 Sidebar 清單只能用建立順序排列,超過 5 個就難找到。清單有 `order` 欄位但 UI 無拖曳。
-- **理想**:用 dnd-kit sortable + 手柄,hover 顯示(桌機) / 永遠顯示(手機),拖曳即時同步雲端。
-- **影響**:
-  - UI:`src/components/Sidebar.tsx` 加 `<DndContext>` + `<SortableContext>` + `<SortableListItem>` 手柄
-  - State:`src/lib/AppContext.tsx` 加 `reorderLists(newLists)` 方法 + `addList` 自動給 `order`
-  - 同步:走 `batchSaveListsFirebase`,5 秒保護窗對齊 §26 類別 A
-  - 不動:`personalListSync.ts`(已有 batchSaveLists / subscribeLists)
-- **估算成本**:3-4 小時,1 commit,1 RFC
-- **動手前**:已通過評分 9.0（dnd-kit + 手柄 + 只自有）
-- **狀態**:🟡 架構 OK,等你「做下去」即可啟動
+### ~~O-006 清單拖曳排序(自有清單)~~ ✅ 已上線
+- **完成方式**:見 ✅ 已完成 #5 (`5e6b2bc`)
 
-### O-007 主任務拖曳排序
-- **痛點**:任務清單(Inbox / 內頁列表)目前只能拖右上 priority tag,沒辦法整筆拖曳調整執行順序。
-- **理想**:dnd-kit sortable + 手柄,跨清單拖曳(將任務移到別的清單)。
-- **影響**:
-  - UI:`src/components/TaskListItem.tsx` + TaskList view
-  - State:`AppContext` 新 `reorderTasks(listId, newTasks)` + `moveTaskToList`
-  - 同步:`Task.position` 已就緒 (`sharedSync.ts` 註解提到)
-- **估算成本**:4-6 小時(含跨清單拖曳治理)
-- **動手前**:待 O-006 收斂後再開 RFC
-- **狀態**:📐 待 O-006 完成後啟動 RFC
+### ~~O-007 主任務拖曳排序(簡單版:同清單內)~~ ✅ 已上線
+- **完成方式**:見 ✅ 已完成 #6 (`acb222e`)
+- **剩餘缺口(待評估)**:跨清單拖曳(`moveTaskToList`)仍**未實作**。若要用戶跨清單拖任務,需新建議項目啟動 RFC。
 
 ### O-001 子任務變成獨立任務(位階變換)
 - **痛點**:目前 `SubTask` 是嵌在 `Task.subTasks[]` 裡的扁平字串陣列,只能勾/刪/編輯標題,沒辦法讓子任務自己展開 detail panel。
@@ -62,7 +48,7 @@
   - 同步:子任務隨母任務整包同步,`Task.updatedAt` 觸發
 - **估算成本**:2-3 小時(待 O-006 / O-007 確認手感後再啟動)
 - **動手前**:需先決定子任務要不要加 `order` 欄位(若升級為獨立任務見 O-001 則不用)
-- **狀態**:📐 順序:等 O-006 → O-007 → 再啟動
+- **狀態**:📐 前置 O-006 / O-007 簡單版都已上線 ✅,可啟動 RFC
 
 ---
 
