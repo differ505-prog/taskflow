@@ -15,17 +15,18 @@ import type { Task } from "@/lib/types";
  * - 不抖動、不警示色、不催促
  *
  * 溫柔的決策流:
- * - ✨ 復活:dueDate 推到今天,讓任務重新進入禪模式視野
- * - 🍃 無罪赦免:徹底從資料庫刪除,給用戶「放下」的權力
+ * - ✨ 復活:dueDate 推到今天,讓任務重新進入今日清單
+ * - 🍃 無罪赦免:isArchived = true,移到封存頁。情緒包裝永遠與工程實作分離。
  *
- * Anti-pattern 防護:
- * - 零紅色警告(§1 死罪)
- * - 零自動重置(§2):用戶必須手動復活,才有掌控感
- * - 零責備語氣(§3):標題與按鈕都正念
+ * Anti-pattern 防護（破壞產品核心=死罪）:
+ * - 零紅色警告:絕對禁止 bg-red-* / text-red-* / border-red-* 等任何 red 色系 className
+ * - 零自動刪除:禁止任何 Cron / setInterval / useEffect 自動刪除或標記
+ * - 零焦慮視覺:禁止驚嘆號、抖動動畫等製造恐慌的設計
+ * - 零責備語氣:標題與按鈕都正念
  */
 
 export default function LostAndFound() {
-  const { tasks, updateTask, deleteTask } = useApp();
+  const { tasks, updateTask } = useApp();
 
   /**
    * 篩選條件:
@@ -60,11 +61,13 @@ export default function LostAndFound() {
   };
 
   /**
-   * 無罪赦免:徹底刪除
-   * §3 spec:「直接消失在資料庫,表示這個任務已經過時或不再重要」
+   * 無罪赦免:isArchived = true(移到封存頁)
+   * 情緒包裝維持「原諒自己」的儀式感,底層才是工程上的封存操作。
+   * §2 spec:不改名為「移至封存」— 前端情緒包裝與後端資料流永遠分離。
+   * §3 anti-pattern:沒有自動刪除,Cron,或任何「用戶沒有按鈕就消失」的設計。
    */
   const handleDismiss = (task: Task) => {
-    void deleteTask(task.id);
+    updateTask(task.id, { isArchived: true });
   };
 
   return (
