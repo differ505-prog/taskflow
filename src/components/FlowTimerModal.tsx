@@ -263,11 +263,11 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
           <div className="w-11" />
         </div>
 
-        {/* OmniSonic Deep Focus embed button */}
+        {/* OmniSonic Deep Focus embed button — Free 25min auto-pause */}
         {snapshot.type === "focus" && (
           <div className="flex flex-col items-center gap-2">
             <div
-              className="relative w-20 h-20 rounded-full overflow-hidden border"
+              className="relative w-20 h-20 rounded-full overflow-hidden border cursor-pointer transition-all hover:scale-105 active:scale-95"
               style={{ borderColor: "rgba(192,38,211,0.3)", boxShadow: "0 0 24px rgba(192,38,211,0.25)" }}
             >
               <iframe
@@ -278,7 +278,7 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
               />
             </div>
             <p className="text-[10px] tracking-widest uppercase" style={{ color: "var(--text-tertiary)" }}>
-              OmniSonic · Deep Focus
+              OmniSonic · Deep Focus · Free 25 分鐘
             </p>
           </div>
         )}
