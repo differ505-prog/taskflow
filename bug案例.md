@@ -22,7 +22,7 @@
 | #005 | 象限雷達桌面 2x2 滾動錯位（單獨一卡片能滑、其他三張靜止），且 grid 高度被 1fr 鎖死 | view pattern vs page pattern 混用（候選 §26 類別 P） | `6f5c2ca` | 2026-07-24 |
 | #006 | 幽靈按鈕 1 週靜默期後再點無反應，客人以為按鍵故障 | hook 出口缺失 + GhostButton 已實作 `dismissed` prop 但無父層傳入 | `a6b7ea4` | 2026-07-26 |
 | #007 | 手機版點底部「今天」 → 「頁面錯誤，請重新整理」，重新整理也沒恢復 | React Hooks Rules 違規：`useProactiveClosure` 被放在條件 IIFE 內 | `c114f8c` | 2026-07-28 |
-| #008 | 切換帳號後舊 uid 任務仍顯示 + 觸發孤兒補推 RLS 403 | §26 類別 J：localOnly 任務無 ownerUid filter，舊 uid 任務被誤判為孤兒上傳 | `aaf7e47` | 2026-07-28 |
+| #008 | 切換帳號後舊 uid 任務仍顯示 + 觸發孤兒補推 RLS 403 + 同 session 切換污染 | §26 類別 J：localOnly 無 ownerUid filter + firstLoadDone 跨 uid 未重置 | `aaf7e47` + `69c0204` | 2026-07-28 |
 
 ---
 
@@ -387,8 +387,9 @@ return (
 - subscribeTasksSync 的 `localOnly` 篩選 `!fbIds.has(t.id)` → 47 筆舊 uid 任務被視為「本地獨有」
 - `orphans = localOnly.filter(t => !isWithinRecentWriteWindow(t.id))` → 全部 47 筆都是 orphan（不在 5 秒寫入窗）
 - `batchSaveTasksFirebase(user.uid=B, orphans)` → 把 A 的任務用 B 的 uid 寫入 → **RLS 403 Forbidden**
+- **同 session 切換（不登出）時**：`firstTasksLoadDone.current` 跨 uid 沒重置 → 新 uid 第一個 callback(fbTasks=0) **仍執行 merge** → 把舊 uid 任務寫入 React state → 污染
 
-### 修法（commit `aaf7e47`）
+### 修法（commit `aaf7e47` + `69c0204`）
 1. **Task schema 加 `ownerUid?: string`** — 每個任務 tag 建立者 uid
 2. **storage.ts 加 `LAST_USER_UID_KEY` + `updateLastUserUid()` + `clearTasksIfUserChanged()`** — localStorage 追蹤當前 uid
 3. **AppContext `addTask` / `quickAddToShared`** — 新任務加 `ownerUid: user.uid` + `updateLastUserUid`
@@ -396,6 +397,8 @@ return (
    - 根治：舊 uid 任務不再被視為「孤兒」，不再觸發 RLS 403 上傳
 5. **AppContext init useEffect** — `updateLastUserUid(user.uid)` 更新追蹤 key
    - 根治：跨 session localStorage uid tag，下次切換能被偵測
+6. **`firstTasksLoadDone.current = false` + `firstListsLoadDone.current = false`**
+   - 根治：同 session 切換帳號時，新 uid 的第一個 callback 被正確跳過（不再 merge 舊 uid 任務）
 
 ### 驗證
 - `npx tsc --noEmit` → exit 0,clean
