@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -63,7 +63,7 @@ function selectZenTasks(tasks: Task[]): Task[] {
 }
 
 export default function ZenDashboard() {
-  const { tasks, toggleTaskStatus, reorderTasks } = useApp();
+  const { tasks, toggleTaskStatus, reorderTasks, updateTask } = useApp();
   const visibleTasks = useMemo(() => selectZenTasks(tasks), [tasks]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -296,6 +296,7 @@ export default function ZenDashboard() {
                 isSlashing={isSlashing}
                 isCrashing={isCrashing}
                 onComplete={() => handleComplete(focus.id)}
+                onUpdateTitle={(id, title) => updateTask(id, { title })}
                 ghostButton={
                   <GhostButton
                     onClick={timebarGhost.handleClick}
@@ -395,13 +396,99 @@ function FocusCard({
   isCrashing,
   onComplete,
   ghostButton,
+  onUpdateTitle,
 }: {
   task: Task;
   isSlashing: boolean;
   isCrashing: boolean;
   onComplete: () => void;
   ghostButton?: React.ReactNode;
+  onUpdateTitle: (id: string, title: string) => void;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(task.title);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  const touchStartRef = useRef<React.Touch | null>(null);
+  const isLongPressRef = useRef(false);
+
+  // 進入編輯模式後自動 focus 並選中文字
+  useEffect(() => {
+    if (isEditing) {
+      const t = window.setTimeout(() => {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }, 30);
+      return () => window.clearTimeout(t);
+    }
+  }, [isEditing]);
+
+  // 任務內容變化時同步編輯值（避免 focus 任務後編輯值停留在舊值）
+  useEffect(() => {
+    if (!isEditing) setEditValue(task.title);
+  }, [task.title, isEditing]);
+
+  const startEdit = () => {
+    setEditValue(task.title);
+    setIsEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setEditValue(task.title);
+  };
+
+  const saveEdit = () => {
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== task.title) {
+      onUpdateTitle(task.id, trimmed);
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveEdit();
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      cancelEdit();
+    }
+  };
+
+  // Desktop: 雙擊編輯
+  const handleDoubleClick = () => {
+    startEdit();
+  };
+
+  // Mobile: Long Press 500ms 編輯
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartRef.current = e.touches[0] ?? null;
+    isLongPressRef.current = false;
+    longPressTimerRef.current = window.setTimeout(() => {
+      isLongPressRef.current = true;
+      startEdit();
+    }, 500);
+  };
+
+  const handleTouchMove = () => {
+    // 滑動則取消長按計時
+    if (longPressTimerRef.current) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    touchStartRef.current = null;
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimerRef.current) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    touchStartRef.current = null;
+  };
+
   return (
     <motion.article
       layout
@@ -422,17 +509,57 @@ function FocusCard({
       <SlashOverlay active={isSlashing} />
 
       {/* 幽靈按鈕 — 絕對定位於卡片右上,§假門測試用 */}
-      {ghostButton && (
+      {ghostButton && !isEditing && (
         <div className="absolute right-4 top-4">{ghostButton}</div>
       )}
 
-      <p className="text-balance text-2xl font-medium leading-snug text-slate-800 sm:text-3xl">
-        {task.title}
-      </p>
+      {/* 標題區 — Desktop 雙擊 / Mobile 長按 500ms 觸發編輯 */}
+      {isEditing ? (
+        <input
+          ref={inputRef}
+          type="text"
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={saveEdit}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          aria-label="編輯任務標題"
+          className="w-full max-w-full bg-transparent text-center text-2xl font-medium leading-snug text-slate-800 outline-none ring-0 placeholder:text-slate-300 sm:text-3xl"
+          style={{
+            // 與原本 <p> 完全一致的尺寸與字重
+            fontSize: "clamp(1.5rem, 4vw, 1.875rem)",
+            fontWeight: 500,
+            lineHeight: "1.375",
+            textAlign: "center",
+            // 消除 input 預設樣式
+            border: "none",
+            padding: 0,
+            margin: 0,
+            background: "transparent",
+            boxShadow: "none",
+            WebkitAppearance: "none",
+          }}
+        />
+      ) : (
+        <p
+          onDoubleClick={handleDoubleClick}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          className="cursor-text select-none text-balance text-2xl font-medium leading-snug text-slate-800 sm:text-3xl"
+          aria-label={`雙擊或長按編輯標題: ${task.title}`}
+          title="雙擊或長按編輯"
+        >
+          {task.title}
+        </p>
+      )}
+
       <button
         type="button"
         onClick={onComplete}
-        disabled={isSlashing || isCrashing}
+        disabled={isSlashing || isCrashing || isEditing}
         className="mt-8 inline-flex items-center gap-2 rounded-full bg-slate-800 px-6 py-3 text-sm font-medium text-slate-50 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-slate-900 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
       >
         <span aria-hidden>✓ 完成</span>
