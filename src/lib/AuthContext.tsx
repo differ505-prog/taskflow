@@ -278,6 +278,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+    // 清 localStorage 避免新帳號殘留舊帳號任務（localStorage 無 uid 隔離）
+    const { clearAllData } = await import("@/lib/storage");
+    clearAllData();
     setUser(null);
     setDbRole(null);
   };
