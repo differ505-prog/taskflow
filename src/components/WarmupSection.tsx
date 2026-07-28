@@ -1,14 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
-import { motion } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { useState, useMemo, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/lib/AppContext";
 import { useStatusWindow } from "@/hooks/useStatusWindow";
 import { useProgressStatus } from "@/hooks/useProgressStatus";
 import { useLevelUpNotification } from "@/components/LevelUpNotification";
 import { BASE_HABIT_PP } from "@/lib/progressRank";
-import { Heart, ArrowRight, Check } from "lucide-react";
+import { Heart, Check, Plus } from "lucide-react";
 
 /**
  * WarmupSection — 禪模式暖身區塊（角落固定）
@@ -19,7 +18,7 @@ import { Heart, ArrowRight, Check } from "lucide-react";
  * - **無 streak / 進度條**:完全符合「輕鬆完成」精神
  * - **不顯示習慣名稱**:icon 點擊即可,降低認知負擔
  * - **碰撞邏輯**:只顯示「今日尚未 checkin」且「未封存」的 Habit
- * - **Cold Start**:0 個 Habit → 顯示 CTA 跳轉 Habit 頁
+ * - **Cold Start**:0 個 Habit → 角落原地顯示「+」按鈕，點擊後原地展開極簡輸入框，建立並完成後自動消失，完全不打斷心流
  *
  * 雙平台呈現（對齊 C2 9.2 方案）：
  * - 桌機 (sm+):完整卡片「Warmup」標題 + 圓形 icon 群(原貌不變)
@@ -42,11 +41,17 @@ function getToday(): string {
 }
 
 export function WarmupSection() {
-  const { habits, checkinHabit, setCurrentView } = useApp();
+  const { habits, checkinHabit, addHabit } = useApp();
   const showWindow = useStatusWindow();
   const { addPp } = useProgressStatus();
   const levelUp = useLevelUpNotification();
-  const router = useRouter();
+
+  const [isCreating, setIsCreating] = useState(false);
+  const [newHabitTitle, setNewHabitTitle] = useState("");
+  const titleRef = useRef(newHabitTitle);
+  const habitsLenRef = useRef(habits.length);
+  titleRef.current = newHabitTitle;
+  habitsLenRef.current = habits.length;
 
   // 過濾：今日尚未 checkin + 未封存
   const today = getToday();
@@ -75,57 +80,90 @@ export function WarmupSection() {
     }
   };
 
-  // Cold Start:零個 Habit → CTA 跳轉 Habit 頁
+  // Cold Start:零個 Habit → 角落原地建立，完成後立即消失（不打斷心流）
   if (habits.length === 0) {
-    return (
-      <>
-        {/* 桌機:原貌 */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: "easeOut", delay: 0.3 }}
-          className="hidden sm:flex fixed bottom-6 left-6 z-20 flex-col items-start gap-2"
-          style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
-        >
-          <p className="text-balance text-[11px] font-medium uppercase tracking-widest text-slate-400">
-            Warmup
-          </p>
-          <button
-            type="button"
-            // §10.3 9.0 修正:Habits 在 AppLayout 抽屜內
-            // 兩個動作:(1) 設 view state (2) 開抽屜
-            // - 沒有第 1 步:抽屜開了但顯示 inbox
-            // - 沒有第 2 步:view 改了但用戶視覺沒動(回報「沒反應」的根因)
-            onClick={() => {
-              setCurrentView("habits");
-              router.push("/?board=1", { scroll: false });
-            }}
-            className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-2 text-xs font-medium text-slate-500 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:text-slate-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
-            aria-label="前往習慣頁建立第一個暖身習慣"
-          >
-            <Heart className="h-3.5 w-3.5" aria-hidden />
-            <span>建立第一個暖身</span>
-            <ArrowRight className="h-3 w-3" aria-hidden />
-          </button>
-        </motion.div>
+    const handleCreateAndComplete = () => {
+      const title = titleRef.current.trim();
+      if (!title) return;
+      addHabit({ title, color: "rose", frequency: "daily", targetCount: 1 });
+      // 新建立的 habit 會在下一個 render 出現，延遲執行完成
+      setTimeout(() => {
+        const created = habits.find((_, i) => i === habitsLenRef.current);
+        if (created) {
+          checkinHabit(created.id, today);
+          showWindow({ title: "暖身完成", message: title, xpDelta: BASE_HABIT_PP, icon: "✨" });
+          const { leveledUpTo } = addPp(BASE_HABIT_PP);
+          if (leveledUpTo) window.setTimeout(() => levelUp.show(leveledUpTo), 2700);
+        }
+      }, 100);
+      setIsCreating(false);
+      setNewHabitTitle("");
+    };
 
-        {/* 手機:compact icon,點擊同行為(設 view + 推 board=1) */}
-        <motion.button
-          type="button"
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: "easeOut", delay: 0.3 }}
-          onClick={() => {
-            setCurrentView("habits");
-            router.push("/?board=1", { scroll: false });
-          }}
-          aria-label="建立第一個暖身習慣"
-          className="sm:hidden fixed bottom-6 left-6 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-rose-400 shadow-sm ring-1 ring-slate-200/60 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
-          style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
-        >
-          <Heart className="h-4 w-4" aria-hidden />
-        </motion.button>
-      </>
+    return (
+      <AnimatePresence>
+        {!isCreating ? (
+          <motion.button
+            key="warmup-cta"
+            type="button"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.4, ease: "easeOut", delay: 0.3 }}
+            onClick={() => setIsCreating(true)}
+            aria-label="建立第一個暖身習慣"
+            className="sm:hidden fixed bottom-6 left-6 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-rose-400 shadow-sm ring-1 ring-slate-200/60 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+            style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+            whileTap={{ scale: 0.92 }}
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+          </motion.button>
+        ) : (
+          <motion.div
+            key="warmup-create"
+            initial={{ opacity: 0, y: 8, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95, y: 4 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="fixed bottom-6 left-6 z-20 rounded-2xl bg-white/90 p-3 shadow-lg ring-1 ring-slate-200/60 backdrop-blur sm:left-6"
+            style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+          >
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-widest text-slate-400">
+              Warmup
+            </p>
+            <input
+              autoFocus
+              type="text"
+              value={newHabitTitle}
+              onChange={(e) => setNewHabitTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleCreateAndComplete();
+                if (e.key === "Escape") { setIsCreating(false); setNewHabitTitle(""); }
+              }}
+              placeholder="例如：喝一口水"
+              maxLength={20}
+              className="mb-2 w-full rounded-lg border border-slate-200 bg-white/60 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-rose-300 focus:outline-none focus:ring-1 focus:ring-rose-300"
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleCreateAndComplete}
+                disabled={!newHabitTitle.trim()}
+                className="flex-1 rounded-lg bg-rose-400 px-3 py-1.5 text-xs font-medium text-white transition-opacity disabled:opacity-40"
+              >
+                完成暖身
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIsCreating(false); setNewHabitTitle(""); }}
+                className="flex-1 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-200"
+              >
+                取消
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     );
   }
 
