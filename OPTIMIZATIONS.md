@@ -17,6 +17,7 @@
 | 5 | **O-006 清單拖曳排序(自有清單)** | dnd-kit `<DndContext>` + `<SortableContext>` + `SortableListItem`;手柄按鈕(GripVertical),桌機 hover 顯示 / 手機永遠顯示;touch-action: none 避 iOS Safari 衝突;PointerSensor delay 200ms tolerance 5px 避按下手柄時與 scroll 衝突;KeyboardSensor 為 a11y;`reorderLists` 重編 order + 5 秒 §26-A 保護窗 + batchSaveLists;排除系統預設「收集箱」清單(只拖用戶自建) | `5e6b2bc` | 已上線 |
 | 6 | **O-007 主任務拖曳排序(同清單內)** | `reorderTasks` 對齊 `reorderLists` 模式:重編 order + bump updatedAt + §26-A 5 秒保護窗 + batchSaveTasks;AppShell `handleDragEnd` + ZenDashboard 禪模式焦點隊列拖曳已接上;註解明示「不跨清單(簡單版範圍)」,O-007 跨清單版待評估 | `acb222e` | 已上線 |
 | 7 | **O-008 子任務拖曳排序** | SubTask schema 加 `order: number` 欄位 + lazy migrate 用 createdAt 兜底;`sortSubTasks` 改為 status 分組 + order 升冪;DndContext + SortableContext 包「未完成」區(已完成區維持摺疊不動);`SortableSwipeableSubTask` 包裹層不汙染原 SwipeableSubTask(§17-P 精神);PointerSensor delay 200ms/tolerance 5px + KeyboardSensor a11y;`reorderSubTasks(parentId, newTodoSubs)` 走 `updateTask` 既有鏈(子任務跨裝置同步衝突機率低,免 §26-A 保護窗) | `3eebe17` | 已上線 |
+| 8 | **點「已完成」chip 渲染空白** | 根因:`explicitlyShowingDone=true` 時 `activeTasks` = 0(因為 `displayTasks` 已只剩 done),L6.5 折疊區用 `!explicitlyShowingDone` 條件跳過,兩條渲染路徑都不走 → 空白。修法:`explicitlyShowingDone=true` 時 `activeTasks` 借用整個 `displayTasks`、`completedTasks` 改空陣列,讓 `activeTasks.map(...)` 直接渲染 3 個已完成任務 | `efac784` | 已上線 |
 
 ---
 
