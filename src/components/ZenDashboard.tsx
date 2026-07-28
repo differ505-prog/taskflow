@@ -220,13 +220,22 @@ export default function ZenDashboard() {
           </span>
         </div>
 
-        {/* 中央 CTA:QuickCaptureTrigger 三欄置中 */}
+        {/* 中央 CTA:QuickCaptureTrigger — 桌機顯示在工具列，手機顯示底部 FAB */}
         <div className="flex items-center justify-center">
-          <QuickCaptureTrigger
-            variant="desktop"
-            onClick={() => setQuickCaptureOpen(true)}
-          />
+          {/* 桌機:工具列中央 */}
+          <div className="hidden md:flex items-center justify-center">
+            <QuickCaptureTrigger
+              variant="desktop"
+              onClick={() => setQuickCaptureOpen(true)}
+            />
+          </div>
         </div>
+
+        {/* 手機:Fixed 底部 FAB */}
+        <QuickCaptureTrigger
+          variant="mobile"
+          onClick={() => setQuickCaptureOpen(true)}
+        />
 
         {/* 右群組:等 badge + 無聲專注室 + 任務大廳 */}
         <div className="flex items-center justify-end gap-3">
