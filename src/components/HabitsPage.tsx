@@ -6,6 +6,7 @@ import { Habit } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
 import { Plus, X, CheckCircle2, Circle, Trash2, Edit3, TrendingUp, Heart } from "lucide-react";
 import { useConfirm } from "@/hooks/useConfirm";
+import { getLocalToday, toLocalDateString } from "@/lib/dateUtils";
 
 const HABIT_COLORS = ["#4F6AF5", "#8B5CF6", "#EC4899", "#EF4444", "#F97316", "#EAB308", "#22C55E", "#14B8A6", "#06B6D4", "#636366"];
 
@@ -24,7 +25,7 @@ function getLast30Days(): string[] {
   const days: string[] = [];
   for (let i = 29; i >= 0; i--) {
     const d = new Date(Date.now() - i * 86400000);
-    days.push(d.toISOString().split("T")[0]);
+    days.push(toLocalDateString(d));
   }
   return days;
 }
@@ -37,7 +38,7 @@ function HabitRow({ habit, onCheckin, onDelete, onUpdate, onRestore }: {
   onRestore?: () => void;
 }) {
   const [showHeatmap, setShowHeatmap] = useState(false);
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalToday();
   const isArchived = !!habit.archivedAt;
   const todayCheckin = habit.checkins.find((c) => c.date === today);
   const isCheckedToday = !!todayCheckin?.completed;
@@ -182,7 +183,7 @@ export function HabitsPage() {
     setShowForm(false);
   };
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalToday();
   const activeHabits = habits.filter((h) => !h.archivedAt);
   const archivedHabits = habits.filter((h) => !!h.archivedAt);
   const todayDone = activeHabits.filter((h) => h.checkins.some((c) => c.date === today && c.completed)).length;

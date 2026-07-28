@@ -6,7 +6,7 @@ import { useApp } from "@/lib/AppContext";
 import { useStatusWindow } from "@/hooks/useStatusWindow";
 import { useProgressStatus } from "@/hooks/useProgressStatus";
 import { useLevelUpNotification } from "@/components/LevelUpNotification";
-import { BASE_HABIT_PP } from "@/lib/progressRank";
+import { getLocalToday } from "@/lib/dateUtils";
 import { Heart, Check, Plus, Flame } from "lucide-react";
 
 /**
@@ -36,9 +36,8 @@ import { Heart, Check, Plus, Flame } from "lucide-react";
  * §26 reuse:沿用 useStatusWindow + useHunterStatus + useApp.checkinHabit
  */
 
-function getToday(): string {
-  return new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD（本地時區）
-}
+const HABIT_DAILY_CAP = 3;
+const BASE_HABIT_PP = 5;
 
 interface WarmupSectionProps {
   onEnterFlow?: () => void;
@@ -58,7 +57,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
   habitsLenRef.current = habits.length;
 
   // 過濾：今日尚未 checkin + 未封存
-  const today = getToday();
+  const today = getLocalToday();
   const pendingHabits = useMemo(() => {
     return habits.filter((h) => {
       if (h.archivedAt) return false;

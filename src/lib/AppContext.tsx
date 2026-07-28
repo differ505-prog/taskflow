@@ -78,6 +78,7 @@ import { triggerWebhook } from "./useWebhook";
 import { notifyFirstTaskDone } from "@/lib/useDiscordNotifier";
 import { getKnownUserCount } from "@/lib/useNewUserDetection";
 import { toast } from "sonner";
+import { getLocalToday, toLocalDateString } from "./dateUtils";
 import { AppShellSkeleton } from "@/components/Skeleton";
 import { dispatchPwaInstallPrompt } from "@/components/PwaPrompts";
 
@@ -1855,15 +1856,17 @@ export function useApp() {
 // ─── helpers ─────────────────────────────────────────────────
 function computeHabitStreak(habit: Habit, checkins: Habit["checkins"]): number {
   if (checkins.length === 0) return 0;
-  const localToday = new Date().toISOString().split("T")[0];
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+  // §時區對齊:checkin 寫入端用 getLocalToday()(本地),streak 計算端也要對齊本地,
+  // 否則凌晨跨日邊界 streak 會誤算中斷
+  const localToday = getLocalToday();
+  const yesterday = toLocalDateString(new Date(Date.now() - 86400000));
   const doneDates = checkins.filter((c) => c.completed).map((c) => c.date).sort().reverse();
   if (doneDates.length === 0) return 0;
   if (doneDates[0] !== localToday && doneDates[0] !== yesterday) return 0;
   let streak = 0;
   const dateSet = new Set(doneDates);
   const d = new Date(doneDates[0]);
-  while (dateSet.has(d.toISOString().split("T")[0])) {
+  while (dateSet.has(toLocalDateString(d))) {
     streak++;
     d.setDate(d.getDate() - 1);
   }

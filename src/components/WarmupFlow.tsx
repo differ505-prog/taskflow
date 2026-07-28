@@ -7,6 +7,7 @@ import { useStatusWindow } from "@/hooks/useStatusWindow";
 import { useProgressStatus } from "@/hooks/useProgressStatus";
 import { useLevelUpNotification } from "@/components/LevelUpNotification";
 import { BASE_HABIT_PP } from "@/lib/progressRank";
+import { getLocalToday } from "@/lib/dateUtils";
 import { Heart, X, ChevronLeft, ChevronRight, Flame } from "lucide-react";
 
 interface WarmupFlowProps {
@@ -34,7 +35,7 @@ export function WarmupFlow({ open, onClose, onComplete }: WarmupFlowProps) {
   const levelUp = useLevelUpNotification();
 
   // 計算今日 pending(未 checkin)habits
-  const today = new Date().toLocaleDateString("en-CA");
+  const today = getLocalToday();
   const pendingHabits = useMemo(() => {
     return habits.filter(
       (h) => !h.archivedAt && !h.checkins?.some((c) => c.date === today)
