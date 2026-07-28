@@ -56,11 +56,25 @@ export function FeedbackButton({ isZenMode = false }: { isZenMode?: boolean }) {
         onClick={() => setOpen(true)}
         aria-label="送出反饋"
         title="📣 任何想法 / bug / 優化建議都歡迎"
-        className={`fixed bottom-4 right-4 z-[150] flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-all duration-200 ease-out hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none ${isZenMode ? "opacity-50 hover:opacity-100" : ""}`}
+        className={`fixed bottom-4 right-4 z-[150] flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-all duration-200 ease-out hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none ${isZenMode ? "opacity-40 hover:opacity-100" : ""}`}
         style={{
-          background: "var(--brand)",
-          color: "var(--brand-foreground, white)",
+          // §26 降噪:禪模式預設 bg-slate-100/80 + text-slate-400(融入背景),
+          // hover/focus 顯示品牌色(沿用 var(--brand) — 開發者 muscle memory 不丟)
+          background: isZenMode ? "rgba(241, 245, 249, 0.85)" : "var(--brand)",
+          color: isZenMode ? "#94a3b8" : "var(--brand-foreground, white)",
           boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+        }}
+        onMouseEnter={(e) => {
+          if (isZenMode) {
+            e.currentTarget.style.background = "var(--brand)";
+            e.currentTarget.style.color = "var(--brand-foreground, white)";
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (isZenMode) {
+            e.currentTarget.style.background = "rgba(241, 245, 249, 0.85)";
+            e.currentTarget.style.color = "#94a3b8";
+          }
         }}
       >
         <MessageSquare className="w-5 h-5" aria-hidden="true" />

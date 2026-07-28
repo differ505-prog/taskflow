@@ -27,22 +27,24 @@ export default function PresenceDot() {
 
   return (
     <div
-      className="fixed right-6 z-20 inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-2 backdrop-blur"
+      className="fixed right-6 z-20 inline-flex items-center gap-2 rounded-full bg-white/60 px-2.5 py-1.5 backdrop-blur"
       style={{
-        bottom: "max(5rem, env(safe-area-inset-bottom, 0px))",
+        // §26 降噪:貼近 FAB 上方,形成緊密的「Floating Actions 視覺群組」
+        // FAB: bottom 1.5rem (24px) + h-12 (48px) = 上緣 72px → PresenceDot 設 72px 緊貼
+        bottom: "max(4.5rem, env(safe-area-inset-bottom, 0px))",
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       aria-label={`估計目前有 ${range.min} 到 ${range.max} 位用戶同步專注,這是基於活躍用戶時區的估算數值`}
     >
-      {/* 綠色呼吸圓點 — 使用 animate-ping + 內層實心圓製造雙層呼吸效果 */}
-      <span className="relative inline-flex h-2 w-2">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+      {/* 綠點 → 柔和 emerald-400/70 + 微弱 pulse(已有 animate-ping) */}
+      <span className="relative inline-flex h-1.5 w-1.5">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/40 opacity-50" />
+        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400/80" />
       </span>
 
-      {/* 主文案:永遠用「範圍」+「估計」+「同步」溫和詞彙 */}
-      <span className="text-xs text-zinc-400">
+      {/* 主文案:字體縮小 + 顏色調淡,更緊密依附 FAB */}
+      <span className="text-[11px] text-slate-400">
         🟢 估計目前有 {range.min}-{range.max} 位用戶同步專注
       </span>
 

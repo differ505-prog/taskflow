@@ -199,15 +199,17 @@ export default function ZenDashboard() {
         {/* 左群組:Logo + Zen Mode 標題(身份歸屬) */}
         <div className="flex items-center justify-start gap-3">
           <div className="flex items-center gap-2">
+            {/* §26 降噪:Logo 預設 slate-100/400(融入背景),hover/focus 才顯示品牌色
+                - 桌機:打勾色塊 + 「VibeList」文字
+                - 手機:打勾色塊(隱藏文字避免擠壓) */}
             <div
-              className="flex h-8 w-8 items-center justify-center rounded-xl"
-              style={{ background: "var(--brand)" }}
+              className="group/logo flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-400 transition-all duration-200 ease-out hover:bg-[var(--brand)] hover:text-white focus-visible:bg-[var(--brand)] focus-visible:text-white"
               aria-hidden
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <path
                   d="M3 8L6.5 11.5L13 4.5"
-                  stroke="white"
+                  stroke="currentColor"
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -246,12 +248,19 @@ export default function ZenDashboard() {
         {/* 右群組:等 badge + 無聲專注室 + 任務大廳 */}
         <div className="flex items-center justify-end gap-3">
           <ProgressBadge />
+          {/* §26 降噪:無聲營地 — 移除邊框(虛線/實線),改用極低透明度純色背景融入
+              GhostButton 用 inline style 設 border,需用 style prop 覆寫 */}
           <GhostButton
             onClick={bodyDoublingGhost.handleClick}
             variant="muted"
             icon={Users}
             featureId="body_doubling"
             dismissed={bodyDoublingGhost.dismissed}
+            className="border-0"
+            style={{
+              background: "rgba(241, 245, 249, 0.5)", // slate-100/50
+              border: "none",
+            }}
           >
             無聲營地
           </GhostButton>
@@ -658,9 +667,11 @@ function EmptyState() {
       </svg>
       <p className="text-balance text-base font-medium text-slate-600">今日專注已全數完成</p>
       <p className="text-balance text-sm text-slate-400">戰場很安靜，慢呼吸一下</p>
+      {/* §26 降噪:全數完成狀態下,按鈕不應侵略性 — 從 Primary(bg-slate-800)降為
+         Ghost/Secondary(bg-slate-100/80 + text-slate-600),讓中央主視覺(以上 3 行)獨佔焦點 */}
       <Link
         href="/?board=1"
-        className="mt-2 inline-flex items-center gap-2 rounded-full bg-slate-800 px-6 py-3 text-sm font-medium text-slate-50 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-slate-900 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+        className="mt-2 inline-flex items-center gap-2 rounded-full bg-slate-100/80 px-6 py-3 text-sm font-medium text-slate-600 ring-1 ring-inset ring-slate-200/60 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-slate-200/60 hover:text-slate-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
       >
         <span aria-hidden>📥</span>
         <span>開啟任務大廳</span>
