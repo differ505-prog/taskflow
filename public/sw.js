@@ -21,7 +21,7 @@
  * - App Shell 架構：HTML + CSS + JS 全部離線
  * - API 請求不做離線寫入（任務資料以 Supabase Realtime 為準）
  */
-const CACHE_NAME = "taskflow-T2M7xP0yQf2c"; // ← build/dev 時由 scripts/patch-sw.js 自動替換為 taskflow-{hash}
+const CACHE_NAME = "taskflow-a1lT422u600b"; // ← build/dev 時由 scripts/patch-sw.js 自動替換為 taskflow-{hash}
 // STATIC_ASSETS 不再放 HTML("/") ，否則 cache-first 永遠命中舊 HTML 導致 SW 更新也吃不到新內容
 const STATIC_ASSETS = [
   "/manifest.json",

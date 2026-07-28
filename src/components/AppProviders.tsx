@@ -7,7 +7,6 @@ import { AuthGate } from "@/components/AuthGate";
 import { FirebaseDataProvider, SyncWriter } from "@/components/FirebaseDataProvider";
 import { ZenFlowProvider } from "@/lib/ZenFlowProvider";
 import { ToastProvider } from "@/components/ToastProvider";
-import { FeedbackButton } from "@/components/FeedbackButton";
 import { useAuth } from "@/lib/AuthContext";
 
 const OMNISONIC_URL = process.env.NEXT_PUBLIC_OMNISONIC_URL ?? "";
@@ -31,7 +30,6 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
             <FirebaseDataProvider>
               <SyncWriterGate />
               <ToastProvider />
-              <FeedbackButton />
               {children}
             </FirebaseDataProvider>
           </ZenFlowProvider>

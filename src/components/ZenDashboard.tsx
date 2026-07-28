@@ -358,6 +358,9 @@ export default function ZenDashboard() {
           桌機手機都顯示,右側無其他 fixed 元素競爭 */}
       <PresenceDot />
 
+      {/* FeedbackButton — 禪模式下淡化,hover 才完全顯示 */}
+      <FeedbackButton isZenMode />
+
       {/* Mobile FAB — §C2 9.2:共用 QuickCaptureTrigger 元件,桌機手機視覺強度對齊
           §15.4 mobile safe area:bottom padding 避 iOS home indicator */}
       <QuickCaptureTrigger

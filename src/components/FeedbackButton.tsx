@@ -36,7 +36,7 @@ import {
 
 const Z_INDEX = 200; // 對齊 ConfirmDialog
 
-export function FeedbackButton() {
+export function FeedbackButton({ isZenMode = false }: { isZenMode?: boolean }) {
   const { isAdmin, isPro, isBeta, user } = useAuth();
   // 權限 gate:只有 beta / pro / admin 看得到(免費使用者看不到反饋按鈕)
   const canShow = isAdmin || isPro || isBeta;
@@ -56,7 +56,7 @@ export function FeedbackButton() {
         onClick={() => setOpen(true)}
         aria-label="送出反饋"
         title="📣 任何想法 / bug / 優化建議都歡迎"
-        className="fixed bottom-4 right-4 z-[150] flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-all duration-200 ease-out hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+        className={`fixed bottom-4 right-4 z-[150] flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-all duration-200 ease-out hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none ${isZenMode ? "opacity-50 hover:opacity-100" : ""}`}
         style={{
           background: "var(--brand)",
           color: "var(--brand-foreground, white)",
