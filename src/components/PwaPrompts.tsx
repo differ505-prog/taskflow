@@ -251,7 +251,7 @@ export function AhaMoment() {
               恭喜你完成第一個任務!
             </h3>
             <p className="text-[13px] mb-5 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-              TaskFlow 已為你準備好：循環任務、子任務、番茄鐘、艾森豪四象限⋯⋯
+              TaskFlow 已為你準備好：循環任務、子任務、心流計時器、艾森豪四象限⋯⋯
               隨時可以再新增更多任務。
             </p>
             <button

@@ -43,7 +43,7 @@ export default function SettingsPage() {
     },
     {
       letter: "P",
-      name: "番茄工作法",
+      name: "心流計時器",
       color: "var(--status-warning)",
       bg: "rgba(255,149,0,0.1)",
       text: "25 分鐘高度專注工作區塊，配合短休息形成心流節奏。內建計時器讓你不必切換工具，專注當下最重要的事。",

@@ -24,20 +24,20 @@ import {
   subscribeTasks,
   subscribeLists,
   subscribeHabits,
-  subscribePomodoro,
+  subscribeFlowTimer,
   saveTask,
   deleteTask as fsDeleteTask,
   saveList,
   deleteList as fsDeleteList,
   saveHabit,
   deleteHabit as fsDeleteHabit,
-  savePomodoroSession,
+  saveFlowTimerSession,
 } from "@/lib/firestore";
 import {
   saveTasks,
   saveLists,
   saveHabits,
-  savePomodoroSessions,
+  saveFlowTimerSessions,
 } from "@/lib/storage";
 import { Task, TaskList, Habit } from "@/lib/types";
 import { Unsubscribe } from "firebase/firestore";
@@ -142,8 +142,8 @@ export function FirebaseDataProvider({ children }: FirebaseDataProviderProps) {
       saveHabits(fsHabits);
       forceReload();
     }).then((unsub) => { unsubs.current.push(unsub); }).catch(() => {});
-    subscribePomodoro(userId, (fsSessions) => {
-      savePomodoroSessions(fsSessions);
+    subscribeFlowTimer(userId, (fsSessions) => {
+      saveFlowTimerSessions(fsSessions);
     }).then((unsub) => { unsubs.current.push(unsub); }).catch(() => {});
 
     return () => {

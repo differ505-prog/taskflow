@@ -13,7 +13,7 @@ import {
   Task,
   TaskList,
   Habit,
-  PomodoroSession,
+  FlowTimerSession,
   AppView,
   TaskFilter,
   SubTask,

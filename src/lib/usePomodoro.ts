@@ -2,19 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export type PomodoroType = "focus" | "break" | "long-break";
-export type PomodoroPhase = "idle" | "running" | "paused" | "completed";
+export type FlowTimerType = "focus" | "break" | "long-break";
+export type FlowTimerPhase = "idle" | "running" | "paused" | "completed";
 
-export type PomodoroConfig = {
+export type FlowTimerConfig = {
   focusMinutes: number;
   shortBreakMinutes: number;
   longBreakMinutes: number;
   sessionsBeforeLongBreak: number;
 };
 
-export type PomodoroSnapshot = {
-  type: PomodoroType;
-  phase: PomodoroPhase;
+export type FlowTimerSnapshot = {
+  type: FlowTimerType;
+  phase: FlowTimerPhase;
   /** Absolute end timestamp (ms epoch). null when not running. */
   endAt: number | null;
   /** Remaining ms captured at pause moment. null when running. */
@@ -25,36 +25,36 @@ export type PomodoroSnapshot = {
   boundTaskId: string | undefined;
 };
 
-export type PomodoroController = {
-  snapshot: PomodoroSnapshot;
+export type FlowTimerController = {
+  snapshot: FlowTimerSnapshot;
   /** Seconds remaining derived from endAt. Recomputed every render. */
   secondsLeft: number;
-  start: (opts?: { type?: PomodoroType; taskId?: string }) => void;
+  start: (opts?: { type?: FlowTimerType; taskId?: string }) => void;
   pause: () => void;
   resume: () => void;
-  reset: (opts?: { type?: PomodoroType }) => void;
-  cycleType: (newType: PomodoroType) => void;
+  reset: (opts?: { type?: FlowTimerType }) => void;
+  cycleType: (newType: FlowTimerType) => void;
   setBoundTask: (taskId: string | undefined) => void;
   /** Subscribe to "session completed" events. Returns unsubscribe. */
-  onComplete: (cb: (snapshot: PomodoroSnapshot) => void) => () => void;
-  config: PomodoroConfig;
+  onComplete: (cb: (snapshot: FlowTimerSnapshot) => void) => () => void;
+  config: FlowTimerConfig;
 };
 
-const DEFAULT_CONFIG: PomodoroConfig = {
+const DEFAULT_CONFIG: FlowTimerConfig = {
   focusMinutes: 25,
   shortBreakMinutes: 5,
   longBreakMinutes: 15,
   sessionsBeforeLongBreak: 4,
 };
 
-const typeToMinutes = (type: PomodoroType, cfg: PomodoroConfig): number => {
+const typeToMinutes = (type: FlowTimerType, cfg: FlowTimerConfig): number => {
   if (type === "focus") return cfg.focusMinutes;
   if (type === "break") return cfg.shortBreakMinutes;
   return cfg.longBreakMinutes;
 };
 
 /**
- * Provider-scoped pomodoro controller.
+ * Provider-scoped flow timer controller.
  *
  * Time is tracked as an absolute `endAt` timestamp so the countdown is
  * accurate even after the component unmounts (page navigation inside the app)
@@ -62,11 +62,11 @@ const typeToMinutes = (type: PomodoroType, cfg: PomodoroConfig): number => {
  *
  * A 250ms ticker only triggers re-renders; it does NOT own the countdown.
  */
-export function usePomodoro(configOverride?: Partial<PomodoroConfig>): PomodoroController {
-  const config: PomodoroConfig = { ...DEFAULT_CONFIG, ...(configOverride ?? {}) };
+export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTimerController {
+  const config: FlowTimerConfig = { ...DEFAULT_CONFIG, ...(configOverride ?? {}) };
 
-  const [type, setType] = useState<PomodoroType>("focus");
-  const [phase, setPhase] = useState<PomodoroPhase>("idle");
+  const [type, setType] = useState<FlowTimerType>("focus");
+  const [phase, setPhase] = useState<FlowTimerPhase>("idle");
   const [endAt, setEndAt] = useState<number | null>(null);
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const [totalMs, setTotalMs] = useState<number>(config.focusMinutes * 60 * 1000);
@@ -76,10 +76,10 @@ export function usePomodoro(configOverride?: Partial<PomodoroConfig>): PomodoroC
 
   const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const completedFiredRef = useRef<boolean>(false);
-  const completeListenersRef = useRef<Set<(s: PomodoroSnapshot) => void>>(new Set());
+  const completeListenersRef = useRef<Set<(s: FlowTimerSnapshot) => void>>(new Set());
 
   // Public snapshot for subscribers
-  const snapshot: PomodoroSnapshot = {
+  const snapshot: FlowTimerSnapshot = {
     type,
     phase,
     endAt,
@@ -90,7 +90,7 @@ export function usePomodoro(configOverride?: Partial<PomodoroConfig>): PomodoroC
   };
 
   const totalMsForType = useCallback(
-    (t: PomodoroType) => typeToMinutes(t, config) * 60 * 1000,
+    (t: FlowTimerType) => typeToMinutes(t, config) * 60 * 1000,
     [config],
   );
 
@@ -107,7 +107,7 @@ export function usePomodoro(configOverride?: Partial<PomodoroConfig>): PomodoroC
           completedFiredRef.current = true;
           // Use microtask to avoid setState-during-render
           queueMicrotask(() => {
-            const finalSnapshot: PomodoroSnapshot = {
+            const finalSnapshot: FlowTimerSnapshot = {
               type,
               phase: "completed",
               endAt: null,
@@ -162,7 +162,7 @@ export function usePomodoro(configOverride?: Partial<PomodoroConfig>): PomodoroC
   }, [stopTicker]);
 
   const start = useCallback(
-    (opts?: { type?: PomodoroType; taskId?: string }) => {
+    (opts?: { type?: FlowTimerType; taskId?: string }) => {
       const targetType = opts?.type ?? type;
       const ms = totalMsForType(targetType);
       completedFiredRef.current = false;
@@ -197,7 +197,7 @@ export function usePomodoro(configOverride?: Partial<PomodoroConfig>): PomodoroC
   }, [phase, remainingMs, startTicker]);
 
   const reset = useCallback(
-    (opts?: { type?: PomodoroType }) => {
+    (opts?: { type?: FlowTimerType }) => {
       const targetType = opts?.type ?? type;
       const ms = totalMsForType(targetType);
       completedFiredRef.current = false;
@@ -212,7 +212,7 @@ export function usePomodoro(configOverride?: Partial<PomodoroConfig>): PomodoroC
   );
 
   const cycleType = useCallback(
-    (newType: PomodoroType) => {
+    (newType: FlowTimerType) => {
       const ms = totalMsForType(newType);
       completedFiredRef.current = false;
       setType(newType);
@@ -226,7 +226,7 @@ export function usePomodoro(configOverride?: Partial<PomodoroConfig>): PomodoroC
   );
 
   const onComplete = useCallback(
-    (cb: (s: PomodoroSnapshot) => void) => {
+    (cb: (s: FlowTimerSnapshot) => void) => {
       completeListenersRef.current.add(cb);
       return () => {
         completeListenersRef.current.delete(cb);

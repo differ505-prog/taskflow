@@ -109,7 +109,7 @@
     {
       "id": "student-finals-week",
       "name": "學生 · 期末週衝刺",
-      "description": "期末考前 4 天排程，搭配番茄鐘不爆肝",
+      "description": "期末考前 4 天排程，搭配心流計時器不爆肝",
       "icon": "🎓",
       "color": "#8B5CF6",
       "tags": ["學習"],
@@ -120,11 +120,11 @@
           "priority": "do-now"
         },
         {
-          "title": "每日番茄鐘 6 × 50min",
+          "title": "每日心流計時器 6 × 50min",
           "description": "上午 3 顆、下午 3 顆；每顆中間休息 10 分鐘。",
           "priority": "schedule",
           "subTasks": [
-            { "title": "建立番茄鐘任務標籤 #study" },
+            { "title": "建立心流計時器任務標籤 #study" },
             { "title": "設定每日 21:00 自動停止" }
           ]
         },

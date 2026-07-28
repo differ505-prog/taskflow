@@ -55,7 +55,7 @@ interface AppShellProps {
   onOpenListForm: () => void;
   onEditList: (list: TaskList) => void;
   onDeleteList: (id: string) => void;
-  onOpenPomodoro: () => void;
+  onOpenFlowTimer: () => void;
   onOpenMobileSidebar?: () => void;
   onOpenShareModal?: (list: TaskList, tasks: Task[]) => void;
   userMenu?: React.ReactNode;
@@ -71,7 +71,7 @@ interface AppShellProps {
 
 export function AppShell({
   selectedTaskId, onSelectTask, onOpenSettings, onOpenListForm,
-  onEditList, onDeleteList, onOpenPomodoro, onOpenMobileSidebar,
+  onEditList, onDeleteList, onOpenFlowTimer, onOpenMobileSidebar,
   onOpenShareModal, userMenu,
   batchMode = false, batchSelectedIds, onEnterBatchMode, onToggleBatchSelect,
   onExitBatchMode, onBatchComplete, onBatchDelete,
@@ -329,13 +329,13 @@ const canDrag = !currentSharedListId;
                 <span>禪模式</span>
               </Link>
               <button
-                onClick={onOpenPomodoro}
+                onClick={onOpenFlowTimer}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-150"
                 style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
-                aria-label="開啟番茄鐘"
+                aria-label="開啟心流計時器"
               >
                 <Timer className="w-4 h-4" />
-                <span title="番茄工作法 (Pomodoro Technique)">番茄鐘</span>
+                <span title="心流計時器">心流計時器</span>
               </button>
               {!currentSharedListId && (
               <button

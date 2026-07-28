@@ -45,7 +45,7 @@ interface SidebarProps {
   editingList?: TaskList | null;
   onEditList?: (list: TaskList) => void;
   onDeleteList?: (id: string) => void;
-  onOpenPomodoro?: () => void;
+  onOpenFlowTimer?: () => void;
   onOpenShareModal?: (list: TaskList, tasks: import("@/lib/types").Task[]) => void;
   onOpenSharedLists?: () => void;
   onOpenSharedList?: (sharedId: string) => void;
@@ -54,7 +54,7 @@ interface SidebarProps {
 
 const LIST_ICONS = ["📋", "💼", "🏠", "🏃", "📚", "💡", "🎯", "🌟", "💰", "🏥", "✈️", "🎨", "🍽️", "🛠️", "📱", "💻"];
 
-export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditList, onDeleteList, onOpenPomodoro, onOpenShareModal, onOpenSharedLists, onOpenSharedList, onLeaveSharedList }: SidebarProps) {
+export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditList, onDeleteList, onOpenFlowTimer, onOpenShareModal, onOpenSharedLists, onOpenSharedList, onLeaveSharedList }: SidebarProps) {
   const { currentView, currentListId, currentSharedListId, setCurrentView, viewCounts, lists, reorderLists, sharedLists, getListTaskCount, tasks } = useApp();
   const confirm = useConfirm();
   const [listsExpanded, setListsExpanded] = useState(true);
@@ -344,15 +344,15 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
 
       {/* Bottom actions */}
       <div className="p-2 border-t space-y-1" style={{ borderColor: "var(--border)" }}>
-        {onOpenPomodoro && (
+        {onOpenFlowTimer && (
           <button
-            title="番茄工作法 (Pomodoro Technique)"
-            onClick={onOpenPomodoro}
+            title="心流計時器"
+            onClick={onOpenFlowTimer}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-150"
             style={{ color: "var(--text-secondary)" }}
           >
             <Timer className="w-[18px] h-[18px]" />
-            番茄鐘
+            心流計時器
           </button>
         )}
         <button

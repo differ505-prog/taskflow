@@ -12,7 +12,7 @@ import { HabitsPage } from "@/components/HabitsPage";
 import StatsClient from "@/components/StatsClient";
 import { TagsPage } from "@/components/TagsPage";
 import { QuadrantRadarView } from "@/components/QuadrantRadarView";
-import { PomodoroTimer } from "@/components/PomodoroTimer";
+import { FlowTimerModal } from "@/components/FlowTimerModal";
 import { useBfcacheKey } from "@/components/BfcacheHandler";
 import { BottomNavigation } from "@/components/BottomNavigation";
 import { UserMenu } from "@/components/UserMenu";
@@ -40,7 +40,7 @@ function AppLayoutInner() {
   const confirm = useConfirm();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isListFormOpen, setIsListFormOpen] = useState(false);
-  const [isPomodoroOpen, setIsPomodoroOpen] = useState(false);
+  const [isFlowTimerOpen, setIsFlowTimerOpen] = useState(false);
   const [editingList, setEditingList] = useState<TaskList | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [shareModalList, setShareModalList] = useState<{ list: TaskList; tasks: import("@/lib/types").Task[] } | null>(null);
@@ -126,7 +126,7 @@ function AppLayoutInner() {
 
       if (e.key === "Escape") {
         if (isSettingsOpen) { setIsSettingsOpen(false); return; }
-        if (isPomodoroOpen) { setIsPomodoroOpen(false); return; }
+        if (isFlowTimerOpen) { setIsFlowTimerOpen(false); return; }
         if (selectedTaskId || calendarSelectedTask) {
           setSelectedTaskId(null);
           setCalendarSelectedTask(null);
@@ -151,7 +151,7 @@ function AppLayoutInner() {
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [isSettingsOpen, isPomodoroOpen, selectedTaskId, calendarSelectedTask, calendarSelectedDate, isMobileSidebarOpen, batchMode, batchSelectedIds, handleBatchComplete, handleBatchDelete, exitBatchMode]);
+  }, [isSettingsOpen, isFlowTimerOpen, selectedTaskId, calendarSelectedTask, calendarSelectedDate, isMobileSidebarOpen, batchMode, batchSelectedIds, handleBatchComplete, handleBatchDelete, exitBatchMode]);
 
   // Detect mobile viewport
   useEffect(() => {
@@ -246,7 +246,7 @@ function AppLayoutInner() {
             onOpenListForm={handleOpenListForm}
             onEditList={handleEditList}
             onDeleteList={deleteList}
-            onOpenPomodoro={() => setIsPomodoroOpen(true)}
+            onOpenFlowTimer={() => setIsFlowTimerOpen(true)}
             onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
             onOpenShareModal={(list, listTasks) => setShareModalList({ list, tasks: listTasks })}
             userMenu={<UserMenu />}
@@ -311,7 +311,7 @@ function AppLayoutInner() {
           editingList={editingList}
           onEditList={handleEditList}
           onDeleteList={deleteList}
-          onOpenPomodoro={() => setIsPomodoroOpen(true)}
+          onOpenFlowTimer={() => setIsFlowTimerOpen(true)}
           onOpenShareModal={(list, listTasks) => setShareModalList({ list, tasks: listTasks })}
           onOpenSharedLists={() => setShowSharedLists(true)}
           onOpenSharedList={(sharedId) => { setCurrentSharedList(sharedId); }}
@@ -386,7 +386,7 @@ function AppLayoutInner() {
           onSelectList={(id) => setCurrentView("list", id)}
           onOpenSidebar={() => setIsMobileSidebarOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
-          onOpenPomodoro={() => setIsPomodoroOpen(true)}
+          onOpenFlowTimer={() => setIsFlowTimerOpen(true)}
           todayCount={viewCounts.today}
         />
       </div>
@@ -409,7 +409,7 @@ function AppLayoutInner() {
               editingList={editingList}
               onEditList={handleEditList}
               onDeleteList={deleteList}
-              onOpenPomodoro={() => { setIsMobileSidebarOpen(false); setIsPomodoroOpen(true); }}
+              onOpenFlowTimer={() => { setIsMobileSidebarOpen(false); setIsFlowTimerOpen(true); }}
               onOpenShareModal={(list, listTasks) => { setIsMobileSidebarOpen(false); setShareModalList({ list, tasks: listTasks }); }}
               onOpenSharedLists={() => { setIsMobileSidebarOpen(false); setShowSharedLists(true); }}
               onOpenSharedList={(sharedId) => { setIsMobileSidebarOpen(false); setCurrentSharedList(sharedId); }}
@@ -431,7 +431,7 @@ function AppLayoutInner() {
         onDelete={editingList ? deleteList : undefined}
       />
 
-      <PomodoroTimer isOpen={isPomodoroOpen} onClose={() => setIsPomodoroOpen(false)} />
+      <FlowTimerModal isOpen={isFlowTimerOpen} onClose={() => setIsFlowTimerOpen(false)} />
 
       <ShareListModal
         isOpen={shareModalList !== null}

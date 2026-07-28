@@ -1,18 +1,18 @@
 "use client";
 
-import { ZenFlowContext, PomodoroContext } from "./ZenFlowContext";
+import { ZenFlowContext, FlowTimerContext } from "./ZenFlowContext";
 import { useZenFlow } from "./useZenFlow";
-import { usePomodoro } from "./usePomodoro";
+import { useFlowTimer } from "./usePomodoro";
 
 export function ZenFlowProvider({ children, omnisonicBaseUrl }: { children: React.ReactNode; omnisonicBaseUrl: string }) {
   const controller = useZenFlow(omnisonicBaseUrl);
-  const pomodoro = usePomodoro();
+  const flowTimer = useFlowTimer();
 
   return (
     <ZenFlowContext.Provider value={controller}>
-      <PomodoroContext.Provider value={pomodoro}>
+      <FlowTimerContext.Provider value={flowTimer}>
         {children}
-      </PomodoroContext.Provider>
+      </FlowTimerContext.Provider>
     </ZenFlowContext.Provider>
   );
 }

@@ -1,9 +1,9 @@
-import { Task, TaskList, Habit, PomodoroSession, Tag, DEFAULT_LISTS, DEFAULT_LIST_IDS } from "./types";
+import { Task, TaskList, Habit, FlowTimerSession, Tag, DEFAULT_LISTS, DEFAULT_LIST_IDS } from "./types";
 
 const TASKS_KEY = "taskflow_tasks";
 const LISTS_KEY = "taskflow_lists";
 const HABITS_KEY = "taskflow_habits";
-const POMODORO_KEY = "taskflow_pomodoro";
+const FLOW_TIMER_KEY = "taskflow_flow_timer";
 const TAGS_KEY = "taskflow_tags";
 const SHARED_LISTS_KEY = "taskflow_shared_lists"; // { [sharedId]: { list, tasks } }
 const OWNED_SHARED_LIST_IDS_KEY = "taskflow_owned_shared_ids"; // string[] of owned shared list IDs
@@ -174,29 +174,29 @@ function computeStreak(habit: Habit, checkins: Habit["checkins"]): number {
   return streak;
 }
 
-// ─── Pomodoro ───────────────────────────────────────────────────
-export function getPomodoroSessions(): PomodoroSession[] {
-  return read<PomodoroSession[]>(POMODORO_KEY, []);
+// ─── FlowTimer ───────────────────────────────────────────────────
+export function getFlowTimerSessions(): FlowTimerSession[] {
+  return read<FlowTimerSession[]>(FLOW_TIMER_KEY, []);
 }
 
-export function savePomodoroSessions(sessions: PomodoroSession[]): void {
-  write(POMODORO_KEY, sessions);
+export function saveFlowTimerSessions(sessions: FlowTimerSession[]): void {
+  write(FLOW_TIMER_KEY, sessions);
 }
 
-export function addPomodoroSession(session: Omit<PomodoroSession, "id">): PomodoroSession {
-  const newSession: PomodoroSession = {
+export function addFlowTimerSession(session: Omit<FlowTimerSession, "id">): FlowTimerSession {
+  const newSession: FlowTimerSession = {
     ...session,
     id: generateId(),
   };
-  const sessions = getPomodoroSessions();
+  const sessions = getFlowTimerSessions();
   sessions.push(newSession);
-  savePomodoroSessions(sessions);
+  saveFlowTimerSessions(sessions);
   return newSession;
 }
 
 export function getTodayFocusMinutes(): number {
   const today = new Date().toISOString().split("T")[0];
-  return getPomodoroSessions()
+  return getFlowTimerSessions()
     .filter((s) => s.completed && s.type === "focus" && s.startTime.startsWith(today))
     .reduce((sum, s) => sum + s.durationMinutes, 0);
 }
@@ -265,7 +265,7 @@ export function exportAllData(): string {
     tasks: getTasks(),
     lists: getLists(),
     habits: getHabits(),
-    pomodoro: getPomodoroSessions(),
+    flowTimer: getFlowTimerSessions(),
     tags: getTags(),
     tagColors: getTagColors(),
     exportedAt: new Date().toISOString(),
@@ -291,7 +291,7 @@ export function getDaysSinceBackup(): number {
 }
 
 export function clearAllData(): void {
-  [TASKS_KEY, LISTS_KEY, HABITS_KEY, POMODORO_KEY, TAGS_KEY].forEach((k) =>
+  [TASKS_KEY, LISTS_KEY, HABITS_KEY, FLOW_TIMER_KEY, TAGS_KEY].forEach((k) =>
     localStorage.removeItem(k)
   );
 }
@@ -354,7 +354,7 @@ export interface ImportResult {
   tasks: number;
   habits: number;
   lists: number;
-  pomodoro: number;
+  flowTimer: number;
   tags: number;
   errors: string[];
 }
@@ -371,7 +371,7 @@ export function importData(
   try {
     parsed = JSON.parse(jsonString);
   } catch {
-    return { success: false, tasks: 0, habits: 0, lists: 0, pomodoro: 0, tags: 0, errors: ["JSON 格式無效"] };
+    return { success: false, tasks: 0, habits: 0, lists: 0, flowTimer: 0, tags: 0, errors: ["JSON 格式無效"] };
   }
 
   const validateArray = (key: string) =>
@@ -423,7 +423,7 @@ export function importData(
     tasks: importedTasks.length,
     habits: importedHabits.length,
     lists: importedLists.length,
-    pomodoro: validateArray("pomodoro").length,
+    flowTimer: validateArray("flowTimer").length,
     tags: validateArray("tags").length,
     errors,
   };

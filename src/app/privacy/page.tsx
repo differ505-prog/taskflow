@@ -32,7 +32,7 @@ export default function PrivacyPage() {
               <li><strong>評論資料</strong>：您在任務下新增的回報留言（包含內容、留言時間、留言者 Email）。</li>
               <li><strong>附件資料</strong>：您上傳的圖片與檔案，儲存於 Supabase Storage（含檔名、大小、上傳時間）。</li>
               <li><strong>習慣追蹤資料</strong>：習慣名稱、打卡記錄、連續天數等。</li>
-              <li><strong>專注時間資料</strong>：番茄鐘使用記錄（僅儲存時長和時間戳）。</li>
+              <li><strong>專注時間資料</strong>：心流計時器使用記錄（僅儲存時長和時間戳）。</li>
               <li><strong>本地偏好</strong>：主題（淺色/深色）、隱私同意狀態等，僅存於瀏覽器 localStorage。</li>
               <li><strong>Cookies</strong>：用於記住登入狀態、主題偏好與隱私同意記錄，不包含追蹤碼。</li>
             </ul>

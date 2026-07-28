@@ -37,11 +37,11 @@ interface BottomNavigationProps {
   onSelectList: (listId: string) => void;
   onOpenSidebar: () => void;
   onOpenSettings: () => void;
-  onOpenPomodoro?: () => void;
+  onOpenFlowTimer?: () => void;
   todayCount?: number;
 }
 
-export function BottomNavigation({ currentView, currentListId, lists, onNavigate, onSelectList, onOpenSidebar, onOpenSettings, onOpenPomodoro, todayCount = 0 }: BottomNavigationProps) {
+export function BottomNavigation({ currentView, currentListId, lists, onNavigate, onSelectList, onOpenSidebar, onOpenSettings, onOpenFlowTimer, todayCount = 0 }: BottomNavigationProps) {
   const [moreOpen, setMoreOpen] = useState(false);
 
   const handleTap = useCallback((view: AppView) => {
@@ -60,11 +60,10 @@ export function BottomNavigation({ currentView, currentListId, lists, onNavigate
     onNavigate(view);
   }, [onNavigate]);
 
-  const handlePomodoro = useCallback(() => {
+  const handleFlowTimer = useCallback(() => {
     haptic("selection");
-    setMoreOpen(false);
-    onOpenPomodoro?.();
-  }, [onOpenPomodoro]);
+    onOpenFlowTimer?.();
+  }, [onOpenFlowTimer]);
 
   const handleSettings = useCallback(() => {
     haptic("selection");
@@ -116,7 +115,7 @@ export function BottomNavigation({ currentView, currentListId, lists, onNavigate
       </nav>
 
       {/* More popover */}
-      {moreOpen && <MorePopover onItem={handleMoreItem} onPomodoro={onOpenPomodoro ? handlePomodoro : undefined} onSettings={handleSettings} onSelectList={onSelectList} onOpenSidebar={onOpenSidebar} currentView={currentView} currentListId={currentListId} lists={lists} onClose={() => setMoreOpen(false)} />}
+      {moreOpen && <MorePopover onItem={handleMoreItem} onFlowTimer={onOpenFlowTimer ? handleFlowTimer : undefined} onSettings={handleSettings} onSelectList={onSelectList} onOpenSidebar={onOpenSidebar} currentView={currentView} currentListId={currentListId} lists={lists} onClose={() => setMoreOpen(false)} />}
     </>
   );
 }
@@ -131,9 +130,9 @@ function MoreIcon() {
   );
 }
 
-function MorePopover({ onItem, onPomodoro, onSettings, onSelectList, onOpenSidebar, currentView, currentListId, lists, onClose }: {
+function MorePopover({ onItem, onFlowTimer, onSettings, onSelectList, onOpenSidebar, currentView, currentListId, lists, onClose }: {
   onItem: (v: AppView) => void;
-  onPomodoro?: () => void;
+  onFlowTimer?: () => void;
   onSettings: () => void;
   onSelectList: (listId: string) => void;
   onOpenSidebar: () => void;
@@ -151,23 +150,23 @@ function MorePopover({ onItem, onPomodoro, onSettings, onSelectList, onOpenSideb
         role="menu"
         aria-label="更多選項"
       >
-        {/* 蕃茄鐘：手機版主要入口，放在清單上方 */}
-        {onPomodoro && (
+        {/* 心流計時器：手機版主要入口，放在清單上方 */}
+        {onFlowTimer && (
           <>
             <button
               className="flex items-center gap-3 px-5 py-3.5 text-[14px] font-medium w-full text-left transition-colors hover:bg-[var(--surface-hover)]"
               style={{ color: "var(--brand)" }}
-              onClick={onPomodoro}
+              onClick={onFlowTimer}
               role="menuitem"
             >
               <Timer className="w-[22px] h-[22px]" />
-              蕃茄計時
+              心流計時
             </button>
             <div style={{ height: "1px", background: "var(--border)" }} />
           </>
         )}
 
-        {/* 禪模式：手機版主要入口，蕃茄鐘下方 */}
+        {/* 禪模式：手機版主要入口，心流計時器下方 */}
         <Link
           href="/"
           className="flex items-center gap-3 px-5 py-3.5 text-[14px] font-medium w-full text-left transition-colors hover:bg-[var(--surface-hover)]"

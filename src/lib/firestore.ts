@@ -6,7 +6,7 @@
  * 為保留 AppContext 的 import 介面相容，本檔案 export 舊簽名函式，
  * 內部實作委派給 src/lib/sharedSync.ts。
  *
- * Firebase 仍用於：個人任務/清單/習慣/標籤/番茄鐘的本地同步儲存。
+ * Firebase 仍用於：個人任務/清單/習慣/標籤/心流計時器的本地同步儲存。
  */
 import {
   collection,
@@ -25,7 +25,7 @@ import {
   Unsubscribe,
 } from "firebase/firestore";
 import { getFirebaseDB } from "./firebase";
-import { Task, TaskList, Habit, PomodoroSession, Tag, SharedListMeta, SharedListSnapshot } from "./types";
+import { Task, TaskList, Habit, FlowTimerSession, Tag, SharedListMeta, SharedListSnapshot } from "./types";
 import * as SharedSync from "./sharedSync";
 import { isSupabaseConfigured } from "./supabase";
 
@@ -34,7 +34,7 @@ const uid = (userId: string) => userId;
 const tasksCol    = (userId: string) => `users/${uid(userId)}/tasks`;
 const listsCol    = (userId: string) => `users/${uid(userId)}/lists`;
 const habitsCol   = (userId: string) => `users/${uid(userId)}/habits`;
-const pomodoroCol = (userId: string) => `users/${uid(userId)}/pomodoro`;
+const flowTimerCol = (userId: string) => `users/${uid(userId)}/flow_timer`;
 const tagsCol     = (userId: string) => `users/${uid(userId)}/tags`;
 
 // ─── 個人資料：任務 ─────────────────────────────────────────
@@ -130,25 +130,25 @@ export async function deleteHabit(userId: string, habitId: string): Promise<void
   await deleteDoc(doc(db, habitsCol(userId), habitId));
 }
 
-// ─── 個人資料：番茄鐘 ───────────────────────────────────────
-export async function subscribePomodoro(
+// ─── 個人資料：心流計時器 ───────────────────────────────────────
+export async function subscribeFlowTimer(
   userId: string,
-  onUpdate: (sessions: PomodoroSession[]) => void
+  onUpdate: (sessions: FlowTimerSession[]) => void
 ): Promise<Unsubscribe> {
   const db = await getFirebaseDB();
-  const q = query(collection(db, pomodoroCol(userId)), orderBy("startTime", "desc"));
+  const q = query(collection(db, flowTimerCol(userId)), orderBy("startTime", "desc"));
   return onSnapshot(q, (snap) => {
-    const sessions: PomodoroSession[] = snap.docs.map((d) => ({ ...d.data(), id: d.id } as PomodoroSession));
+    const sessions: FlowTimerSession[] = snap.docs.map((d) => ({ ...d.data(), id: d.id } as FlowTimerSession));
     onUpdate(sessions);
   });
 }
 
-export async function savePomodoroSession(
+export async function saveFlowTimerSession(
   userId: string,
-  session: PomodoroSession
+  session: FlowTimerSession
 ): Promise<void> {
   const db = await getFirebaseDB();
-  await setDoc(doc(db, pomodoroCol(userId), session.id), session);
+  await setDoc(doc(db, flowTimerCol(userId), session.id), session);
 }
 
 // ─── 個人資料：標籤 ─────────────────────────────────────────
@@ -191,7 +191,7 @@ export async function importAllData(
     tasks?: Task[];
     lists?: TaskList[];
     habits?: Habit[];
-    pomodoro?: PomodoroSession[];
+    flowTimer?: FlowTimerSession[];
     tags?: Tag[];
   }
 ): Promise<{ tasks: number; habits: number; lists: number }> {

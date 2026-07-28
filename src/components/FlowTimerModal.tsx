@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useApp } from "@/lib/AppContext";
-import { useZenFlowContext, usePomodoroContext } from "@/lib/ZenFlowContext";
-import type { PomodoroType } from "@/lib/usePomodoro";
+import { useZenFlowContext, useFlowTimerContext } from "@/lib/ZenFlowContext";
+import type { FlowTimerType } from "@/lib/usePomodoro";
 import { Task } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -11,30 +11,30 @@ import {
   X, Timer, Search,
 } from "lucide-react";
 
-interface PomodoroTimerProps {
+interface FlowTimerModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
 const SESSIONS_BEFORE_LONG_BREAK = 4;
 
-type TimerType = PomodoroType;
+type TimerType = FlowTimerType;
 
-export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
+export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
   const { tasks, todayFocusMinutes } = useApp();
   const { state: zenState, play, pause } = useZenFlowContext();
-  const pomodoro = usePomodoroContext();
+  const flowTimer = useFlowTimerContext();
 
   const {
     snapshot,
     secondsLeft,
     start,
-    pause: pausePomodoro,
+    pause: pauseFlowTimer,
     resume,
     reset,
     cycleType,
     setBoundTask,
-  } = pomodoro;
+  } = flowTimer;
 
   const [taskSearch, setTaskSearch] = useState("");
   const [taskMenuOpen, setTaskMenuOpen] = useState(false);
@@ -80,7 +80,7 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
 
   // ── Alarm + Notification when a session completes ─────────
   useEffect(() => {
-    const unsubscribe = pomodoro.onComplete((finalSnapshot) => {
+    const unsubscribe = flowTimer.onComplete((finalSnapshot) => {
       const isFocus = finalSnapshot.type === "focus";
 
       // 1. Play alarm sound
@@ -97,7 +97,7 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
       // 2. System notification
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
         try {
-          new Notification("VibeList 番茄鐘", {
+          new Notification("VibeList 心流計時器", {
             body: isFocus ? "專注時間結束！休息一下吧 🌿" : "休息結束,準備下一個專注 session ✨",
             icon: "/favicon.svg",
           });
@@ -112,7 +112,7 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
       }
     });
     return unsubscribe;
-  }, [pomodoro, pause]);
+  }, [flowTimer, pause]);
 
   // ── Auto-play music when focus session starts ──────────────
   // (kept here, not in handleStart, so the same behavior holds whether
@@ -133,8 +133,8 @@ export function PomodoroTimer({ isOpen, onClose }: PomodoroTimerProps) {
   }, [snapshot.phase, snapshot.type, snapshot.boundTaskId, start, resume, zenState.isPlaying, play]);
 
   const handlePause = useCallback(() => {
-    pausePomodoro();
-  }, [pausePomodoro]);
+    pauseFlowTimer();
+  }, [pauseFlowTimer]);
 
   const handleReset = useCallback(() => {
     reset({ type: snapshot.type });

@@ -180,7 +180,7 @@ export interface Task {
   isArchived: boolean;
   isPinned?: boolean; // 置頂（全域排序加權）
   completedAt?: string; // ISO datetime，任務被標記為完成時的時間戳
-  focusMinutes: number; // total Pomodoro minutes logged
+  focusMinutes: number; // total FlowTimer minutes logged
   order: number; // sort order within view
   createdBy?: string; // uid of the user who created this task (for shared lists)
   attachments?: Attachment[]; // 上傳的附件
@@ -240,7 +240,7 @@ export interface HabitCheckin {
   note?: string;
 }
 
-export interface PomodoroSession {
+export interface FlowTimerSession {
   id: string;
   taskId?: string;
   startTime: string; // ISO datetime

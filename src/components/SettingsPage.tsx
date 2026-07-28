@@ -672,11 +672,11 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
               <div className="h-px" style={{ background: "var(--border)" }} />
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>番茄鐘提醒</p>
+                  <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>心流計時器提醒</p>
                   <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>專注時間結束時通知</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" defaultChecked aria-label="番茄鐘提醒" />
+                  <input type="checkbox" className="sr-only peer" defaultChecked aria-label="心流計時器提醒" />
                   <div className="w-11 h-6 rounded-full peer peer-checked:bg-brand bg-black/10 transition-colors" />
                   <div className="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5" />
                 </label>
@@ -1249,7 +1249,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                     <span className="text-[13px] font-bold" style={{ color: "var(--status-warning)" }}>P</span>
                   </div>
                   <div>
-                    <p className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>番茄工作法</p>
+                    <p className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>心流計時器</p>
                     <p className="text-[12px] mt-0.5 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
                       25 分鐘高度專注工作區塊，配合短休息形成心流節奏。
                       內建計時器讓你不必切換工具，專注當下最重要的事。
