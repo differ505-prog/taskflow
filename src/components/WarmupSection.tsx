@@ -118,7 +118,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
             transition={{ duration: 0.4, ease: "easeOut", delay: 0.3 }}
             onClick={() => setIsCreating(true)}
             aria-label="建立第一個暖身習慣"
-            className="fixed bottom-6 left-6 z-20 flex items-center gap-2 rounded-full bg-white/80 px-3 py-2 leading-none text-rose-400 shadow-sm ring-1 ring-slate-200/60 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+            className="fixed bottom-6 left-6 z-20 flex items-center gap-2 rounded-full bg-white/80 px-3 py-2 text-rose-400 shadow-sm ring-1 ring-slate-200/60 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
             style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
             whileTap={{ scale: 0.92 }}
           >
@@ -266,7 +266,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
           whileTap={{ scale: 0.92 }}
         >
           <Flame className="h-3.5 w-3.5" aria-hidden />
-          開始暖身
+          <span className="leading-none">開始暖身</span>
         </motion.button>
       )}
 
