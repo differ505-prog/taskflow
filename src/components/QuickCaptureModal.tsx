@@ -166,12 +166,6 @@ export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps
             onClick={(e) => e.stopPropagation()}
           >
             <div
-              className="mb-2.5 text-center text-[11px] text-slate-400"
-              aria-hidden
-            >
-              ↵ Enter 丟入收集箱&nbsp;&nbsp;·&nbsp;&nbsp;⇧ Enter 加入今日
-            </div>
-            <div
               className={`flex items-center gap-3 rounded-2xl bg-white/95 px-5 py-4 shadow-2xl ring-1 backdrop-blur-md transition-all duration-200 ease-out ${
                 showSuccess
                   ? "ring-[var(--status-success)]/40"
@@ -198,6 +192,12 @@ export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps
                 aria-label="大腦傾倒輸入框 — Enter 送出到收件箱，Shift+Enter 加入今日任務"
                 className="flex-1 min-w-0 bg-transparent text-[16px] sm:text-[17px] text-slate-800 placeholder:text-slate-400 focus:outline-none"
               />
+              {/* 輸入時固定顯示快捷鍵提示 — 視線自然落在輸入區右側 */}
+              {value.trim() && (
+                <span className="flex-shrink-0 text-[10px] text-slate-400 tabular-nums" aria-hidden>
+                  ↵ Enter 收集箱 · ⇧ Enter 今日
+                </span>
+              )}
               <span
                 aria-live="polite"
                 aria-atomic="true"
@@ -215,12 +215,6 @@ export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps
                 <span>Esc</span>
               </kbd>
             </div>
-            <p
-              className="mt-2.5 text-center text-[11px] text-slate-400"
-              aria-hidden
-            >
-              默默跑去收件箱
-            </p>
           </motion.div>
         </motion.div>
       )}
