@@ -27,6 +27,39 @@ export const metadata: Metadata = {
   formatDetection: {
     telephone: false,
   },
+  openGraph: {
+    type: "website",
+    locale: "zh_TW",
+    url: "https://vibelist.work/",
+    siteName: "VibeList",
+    title: "VibeList - 任務管理，優雅高效",
+    description:
+      "一次只做一件事的極簡任務管理工具。支援循環任務、子任務、番茄鐘、習慣追蹤、PWA 離線使用。",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "VibeList 任務管理",
+      },
+      {
+        url: "/og-image-square.png",
+        width: 1200,
+        height: 1200,
+        alt: "VibeList 任務管理",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "VibeList - 任務管理，優雅高效",
+    description:
+      "一次只做一件事的極簡任務管理工具。支援循環任務、子任務、番茄鐘、習慣追蹤。",
+    images: ["/og-image.png"],
+  },
+  alternates: {
+    canonical: "https://vibelist.work/",
+  },
 };
 
 export const viewport: Viewport = {
@@ -51,6 +84,7 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="shortcut icon" href="/favicon.svg" />
         <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
