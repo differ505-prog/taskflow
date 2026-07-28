@@ -77,7 +77,7 @@ export function ProgressBadge() {
       {/* Tooltip / Popover — §26 微遊戲化:3 行層次拉開視覺權重,加極簡進度條 */}
       {showTooltip && (
         <div
-          className="absolute right-0 top-full z-50 mt-1.5 w-[180px] rounded-xl border border-slate-200/80 bg-white/95 px-3 py-2.5 text-center shadow-sm backdrop-blur"
+          className="absolute bottom-full right-0 mb-1.5 w-[180px] rounded-xl border border-slate-200/80 bg-white/95 px-3 py-2.5 text-center shadow-sm backdrop-blur"
           role="tooltip"
         >
           {/* 第 1 行:等級名稱 (低權重,標籤感) */}
