@@ -296,7 +296,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const storedLists = initDefaultLists();
     setLists(storedLists);
-    setTasks(getTasks());
+    const localTasks = getTasks();
+    setTasks(localTasks);
+    console.log(`[APP INIT] localStorage tasks=${localTasks.length} user=${user?.uid ?? "null"}`);
     setHabits(getHabits());
     setTodayFocusMinutes(getTodayFocusMinutes());
     const storedOwnedIds = getOwnedSharedListIds();
@@ -313,9 +315,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // ── 跨設備同步：Supabase Realtime 訂閱個人任務 + 清單 ──────
     if (user) {
+      console.log(`[APP INIT] subscribing to uid=${user.uid}`);
       if (fbUnsubRef.current) fbUnsubRef.current();
       subscribeTasks(user.uid, (fbTasks, deletedId, pendingDeletions) => {
-        // 跳過第一次（空的初始資料），避免覆蓋本地尚未同步的任務
+        console.log(`[SUBSCRIBE TASKS] callback uid=${user.uid} fbTasks=${fbTasks.length} firstLoadDone=${firstTasksLoadDone.current}`);
         if (!firstTasksLoadDone.current) {
           firstTasksLoadDone.current = true;
           return;
