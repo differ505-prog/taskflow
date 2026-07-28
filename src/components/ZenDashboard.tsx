@@ -44,6 +44,7 @@ import { useGhostButton } from "@/hooks/useGhostButton";
 import { Hourglass, Users } from "lucide-react";
 import { useApp } from "@/lib/AppContext";
 import type { Task } from "@/lib/types";
+import { WarmupFlow } from "@/components/WarmupFlow";
 
 /** 禪模式看的任務樣態：嚴格「今日專注清單 (The Today Rule)」
  *  - 排除已封存、已完成、子任務
@@ -76,6 +77,7 @@ export default function ZenDashboard() {
   // - Cmd/Ctrl+K 召喚(桌機快捷鍵)
   // - 底部 FAB 點擊召喚(手機入口)
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false);
+  const [warmupFlowOpen, setWarmupFlowOpen] = useState(false);
   useQuickCaptureShortcut(
     () => setQuickCaptureOpen(true),
     true,
@@ -102,6 +104,10 @@ export default function ZenDashboard() {
 
   const focus = visibleTasks[0];
   const queue = visibleTasks.slice(1);
+
+  // §26 B 評分表 9.3:暖身完 → focus mode(視野縮窄)
+  // 不 navigate,只隱藏 UPCOMING QUEUE,符合「啟動=收斂視野」
+  const [focusMode, setFocusMode] = useState(false);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -283,6 +289,16 @@ export default function ZenDashboard() {
 
         {/* 焦點區 */}
         <section aria-labelledby="focus-heading" className="flex flex-col items-center gap-6">
+          {/* §26 B 暖身完焦點模式:頂部加「展開 UPCOMING」按鈕,給逃離路徑 */}
+          {focusMode && queue.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setFocusMode(false)}
+              className="self-end rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-widest text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+            >
+              展開 UPCOMING ↑
+            </button>
+          )}
           {/* 心流計時器膠囊 — 置於焦點任務卡片上方 */}
           <FlowTimer />
           <h1 id="focus-heading" className="sr-only">
@@ -315,8 +331,8 @@ export default function ZenDashboard() {
           </AnimatePresence>
         </section>
 
-        {/* 排程區 */}
-        {queue.length > 0 && (
+        {/* 排程區 — §26 B 暖身完焦點模式:收斂視野,隱藏 UPCOMING QUEUE */}
+        {!focusMode && queue.length > 0 && (
           <section aria-labelledby="queue-heading" className="flex flex-col gap-4">
             <h2
               id="queue-heading"
@@ -359,7 +375,15 @@ export default function ZenDashboard() {
       {/* WarmupSection — 暖身區塊(左下角)
           沿用既有 Habit 系統 checkinHabit 同步層
           手機隱藏(sm:flex),避免跟 mobile FAB 搶版面 */}
-      <WarmupSection />
+      <WarmupSection onEnterFlow={() => setWarmupFlowOpen(true)} />
+      <WarmupFlow
+        open={warmupFlowOpen}
+        onClose={() => setWarmupFlowOpen(false)}
+        onComplete={() => {
+          setWarmupFlowOpen(false);
+          setFocusMode(true);
+        }}
+      />
 
       {/* 陪伴指示燈 — 右下角,跟左下 WarmupSection 對稱
           §品牌承諾「真實與脆弱」:顯示估算範圍 + hover tooltip 揭露

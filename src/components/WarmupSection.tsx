@@ -7,7 +7,7 @@ import { useStatusWindow } from "@/hooks/useStatusWindow";
 import { useProgressStatus } from "@/hooks/useProgressStatus";
 import { useLevelUpNotification } from "@/components/LevelUpNotification";
 import { BASE_HABIT_PP } from "@/lib/progressRank";
-import { Heart, Check, Plus } from "lucide-react";
+import { Heart, Check, Plus, Flame } from "lucide-react";
 
 /**
  * WarmupSection — 禪模式暖身區塊（角落固定）
@@ -40,7 +40,11 @@ function getToday(): string {
   return new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD（本地時區）
 }
 
-export function WarmupSection() {
+interface WarmupSectionProps {
+  onEnterFlow?: () => void;
+}
+
+export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
   const { habits, checkinHabit, addHabit } = useApp();
   const showWindow = useStatusWindow();
   const { addPp } = useProgressStatus();
@@ -242,10 +246,30 @@ export function WarmupSection() {
               >
                 {habit.title.slice(0, 1)}
               </span>
-            </motion.button>
-          ))}
+</motion.button>
+        ))}
         </div>
       </motion.div>
+
+      {/* §26 B 評分表 9.1:「開始暖身」入口 — 點擊進入全螢幕抽卡流程
+          只在 ≥2 個 pending 時出現,避免與「快速完成」競爭點擊目標 */}
+      {pendingHabits.length >= 2 && onEnterFlow && (
+        <motion.button
+          type="button"
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.85 }}
+          transition={{ duration: 0.35, ease: "easeOut", delay: 0.5 }}
+          onClick={onEnterFlow}
+          aria-label="開始暖身儀式"
+          className="fixed bottom-6 left-1/2 z-20 hidden -translate-x-1/2 items-center gap-2 rounded-full bg-rose-400 px-4 py-2 text-xs font-medium uppercase tracking-widest text-white shadow-md transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-rose-500 hover:shadow-lg active:scale-95 sm:flex"
+          style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+          whileTap={{ scale: 0.92 }}
+        >
+          <Flame className="h-3.5 w-3.5" aria-hidden />
+          開始暖身
+        </motion.button>
+      )}
 
       {/* 手機:單顆 compact icon(只取第一個 pending habit 作為捷徑),點擊直接完成
           §ADHD 最小摩擦:不開中間 sheet,輕點即完成(符合 §1 焦點不中斷) */}
