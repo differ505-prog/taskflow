@@ -184,6 +184,8 @@ export interface Task {
   order: number; // sort order within view
   createdBy?: string; // uid of the user who created this task (for shared lists)
   attachments?: Attachment[]; // 上傳的附件
+  /** 用戶 UID:每個任務永久 tag 建立者的 uid,切換帳號時用此欄位過濾跨 uid 殘留任務 (§26-J 修復) */
+  ownerUid?: string;
 }
 
 export interface TaskFilter {

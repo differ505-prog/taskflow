@@ -39,6 +39,8 @@ import {
   removeSharedList,
   saveOwnedSharedListIds,
   getOwnedSharedListIds,
+  clearTasksIfUserChanged,
+  updateLastUserUid,
 } from "./storage";
 import { deleteFile } from "./storageUpload";
 import {
@@ -361,7 +363,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           // 補回雲端尚未收到的本地任務（剛新增的）
           // 但排除正在刪除中的任務，避免 DELETE 事件的 merge 把刪除目標又加回來
           const localOnly = prevWithoutDeleted.filter(
-            (t) => !fbIds.has(t.id)
+            (t) => !fbIds.has(t.id) && (!t.ownerUid || t.ownerUid === user.uid)
           );
           const result = [...merged, ...localOnly];
           console.log(`[SUP SYNC] setTasks result: merged=${merged.length} localOnly=${localOnly.length} deleted=${deleted.size} result=${result.length}`);
@@ -426,6 +428,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }).catch((err) => {
         console.warn("[SUP SYNC] 訂閱清單失敗:", err);
       });
+
+      // §26-J:切換帳號偵測,舊 uid 任務在 merge 前先過濾掉(避免觸發孤兒補推 RLS 403)
+      // 注意:這裡只更新 LAST_USER_UID_KEY,實際任務過濾在 subscribeTasksSync callback 的 localOnly 階段
+      if (user.uid) updateLastUserUid(user.uid);
 
       // 首次登入：把本地 localStorage 任務上傳到 Supabase（只上傳不在雲端的）
       void migrateLocalToSupabase(user.uid);
@@ -751,12 +757,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       focusMinutes: 0,
       isArchived: false,
       order: tasks.filter((t) => !t.isArchived).length,
+      ownerUid: user?.uid,
     };
     const updated = [task, ...tasks];
     setTasks(updated);
     saveTasks(updated);
     markRecentlyWritten(id);
-    if (user) batchSaveTasksFirebase(user.uid, [task]).catch((err) => console.error("[SUP SYNC] 新增失敗:", err));
+    if (user) {
+      updateLastUserUid(user.uid);
+      batchSaveTasksFirebase(user.uid, [task]).catch((err) => console.error("[SUP SYNC] 新增失敗:", err));
+    }
     return id;
   }, [tasks, user, markRecentlyWritten]);
 
@@ -1460,6 +1470,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       subTasks: [], createdAt: now, updatedAt: now,
       focusMinutes: 0, isArchived: false, order: 0,
       createdBy: user?.uid,
+      ownerUid: user?.uid,
     };
 
     const data = sharedLists[sharedListId];

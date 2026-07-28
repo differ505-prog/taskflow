@@ -1,6 +1,7 @@
 import { Task, TaskList, Habit, FlowTimerSession, Tag, DEFAULT_LISTS, DEFAULT_LIST_IDS } from "./types";
 
 const TASKS_KEY = "taskflow_tasks";
+const LAST_USER_UID_KEY = "taskflow_last_user_uid"; // §26-J:追蹤寫入的 uid,切換帳號時用來過濾殘留任務
 const LISTS_KEY = "taskflow_lists";
 const HABITS_KEY = "taskflow_habits";
 const FLOW_TIMER_KEY = "taskflow_flow_timer";
@@ -39,6 +40,38 @@ export function getTasks(): Task[] {
 
 export function saveTasks(tasks: Task[]): void {
   write(TASKS_KEY, tasks);
+}
+
+/** §26-J:寫入任務時同步更新 LAST_USER_UID_KEY;由 AppContext 外部在 uid 已知時主動 call updateLastUserUid */
+export function updateLastUserUid(uid: string): void {
+  localStorage.setItem(LAST_USER_UID_KEY, uid);
+}
+
+/**
+ * §26-J root fix:切換帳號時偵測 uid mismatch,清除所有舊 uid 任務。
+ * 回傳被清除的任務數。
+ * AppContext 初始化 user 確定後 call 此函式,確保 load 回來的是乾淨的當前用戶任務。
+ */
+export function clearTasksIfUserChanged(currentUid: string): number {
+  const lastUid = localStorage.getItem(LAST_USER_UID_KEY);
+  if (!lastUid || lastUid === currentUid) {
+    if (!lastUid) localStorage.setItem(LAST_USER_UID_KEY, currentUid);
+    return 0;
+  }
+  const old = read<Task[]>(TASKS_KEY, []);
+  const kept = old.filter((t) => {
+    const tagged = t as Task & { __lastUserUid?: string };
+    if (tagged.__lastUserUid && tagged.__lastUserUid !== currentUid) return false;
+    if (!tagged.__lastUserUid) return false;
+    return true;
+  });
+  const cleared = old.length - kept.length;
+  if (cleared > 0) {
+    write(TASKS_KEY, kept);
+    console.log(`[storage] §26-J 切換帳號:清除 ${cleared} 筆舊 uid=${lastUid} 任務`);
+  }
+  localStorage.setItem(LAST_USER_UID_KEY, currentUid);
+  return cleared;
 }
 
 export function initDefaultLists(): TaskList[] {
