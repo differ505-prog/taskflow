@@ -879,6 +879,7 @@ alwaysApply: true
 | **O** | React `useEffect` 的 stale closure 漏 deps：事件 handler 或 callback 讀取某個 state 但 deps 陣列漏列，導致 handler closure 仍引用舊值、條件判斷失準 | 條件式清空/重置邏輯（如 ESC handler `if (selectedTaskId \|\| calendarSelectedTask)`）漏清某 state → 殘留 modal / sheet / overlay 擋住下層互動（點日期無反應、回到上頁失效） | (1) 動手前 `grep` 同檔所有 `useEffect` + `addEventListener`，對照 closure 內引用的 state 與 deps 陣列是否齊全（**§14.1 全鏈條精神**）(2) 啟用 `react-hooks/exhaustive-deps` ESLint rule，任何 `disable` 必須揭露理由 (3) 若是 keyboard / 全域 event 監聽，優先用 `useRef` 持最新值或 `useCallback` 包裝事件 handler 避免重訂閱 |
 | **O'** | **雙 hook 獨立 state 死鎖**：一個 UI 元件同時由兩個不相關的 state 控制，其中一個 state 由 hook 內部管理（如 useBottomSheet 的 internalLevel），另一個由外部 prop 傳入。hook 的 ESC listener 把內部狀態設為 closed，但外部 prop 的 if (!prop) return null 不會 unmount 元件，下次 prop 變有值時 hook 內部狀態仍是 closed，UI 永久失效。| 日曆任務 sheet 按 ESC 後再也點不開| (1) 先問哪個 UI 元素有症狀 (2) grep 兩個不相關 state 同控一 UI (3) 治本：prop 有值時呼叫 hook open/reset 方法 (4) 警告：只清外部 prop 不夠，hook 內部狀態才是真切換點|
 | **P** | **雙 persona UI 混用**：開發者工具（如「複製 + AI 整理」「批次操作」「後台管理」「diagnostic」按鈕）誤放使用者 modal 或與使用者元件共用 lib，導致前端 bundle 污染 + 使用者誤觸開發者專用功能 | 使用者按 feedback 送出後，modal 多一個「📋 複製 + AI 整理」按鈕，但只有開發者需要這功能，使用者按了困惑 | (1) **lib 命名加 persona 後綴**：`feedbackAdmin.ts` 而非 `feedbackTools.ts`，grep 一眼可辨別「這是 admin-only lib」(2) **路由隔離**：開發者功能只放 `/admin/*`，不放在 `/settings` 或使用者 modal；新增 `/admin/*` 路由時 page.tsx 內 `useAuth().isAdmin` 必做 gate (3) **bundle 檢查**：開發者 lib 不被使用者元件 import，可用 `grep -r "feedbackAdmin" src/components src/app/\(main\)` 確認回傳空 (4) **新 dev 功能前 grep**：新增 dev-only 功能前 `Grep` 確認沒人誤放在使用者 modal/button (5) **不污染**：禁止在 `feedbackContext.ts` 等使用者共用 lib 內 export dev-only helpers |
+| **T** | **inline style 覆蓋 Tailwind className 造成對齊特例**：某個 `style={{ paddingBottom: "..." }}` 等 inline style 屬性覆蓋 className 已定義的對應屬性（CSS specificity: inline style > className），造成 padding / margin / width 等對齊基準偏移 | 視覺對齊偏移（偏低 / 偏高 / 變形），build/tsc clean，className 看起來「寫得很對」但 runtime computed style 顯示對齊屬性被壓成 0 或覆蓋值 | (1) **動手前先 grep**元件 JSX 中所有 `style={{ ... }}` prop，對每個 inline style 屬性**對照 className**看是否有相同或相關屬性被設定（`padding` vs `py-2`、`width` vs `w-12`）(2) **確認 inline style 是「補上」而非「覆蓋」**：應該用 `paddingBottom: calc(...)` 加上去，不該寫成 `paddingBottom: '0px'` 覆蓋原值(3) **治本**：用 CSS variable 累加（`pb-[calc(theme(spacing.2)+env(safe-area-inset-bottom))]` arbitrary class）或 Tailwind arbitrary class，**禁止用 inline style 寫成 tailwind 已定義的屬性** |
 
 3. **命中已知類別 → 直接套用標準修法，禁止重新推理**。評分表只寫「命中類別 X，套用修法」。
 4. **新類別 → 修完後主動追加**至本表（commit 內同步）。
@@ -1044,6 +1045,53 @@ alwaysApply: true
 
 ---
 
+### 30. 後續輪次對齊觸發原則 (Follow-Up Turn Alignment Trigger)
+
+**觸發**：用戶在 AI 已嘗試修復 1+ 次後回覆以下任一訊息時：
+- 「還沒修好」「還是不對」「還是一樣」「繼續找原因」「沒生效」「沒變」「沒有改善」
+- 任何表達「修復無效」或「症狀持續存在」的描述
+
+**問題**：§29「截圖直觀優先原則」只在「**用戶首輪附截圖**」時觸發,但實務中常見的失序是「**用戶第二/三輪回覆「還沒修好」時,AI 完全沒自覺觸發 §29 對齊機制**」——繼續悶進 §10 評分表、繼續猜 root cause、繼續列 6 個 <9.0 分的方案,直到用戶第四次回覆才發覺「不對,你的推理方向完全錯了」。
+
+本對話 `a857ffa` 案就是這個失序:第 1 次失敗(`2842cf1`)後、第 2 次失敗(`48fbb33`)後用戶說「還沒修好 繼續找原因」,**AI 沒自覺觸發 §16b「首次失敗即停問診」也沒觸發 §29「對齊用戶描述」**,繼續進 §10 評分表(全部 <9.0),浪費 3 輪才在用戶主動提供 Chrome DevTools `getComputedStyle` 輸出後一次命中。
+
+**規則**：
+
+1. **「還沒修好」強制觸發 §16b + §27 對齊重述**：
+   - 用戶說「還沒修好 / 還是不對 / 繼續找」→ **第一動作是 §18d 重述**:用 2-5 句文字重述用戶當前問題(症狀 + 之前已試過什麼 + 為何相信還沒修好),**禁用「讓我先看看代碼」「讓我跑 §10」開頭**
+   - 重述後**等用戶確認才動手**,不可重述完直接進評分表或 runtime
+
+2. **「後續輪次」自動升高 runtime 量化請求優先級**：
+   - 第二輪「還沒修好」→ §10 評分表的「升級 runtime 量化」選項**從選配變必配**,且評分必須 ≥ 9.0 才能不升級
+   - 第二輪「還沒修好」→ **禁用「再試一次 className 微調」「再試一次 leading / padding」**,這些都是「從零推理」的低品質選項
+   - 第二輪「還沒修好」→ 必須走 §18 根因表重列,**且列「之前已試過 X / Y / Z 但失敗,為何相信這次新方案會有效」**
+
+3. **「用戶已附 runtime 證據」是黃金訊號**:
+   - 用戶貼出 console log / DevTools computed style / DOM 樹 / 截圖標註 → 1 輪就該命中 root cause
+   - **禁止**「讓我先驗證一下你的證據」「讓我先 grep 對照」——用戶已給證據,**第一動作是用這個證據定位**
+   - 強制模板：「你的證據顯示 [X],這對應 [CSS 屬性 / 程式碼位置],所以根因是 [Y],修法是 [Z]」
+
+4. **「3 次同症狀失敗」自動觸發求助**:
+   - 同一個 bug 連續 3 次 commit 仍未修對 → **第 3 次 commit 失敗後必須停下求助**,禁止「第 4 次微調」
+   - 求助對象:用戶(請求 runtime 證據 / 截圖標註 / 行動裝置環境資訊)
+   - **禁止**第 4 次嘗試猜 root cause
+
+**例外**：
+- 用戶已附 runtime 證據(console / computed style / 截圖標註)→ 直接定位,跳過重述
+- 用戶明確說「你直接做」「做下去」→ 跳過重述
+- 用戶明確指定方案 → 跳過重述直接執行
+
+**與既有條文關係**：
+- §16b → §16b「首次失敗即停問診」在「用戶主動報告失敗」時也適用,本條是「**用戶說『還沒修好』就自動觸發 §16b**」的明確化
+- §29 → §29 是「首輪附截圖」,本條是「**後續輪次附證據**」(包含 runtime 證據、console、computed style)
+- §27.1 → §27.1「scene-by-scene 隔離檢測」是「第二次失敗後」,本條是「**任何後續輪次**」(不論失敗次數)
+- §10 → §10 評分表在「第二次還沒修好」時必須含 runtime 升級選項(且評分 ≥ 9.0)
+- §18d → §18d「重述→確認→方案」是「**每個後續輪次都該走**」,不是只有第一次
+
+**違規計入 §16 失敗上限**：「還沒修好」後續輪次沒走 §18d 重述 = 累計 1 次失序;第 3 次失敗後還繼續猜 root cause = 累計 1 次失序。
+
+---
+
 ## 【生效紀錄】
 
 | 日期 | 變更 | 自評分 |
@@ -1054,10 +1102,10 @@ alwaysApply: true
 | 2026-07-19 | 新增 §10.2 評分鎖定與衝突處理（已公布分數不可悄悄修正；當客觀評分與用戶主觀需求衝突時，先揭露衝突讓用戶選擇，不得靠「個人推薦」繞過分數）；新增次要改善執行公約（P1 廢除「細節你決定」/ P2 §15.4 已涵蓋 mobile input 風險無需重述） | **9.4**（首輪即達標，免二輪） |
 | 2026-07-19 | 新增 §18b 操作失敗初始確認（面對「按鈕點不了」，第一步必須問用戶具體操作哪個按鈕，不可假設；本輪修了圓圈按鈕但用戶實際要的是「完成」按鈕，浪費 4+ tool call） | **9.2**（首輪即達標，免二輪） |
 | 2026-07-21 | 修改 §11.1 推送流程：commit message 仍必填 `deploy: <main|preview-only|skip-deploy>` 前綴，但 AI **自行判斷推送目標**並直接寫入、不再反覆詢問使用者確認 SHA/branch/deploy 值（只在 deploy 明顯違反常理或 `git push --force` 主分支時警告）；精簡原因：使用者明確反饋「push 前詢問過多浪費 token」 | **9.0**（精簡流程，保留核心 deploy 前綴強制） |
-
 | 2026-07-22 | 新增 §18d 重述→確認→方案三步流程(用戶描述症狀後,AI 第一步純文字重述,等用戶確認才進靜態分析/評分表;若用戶反饋不夠清楚,用 AskQuestion 結構化補充,禁用開放式問題)+ §10.6 流程微調(重述前不讀代碼、重述跟分析不可混在一起、明確的例外條款)。針對本對話「ESC 退回日曆」bug 場景 — 用戶明確要求「先簡單重述我的問題」,但 AI 上一回應直接進入靜態分析、未先純文字重述等確認,流程跳過關鍵確認節點 | **§18d: 9.4 / §10.6: 9.3**(首輪達標,免二輪) |
 | 2026-07-23 | 新增 §17.1「架構師鏡子 (Architect Mirror)」— commit 前必填區塊揭露架構失序，**僅揭露不實作**，徹底解決 §13「最小變更」與「看見失序想說」之間的拉鋸；併入 §17 作為子條（而非新章 §27）符合「最少條文」精神；自評前揭露原候選 M1=9.3 / M2=8.5 / M3=7.0 / M4=8.0；採 A 方案（併入 §17）最終自評 **9.3**（首輪達標，免二輪） | **9.3**（首輪達標，免二輪） |
 
 | 2026-07-23 | 修改 §10.4 + 新增 §10.4a(評分誠實,首選 <9.0 揭露但不自動再優化,優化由使用者主動觸發)+ 修改 §10.5(去掉「主動給優化版」邏輯,改為「不主動給優化版;按真實評估」)+ 新增 §27 Debug 工作流公約(debug 前讀 §21 SSOT、debug 失敗 2 次評分表必含「重構大改」、debug 中禁止開新檔)+ 新增 §27.1 scene-by-scene 隔離檢測(失敗 2 次後用 AskQuestion 結構化問 5 個時序場景)+ 新增 §28 Runtime 工具預設禁用公約(預設禁用 CDP/瀏覽器,需明確指示+評分表 + 🔴 Risky 才能升級) | **待自評** |
 | 2026-07-25 | 新增 §26 P 條:雙 persona UI 混用(開發者功能誤放使用者路徑)。對應本對話「複製 + AI 整理」按鈕原本放在 FeedbackButton 使用者 modal,實際只有開發者會用,本次把 prompt lib 拆到 `feedbackAdmin.ts`(persona 後綴命名)+ UI 拆到 `/admin/feedback` 開發者後台,使用者 modal 完全移除該按鈕;修憲觸發契機為本對話 commit `cce99f1` + `ce942b5` 兩階段修正 | **9.2**(首輪達標,免二輪) |
 | 2026-07-29 | 新增 §29 截圖直觀優先原則 + 微調 §18 第一步(從「先 Read 源碼」改為「先觀察截圖對齊描述」)。對應本對話「ZenDashboard 等級詳情上方被遮蔽」bug — 用戶已附截圖且明確說「上半部文字被截斷」「認真看截圖」,AI 第一輪卻列 5 個複雜根因 + grep globals.css 全檔驗證,**完全沒對齊截圖直觀事實**(tooltip 從按鈕正上方飄出、飄出視窗頂被瀏覽器邊緣截斷),浪費 10+ tool call;§29 強制「截圖優先於推理、根因表 ≤3 行、用戶說『看截圖』時立刻停下重述」 | **9.2**(首輪達標,免二輪) |
+| 2026-07-29 | 新增 §26 類別 T(inline style 覆蓋 Tailwind className 對齊特例)+ §30 後續輪次對齊觸發原則。對應本對話 `a857ffa` bug 處理過程浪費審計——「開始暖身」按鈕垂直對齊偏低修了 3 個 commit 才命中(真根因:L265 inline style `paddingBottom: env(safe-area-inset-bottom, 0px)` 在桌面環境回傳 0 覆蓋 `py-2` 的 padding-bottom,造成對稱 padding 變單邊 0 → icon/文字擠底);中間浪費 2 次悶改(`leading-none` 補 span、`gap-2 → gap-2.5`)、1 次 runtime tool call 浪費(dev server 未啟)、1 次 §10 評分表全部 <9.0 還繼續;§26-T 強制「inline style 屬性要對照 className 是否有衝突」、§30 強制「用戶說『還沒修好』就自動觸發 §16b + §18d 重述 + §10 runtime 升級必配」 | **§26-T: 9.3 / §30: 9.2**(均首輪達標,免二輪) |

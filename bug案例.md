@@ -24,6 +24,7 @@
 | #007 | 手機版點底部「今天」 → 「頁面錯誤，請重新整理」，重新整理也沒恢復 | React Hooks Rules 違規：`useProactiveClosure` 被放在條件 IIFE 內 | `c114f8c` | 2026-07-28 |
 | #008 | 切換帳號後舊 uid 任務仍顯示 + 觸發孤兒補推 RLS 403 + 同 session 切換污染 | §26 類別 J：localOnly 無 ownerUid filter + firstLoadDone 跨 uid 未重置 | `aaf7e47` + `69c0204` | 2026-07-28 |
 | #009 | 點「已完成」狀態 chip 後畫面空白,有 3 個 done 卻不渲染 | activeTasks 拆分時 `explicitlyShowingDone=true` 變 0 + L6.5 折疊區被 `!explicitlyShowingDone` 跳過 | `efac784` | 2026-07-29 |
+| #010 | 「開始暖身」fixed bottom 按鈕垂直對齊偏低,icon 跟文字擠在底部 | inline style `paddingBottom: env(safe-area-inset-bottom, 0px)` 覆蓋 Tailwind `py-2` 的對稱 padding-bottom(在桌面環境 env() 永遠 = 0);CSS specificity: inline style > className | `a857ffa` | 2026-07-29 |
 
 ---
 
@@ -482,3 +483,81 @@ const completedTasks = explicitlyShowingDone
 - **§18c 列表空白快速確診捷徑**:本 bug 表面症狀與「非正式雜事列表空白」極相似(用戶描述「列表空白,但 status=done 的有 3 個」),§18c 規則第一步先問 user 確認 status 過濾鏈,**避免走 sync layer 排查浪費 tool call**。本案例 user 直接附截圖且 status 明顯是「done」,所以走 §18 根因表而非 §18c。
 - **不命中既有類別 N**:雖症狀「空白」看起來與 §26 類別 N(嵌套 ternary 修錯層)相似,但**這次不是 ternary 結構問題**,而是 3 個衍生變數的語意設計錯誤 — 不該拆成 `activeTasks` / `completedTasks` 後還要靠 `!explicitlyShowingDone` 條件守衛折疊區,而是該讓變數在「done-only view」下語意重定義。**所以登 §26 類別 S 候選,不入 N**。
 - **§17.1 Architect Mirror 揭露**:`displayTasks` / `activeTasks` / `completedTasks` 三變數語意不明,`explicitlyShowingDone` 又疊一層 — 建議下輪抽 `useTaskListDisplay` hook 統一管理。
+
+---
+
+## #010 — 「開始暖身」fixed bottom 按鈕垂直對齊偏低
+
+### 症狀（用戶描述）
+- 桌機（在 Vibe Coding 收件匣視圖）底部中央「開始暖身」按鈕垂直對齊偏低
+- icon 跟文字都偏下半部，上方留白明顯比下方大
+- New ChipCold Start branch 走 mobile 版（sm:hidden）的按鈕也同樣偏低
+- 跟之前 L121 同一個 bug 不同位置同症狀（屬於暖暖身儀式按鈕群）
+
+### 處理過程審計（這次最大浪費 = bug 本體之外）
+
+**累計 3 次 commit 都沒修對**（commit `2842cf1` → `48fbb33` → `a857ffa`），**真正的 root cause 早在第 1 輪**：
+1. **第 1 輪**：看到 icon 偏低 → 馬上加 `leading-none` 給 `<span>`，但**這個 span 裡根本還沒包文字**（原文是 bare text `"開始暖身"`），結果**沒生效**
+2. **第 2 輪**：發現 bare text 沒包 → 補 span + leading-none → 推後仍未生效；**沒意識到 L121 已經有 `leading-none` 了，所以這個處置本來就對齊了**，我重複處理
+3. **第 3 輪**：變更 `gap-2` → `gap-2.5` → 推 → 仍未生效；**runtime 沒變**（gap 只影響 horizontal spacing，不影響 vertical 對齊基準）
+4. **第 4 輪前**：用戶說「還沒修好」 — **這個時候就該走 §16 第二次失敗問診**（§16b），但我**繼續進 §10 評分表 6 個方案**，全部 < 9.0 分，浪費 1 輪
+5. **第 5 輪**：評分表小動作 + runtime tool call 浪費 1 次（browser_navigate 失敗）+ 強求解釋（dev server 沒跑根本沒辦法量 computed style）
+6. **第 6 輪**：用戶主動提供 runtime 證據（Chrome DevTools `getComputedStyle` 輸出）→ **1 輪就命中**真根因
+
+**真根因**(runtime 證據，commit `a857ffa` 評分 9.3)：
+```
+btn: { h: 22, paddingTop: "8px", paddingBottom: "0px", display: "flex", alignItems: "center" }
+flame: { h: 14, top: 8, bottom: 0, verticalAlign: "middle" }
+span: { h: 12, top: 9, bottom: 1, lineHeight: "12px" }
+```
+- `paddingBottom: 0px` 不是 `py-2` 的 `8px` → **inline style 覆蓋了 Tailwind className 的 padding-bottom**
+- 根因：L265 的 `style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}` 是 **inline style**（CSS specificity 永遠 > className），且桌面環境 `env(safe-area-inset-bottom, 0px)` 永遠回傳 0 → 把 `py-2` 對稱 padding 改成單邊 0 → button 高度只剩 22px → icon/文字被擠到底部 → `items-center` 對齊基準隨之下移
+
+### 修法
+- 移除 L265 inline style，讓 `py-2` 對稱 padding 完整生效
+- 桌面 + iOS mobile 都能用（mobile safe-area 處理不在本 PR 範圍，已揭露為 architect mirror，後續統一修）
+
+**驗證（§12）**：
+- `npx tsc --noEmit` → exit 0, clean
+- 推 main → Vercel production deployment 觸發
+
+### 教訓（轉化成 §26 修憲候選 + §16 強化）
+
+**§26 類別 T 候選 — **inline style 覆蓋 Tailwind className 造成對齊特例**：
+
+症狀鐵三角：(a) 視覺對齊偏移（偏低 / 偏高 / 變形）(b) build/tsc clean (c) 程式碼 review 看起來「className 寫得很對」。
+
+根因模式：某個 `style={{ ... }}` inline style（如 `paddingBottom`、`marginTop`、`width`）覆蓋了 className 設定的對應屬性。**CSS specificity：inline style > className > theme**，所以 `py-2`（設定 `padding: 8px 16px`）會被 `style={{ paddingBottom: '0px' }}` 覆蓋。
+
+判定法（動手前）：
+- grep 該元件 JSX 中所有 `style={{ ... }}` prop
+- 對每個 inline style 屬性，**對照 className 看是否有相同或相關屬性被設定**（如 `padding` vs `py-2`、`width` vs `w-12`)
+- 確認 inline style 是「補上」而非「覆蓋」(應該用 `paddingBottom: calc(...)` 加上去，不該寫成 `paddingBottom: '0px'` 覆蓋原值)
+
+治本：用 CSS variable 累加（`paddingBottom: calc(theme(spacing.2) + env(safe-area-inset-bottom))`）或 Tailwind arbitrary class `pb-[calc(theme(spacing.2)+env(safe-area-inset-bottom))]`。**禁止用 inline style 寫成 tailwind 已定義的屬性**。
+
+**§16 強化 — 同一個 bug 第二次失敗後必停下問診**：
+
+本 bug 嚴格反映了 §16b 的精神，但**實踐中我又踏進同樣的陷阱**：
+- 第 1 次失敗後（`48fbb33` 仍偏低）→ 應該走 §16b 第一次失敗即停問診
+- 我沒有 → 繼續進 §10 評分表，再失敗後才主動揭露浪費
+- §16b 規則在紙面上對，但**實踐中我常「下意識就進評分表」** — 因為評分表是程式性動作，比「停下問用戶」更省努力
+
+**新增觸發**：同一個 bug 第二次失敗後，**唯一允許的 3 個選項**：
+- A. 升級 runtime 量化（請用戶提供 DevTools computed style 輸出）
+- B. 請用戶執行具體動作驗證（截圖、console log、DevTools 數據）
+- C. 用戶已明確指定方案
+
+**禁止**第三次進 §10 評分表嘗試猜 root cause（已有 2 個 sample 失敗證明「猜測」對此 bug 失效率 100%）。
+
+**§15.6 runtime 預算強化 — 請求 runtime 證據前必先驗證前置條件**：
+
+本輪 runtime tool call 浪費 1 次：`browser_navigate` 失敗（dev server 沒開）。**這不是工具問題，是前置條件沒驗證**。
+
+**新增規則**：runtime tool call 前必先確認 (1) dev server 跑 (2) production URL 已知 (3) 用戶同意升級。三者缺一 → 不升級 runtime，改請求用戶提供證據。
+
+### 修憲同步
+- `global.mdc`生效紀錄新增 2 條：
+  - 2026-07-29 新增 §26 類別 T（inline style 覆蓋 Tailwind className 對齊特例）— 對應本輪 `a857ffa` 修了 3 次才命中
+  - 2026-07-29 新增 §16 強化 + §15.6 強化（第二次失敗後唯一 3 個選項 + runtime 前置條件驗證）— 對應本輪 3 次悶改浪費
+- 修憲自評：§26-T: **9.3** / §16 強化: **9.2** / §15.6 強化: **9.0**（均首輪即達標，免二輪）
