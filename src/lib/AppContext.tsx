@@ -66,6 +66,10 @@ import {
   batchSaveLists as batchSaveListsFirebase,
   deleteList as deleteListFirebase,
 } from "./personalListSync";
+import {
+  subscribeHabits,
+  batchSaveHabits,
+} from "./personalHabitSync";
 import { SharedMember, MemberRole } from "./sharedSync";
 import { parseNaturalLanguage } from "./nlp";
 import { useAuth } from "./AuthContext";
@@ -210,6 +214,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const EDIT_ACTIVITY_WINDOW_MS = 30_000; // 編輯活動窗(30 秒內有 keystroke 視為「正在編輯」)
   const firstTasksLoadDone = useRef(false); // 跳過 subscribeTasks 初次空資料覆蓋
   const firstListsLoadDone = useRef(false); // 跳過 subscribeListsSync 初次空資料覆蓋
+  const firstHabitsLoadDone = useRef(false); // 跳過 subscribeHabits 初次空資料覆蓋
+  const recentlyWrittenHabitsRef = useRef<Map<string, number>>(new Map()); // §26-A:habit 5 秒保護窗
   // §26 類別 A：拖曳清單後 5 秒內 realtime echo 不覆蓋本地新順序（Map<id, ts>）
   const recentlyWrittenListsRef = useRef<Map<string, number>>(new Map());
   const ACTIVE_THROTTLE_MS = 30_000;
@@ -234,6 +240,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const map = recentlyWrittenRef.current;
     const now = Date.now();
     // lazy GC：遍歷清掉過期項目（避免 map 累積）
+    for (const [tid, ts] of map) {
+      if (now - ts >= RECENT_WRITE_WINDOW_MS) map.delete(tid);
+    }
+    const ts = map.get(id);
+    return ts !== undefined && now - ts < RECENT_WRITE_WINDOW_MS;
+  }, []);
+
+  // §26-A: habit 5 秒保護窗,樂觀更新不被 realtime echo 覆蓋
+  const isWithinRecentWriteWindowHabit = useCallback((id: string): boolean => {
+    const map = recentlyWrittenHabitsRef.current;
+    const now = Date.now();
     for (const [tid, ts] of map) {
       if (now - ts >= RECENT_WRITE_WINDOW_MS) map.delete(tid);
     }
@@ -285,6 +302,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const isWritingRef = useRef<Record<string, boolean>>({});
   const fbUnsubRef = useRef<(() => void) | null>(null);
   const listsUnsubRef = useRef<(() => void) | null>(null);
+  const habitsUnsubRef = useRef<(() => void) | null>(null);
   const myEchoIdsRef = useRef<Set<string>>(new Set<string>()); // 自己剛寫入的 task.id，下次收到 Firebase 推送時跳過
   const tasksRef = useRef<Task[]>([]); // 給 Firebase callback 用，避免 stale closure
   const fbSyncDebug = false; // 由 window.__FB_SYNC_DEBUG__ 控制
@@ -430,13 +448,61 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         console.warn("[SUP SYNC] 訂閱清單失敗:", err);
       });
 
-      // §26-J:切換帳號偵測,舊 uid 任務在 merge 前先過濾掉(避免觸發孤兒補推 RLS 403)
+      // ── 跨裝置 habit 同步:Supabase Realtime 訂閱個人習慣 ──────
+      habitsUnsubRef.current?.();
+      subscribeHabits(user.uid, (fbHabits) => {
+        console.log(`[SUBSCRIBE HABITS] callback uid=${user.uid} fbHabits=${fbHabits.length} firstLoadDone=${firstHabitsLoadDone.current}`);
+        if (!firstHabitsLoadDone.current) {
+          firstHabitsLoadDone.current = true;
+          return;
+        }
+        if (fbSyncDebug) console.log("[SUP SYNC] habits 推送:", fbHabits.length);
+        // §26-A:本地剛寫入(5 秒內)→ 一律保留本地,避免 realtime echo 蓋掉樂觀更新
+        // §26-J:孤兒補推(本地有但雲端沒有,且不在保護窗內 → batchSaveHabits 推上去)
+        setHabits((prev) => {
+          const localById = new Map(prev.map((h) => [h.id, h]));
+          const fbIds = new Set<string>();
+          const merged = fbHabits.map((fbH) => {
+            fbIds.add(fbH.id);
+            const local = localById.get(fbH.id);
+            if (local) {
+              if (isWithinRecentWriteWindowHabit(fbH.id)) return local;
+              if (new Date(local.updatedAt).getTime() > new Date(fbH.updatedAt).getTime()) return local;
+            }
+            return fbH;
+          });
+          const localOnly = prev.filter(
+            (h) => !fbIds.has(h.id)
+          );
+          const result = [...merged, ...localOnly];
+          saveHabits(result);
+          // §26-J:孤兒補推
+          if (localOnly.length > 0 && user) {
+            const orphans = localOnly.filter((h) => !isWithinRecentWriteWindowHabit(h.id));
+            if (orphans.length > 0) {
+              console.log(`[SUP SYNC] 自動補推 ${orphans.length} 個孤兒 habit 上雲`);
+              batchSaveHabits(user.uid, orphans).catch((err) =>
+                console.error("[SUP SYNC] 孤兒 habit 補推失敗:", err)
+              );
+            }
+          }
+          return result;
+        });
+      }).then((unsub) => {
+        habitsUnsubRef.current = unsub;
+        if (fbSyncDebug) console.log("[SUP SYNC] 已訂閱 habits uid:", user.uid);
+      }).catch((err) => {
+        console.warn("[SUP SYNC] 訂閱習慣失敗:", err);
+      });
+
+      // §26-J:uid 切換時重置 firstHabitsLoadDone + firstTasksLoadDone + firstListsLoadDone
       // 注意:這裡只更新 LAST_USER_UID_KEY,實際任務過濾在 subscribeTasksSync callback 的 localOnly 階段
       // §26-J:uid 切換時重置 firstTasksLoadDone + firstListsLoadDone
       // 確保新 uid 的第一個 callback 正確跳過;否則跨 uid 時 firstLoadDone 殘留=true,
       // 第一個 callback 仍執行 merge,把舊 uid 任務/清單寫入 state
       firstTasksLoadDone.current = false;
       firstListsLoadDone.current = false;
+      firstHabitsLoadDone.current = false;
       if (user.uid) updateLastUserUid(user.uid);
 
       // 首次登入：把本地 localStorage 任務上傳到 Supabase（只上傳不在雲端的）
@@ -456,6 +522,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         const localTasks = getTasks();
         const localLists = dedupeDuplicateLists(getLists());
+        const localHabits = getHabits();
 
         if (localTasks.length > 0) {
           await batchSaveTasksFirebase(uid, localTasks);
@@ -464,6 +531,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (localLists.length > 0) {
           await batchSaveListsFirebase(uid, localLists);
           console.log(`[SUP SYNC] 遷移 ${localLists.length} 筆清單到雲端`);
+        }
+        if (localHabits.length > 0) {
+          await batchSaveHabits(uid, localHabits);
+          console.log(`[SUP SYNC] 遷移 ${localHabits.length} 筆習慣到雲端`);
         }
         localStorage.setItem(MIGRATE_KEY, "1");
 
@@ -1068,7 +1139,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (user) batchSaveTasksFirebase(user.uid, updated).catch((err) => console.error("[SUP SYNC] reorder 寫入失敗:", err));
   }, [tasks, user]);
 
-  // ── 習慣 CRUD ─────────────────────────────────────────
+  // ── 習慣 CRUD（§23 sync 層：寫入 supabase + §26-A 5 秒保護窗）──────────
   const addHabit = useCallback((data: Omit<Habit, "id" | "createdAt" | "updatedAt" | "checkins" | "streak" | "longestStreak">) => {
     const newHabit: Habit = {
       ...data, id: generateId(),
@@ -1079,13 +1150,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const updated = [...habits, newHabit];
     setHabits(updated);
     saveHabits(updated);
-  }, [habits]);
+    recentlyWrittenHabitsRef.current.set(newHabit.id, Date.now());
+    if (user) batchSaveHabits(user.uid, [newHabit]).catch((err) => console.error("[SUP SYNC] addHabit 寫入失敗:", err));
+  }, [habits, user]);
 
   const updateHabit = useCallback((id: string, updates: Partial<Habit>) => {
     const updated = habits.map((h) => h.id === id ? { ...h, ...updates, updatedAt: new Date().toISOString() } : h);
     setHabits(updated);
     saveHabits(updated);
-  }, [habits]);
+    recentlyWrittenHabitsRef.current.set(id, Date.now());
+    if (user) {
+      const changed = updated.find((h) => h.id === id);
+      if (changed) batchSaveHabits(user.uid, [changed]).catch((err) => console.error("[SUP SYNC] updateHabit 寫入失敗:", err));
+    }
+  }, [habits, user]);
 
   const archiveHabit = useCallback((id: string) => {
     // §P0-2: 改為 archive 取代硬刪（streak/checkins 仍可恢復）
@@ -1094,7 +1172,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
     setHabits(updated);
     saveHabits(updated);
-  }, [habits]);
+    recentlyWrittenHabitsRef.current.set(id, Date.now());
+    if (user) {
+      const changed = updated.find((h) => h.id === id);
+      if (changed) batchSaveHabits(user.uid, [changed]).catch((err) => console.error("[SUP SYNC] archiveHabit 寫入失敗:", err));
+    }
+  }, [habits, user]);
 
   const unarchiveHabit = useCallback((id: string) => {
     const updated = habits.map((h) => {
@@ -1104,7 +1187,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
     setHabits(updated);
     saveHabits(updated);
-  }, [habits]);
+    recentlyWrittenHabitsRef.current.set(id, Date.now());
+    if (user) {
+      const changed = updated.find((h) => h.id === id);
+      if (changed) batchSaveHabits(user.uid, [changed]).catch((err) => console.error("[SUP SYNC] unarchiveHabit 寫入失敗:", err));
+    }
+  }, [habits, user]);
 
   const checkinHabitFn = useCallback((id: string, date: string, count = 1, note?: string) => {
     const habit = habits.find((h) => h.id === id);
@@ -1126,7 +1214,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
     setHabits(updated);
     saveHabits(updated);
-  }, [habits]);
+    recentlyWrittenHabitsRef.current.set(id, Date.now());
+    if (user) {
+      const changed = updated.find((h) => h.id === id);
+      if (changed) batchSaveHabits(user.uid, [changed]).catch((err) => console.error("[SUP SYNC] checkinHabit 寫入失敗:", err));
+    }
+  }, [habits, user]);
 
   // §§bugfix:習慣打卡取消功能 — 對稱於 checkinHabitFn,移除該日 checkin 並重算 streak
   const uncheckHabitFn = useCallback((id: string, date: string) => {
@@ -1141,7 +1234,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
     setHabits(updated);
     saveHabits(updated);
-  }, [habits]);
+    recentlyWrittenHabitsRef.current.set(id, Date.now());
+    if (user) {
+      const changed = updated.find((h) => h.id === id);
+      if (changed) batchSaveHabits(user.uid, [changed]).catch((err) => console.error("[SUP SYNC] uncheckHabit 寫入失敗:", err));
+    }
+  }, [habits, user]);
 
   // ── Shared List 主函式 ───────────────────────────────────
   const shareList = useCallback(async (listId: string): Promise<string | null> => {
