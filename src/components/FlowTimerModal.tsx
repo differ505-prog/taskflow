@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useApp } from "@/lib/AppContext";
 import { useZenFlowContext, useFlowTimerContext } from "@/lib/ZenFlowContext";
 import type { FlowTimerType } from "@/lib/usePomodoro";
@@ -316,64 +317,19 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
             )}
           </button>
 
-          <AnimatePresence>
-            {taskMenuOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.12 }}
-                className="absolute left-0 right-0 mt-1.5 rounded-xl overflow-hidden shadow-lg z-10"
-                style={{ background: "var(--surface-elevated)", border: "1px solid var(--border)", maxHeight: 260 }}
-              >
-                <div className="p-2 sticky top-0 z-[1]" style={{ background: "var(--surface-elevated)", borderBottom: "1px solid var(--border)" }}>
-                  <input
-                    ref={taskSearchRef}
-                    type="text"
-                    value={taskSearch}
-                    onChange={(e) => setTaskSearch(e.target.value)}
-                    placeholder="搜尋任務..."
-                    className="input w-full"
-                    style={{ fontSize: 13, paddingTop: 6, paddingBottom: 6 }}
-                    onKeyDown={(e) => { if (e.key === "Escape") setTaskMenuOpen(false); }}
-                  />
-                </div>
-                <ul role="listbox" className="overflow-y-auto" style={{ maxHeight: 200 }}>
-                  <li>
-                    <button
-                      type="button"
-                      onClick={() => { setBoundTask(undefined); setTaskMenuOpen(false); setTaskSearch(""); }}
-                      className="w-full px-3 py-2 text-left text-[13px] transition-colors hover:bg-black/5"
-                      style={{ color: "var(--text-tertiary)" }}
-                    >
-                      不綁定任務
-                    </button>
-                  </li>
-                  {filteredTasks.length === 0 ? (
-                    <li className="px-3 py-4 text-center text-[12px]" style={{ color: "var(--text-tertiary)" }}>
-                      找不到符合「{taskSearch}」的任務
-                    </li>
-                  ) : (
-                    filteredTasks.map((t) => (
-                      <li key={t.id}>
-                        <button
-                          type="button"
-                          onClick={() => { setBoundTask(t.id); setTaskMenuOpen(false); setTaskSearch(""); }}
-                          className="w-full px-3 py-2 text-left text-[13px] truncate transition-colors hover:bg-[var(--surface-hover)]"
-                          style={{ color: "var(--text-primary)" }}
-                          role="option"
-                          aria-selected={t.id === snapshot.boundTaskId}
-                          title={t.title}
-                        >
-                          {t.title}
-                        </button>
-                      </li>
-                    ))
-                  )}
-                </ul>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {taskMenuOpen && (
+            <TaskMenuPortal
+              containerRef={taskMenuRef}
+              filteredTasks={filteredTasks}
+              taskSearch={taskSearch}
+              setTaskSearch={setTaskSearch}
+              onSelect={(id) => { setBoundTask(id); setTaskMenuOpen(false); setTaskSearch(""); }}
+              onClear={() => { setBoundTask(undefined); setTaskMenuOpen(false); setTaskSearch(""); }}
+              onClose={() => setTaskMenuOpen(false)}
+              taskSearchRef={taskSearchRef}
+              selectedTaskId={snapshot.boundTaskId}
+            />
+          )}
         </div>
         {todayFocusMinutes > 0 && (
           <p className="text-[12px] mt-2" style={{ color: "var(--text-tertiary)" }}>
@@ -392,5 +348,116 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
         </button>
       </motion.div>
     </motion.div>
+  );
+}
+
+// ── Task menu — Portal to body to escape modal overflow:visible ──────────────
+interface TaskMenuPortalProps {
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  filteredTasks: Task[];
+  taskSearch: string;
+  setTaskSearch: (v: string) => void;
+  onSelect: (id: string) => void;
+  onClear: () => void;
+  onClose: () => void;
+  taskSearchRef: React.RefObject<HTMLInputElement | null>;
+  selectedTaskId?: string;
+}
+
+function TaskMenuPortal({
+  containerRef,
+  filteredTasks,
+  taskSearch,
+  setTaskSearch,
+  onSelect,
+  onClear,
+  onClose,
+  taskSearchRef,
+  selectedTaskId,
+}: TaskMenuPortalProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  // click outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [containerRef, onClose]);
+
+  if (!mounted) return null;
+
+  // calculate position
+  const rect = containerRef.current?.getBoundingClientRect();
+  const top = rect ? rect.bottom + 6 : 0;
+  const left = rect?.left ?? 0;
+  const width = rect?.width ?? 320;
+
+  return createPortal(
+    <div
+      className="absolute rounded-xl shadow-lg z-[9999]"
+      style={{
+        top,
+        left,
+        width,
+        background: "var(--surface-elevated)",
+        border: "1px solid var(--border)",
+        maxHeight: 260,
+      }}
+    >
+      <div
+        className="p-2 sticky top-0 z-[1]"
+        style={{ background: "var(--surface-elevated)", borderBottom: "1px solid var(--border)" }}
+      >
+        <input
+          ref={taskSearchRef}
+          type="text"
+          value={taskSearch}
+          onChange={(e) => setTaskSearch(e.target.value)}
+          placeholder="搜尋任務..."
+          className="input w-full"
+          style={{ fontSize: 13, paddingTop: 6, paddingBottom: 6 }}
+          onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
+        />
+      </div>
+      <ul role="listbox" className="overflow-y-auto" style={{ maxHeight: 200 }}>
+        <li>
+          <button
+            type="button"
+            onClick={onClear}
+            className="w-full px-3 py-2 text-left text-[13px] transition-colors hover:bg-black/5"
+            style={{ color: "var(--text-tertiary)" }}
+          >
+            不綁定任務
+          </button>
+        </li>
+        {filteredTasks.length === 0 ? (
+          <li className="px-3 py-4 text-center text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+            找不到符合「{taskSearch}」的任務
+          </li>
+        ) : (
+          filteredTasks.map((t) => (
+            <li key={t.id}>
+              <button
+                type="button"
+                onClick={() => onSelect(t.id)}
+                className="w-full px-3 py-2 text-left text-[13px] truncate transition-colors hover:bg-[var(--surface-hover)]"
+                style={{ color: "var(--text-primary)" }}
+                role="option"
+                aria-selected={t.id === selectedTaskId}
+                title={t.title}
+              >
+                {t.title}
+              </button>
+            </li>
+          ))
+        )}
+      </ul>
+    </div>,
+    document.body,
   );
 }
