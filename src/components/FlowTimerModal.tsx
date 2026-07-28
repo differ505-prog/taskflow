@@ -386,6 +386,7 @@ function TaskMenuPortal({
   if (!menuMounted) return null;
 
   const rect = containerRef.current?.getBoundingClientRect();
+  // fixed 永遠相對於 viewport，徹底避開 overflow/stacking-context 陷阱
   const top = rect ? rect.bottom + 6 : 0;
   const left = rect?.left ?? 0;
   const width = rect?.width ?? 320;
@@ -400,6 +401,7 @@ function TaskMenuPortal({
         background: "var(--surface-elevated)",
         border: "1px solid var(--border)",
         maxHeight: 260,
+        position: "fixed",
       }}
     >
       <div
