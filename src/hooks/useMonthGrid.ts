@@ -14,7 +14,7 @@ import type { Task } from "@/lib/types";
 
 /**
  * useMonthGrid — 共享月視圖邏輯 (§10 三層次 Layer 1)
- * 給 CalendarView(看戰報) + CommandCenter(軍機處排程) 共用
+ * 給 CalendarView(月曆) 與 CommandCenter(排程) 共用
  *
  * 設計原則：
  * 1. 零 UI:只回傳資料 + 動作,不渲染任何 DOM

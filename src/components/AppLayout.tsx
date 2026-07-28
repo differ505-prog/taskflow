@@ -28,8 +28,8 @@ import { IOSInstallPrompt, AndroidInstallPrompt, AhaMoment } from "@/components/
 import { QuickVoiceFAB } from "@/components/QuickVoiceFAB";
 import { StatusWindow } from "@/components/StatusWindow";
 import { CommandCenter } from "@/components/CommandCenter";
-import { HunterStatusBadge } from "@/components/HunterStatusBadge";
-import { RankUpNotification } from "@/components/RankUpNotification";
+import { ProgressBadge } from "@/components/ProgressBadge";
+import { LevelUpNotification } from "@/components/LevelUpNotification";
 import { useConfirm } from "@/hooks/useConfirm";
 import { Calendar, Clock, Eye, Flame } from "lucide-react";
 
@@ -453,9 +453,8 @@ function AppLayoutInner() {
       {/* StatusWindow — 全域 RPG 狀態窗,跨頁面通用 */}
       <StatusWindow />
 
-      {/* RankUpNotification — 全域階級晉升動畫(§10.3 9.2 方案)
-          portal 到 body,確保 z-index 高於其他 overlay */}
-      <RankUpNotification />
+      {/* LevelUpNotification — 全域等級晉升動畫 */}
+      <LevelUpNotification />
 
       </div>
     </>
@@ -493,7 +492,7 @@ function MonthViewTabs({
         <Calendar className="w-4 h-4 text-slate-500" aria-hidden />
         <span className="text-[13px] font-medium text-slate-700">月視圖</span>
         <span className={`text-[11px] ${isPlan ? "text-amber-600 font-medium" : "text-slate-400"}`}>
-          {isPlan ? "沙盤模式 · 拖曳排程" : "戰報模式 · 看月視圖"}
+          {isPlan ? "排程模式 · 拖曳排程" : "月曆模式"}
         </span>
       </div>
 
@@ -501,9 +500,9 @@ function MonthViewTabs({
       <button
         type="button"
         onClick={onToggle}
-        aria-label={isPlan ? "切換到戰報模式(看月視圖)" : "切換到沙盤模式(拖曳排程)"}
+        aria-label={isPlan ? "切換到月曆模式" : "切換到排程模式(拖曳排程)"}
         aria-pressed={isPlan}
-        title={isPlan ? "切到戰報" : "切到沙盤"}
+        title={isPlan ? "切到月曆" : "切到排程"}
         className={`inline-flex items-center justify-center w-9 h-9 rounded-xl ring-1 transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 ${
           isPlan
             ? "bg-amber-50 text-amber-700 ring-amber-200 hover:bg-amber-100"

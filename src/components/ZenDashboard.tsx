@@ -28,14 +28,14 @@ import { StatusWindow } from "@/components/StatusWindow";
 import { useStatusWindow } from "@/hooks/useStatusWindow";
 import { QuickCaptureModal } from "@/components/QuickCaptureModal";
 import { useQuickCaptureShortcut } from "@/hooks/useQuickCaptureShortcut";
-import { useHunterStatus } from "@/hooks/useHunterStatus";
-import { useRankUpNotification, RankUpNotification } from "@/components/RankUpNotification";
-import { HunterStatusBadge } from "@/components/HunterStatusBadge";
+import { useProgressStatus } from "@/hooks/useProgressStatus";
+import { useLevelUpNotification, LevelUpNotification } from "@/components/LevelUpNotification";
+import { ProgressBadge } from "@/components/ProgressBadge";
 import { WarmupSection } from "@/components/WarmupSection";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import PresenceDot from "@/components/PresenceDot";
 import { FlowTimer } from "@/components/FlowTimer";
-import { BASE_TASK_EXP } from "@/lib/hunterRank";
+import { BASE_TASK_PP } from "@/lib/progressRank";
 import { QuickCaptureTrigger } from "@/components/QuickCaptureTrigger";
 import { GhostButton } from "@/components/GhostButton";
 import { ProWaitlistModal } from "@/components/ProWaitlistModal";
@@ -45,11 +45,11 @@ import { Hourglass, Users } from "lucide-react";
 import { useApp } from "@/lib/AppContext";
 import type { Task } from "@/lib/types";
 
-/** 禪模式看的任務樣態：嚴格「今日討伐清單 (The Today Rule)」
+/** 禪模式看的任務樣態：嚴格「今日專注清單 (The Today Rule)」
  *  - 排除已封存、已完成、子任務
  *  - dueDate === 今天的本地日期（YYYY-MM-DD）
  * 避免 ADHD 用戶一次性看到全部 backlog 觸發「啟動癱瘓」；
- * 軍機處負責「把任務排到今天」，禪模式只專注「今天」。
+ * Command Center 負責「把任務排到今天」，禪模式只專注「今天」。
  */
 function selectZenTasks(tasks: Task[]): Task[] {
   const today = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD（本地時區）
@@ -67,7 +67,7 @@ export default function ZenDashboard() {
   const visibleTasks = useMemo(() => selectZenTasks(tasks), [tasks]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
-  // 斬擊 / 崩解狀態 — 嚴格對齊規格時間軸
+  // 專注/崩解狀態
   const [isSlashing, setIsSlashing] = useState(false);
   const [isCrashing, setIsCrashing] = useState(false);
   const showWindow = useStatusWindow();
@@ -81,10 +81,10 @@ export default function ZenDashboard() {
     true,
   );
 
-  // §10.3 9.2 方案:獵人公會 — 完成任務累計 EXP + 升級動畫序列
+  // §Pro 等級系統:完成任務累計 PP + 晉升動畫序列
   // (toast 2.5s → 結束瞬間 → 全螢幕晉升動畫 3s)
-  const { addExp } = useHunterStatus();
-  const rankUp = useRankUpNotification();
+  const { addPp } = useProgressStatus();
+  const levelUp = useLevelUpNotification();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -96,7 +96,7 @@ export default function ZenDashboard() {
   // 驗證 ADHD 用戶對「將抽象時間具象化」的需求強弱
   const timebarGhost = useGhostButton({ buttonId: "timebar" });
 
-  // §假門測試 D:無聲討伐營地 (body_doubling) — Zen toolbar 右側入口
+  // §假門測試 D:無聲專注室 (body_doubling) — Zen toolbar 右側入口
   // 與 time_bar 分區,訊號清晰,進入「我要專注」的高意圖時刻自然看到
   const bodyDoublingGhost = useGhostButton({ buttonId: "body_doubling" });
 
@@ -131,10 +131,10 @@ export default function ZenDashboard() {
     const completedTask = visibleTasks.find((t) => t.id === taskId);
     if (!completedTask) return;
 
-    // 0.0s — 斬擊啟動
+    // 0.0s — 完成特效啟動
     setIsSlashing(true);
 
-    // 0.3s — 斬擊結束,同時觸發崩解 + 呼叫 toggleTaskStatus(status: todo → done)
+    // 0.3s — 完成特效結束,同時觸發崩解 + 呼叫 toggleTaskStatus
     window.setTimeout(() => {
       setIsSlashing(false);
       setIsCrashing(true);
@@ -142,22 +142,20 @@ export default function ZenDashboard() {
       toggleTaskStatus(taskId);
     }, 300);
 
-    // 0.5s — 狀態窗降臨 + 累計 EXP(同步觸發升級判斷)
-    // §10.3 9.2 方案:addExp 回傳 leveledUpTo,序列化播放晉升動畫
+    // 0.5s — 狀態窗降臨 + 累計 PP
+    // §10.3 9.2 方案:addPp 回傳 leveledUpTo,序列化播放晉升動畫
     window.setTimeout(() => {
       showWindow({
         title: "任務完成",
-        message: `已討伐「${completedTask.title}」`,
-        xpDelta: BASE_TASK_EXP,
+        message: `已完成「${completedTask.title}」`,
+        xpDelta: BASE_TASK_PP,
         icon: "⚔️",
       });
-      const { leveledUpTo } = addExp(BASE_TASK_EXP);
-      // 序列化播放:StatusWindow 2.5s + 動畫緩衝 → 緊接著觸發晉升動畫
-      // 避免兩個動畫同時出現造成視覺競爭
+      const { leveledUpTo } = addPp(BASE_TASK_PP);
       if (leveledUpTo) {
         window.setTimeout(() => {
-          rankUp.show(leveledUpTo);
-        }, 2700); // 略長於 StatusWindow 自動 dismiss 時間(2.5s)
+          levelUp.show(leveledUpTo);
+        }, 2700);
       }
     }, 500);
 
@@ -179,13 +177,12 @@ export default function ZenDashboard() {
       {/* StatusWindow — 禪模式獨立路由不經 AppLayout,需自掛一份 */}
       <StatusWindow />
 
-      {/* RankUpNotification — 全螢幕階級晉升動畫(§10.3 9.2 方案)
-          透過 useRankUpNotification() 觸發;序列化播放確保不與 StatusWindow 衝突 */}
-      <RankUpNotification />
+      {/* LevelUpNotification — 全螢幕等級晉升動畫 */}
+      <LevelUpNotification />
 
       {/* 頂部工具列 — §10.3 9.5 方案:
           左群組(身份):Logo + Zen Mode 標題
-          右群組(導航):獵人徽章 + 任務大廳
+          右群組(導航):等 badge + 任務大廳
           - 桌機:完整 Logo(色塊 + 「VibeList」文字)
           - 手機:Logo 自動縮成只有色塊,避免擠壓「任務大廳」按鈕
           - 從原本 floating 重構為 inline,不再遮擋內容 */}
@@ -231,9 +228,9 @@ export default function ZenDashboard() {
           />
         </div>
 
-        {/* 右群組:獵人徽章 + 無聲營地 + 任務大廳 */}
+        {/* 右群組:等 badge + 無聲專注室 + 任務大廳 */}
         <div className="flex items-center justify-end gap-3">
-          <HunterStatusBadge />
+          <ProgressBadge />
           <GhostButton
             onClick={bodyDoublingGhost.handleClick}
             variant="muted"
@@ -298,7 +295,7 @@ export default function ZenDashboard() {
                     featureId="time_bar"
                     dismissed={timebarGhost.dismissed}
                   >
-                    啟動魔力消耗條
+                    啟動專注消耗條
                   </GhostButton>
                 }
               />
@@ -370,7 +367,7 @@ export default function ZenDashboard() {
         featureId="time_bar"
       />
 
-      {/* 假門測試 D — 無聲討伐營地 Modal */}
+      {/* 假門測試 D — 無聲專注室 Modal */}
       <ProWaitlistModal
         open={bodyDoublingGhost.open}
         onClose={bodyDoublingGhost.handleDismiss}
@@ -429,7 +426,7 @@ function FocusCard({
         disabled={isSlashing || isCrashing}
         className="mt-8 inline-flex items-center gap-2 rounded-full bg-slate-800 px-6 py-3 text-sm font-medium text-slate-50 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-slate-900 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
       >
-        <span aria-hidden>⚔️ 討伐</span>
+        <span aria-hidden>✓ 完成</span>
         <span className="sr-only">完成任務</span>
       </button>
     </motion.article>
@@ -499,7 +496,7 @@ function EmptyState() {
         <path d="M5 15c2 0 4 1 4 4" />
         <path d="M19 15c-2 0-4 1-4 4" />
       </svg>
-      <p className="text-balance text-base font-medium text-slate-600">今日討伐已全數淨空</p>
+      <p className="text-balance text-base font-medium text-slate-600">今日專注已全數完成</p>
       <p className="text-balance text-sm text-slate-400">戰場很安靜，慢呼吸一下</p>
       <Link
         href="/?board=1"

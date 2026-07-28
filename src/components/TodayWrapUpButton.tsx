@@ -1,43 +1,35 @@
 "use client";
 
-import { useHunterStatus } from "@/hooks/useHunterStatus";
+import { useProgressStatus } from "@/hooks/useProgressStatus";
 import { useStatusWindow } from "@/hooks/useStatusWindow";
 import { useProactiveClosure } from "@/hooks/useProactiveClosure";
 
 /**
  * 「今天先這樣」 — Zen 模式卡片底部按鈕
- *
- * 資料行為:dueDate → undefined,任務回 Backlog（戰略性撤退）
- * 透過 useProactiveClosure hook 統一,確保與主清單 toolbar 同源
- *
- * 設計基調(使用者 spec):
- * - 絕對無罪惡感。沒有警告彈窗,沒有「你還有 N 個任務未完成」提示
- * - 動畫語境「蓋棉被 / 沉水底」:由 FocusCard/SortableQueueItem 既有 motion.exit 觸發
- *   (fade + scale + slide down),本元件只負責狀態切換 + 寫入
- * - +5 EXP 休息獎勵 — 「懂得休息也是升級」
+ * +5 PP 休息獎勵 — 「懂得休息也是進步」
  */
 
-const REST_EXP = 5;
+const REST_PP = 5;
 
 type Props = {
   tasks: import("@/lib/types").Task[];
 };
 
 export function TodayWrapUpButton({ tasks }: Props) {
-  const { addExp } = useHunterStatus();
+  const { addPp } = useProgressStatus();
   const showWindow = useStatusWindow();
 
   const { wrapUp, wrapping } = useProactiveClosure({
     onWrapComplete: () => {
-      // +5 EXP 休息獎勵(永不倒扣原則,§hunterRank)
-      addExp(REST_EXP);
+      // +5 PP 休息獎勵
+      addPp(REST_PP);
 
       // 安撫 toast — 200ms 後,讓卡片動畫先演出一瞬再說話
       window.setTimeout(() => {
         showWindow({
           title: "辛苦了",
           message: "剩下的任務已安全送回大廳。去享受現實世界吧！🌙",
-          xpDelta: REST_EXP,
+          xpDelta: REST_PP,
           icon: "🌙",
         });
       }, 200);

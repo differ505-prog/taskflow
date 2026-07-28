@@ -5,7 +5,7 @@ import type { Task } from "@/lib/types";
 
 /**
  * MonthGrid — 共享月視圖渲染元件 (§10 三層次 Layer 2)
- * 給 CalendarView(看戰報)與 CommandCenter(軍機處排程)共用
+ * 給 CalendarView(月曆) 與 CommandCenter(排程) 共用
  *
  * 設計：純渲染,無 state、無副作用。
  * 支援 @"view" 皮膚(完整日曆功能,顯示任務條列、按優先級著色、搜尋高亮)
@@ -81,7 +81,7 @@ export function MonthGrid({
   return (
     <section
       className="flex flex-col gap-3"
-      aria-label={isPlan ? "軍機處月曆" : "月曆視圖"}
+      aria-label={isPlan ? "月曆排程" : "月曆視圖"}
     >
       {/* 週標題 */}
       <div className={`grid grid-cols-7 ${isPlan ? "gap-1.5 px-0.5" : "mb-2"}`}>
@@ -170,7 +170,7 @@ export function MonthGrid({
   );
 }
 
-// ─── "plan" 模式日期格(RPG 軍機處簡約,HTML5 拖放)───
+// ─── "plan" 模式日期格───
 function PlanDateCell({
   day,
   dateStr,

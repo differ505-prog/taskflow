@@ -195,15 +195,15 @@ async function sendWeeklyReportBatch(supabaseAdmin: ReturnType<typeof getSupabas
   // 這裡提供 skeleton；若無 task_history 可直接傳 weekExp=0
   const results = await Promise.allSettled(
     activeUsers.map(async (user) => {
-      // TODO: 串接 task_history 表，計算 user.id 的本週 EXP
+      // TODO: 串接 task_history 表，計算 user.id 的本週 PP
       // const weekExp = await getWeekExp(user.id, weekStart, weekEnd);
       const weekExp = 0; // 暫時填 0，完成 task_history schema 後替換
       const completedCount = 0; // 同上
       const usedAiCrusher = false; // 同上
 
       const { html, text } = await renderWeeklyReportEmail({
-        userName: user.display_name || "辛苦了，獵人！",
-        weekExp,
+        userName: user.display_name || "辛苦了！",
+        weekPp: weekExp,
         completedTaskCount: completedCount,
         usedAiCrusher,
       });
@@ -211,7 +211,7 @@ async function sendWeeklyReportBatch(supabaseAdmin: ReturnType<typeof getSupabas
       await resend!.emails.send({
         from: RESEND_FROM_EMAIL,
         to: user.email!,
-        subject: "✨ 你的本週討伐戰報來了",
+        subject: "✨ 你的本週專注戰報來了",
         html,
         text,
       });

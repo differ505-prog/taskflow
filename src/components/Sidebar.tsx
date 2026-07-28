@@ -29,7 +29,7 @@ import {
   MoreHorizontal, Edit3, Trash2, X, Share2, Users,
   Pin, Gauge, Flame,
 } from "lucide-react";
-import { HunterStatusBadge } from "@/components/HunterStatusBadge";
+import { ProgressBadge } from "@/components/ProgressBadge";
 
 interface NavItem {
   view: AppView;
@@ -73,7 +73,7 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
   const pinnedCount = tasks.filter((t) => t.isPinned && !t.isArchived && t.status !== "done").length;
 
   const bottomNavItems: NavItem[] = [
-    { view: "calendar", label: "月視圖", icon: <CalendarRange className="w-[18px] h-[18px]" />, badge: "戰報 · 沙盤" },
+    { view: "calendar", label: "月視圖", icon: <CalendarRange className="w-[18px] h-[18px]" />, badge: "月曆 · 排程" },
     { view: "habits", label: "習慣打卡", icon: <Heart className="w-[18px] h-[18px]" /> },
     { view: "tags", label: "標籤管理", icon: <Tag className="w-[18px] h-[18px]" /> },
     { view: "stats", label: "統計分析", icon: <BarChart3 className="w-[18px] h-[18px]" /> },
@@ -337,9 +337,8 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
         </div>
       </div>
 
-      {/* Hunter guild badge — §10.3 9.2 方案:常駐獵人公會狀態,提示詞「在 user profile 旁」精神 */}
       <div className="px-3 pb-2">
-        <HunterStatusBadge />
+        <ProgressBadge />
       </div>
 
       {/* Bottom actions */}

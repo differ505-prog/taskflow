@@ -5,9 +5,9 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/AppContext";
 import { useStatusWindow } from "@/hooks/useStatusWindow";
-import { useHunterStatus } from "@/hooks/useHunterStatus";
-import { useRankUpNotification } from "@/components/RankUpNotification";
-import { BASE_HABIT_EXP } from "@/lib/hunterRank";
+import { useProgressStatus } from "@/hooks/useProgressStatus";
+import { useLevelUpNotification } from "@/components/LevelUpNotification";
+import { BASE_HABIT_PP } from "@/lib/progressRank";
 import { Heart, ArrowRight, Check } from "lucide-react";
 
 /**
@@ -44,8 +44,8 @@ function getToday(): string {
 export function WarmupSection() {
   const { habits, checkinHabit, setCurrentView } = useApp();
   const showWindow = useStatusWindow();
-  const { addExp } = useHunterStatus();
-  const rankUp = useRankUpNotification();
+  const { addPp } = useProgressStatus();
+  const levelUp = useLevelUpNotification();
   const router = useRouter();
 
   // 過濾：今日尚未 checkin + 未封存
@@ -60,18 +60,18 @@ export function WarmupSection() {
 
   const handleComplete = (habitId: string, habitTitle: string) => {
     checkinHabit(habitId, today);
-    // 多巴胺回饋:toast + 微量 EXP
+    // 多巴胺回饋:toast + 微量 PP
     showWindow({
       title: "暖身完成",
       message: habitTitle,
-      xpDelta: BASE_HABIT_EXP,
+      xpDelta: BASE_HABIT_PP,
       icon: "✨",
     });
-    const { leveledUpTo } = addExp(BASE_HABIT_EXP);
-    // 暖身也可升級,但因 EXP 較低,跨門檻機率小
+    const { leveledUpTo } = addPp(BASE_HABIT_PP);
+    // 暖身也可升級,因 PP 較低,跨門檻機率小
     // 為避免 toast 競爭,序列播放
     if (leveledUpTo) {
-      window.setTimeout(() => rankUp.show(leveledUpTo), 2700);
+      window.setTimeout(() => levelUp.show(leveledUpTo), 2700);
     }
   };
 

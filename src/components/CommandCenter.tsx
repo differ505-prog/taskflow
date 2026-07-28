@@ -19,7 +19,7 @@ import { useApp } from "@/lib/AppContext";
 import type { Task } from "@/lib/types";
 
 /**
- * CommandCenter — 軍機處戰略排程視圖(暫存版本)
+ * Command Center 戰略排程視圖
  *
  * 重構狀態:已抽出 useMonthGrid hook 但 plan 模式拖放未整合(@dnd-kit vs HTML5 不相容)
  * 當前仍用自寫網格 + 拖放,待下一步決策後修齊
@@ -174,13 +174,13 @@ export function CommandCenter({ onClose }: { onClose: () => void }) {
     <div
       className="flex h-full min-h-0 flex-col gap-6 bg-slate-50/95 p-4 sm:p-6"
       role="region"
-      aria-label="軍機處：戰略排程模式"
+      aria-label="Command Center：戰略排程模式"
     >
       <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/60 pb-4">
           <div className="flex flex-col">
             <h1 className="text-balance text-lg font-semibold tracking-tight text-slate-800 sm:text-xl">
-              軍機處 · 沙盤推演
+              Command Center
             </h1>
             <p className="text-balance text-xs text-slate-400">
               拖曳待命任務到任一日期 · 過去的破關會微微發光,未來模糊無壓

@@ -40,7 +40,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
   const { notificationPermission, requestNotificationPermission, tasks, habits, lists, addTask, addHabit, addList } = useApp();
   const { user, role, roleConfig, isAdmin } = useAuth();
   const confirm = useConfirm();
-  // §假門測試 C:S 級獵人特權 (pro_themes) — 設定頁 PRO 功能區
+  // §假門測試 C:Pro 版專屬功能 (pro_themes) — 設定頁 外觀區
   // 與既有 ProGhostButton 並列,但走 ProWaitlistModal 系統
   const proThemesGhost = useGhostButton({ buttonId: "pro_themes" });
   const [theme, setTheme] = useState<"light" | "dark" | "system">("light");
@@ -397,9 +397,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                 </ProGhostButton>
               </div>
 
-              {/* §假門測試 C: S 級獵人特權 (pro_themes) — 主題客製 + 斬擊動畫
-                  與既有的 ProGhostButton 並列,但走 ProWaitlistModal 系統
-                  (教練任務 §假門測試 spec: 文案「👑 S 級獵人特權醞釀中...」) */}
+              {/* §假門測試 C:Pro 版專屬功能 (pro_themes) — 主題客製化 + 深黑模式 */}
               <div className="card px-4 py-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div
@@ -409,9 +407,9 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                     <Palette className="w-4 h-4" style={{ color: "#fbbf24" }} aria-hidden="true" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>S 級獵人特權</p>
+                    <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>Pro 版專屬功能</p>
                     <p className="text-[12px] truncate" style={{ color: "var(--text-tertiary)" }}>
-                      華麗斬擊動畫 · 客製化稱號 · 極致降噪深黑主題
+                      主題客製化 · 深黑模式 · 自訂稱號
                     </p>
                   </div>
                 </div>
@@ -1268,7 +1266,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
         </div>
       </motion.div>
 
-      {/* §假門測試 C: S 級獵人特權 (pro_themes) Modal */}
+      {/* §假門測試 C:Pro 版專屬功能 (pro_themes) Modal */}
       <ProWaitlistModal
         open={proThemesGhost.open}
         onClose={proThemesGhost.handleDismiss}

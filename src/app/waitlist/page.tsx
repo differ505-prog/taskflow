@@ -65,10 +65,10 @@ export default function WaitlistPage() {
           >
             看著一長串待辦清單，腦袋就當機完全不想動？
             <br />
-            VibeList 是一款專為「啟動癱瘓」設計的極簡小工具。把枯燥的現實任務，變成充滿快感的打怪升級。
+            VibeList 是一款專為「啟動癱瘓」設計的極簡小工具。把枯燥的現實任務，變成充滿節奏感的進步體驗。
           </motion.p>
 
-          {/* 任務卡片 Mockup + EXP 徽章 */}
+          {/* 任務卡片 Mockup + PP 徽章 */}
           <motion.div
             {...fadeUpDelay(0.2)}
             className="relative inline-block"
@@ -103,7 +103,7 @@ export default function WaitlistPage() {
               <div className="space-y-2">
                 <div className="flex justify-between text-[11px]" style={{ color: "var(--text-tertiary)" }}>
                   <span>LV. 12</span>
-                  <span>2,450 / 3,000 EXP</span>
+                  <span>2,450 / 3,000 PP</span>
                 </div>
                 <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--surface-muted)" }}>
                   <motion.div
@@ -117,7 +117,7 @@ export default function WaitlistPage() {
               </div>
             </div>
 
-            {/* 漂浮的 +100 EXP 徽章 */}
+            {/* 漂浮的 +100 PP 徽章 */}
             <motion.div
               initial={{ opacity: 0, scale: 0.5, x: 40, y: -20 }}
               animate={{ opacity: 1, scale: 1, x: 40, y: -20 }}
@@ -130,7 +130,7 @@ export default function WaitlistPage() {
               }}
             >
               <Sparkles className="w-3 h-3" aria-hidden="true" />
-              +100 EXP
+              +100 PP
             </motion.div>
           </motion.div>
         </div>
@@ -173,7 +173,7 @@ export default function WaitlistPage() {
                 獨自升級的快感
               </h3>
               <p className="text-[13px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                完成任務瞬間觸發斬擊特效。經驗值永遠只增不減，沒有連勝中斷的懲罰。
+                完成任務瞬間觸發完成特效。PP 永遠只增不減，沒有連勝中斷的懲罰。
               </p>
             </motion.div>
 

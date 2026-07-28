@@ -11,8 +11,8 @@ import { BellRing, Lock, type LucideIcon } from "lucide-react";
  * 4 個 featureId(對應教練任務 §假門測試 spec):
  *   - `time_bar`     : 時間感知魔法(禪模式焦點卡片)
  *   - `infinite_ai`  : 無限粉碎魔法(任務表單 AI 拆解旁)
- *   - `pro_themes`   : S 級獵人特權(設定頁外觀區)
- *   - `body_doubling`: 無聲討伐營地(Zen toolbar 右上)
+ *   - `pro_themes`   : Pro 版專屬功能(設定頁外觀區)
+ *   - `body_doubling`: 無聲專注室(Zen toolbar 右上)
  *
  * 兩種變體:
  *   - `muted`: 灰色低調,帶 Pro 鎖頭

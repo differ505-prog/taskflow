@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getEstimatedActiveHunters } from "@/lib/presenceMock";
+import { getEstimatedActiveUsers } from "@/lib/presenceMock";
 
 /**
  * PresenceDot — 陪伴指示燈 (Body Doubling Indicator)
@@ -22,7 +22,7 @@ import { getEstimatedActiveHunters } from "@/lib/presenceMock";
  */
 export default function PresenceDot() {
   // useMemo:只在 mount 計算一次,跨小時邊界不重算(spec:不需要頻繁變動)
-  const range = useMemo(() => getEstimatedActiveHunters(new Date()), []);
+  const range = useMemo(() => getEstimatedActiveUsers(new Date()), []);
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -33,7 +33,7 @@ export default function PresenceDot() {
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      aria-label={`估計目前有 ${range.min} 到 ${range.max} 位獵人同步專注,這是基於活躍用戶時區的估算數值`}
+      aria-label={`估計目前有 ${range.min} 到 ${range.max} 位用戶同步專注,這是基於活躍用戶時區的估算數值`}
     >
       {/* 綠色呼吸圓點 — 使用 animate-ping + 內層實心圓製造雙層呼吸效果 */}
       <span className="relative inline-flex h-2 w-2">
@@ -43,7 +43,7 @@ export default function PresenceDot() {
 
       {/* 主文案:永遠用「範圍」+「估計」+「同步」溫和詞彙 */}
       <span className="text-xs text-zinc-400">
-        🟢 估計目前有 {range.min}-{range.max} 位獵人同步專注
+        🟢 估計目前有 {range.min}-{range.max} 位用戶同步專注
       </span>
 
       {/* Hover tooltip — 揭露這是估算,建立信任 */}

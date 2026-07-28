@@ -3,10 +3,10 @@
 import { motion } from "framer-motion";
 
 /**
- * 卡片斬擊特效
+ * 卡片完成特效
  *
  * 規格:0.0s 觸發、0.3s 結束
- * 設計:雙斜線 X 型斬擊 + 中心柔光
+ * 設計:雙斜線 X 型完成特效 + 中心柔光
  * 風格:亮藍/紫發光 drop-shadow,俐落不浮誇
  */
 export function SlashOverlay({ active }: { active: boolean }) {
@@ -27,7 +27,7 @@ export function SlashOverlay({ active }: { active: boolean }) {
         className="absolute inset-0 h-full w-full"
       >
         <defs>
-          {/* 斬擊漸層 — 亮藍紫發光 */}
+          {/* 完成特效漸層 — 亮藍紫發光 */}
           <linearGradient id="slashGradient" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#a78bfa" stopOpacity="0" />
             <stop offset="40%" stopColor="#818cf8" stopOpacity="1" />

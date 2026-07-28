@@ -10,7 +10,7 @@ import type { Task } from "@/lib/types";
  * 設計動機（§5 DRY）：
  * - Zen 模式 TodayWrapUpButton 與 AppShell 主清單 toolbar 的「今天先這樣」按鈕
  *   底層意圖完全相同:把未完成任務的 dueDate 清空,送回 Backlog
- * - 但兩處 UX 細節不同:Zen 模式給 EXP 獎勵 + 安撫 toast,toolbar 給 confirm 確認窗
+ * - 但兩處 UX 細節不同:Zen 模式給 PP 獎勵 + 安撫 toast,toolbar 給 confirm 確認窗
  * - 把「資料層行為 + wrapping 鎖 + 副作用 hook」統一,UX 細節留 callback 注入
  *
  * 絕對約束（§5-L 防線 + §X 戰略性撤退設定）:

@@ -24,14 +24,14 @@ import { render } from "@react-email/render";
 
 interface WeeklyReportEmailProps {
   userName?: string;
-  weekExp?: number;        // 本週獲得的經驗值（純數字，供視覺高光用）
+  weekPp?: number;        // 本週獲得的 PP（純數字，供視覺高光用）
   completedTaskCount?: number; // 本週完成任務數（可選，未提供則不顯示）
   usedAiCrusher?: boolean;  // 是否用過 AI 任務粉碎機
 }
 
 export function WeeklyReportEmail({
-  userName = "辛苦了，獵人！",
-  weekExp = 0,
+  userName = "辛苦了！",
+  weekPp = 0,
   completedTaskCount,
   usedAiCrusher = false,
 }: WeeklyReportEmailProps) {
@@ -109,11 +109,11 @@ export function WeeklyReportEmail({
                   margin: 0,
                 }}
               >
-                ⚔ 本週討伐戰報
+                ✨ 本週專注戰報
               </Text>
             </Container>
 
-            {/* 狀態列：獵人名稱 */}
+            {/* 狀態列：用戶名稱 */}
             <Text
               style={{
                 color: "#8888cc",
@@ -124,7 +124,7 @@ export function WeeklyReportEmail({
                 marginBottom: "4px",
               }}
             >
-              獵人稱號
+              等級稱號
             </Text>
             <Text
               style={{
@@ -148,7 +148,7 @@ export function WeeklyReportEmail({
 
             {/* ═══ 核心狀態列 ════════════════════ */}
 
-            {/* EXP 獲得 */}
+            {/* PP 獲得 */}
             <Container
               style={{
                 backgroundColor: "#14142b",
@@ -182,7 +182,7 @@ export function WeeklyReportEmail({
                   textShadow: "0 0 12px rgba(74, 222, 128, 0.4)",
                 }}
               >
-                +{weekExp.toLocaleString()}
+                +{weekPp.toLocaleString()}
               </Text>
             </Container>
 

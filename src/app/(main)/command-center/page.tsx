@@ -1,7 +1,7 @@
 import CommandCenterClient from "./CommandCenterClient";
 
 export const metadata = {
-  title: "軍機處 · VibeList",
+  title: "Command Center · VibeList",
   description: "戰略排程模式：拖曳待命任務到日曆任一日期",
 };
 
