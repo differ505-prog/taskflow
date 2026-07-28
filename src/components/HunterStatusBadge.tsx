@@ -83,8 +83,8 @@ export function HunterStatusBadge() {
         {currentRank.code}
       </span>
 
-      {/* 階級文字 + EXP 數字 */}
-      <div className="flex min-w-0 flex-col leading-none">
+      {/* 階級文字 + EXP 數字(響應式:較窄 viewport 隱藏) */}
+      <div className="hidden min-[280px]:flex min-w-0 flex-col leading-none">
         <span className="text-[11px] font-medium text-slate-600">{tierLabel}</span>
         <span
           className={`tabular-nums text-[10px] text-slate-400 transition-opacity duration-200 ${

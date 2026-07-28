@@ -1,7 +1,6 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import { useState } from "react";
 
 interface QuickCaptureTriggerProps {
   variant: "desktop" | "mobile";
@@ -20,17 +19,11 @@ interface QuickCaptureTriggerProps {
  * - 統一 active scale-[0.98] + focus-visible:ring
  */
 export function QuickCaptureTrigger({ variant, onClick }: QuickCaptureTriggerProps) {
-  const [showShortcutHint, setShowShortcutHint] = useState(false);
-
   if (variant === "desktop") {
     return (
       <button
         type="button"
         onClick={onClick}
-        onMouseEnter={() => setShowShortcutHint(true)}
-        onMouseLeave={() => setShowShortcutHint(false)}
-        onFocus={() => setShowShortcutHint(true)}
-        onBlur={() => setShowShortcutHint(false)}
         aria-label="新增任務至收件箱"
         className="hidden items-center gap-2 rounded-full px-4 py-2.5 text-[14px] font-medium text-white shadow-md transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 md:inline-flex"
         style={{
@@ -39,15 +32,7 @@ export function QuickCaptureTrigger({ variant, onClick }: QuickCaptureTriggerPro
         }}
       >
         <Plus className="h-4 w-4" aria-hidden />
-        <span>新增任務</span>
-        <kbd
-          className={`ml-1 rounded border border-white/30 bg-white/10 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-white transition-opacity duration-200 ease-out ${
-            showShortcutHint ? "opacity-100" : "opacity-0"
-          }`}
-          aria-hidden
-        >
-          ⌘ K
-        </kbd>
+        <span>新增</span>
       </button>
     );
   }
