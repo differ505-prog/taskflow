@@ -34,6 +34,7 @@ import { HunterStatusBadge } from "@/components/HunterStatusBadge";
 import { WarmupSection } from "@/components/WarmupSection";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import PresenceDot from "@/components/PresenceDot";
+import { FlowTimer } from "@/components/FlowTimer";
 import { BASE_TASK_EXP } from "@/lib/hunterRank";
 import { QuickCaptureTrigger } from "@/components/QuickCaptureTrigger";
 import { GhostButton } from "@/components/GhostButton";
@@ -276,6 +277,8 @@ export default function ZenDashboard() {
 
         {/* 焦點區 */}
         <section aria-labelledby="focus-heading" className="flex flex-col items-center gap-6">
+          {/* 心流計時器膠囊 — 置於焦點任務卡片上方 */}
+          <FlowTimer />
           <h1 id="focus-heading" className="sr-only">
             當前焦點
           </h1>
