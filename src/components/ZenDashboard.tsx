@@ -189,7 +189,7 @@ export default function ZenDashboard() {
           - 手機:Logo 自動縮成只有色塊,避免擠壓「任務大廳」按鈕
           - 從原本 floating 重構為 inline,不再遮擋內容 */}
       <div
-        className="relative mx-auto flex max-w-2xl items-center justify-between gap-3"
+        className="relative mx-auto flex h-14 max-w-2xl items-center justify-between gap-3"
         style={{ marginTop: "max(0px, env(safe-area-inset-top, 0px))" }}
       >
         {/* 左群組:Logo + Zen Mode 標題(身份歸屬) */}
@@ -231,8 +231,8 @@ export default function ZenDashboard() {
           />
         </div>
 
-        {/* 右群組:獵人徽章 + 無聲營地 + 任務大廳(導航歸屬) */}
-        <div className="flex items-center gap-3">
+        {/* 右群組:absolute 定位,不參與 flex 寬度計算,避免與中央 CTA 重疊 */}
+        <div className="absolute right-0 flex items-center gap-3">
           <HunterStatusBadge />
           <GhostButton
             onClick={bodyDoublingGhost.handleClick}
