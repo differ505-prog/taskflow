@@ -137,6 +137,7 @@ interface AppContextValue {
   archiveHabit: (id: string) => void;
   unarchiveHabit: (id: string) => void;
   checkinHabit: (id: string, date: string, count?: number, note?: string) => void;
+  uncheckHabit: (id: string, date: string) => void;
 
   // ── Quick Add ──────────────────────────────────────────
   quickAdd: (input: string, currentView?: string) => string | null;
@@ -1127,6 +1128,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     saveHabits(updated);
   }, [habits]);
 
+  // §§bugfix:習慣打卡取消功能 — 對稱於 checkinHabitFn,移除該日 checkin 並重算 streak
+  const uncheckHabitFn = useCallback((id: string, date: string) => {
+    const habit = habits.find((h) => h.id === id);
+    if (!habit) return;
+    const remaining = habit.checkins.filter((c) => c.date !== date);
+    if (remaining.length === habit.checkins.length) return; // 本來就沒打,no-op
+    const streak = computeHabitStreak(habit, remaining);
+    const longestStreak = Math.max(habit.longestStreak, streak);
+    const updated = habits.map((h) =>
+      h.id === id ? { ...h, checkins: remaining, streak, longestStreak, updatedAt: new Date().toISOString() } : h
+    );
+    setHabits(updated);
+    saveHabits(updated);
+  }, [habits]);
+
   // ── Shared List 主函式 ───────────────────────────────────
   const shareList = useCallback(async (listId: string): Promise<string | null> => {
     if (!user) return null;
@@ -1708,6 +1724,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     completeRecurringAndClone,
     addList, updateList, deleteList, reorderLists, reorderTasks,
     addHabit, updateHabit, archiveHabit, unarchiveHabit, checkinHabit: checkinHabitFn,
+    uncheckHabit: uncheckHabitFn,
     quickAdd,
     requestNotificationPermission, notificationPermission,
     sharedLists, sharedListIds: Object.keys(sharedLists),

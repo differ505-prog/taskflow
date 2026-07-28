@@ -155,7 +155,7 @@ function HabitRow({ habit, onCheckin, onDelete, onUpdate, onRestore }: {
 }
 
 export function HabitsPage() {
-  const { habits, addHabit, checkinHabit, archiveHabit, unarchiveHabit } = useApp();
+  const { habits, addHabit, checkinHabit, uncheckHabit, archiveHabit, unarchiveHabit } = useApp();
   const confirm = useConfirm();
   const [showForm, setShowForm] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -342,7 +342,11 @@ export function HabitsPage() {
               >
                 <HabitRow
                   habit={habit}
-                  onCheckin={() => checkinHabit(habit.id, today)}
+                  onCheckin={() => {
+                    const isDone = habit.checkins.some((c) => c.date === today && c.completed);
+                    if (isDone) uncheckHabit(habit.id, today);
+                    else checkinHabit(habit.id, today);
+                  }}
                   onDelete={async () => {
                   const ok = await confirm({
                     title: `封存習慣「${habit.title}」`,
