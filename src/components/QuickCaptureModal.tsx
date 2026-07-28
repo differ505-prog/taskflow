@@ -166,6 +166,12 @@ export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps
             onClick={(e) => e.stopPropagation()}
           >
             <div
+              className="mb-2.5 text-center text-[11px] text-slate-400"
+              aria-hidden
+            >
+              ↵ Enter 丟入收集箱&nbsp;&nbsp;·&nbsp;&nbsp;⇧ Enter 加入今日
+            </div>
+            <div
               className={`flex items-center gap-3 rounded-2xl bg-white/95 px-5 py-4 shadow-2xl ring-1 backdrop-blur-md transition-all duration-200 ease-out ${
                 showSuccess
                   ? "ring-[var(--status-success)]/40"
@@ -210,11 +216,10 @@ export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps
               </kbd>
             </div>
             <p
-              className="mt-3 text-center text-[12px] text-slate-500"
+              className="mt-2.5 text-center text-[11px] text-slate-400"
               aria-hidden
             >
-              丟進去就不會再看到它了 — 默默跑去收件箱
-              <span className="ml-2 opacity-60">↵ Enter 丟入收集箱 · ⇧ Enter 加入今日</span>
+              默默跑去收件箱
             </p>
           </motion.div>
         </motion.div>
