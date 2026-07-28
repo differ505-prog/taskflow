@@ -311,7 +311,7 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
           </button>
 
           {taskMenuOpen && (
-            <TaskMenuPortal
+            <TaskMenuInline
               containerRef={taskMenuRef}
               filteredTasks={filteredTasks}
               taskSearch={taskSearch}
@@ -345,7 +345,7 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
   );
 }
 
-// ── Task menu — Portal to body ─────────────────────────────────────────────────
+// ── Task menu — inline, no portal ─────────────────────────────────────────────────
 interface TaskMenuPortalProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   filteredTasks: Task[];
@@ -358,7 +358,7 @@ interface TaskMenuPortalProps {
   selectedTaskId?: string;
 }
 
-function TaskMenuPortal({
+function TaskMenuInline({
   containerRef,
   filteredTasks,
   taskSearch,
@@ -369,39 +369,17 @@ function TaskMenuPortal({
   taskSearchRef,
   selectedTaskId,
 }: TaskMenuPortalProps) {
-  const [menuMounted, setMenuMounted] = useState(false);
-  useEffect(() => { setMenuMounted(true); }, []);
-
-  useEffect(() => {
-    if (!menuMounted) return;
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [menuMounted, containerRef, onClose]);
-
-  if (!menuMounted) return null;
-
-  const rect = containerRef.current?.getBoundingClientRect();
-  // fixed 永遠相對於 viewport，徹底避開 overflow/stacking-context 陷阱
-  const top = rect ? rect.bottom + 6 : 0;
-  const left = rect?.left ?? 0;
-  const width = rect?.width ?? 320;
-
-  return createPortal(
+  return (
     <div
-      className="absolute rounded-xl shadow-lg z-[9999] overflow-visible"
+      className="absolute rounded-xl shadow-lg z-50 overflow-visible"
       style={{
-        top,
-        left,
-        width,
+        top: "calc(100% + 6px)",
+        left: 0,
+        right: 0,
         background: "var(--surface-elevated)",
         border: "1px solid var(--border)",
         maxHeight: 260,
-        position: "fixed",
+        position: "absolute",
       }}
     >
       <div
@@ -452,7 +430,6 @@ function TaskMenuPortal({
           ))
         )}
       </ul>
-    </div>,
-    document.body,
+    </div>
   );
 }
