@@ -23,6 +23,7 @@
 | #006 | 幽靈按鈕 1 週靜默期後再點無反應，客人以為按鍵故障 | hook 出口缺失 + GhostButton 已實作 `dismissed` prop 但無父層傳入 | `a6b7ea4` | 2026-07-26 |
 | #007 | 手機版點底部「今天」 → 「頁面錯誤，請重新整理」，重新整理也沒恢復 | React Hooks Rules 違規：`useProactiveClosure` 被放在條件 IIFE 內 | `c114f8c` | 2026-07-28 |
 | #008 | 切換帳號後舊 uid 任務仍顯示 + 觸發孤兒補推 RLS 403 + 同 session 切換污染 | §26 類別 J：localOnly 無 ownerUid filter + firstLoadDone 跨 uid 未重置 | `aaf7e47` + `69c0204` | 2026-07-28 |
+| #009 | 點「已完成」狀態 chip 後畫面空白,有 3 個 done 卻不渲染 | activeTasks 拆分時 `explicitlyShowingDone=true` 變 0 + L6.5 折疊區被 `!explicitlyShowingDone` 跳過 | `efac784` | 2026-07-29 |
 
 ---
 
@@ -408,3 +409,76 @@ return (
 ### 教訓
 - **§26 類別 J 的觸發條件更新**：孤兒偵測不只需要「不在 5 秒寫入窗」，還需要 `ownerUid === currentUid` filter 才能避免跨 uid 任務被誤判
 - **§23 同步層確認關鍵**：這次沒修 `personalTaskSync.ts` 而是修 `AppContext.tsx` — 因為 `localOnly` 邏輯在 AppContext 的 subscribeTasksSync callback 內，不是 personalTaskSync
+
+---
+
+## #009 — 點「已完成」狀態 chip 後畫面空白
+
+### 症狀（用戶描述）
+- 收集箱有 3 個 `status: "done"` 的任務（資料面存在）
+- 點「已完成」狀態 chip → 該 chip 變高亮（表示 `activeFilter.status === "done"` 寫入成功）
+- 畫面變成**完全空白**（既不是 EmptyState「把腦中東西倒出來」、也不是 3 個已完成任務）
+- 點其他 chip（待辦 2 / 進行中 0）可以正常切換,只有「已完成」這個 chip 出問題
+
+### Root Cause（activeTasks 拆分鏈 + L6.5 折疊區條件互斥）
+
+`AppShell.tsx` 的任務顯示鏈有 3 段互鎖的衍生 state + 2 條獨立渲染路徑,這次 bug 是「兩條路徑都沒走」造成的：
+
+1. **`displayTasks` 拆分(line 212-216)**：
+   ```ts
+   const displayTasks = explicitlyShowingDone
+     ? filteredTasks.filter((t) => t.status === "done")   // ← 只剩 done
+     : filteredTasks;
+   ```
+   `explicitlyShowingDone=true` 時,`displayTasks` 已經只有 done 的 3 個任務。
+
+2. **`activeTasks` / `completedTasks` 拆分(line 218-219,原版)**：
+   ```ts
+   const activeTasks = displayTasks.filter((t) => t.status !== "done");    // 0 個
+   const completedTasks = displayTasks.filter((t) => t.status === "done"); // 3 個
+   ```
+   `activeTasks` = 0 個,`completedTasks` = 3 個 — 與「真實世界」剛好相反。
+
+3. **兩條渲染路徑**：
+   - **主路徑(line 658 `<AnimatePresence>`)**:iterate `activeTasks` → 渲染 0 個 → 視覺上空白
+   - **L6.5 折疊區(line 774)**:`{!explicitlyShowingDone && completedTasks.length > 0 && (<details>...)}` → `!explicitlyShowingDone` 為 false → 折疊區**整段跳過**
+
+**結果**：兩條路徑都不渲染 → 視覺完全空白(就只是 background color 露出來)。
+
+### 修法（4 行三元守衛 / 借 activeTasks 渲染 done）
+
+`AppShell.tsx` line 212-219 區塊改為：
+
+```ts
+// L6.5:已完成任務一律顯示在底部折疊區,所以 displayTasks 永遠包含全部
+// 例外:用戶主動點「已完成」chip 時,只渲染 done — 此時 activeTasks 借用整個 displayTasks
+// 避免 activeTasks = 0 + completedTasks 被 L6.5 折疊區跳過(!explicitlyShowingDone 條件)而空白
+const displayTasks = explicitlyShowingDone
+  ? filteredTasks.filter((t) => t.status === "done")
+  : filteredTasks;
+const activeTasks = explicitlyShowingDone
+  ? displayTasks   // ← 借用整個 displayTasks(全是 done)
+  : displayTasks.filter((t) => t.status !== "done");
+const completedTasks = explicitlyShowingDone
+  ? []   // ← activeTasks 已包含,折疊區不必再 render
+  : displayTasks.filter((t) => t.status === "done");
+```
+
+關鍵思路:`explicitlyShowingDone=true` 時,「全部 3 個」都是「active」要渲染的物件,所以 `activeTasks` 借用整個 `displayTasks`；`completedTasks` 留空陣列讓 L6.5 折疊區自然跳過(`!explicitlyShowingDone` 條件本來就擋)。
+
+### 驗證（§12）
+- `npx tsc --noEmit` → exit 0,clean
+- `npm run build` → exit 0,25 routes + middleware 全部 build 成功
+- 推 main → Vercel production deployment 觸發
+- 用戶在桌面 Chrome 確認:點「已完成」chip → 看到 3 個已完成任務渲染；點「待辦」chip → 回到原本 2 個待辦任務,折疊區在底部恢復
+
+### 教訓（轉化為 §26 修憲候選 — 類別 S）
+- **§26 類別 S 候選 — 衍生 state 拆分鏈 + 多重獨立渲染路徑互斥**:
+  症狀鐵三角 = (a) 某個 filter 切換後**完全空白** (b) 切回其他 filter 可恢復 (c) 計數 chip 顯示正確數字(資料沒問題)。
+  根因模式:多個 `const x = display.filter(...)` 衍生變數,加上多條獨立渲染路徑,某條路徑的條件與某個衍生變數互斥,導致「**所有路徑都跳過**」。
+  判定法:當「資料面正確(計數對)但渲染空白」時,grep 該元件所有「獨立渲染路徑」+ 所有「衍生 state 拆分」,列出「哪些路徑用了哪些衍生 state」、「每條路徑的條件」,對照找出交集為空集的情境。
+  治本:把衍生 state 拆分邏輯與渲染路徑選擇**集中到單一 hook**(如 `useTaskListDisplay`),統一管理「這個 view 該渲染哪些 tasks + 區分 active/done」。
+- **§18 根因表 3 個候選有效**:本 bug 三角定位時,先列 3 個候選(狀態切換 / filter 邏輯 / 渲染路徑),再讓用戶用 AskQuestion 確認「chip 有無變高亮」+「畫面是何種空白」,才一次命中根因(渲染路徑互斥)。**避免在 3 個候選中悶選**。
+- **§18c 列表空白快速確診捷徑**:本 bug 表面症狀與「非正式雜事列表空白」極相似(用戶描述「列表空白,但 status=done 的有 3 個」),§18c 規則第一步先問 user 確認 status 過濾鏈,**避免走 sync layer 排查浪費 tool call**。本案例 user 直接附截圖且 status 明顯是「done」,所以走 §18 根因表而非 §18c。
+- **不命中既有類別 N**:雖症狀「空白」看起來與 §26 類別 N(嵌套 ternary 修錯層)相似,但**這次不是 ternary 結構問題**,而是 3 個衍生變數的語意設計錯誤 — 不該拆成 `activeTasks` / `completedTasks` 後還要靠 `!explicitlyShowingDone` 條件守衛折疊區,而是該讓變數在「done-only view」下語意重定義。**所以登 §26 類別 S 候選,不入 N**。
+- **§17.1 Architect Mirror 揭露**:`displayTasks` / `activeTasks` / `completedTasks` 三變數語意不明,`explicitlyShowingDone` 又疊一層 — 建議下輪抽 `useTaskListDisplay` hook 統一管理。
