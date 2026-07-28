@@ -189,7 +189,7 @@ export default function ZenDashboard() {
           - 手機:Logo 自動縮成只有色塊,避免擠壓「任務大廳」按鈕
           - 從原本 floating 重構為 inline,不再遮擋內容 */}
       <div
-        className="mx-auto flex max-w-2xl items-center justify-between gap-3"
+        className="relative mx-auto flex max-w-2xl items-center justify-between gap-3"
         style={{ marginTop: "max(0px, env(safe-area-inset-top, 0px))" }}
       >
         {/* 左群組:Logo + Zen Mode 標題(身份歸屬) */}
@@ -223,21 +223,20 @@ export default function ZenDashboard() {
           </span>
         </div>
 
-        {/* 右群組:獵人徽章 + 任務大廳(導航歸屬) */}
-        <div className="flex items-center gap-3">
-          {/* QuickCaptureTrigger §10.3 9.1 → §C2 9.2:桌機專用 CTA(品牌色)
-              ⌘K 提示 hover 才揭示,符合「按鈕為主、熱鍵為輔」雙平台一致原則 */}
+        {/* 中央 CTA:QuickCaptureTrigger 絕對置中 */}
+        <div className="absolute left-1/2 -translate-x-1/2">
           <QuickCaptureTrigger
             variant="desktop"
             onClick={() => setQuickCaptureOpen(true)}
           />
+        </div>
+
+        {/* 右群組:獵人徽章 + 無聲營地 + 任務大廳(導航歸屬) */}
+        <div className="flex items-center gap-3">
           <HunterStatusBadge />
-          {/* §假門測試 D — 無聲討伐營地 (body_doubling)
-              位置:任務大廳 icon 左側,獨立入口,與 time_bar(右上角焦點卡片)分區
-              訊號清晰:用戶在「我要專注」時看到,直覺路徑 1 click 內 */}
           <GhostButton
             onClick={bodyDoublingGhost.handleClick}
-            variant="glowing"
+            variant="muted"
             icon={Users}
             featureId="body_doubling"
             dismissed={bodyDoublingGhost.dismissed}
