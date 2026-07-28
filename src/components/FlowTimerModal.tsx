@@ -151,7 +151,7 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
         exit={{ scale: 0.95, y: 10 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
         className="w-full max-w-sm p-8 text-center space-y-5 overflow-visible"
-        style={{ background: "var(--surface-elevated)", boxShadow: "var(--shadow-lg)", borderRadius: "1.5rem" }}
+        style={{ background: "var(--surface-elevated)", boxShadow: "var(--shadow-lg)", borderRadius: "1.5rem", overflow: "visible" }}
       >
         {/* Type selector */}
         <div className="flex items-center justify-center gap-1 p-1 rounded-2xl" style={{ background: "var(--surface-muted)" }}>
