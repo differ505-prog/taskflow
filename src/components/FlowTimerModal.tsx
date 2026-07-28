@@ -11,6 +11,7 @@ import {
   Play, Pause, RotateCcw, Coffee, Target,
   X, Search,
 } from "lucide-react";
+import { dispatchPwaInstallPrompt } from "@/components/PwaPrompts";
 
 interface FlowTimerModalProps {
   isOpen: boolean;
@@ -79,6 +80,8 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
         } catch {}
       }
       if (isFocus) pause();
+      // 條件 B：首次番茄鐘完成 → 觸發 PWA 安裝提示
+      dispatchPwaInstallPrompt();
     });
     return unsubscribe;
   }, [flowTimer, pause]);

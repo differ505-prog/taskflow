@@ -32,7 +32,12 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-// ─── iOS Safari 引導 ────────────────────────────────────────────
+// ─── Milestone Keys ──────────────────────────────────────────────
+
+const AHA_KEY = "taskflow_aha_seen";          // Aha Moment 全域只觸發一次
+const INSTALL_MILESTONE_KEY = "taskflow_pwa_install_milestone"; // 安裝提示只觸發一次
+
+// ─── iOS Safari 安裝提示（被動，等事件觸發）────────────────────
 
 const IOS_DISMISS_KEY = "taskflow_ios_install_dismissed";
 
@@ -43,9 +48,10 @@ export function IOSInstallPrompt() {
     if (!isIOS()) return;
     if (isInStandalone()) return;
     if (localStorage.getItem(IOS_DISMISS_KEY) === "1") return;
-    // 延遲 3 秒顯示,避免打斷首次 Onboarding
-    const t = setTimeout(() => setVisible(true), 3000);
-    return () => clearTimeout(t);
+
+    const handler = () => setVisible(true);
+    window.addEventListener("taskflow:pwa-install-prompt", handler);
+    return () => window.removeEventListener("taskflow:pwa-install-prompt", handler);
   }, []);
 
   const dismiss = () => {
@@ -97,7 +103,7 @@ export function IOSInstallPrompt() {
   );
 }
 
-// ─── Android Chrome 安裝提示（攔截 beforeinstallprompt）───────
+// ─── Android Chrome 安裝提示（被動，等事件觸發）──────────────────
 
 const ANDROID_DISMISS_KEY = "taskflow_android_install_dismissed";
 
@@ -113,11 +119,16 @@ export function AndroidInstallPrompt() {
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      // 延遲 3 秒,等同 iOS 體驗節奏
-      setTimeout(() => setVisible(true), 3000);
     };
     window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+
+    const showHandler = () => setVisible(true);
+    window.addEventListener("taskflow:pwa-install-prompt", showHandler);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("taskflow:pwa-install-prompt", showHandler);
+    };
   }, []);
 
   const handleInstall = async () => {
@@ -192,9 +203,7 @@ export function AndroidInstallPrompt() {
   );
 }
 
-// ─── Aha Moment:首個任務完成 ──────────────────────────────────
-
-const AHA_KEY = "taskflow_aha_moment_seen";
+// ─── Aha Moment：全員觸發，不論是否安裝 PWA ─────────────────────
 
 export function AhaMoment() {
   const [visible, setVisible] = useState(false);
@@ -202,20 +211,14 @@ export function AhaMoment() {
   const trigger = useCallback(() => {
     if (typeof window === "undefined") return;
     if (localStorage.getItem(AHA_KEY) === "1") return;
-    if (isInStandalone() === false) {
-      // 只在已安裝為 PWA / 已加入主畫面後,顯示 Aha 引導
-      // 否則變成「先做完任務才提示安裝」會更順暢
-      return;
-    }
     localStorage.setItem(AHA_KEY, "1");
     setVisible(true);
   }, []);
 
   useEffect(() => {
-    // 監聽自定義事件,AppContext 在首個任務完成時 dispatch
     const handler = () => trigger();
-    window.addEventListener("taskflow:first-task-done", handler);
-    return () => window.removeEventListener("taskflow:first-task-done", handler);
+    window.addEventListener("taskflow:aha-moment", handler);
+    return () => window.removeEventListener("taskflow:aha-moment", handler);
   }, [trigger]);
 
   return (
@@ -269,8 +272,30 @@ export function AhaMoment() {
   );
 }
 
-/** 給 AppContext 呼叫:首個任務完成時 dispatch 事件 */
-export function dispatchFirstTaskDone() {
+// ─── 統一路由：完成首個任務 / 首次番茄鐘 ────────────────────────
+
+/**
+ * 雙保險觸發點（OR 邏輯）：
+ *  - 條件 A：完成第一個任務
+ *  - 條件 B：完成第一次番茄鐘
+ *
+ * 觸發後只打擾使用者一次，milestone flag 存在 localStorage。
+ */
+export function dispatchPwaInstallPrompt() {
   if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent("taskflow:first-task-done"));
+
+  // 確保只觸發一次（無論是任務完成或番茄鐘完成）
+  if (localStorage.getItem(INSTALL_MILESTONE_KEY) === "1") return;
+  localStorage.setItem(INSTALL_MILESTONE_KEY, "1");
+
+  // Step 1：全員觸發 Aha Moment（多巴胺先分泌）
+  window.dispatchEvent(new CustomEvent("taskflow:aha-moment"));
+
+  // Step 2：等 Aha Moment 淡出（3 秒）→ 再滑出安裝提示
+  setTimeout(() => {
+    window.dispatchEvent(new CustomEvent("taskflow:pwa-install-prompt"));
+  }, 3000);
 }
+
+/** 向下相容舊名稱 */
+export const dispatchFirstTaskDone = dispatchPwaInstallPrompt;
