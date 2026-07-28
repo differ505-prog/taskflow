@@ -262,7 +262,6 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
           onClick={onEnterFlow}
           aria-label="開始暖身儀式"
           className="fixed bottom-6 left-1/2 z-20 hidden -translate-x-1/2 items-center gap-2 rounded-full bg-rose-400 px-4 py-2 text-xs font-medium uppercase leading-none tracking-widest text-white shadow-md transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-rose-500 hover:shadow-lg active:scale-95 sm:flex"
-          style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
           whileTap={{ scale: 0.92 }}
         >
           <Flame className="h-3.5 w-3.5" aria-hidden />
