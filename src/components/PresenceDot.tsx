@@ -29,9 +29,10 @@ export default function PresenceDot() {
     <div
       className="fixed right-6 z-20 inline-flex items-center gap-2 rounded-full bg-white/60 px-2.5 py-1.5 backdrop-blur"
       style={{
-        // §26 降噪:貼近 FAB 上方,形成緊密的「Floating Actions 視覺群組」
-        // FAB: bottom 1.5rem (24px) + h-12 (48px) = 上緣 72px → PresenceDot 設 72px 緊貼
-        bottom: "max(4.5rem, env(safe-area-inset-bottom, 0px))",
+        // §Q 2026-07-29：捕捉靈感 FAB 上緣 = 72px (24px bottom + 48px btn-h)
+        // 原本「緊貼」設計會讓 PresenceDot 跟 FAB 視覺擠在一起,加 24px gap
+        // = 96px (max 6rem),符合 §2 留白紀律,兩個 floating 元素各自呼吸
+        bottom: "max(6rem, env(safe-area-inset-bottom, 0px))",
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
