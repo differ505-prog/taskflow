@@ -34,7 +34,7 @@ export interface QuickCaptureModalProps {
 }
 
 export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps) {
-  const { addTask } = useApp();
+  const { addTask, quickAdd } = useApp();
   const [mounted, setMounted] = useState(false);
   const [value, setValue] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
@@ -94,16 +94,35 @@ export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps
     }, FLASH_DURATION_MS);
   }, [value, addTask, close]);
 
+  // Shift+Enter / Cmd+Enter → 加入今日任務
+  const handleSubmitToToday = useCallback(() => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    // quickAdd 自動解析自然語言日期；若無日期則預設 today
+    quickAdd(trimmed, "today");
+    setValue("");
+    setShowSuccess(true);
+    if (successTimerRef.current) window.clearTimeout(successTimerRef.current);
+    successTimerRef.current = window.setTimeout(() => {
+      setShowSuccess(false);
+      close();
+    }, FLASH_DURATION_MS);
+  }, [value, quickAdd, close]);
+
   // §15.4 mobile input:Enter on keydown + isComposing 防 IME 雙觸發
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter") {
         if (e.nativeEvent.isComposing) return; // IME 組字中
         e.preventDefault();
-        handleSubmit();
+        if (e.shiftKey || e.metaKey || e.ctrlKey) {
+          handleSubmitToToday();
+        } else {
+          handleSubmit();
+        }
       }
     },
-    [handleSubmit],
+    [handleSubmit, handleSubmitToToday],
   );
 
   // Esc 關閉(只在 modal 開啟時接)
@@ -170,7 +189,7 @@ export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps
                 onChange={(e) => setValue(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="想到什麼？按 Enter 丟進收件箱..."
-                aria-label="大腦傾倒輸入框 — Enter 送出到收件箱"
+                aria-label="大腦傾倒輸入框 — Enter 送出到收件箱，Shift+Enter 加入今日任務"
                 className="flex-1 min-w-0 bg-transparent text-[16px] sm:text-[17px] text-slate-800 placeholder:text-slate-400 focus:outline-none"
               />
               <span
@@ -195,6 +214,7 @@ export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps
               aria-hidden
             >
               丟進去就不會再看到它了 — 默默跑去收件箱
+              <span className="ml-2 opacity-60">↵ Enter 丟入收集箱 · ⇧ Enter 加入今日</span>
             </p>
           </motion.div>
         </motion.div>
