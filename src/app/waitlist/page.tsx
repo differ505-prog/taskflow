@@ -90,11 +90,11 @@ export default function WaitlistPage() {
                   <CheckCircle className="w-5 h-5" style={{ color: "var(--status-success)" }} aria-hidden="true" />
                 </div>
                 <div>
-                  <p className="text-[13px] font-medium" style={{ color: "var(--text-primary)" }}>
-                    完成個人網站
+                  <p className="text-[13px] font-medium mb-1" style={{ color: "var(--text-primary)" }}>
+                    健檢照腹部超音波
                   </p>
                   <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
-                    下午 3:00
+                    帶乾兒子去公園踢球
                   </p>
                 </div>
               </div>
