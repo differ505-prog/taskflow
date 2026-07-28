@@ -153,18 +153,20 @@ export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps
           className="fixed inset-0 z-[80] bg-slate-900/40 backdrop-blur-sm"
           onClick={close}
         >
+          {/* Desktop: 中央浮動 | Mobile: 底部滑出 Bottom Sheet */}
           <motion.div
             key="quick-capture-panel"
             role="dialog"
             aria-modal="true"
-            aria-label="快速捕捉任務到收件箱"
+            aria-label="快速捕捉任務"
             initial={{ opacity: 0, y: -12, x: "-50%", scale: 0.98 }}
             animate={{ opacity: 1, y: 0, x: "-50%", scale: 1 }}
             exit={{ opacity: 0, y: -8, x: "-50%", scale: 0.98 }}
             transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-            className="absolute left-1/2 top-[18vh] w-[min(640px,calc(100dvw-32px))]"
+            className="absolute left-1/2 top-[18vh] w-[min(640px,calc(100dvw-32px))] hidden sm:block"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Desktop 內容 */}
             <div
               className={`flex items-center gap-3 rounded-2xl bg-white/95 px-5 py-4 shadow-2xl ring-1 backdrop-blur-md transition-all duration-200 ease-out ${
                 showSuccess
@@ -192,7 +194,7 @@ export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps
                 aria-label="大腦傾倒輸入框 — Enter 送出到收件箱，Shift+Enter 加入今日任務"
                 className="flex-1 min-w-0 bg-transparent text-[16px] sm:text-[17px] text-slate-800 placeholder:text-slate-400 focus:outline-none"
               />
-              {/* 輸入時固定顯示快捷鍵提示 — 視線自然落在輸入區右側 */}
+              {/* Desktop 快捷鍵提示 */}
               {value.trim() && (
                 <span className="flex-shrink-0 text-[10px] text-slate-400 tabular-nums" aria-hidden>
                   ↵ Enter 收集箱 · ⇧ Enter 今日
@@ -212,8 +214,101 @@ export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps
                 className="hidden items-center gap-0.5 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 ring-1 ring-slate-200/60 sm:inline-flex"
                 aria-hidden
               >
-                <span>Esc</span>
+                Esc
               </kbd>
+            </div>
+          </motion.div>
+
+          {/* Mobile: 底部 Bottom Sheet */}
+          <motion.div
+            key="quick-capture-mobile"
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+            className="fixed inset-x-0 bottom-0 z-[81] sm:hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 安全區底部留白 */}
+            <div
+              className={`flex flex-col rounded-t-3xl bg-white/95 px-5 pt-5 pb-[max(16px,env(safe-area-inset-bottom))] shadow-2xl backdrop-blur-md transition-all duration-200 ${
+                showSuccess ? "ring-1 ring-[var(--status-success)]/40" : "ring-1 ring-slate-200/60"
+              }`}
+              style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom, 16px))" }}
+            >
+              {/* 拖曳指示條 */}
+              <div className="mx-auto mb-4 h-1 w-10 flex-shrink-0 rounded-full bg-slate-200" aria-hidden />
+
+              {/* 輸入框 */}
+              <div className="flex items-center gap-3">
+                <span
+                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-lg transition-colors duration-200 ease-out"
+                  aria-hidden
+                  style={{
+                    background: showSuccess ? "var(--status-success)" : "var(--brand-tint)",
+                    color: showSuccess ? "white" : "var(--brand)",
+                  }}
+                >
+                  {showSuccess ? "✓" : "＋"}
+                </span>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="想到什麼？..."
+                  aria-label="大腦傾倒輸入框 — 送出到收件箱或今日"
+                  className="flex-1 min-w-0 bg-transparent text-[16px] text-slate-800 placeholder:text-slate-400 focus:outline-none"
+                />
+                {/* 成功提示 */}
+                <span
+                  aria-live="polite"
+                  aria-atomic="true"
+                  className={`flex-shrink-0 text-[12px] font-medium transition-opacity duration-200 ${
+                    showSuccess ? "opacity-100" : "opacity-0"
+                  }`}
+                  style={{ color: "var(--status-success)" }}
+                >
+                  已投遞
+                </span>
+              </div>
+
+              {/* Mobile 雙按鈕區 */}
+              <div className="mt-4 flex gap-3">
+                {/* 📥 收集箱 */}
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={!value.trim() || showSuccess}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-[14px] font-medium transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  style={{
+                    background: "var(--surface-muted, #f4f4f5)",
+                    color: "var(--text-secondary, #71717a)",
+                    border: "1px solid var(--border, #e4e4e7)",
+                  }}
+                  aria-label="將任務投入收集箱"
+                >
+                  <span aria-hidden>📥</span>
+                  <span>收集箱</span>
+                </button>
+
+                {/* 🎯 今日 */}
+                <button
+                  type="button"
+                  onClick={handleSubmitToToday}
+                  disabled={!value.trim() || showSuccess}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-[14px] font-medium transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  style={{
+                    background: "var(--brand, #3b82f6)",
+                    color: "var(--brand-foreground, #ffffff)",
+                  }}
+                  aria-label="將任務加入今日待辦"
+                >
+                  <span aria-hidden>🎯</span>
+                  <span>今日</span>
+                </button>
+              </div>
             </div>
           </motion.div>
         </motion.div>
