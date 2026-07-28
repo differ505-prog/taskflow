@@ -14,6 +14,7 @@ import { getTagColors } from "@/lib/storage";
 import { getDeadlineStatus } from "@/lib/deadlineEngine";
 import { useSubTaskCollapse } from "@/utils/useSubTaskCollapse";
 import { fireTaskDoneConfetti, playTaskDoneSound } from "@/lib/confetti";
+import { FocusNowButton } from "./FocusNowButton";
 import {
   CheckCircle2, Circle, Clock, Tag as TagIcon,
   Trash2, Edit3, Archive, Repeat, Plus, Trash,
@@ -33,6 +34,8 @@ interface TaskCardProps {
   onCompleteRecurring?: (taskId: string) => void;
   onUpdatePriority?: (id: string, p: Priority) => void;
   onUpdateTags?: (id: string, tags: string[]) => void;
+  // §26 任務大廳機制:shared list 點擊後會需要 claim + override。undefined = 不顯示按鈕
+  onFocusNow?: (taskId: string) => void;
   allTags?: string[];
   draggable?: boolean;
 }
@@ -128,6 +131,7 @@ export function TaskCard({
   onDeleteSubTask,
   onUpdatePriority,
   onUpdateTags,
+  onFocusNow,
   allTags = [],
 }: TaskCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
@@ -251,11 +255,15 @@ export function TaskCard({
               {task.title}
             </h3>
 
-            {/* 右上角：刪除 / 旗子 / 標籤 / 附件 / 子任務 icon 三件套（quick actions） */}
+            {/* 右上角：刪除 / 一鍵入禪 / 旗子 / 標籤 / 附件 / 子任務 icon 三件套（quick actions） */}
             <div
               className="flex-shrink-0 flex items-center gap-0.5"
               onClick={(e) => e.stopPropagation()}
             >
+              {/* §26 「一鍵入禪 (Focus NOW)」:極簡閃電按鈕 */}
+              {onFocusNow && !isDone && (
+                <FocusNowButton onFocusNow={() => onFocusNow(task.id)} />
+              )}
               <button
                 onClick={handleDelete}
                 className="p-1 rounded-lg hover:bg-red-50 transition-all duration-150 active:scale-90"

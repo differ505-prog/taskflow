@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/AppContext";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useProactiveClosure } from "@/hooks/useProactiveClosure";
@@ -88,6 +89,7 @@ export function AppShell({
     getMyRole,
     reorderTasks,
   } = useApp();
+  const router = useRouter();
   const confirm = useConfirm();
 
   const listTasks = currentListId ? tasks.filter(t => t.listId === currentListId) : [];
@@ -120,6 +122,19 @@ export function AppShell({
   const sharedQuickAddRef = useRef<HTMLInputElement>(null);
   const quickAddRef = useRef<HTMLInputElement>(null);
   const brainDumpRef = useRef<HTMLTextAreaElement>(null);
+
+  // §26 「一鍵入禪 (Focus NOW)」:把任務移到 today + order = -1（變成 Zen 焦點第一個）+ router.push /
+  // - 個人任務視圖:inbox / list / pinned / quadrant / next7days 全部啟用
+  // - today 視圖:不需要（任務已經在 today）
+  // - shared list:disabled（A 方案,完整 claim 邏輯留待後續輪）
+  // - 已完成任務:不啟用（避免已完成任務被搬到 today）
+  const showFocusNow = !currentSharedListId && currentView !== "today" && currentView !== "archived";
+  const handleFocusNow = useCallback((taskId: string) => {
+    const today = new Date().toLocaleDateString("en-CA");
+    updateTask(taskId, { dueDate: today, order: -1 });
+    // 立刻路由切換 — Optimistic UI 不需 await,Zen 模式中央會自動撈 visibleTasks[0]
+    router.push("/");
+  }, [updateTask, router]);
 
   // 觀看者模式：Viewer 在 shared list 是唯讀的
   const sharedRole = currentSharedListId ? getMyRole(currentSharedListId) : null;
@@ -672,6 +687,7 @@ const canDrag = !currentSharedListId;
                                     onUpdateTags={(id, tags) => updateTask(id, { tags })}
                                     onTogglePin={(id) => updateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
                                     onDelete={(id) => deleteTask(id)}
+                                    onFocusNow={showFocusNow ? handleFocusNow : undefined}
                                     allTags={Object.keys(getTagCounts())}
                                     batchMode={batchMode}
                                     batchSelected={!!batchSelectedIds?.has(task.id)}
@@ -720,6 +736,7 @@ const canDrag = !currentSharedListId;
                                 onUpdateTags={(id, tags) => updateTask(id, { tags })}
                                 onTogglePin={(id) => updateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
                                 onDelete={(id) => deleteTask(id)}
+                                onFocusNow={showFocusNow ? handleFocusNow : undefined}
                                 allTags={Object.keys(getTagCounts())}
                                 batchMode={batchMode}
                                 batchSelected={!!batchSelectedIds?.has(task.id)}

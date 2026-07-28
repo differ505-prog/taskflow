@@ -32,6 +32,8 @@ interface TaskListItemProps {
   // O-007：拖曳 sortable hook 注入（AppShell 包 SortableContext 時傳入）
   // undefined 表示此 task 不在 sortable 範圍內（例如 viewer 共用清單）
   sortable?: ReturnType<typeof useSortable>;
+  // §26 任務大廳機制:點擊 → 一鍵入禪。undefined = 不顯示此按鈕。
+  onFocusNow?: (taskId: string) => void;
 }
 
 import { sortSubTasks } from "@/utils/subtaskSort";
@@ -39,6 +41,7 @@ import { useSubTaskCollapse } from "@/utils/useSubTaskCollapse";
 import { fireTaskDoneConfetti, playTaskDoneSound } from "@/lib/confetti";
 import { useAuth } from "@/lib/AuthContext";
 import { ProGhostButton } from "./ProGhostButton";
+import { FocusNowButton } from "./FocusNowButton";
 
 export function TaskListItem({
   task,
@@ -56,6 +59,7 @@ export function TaskListItem({
   onBatchToggle,
   onDelete,
   sortable,
+  onFocusNow,
 }: TaskListItemProps) {
   // O-007：sortable 拖曳狀態
   // sortable.attributes：aria-*、role、tabIndex（給 KeyboardSensor 用）
@@ -217,8 +221,12 @@ export function TaskListItem({
             {task.title}
           </h3>
 
-          {/* 右上角：刪除 / 旗子 / 圖釘 / 標籤 / 附件 / 子任務 */}
+          {/* 右上角：刪除 / 一鍵入禪 / 旗子 / 圖釘 / 標籤 / 附件 / 子任務 */}
           <div className="flex-shrink-0 flex items-center gap-0.5">
+            {/* §26 「一鍵入禪 (Focus NOW)」:極簡閃電按鈕,hover 才顯示 */}
+            {onFocusNow && !isDone && (
+              <FocusNowButton onFocusNow={() => onFocusNow(task.id)} />
+            )}
             {onDelete && (
               <button
                 onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}

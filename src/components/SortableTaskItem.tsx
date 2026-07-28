@@ -14,6 +14,7 @@ interface SortableTaskItemProps {
   onUpdateTags?: (id: string, tags: string[]) => void;
   onTogglePin?: (id: string) => void;
   onDelete?: (id: string) => void;
+  onFocusNow?: (taskId: string) => void; // §26 一鍵入禪
   allTags?: string[];
   batchMode?: boolean;
   batchSelected?: boolean;
