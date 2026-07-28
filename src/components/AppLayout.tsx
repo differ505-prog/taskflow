@@ -28,7 +28,6 @@ import { IOSInstallPrompt, AndroidInstallPrompt, AhaMoment } from "@/components/
 import { QuickVoiceFAB } from "@/components/QuickVoiceFAB";
 import { StatusWindow } from "@/components/StatusWindow";
 import { CommandCenter } from "@/components/CommandCenter";
-import { ProgressBadge } from "@/components/ProgressBadge";
 import { LevelUpNotification } from "@/components/LevelUpNotification";
 import { useConfirm } from "@/hooks/useConfirm";
 import { Calendar, Clock, Eye, Flame } from "lucide-react";

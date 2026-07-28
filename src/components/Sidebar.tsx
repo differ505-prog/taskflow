@@ -29,7 +29,6 @@ import {
   MoreHorizontal, Edit3, Trash2, X, Share2, Users,
   Pin, Gauge, Flame,
 } from "lucide-react";
-import { ProgressBadge } from "@/components/ProgressBadge";
 
 interface NavItem {
   view: AppView;
@@ -335,10 +334,6 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
             </button>
           ))}
         </div>
-      </div>
-
-      <div className="px-3 pb-2">
-        <ProgressBadge />
       </div>
 
       {/* Bottom actions */}
