@@ -1,62 +1,21 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import Link from "next/link";
-import { ArrowRight, CheckCircle, Sparkles, Swords, Brain, Moon } from "lucide-react";
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { Rocket, CheckCircle, Sparkles, Swords, Brain, Moon } from "lucide-react";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function WaitlistPage() {
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "already">("idle");
-  const [message, setMessage] = useState("");
-  const [totalCount, setTotalCount] = useState<number | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const { signInWithGoogle } = useAuth();
+  const [loading, setLoading] = useState(false);
 
-  // 載入目前的報名人數
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const existing = JSON.parse(localStorage.getItem("vibelist_waitlist") || "[]");
-        setTotalCount(existing.length);
-      } catch {
-        setTotalCount(null);
-      }
-    }
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim() || status === "loading") return;
-
-    setStatus("loading");
-    setMessage("");
-
+  const handleGoogleLogin = async () => {
+    if (loading) return;
+    setLoading(true);
     try {
-      const res = await fetch("/api/waitlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        if (data.alreadyJoined) {
-          setStatus("already");
-          setMessage(data.message);
-        } else {
-          setStatus("success");
-          setMessage(data.message);
-          setTotalCount(data.total);
-          setEmail("");
-        }
-      } else {
-        setStatus("idle");
-        setMessage(data.error || "發生錯誤，請稍後再試");
-      }
+      await signInWithGoogle();
     } catch {
-      setStatus("idle");
-      setMessage("網路錯誤，請檢查連線後再試");
+      setLoading(false);
     }
   };
 
@@ -269,7 +228,7 @@ export default function WaitlistPage() {
         </div>
       </section>
 
-      {/* ===== Section 3: CTA & Waitlist Form ===== */}
+      {/* ===== Section 3: CTA & Google OAuth ===== */}
       <section className="relative z-10 px-4 py-24 md:py-32">
         <div className="max-w-md mx-auto text-center">
           <motion.div
@@ -280,125 +239,49 @@ export default function WaitlistPage() {
               準備好開始了嗎？
             </h2>
             <p className="text-[14px]" style={{ color: "var(--text-secondary)" }}>
-              加入限量早期測試名單，第一時間收到邀請
+              限量 Beta 測試名額，先到先得
             </p>
           </motion.div>
 
-          {/* Email 表單 */}
+          {/* Google OAuth 按鈕 */}
           <motion.div {...fadeUpDelay(0.1)}>
-            <AnimatePresence mode="wait">
-              {status === "success" || status === "already" ? (
-                <motion.div
-                  key="success"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="rounded-2xl p-8"
-                  style={{ background: "var(--surface-elevated)", boxShadow: "var(--shadow-md)" }}
-                >
-                  <div className="flex flex-col items-center gap-4">
-                    <div
-                      className="w-14 h-14 rounded-full flex items-center justify-center"
-                      style={{ background: "rgba(52,199,89,0.12)" }}
-                    >
-                      <CheckCircle className="w-7 h-7" style={{ color: "var(--status-success)" }} aria-hidden="true" />
-                    </div>
-                    <p className="text-[15px] font-medium" style={{ color: "var(--text-primary)" }}>
-                      {message}
-                    </p>
-                    {totalCount !== null && (
-                      <p className="text-[13px]" style={{ color: "var(--text-tertiary)" }}>
-                        目前已有 {totalCount} 位冒險者在等
-                      </p>
-                    )}
-                  </div>
-                </motion.div>
+            <button
+              onClick={handleGoogleLogin}
+              disabled={loading}
+              className="w-full py-4 px-6 rounded-2xl text-[15px] font-semibold transition-all duration-200 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 active:scale-[0.98] cursor-pointer"
+              style={{
+                background: loading ? "var(--surface-muted)" : "var(--surface-elevated)",
+                border: "2px solid var(--border)",
+                boxShadow: "var(--shadow-md)",
+                color: "var(--text-primary)",
+              }}
+            >
+              {loading ? (
+                <span className="animate-pulse">跳轉中...</span>
               ) : (
-                <motion.div key="form">
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <input
-                      ref={inputRef}
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="你的 Email"
-                      required
-                      disabled={status === "loading"}
-                      className="w-full px-5 py-4 rounded-2xl text-[15px] transition-all duration-200 focus:outline-none"
-                      style={{
-                        background: "var(--surface-elevated)",
-                        border: "2px solid var(--border)",
-                        boxShadow: "var(--shadow-sm)",
-                        color: "var(--text-primary)",
-                      }}
-                      onFocus={(e) => {
-                        e.currentTarget.style.borderColor = "var(--brand)";
-                        e.currentTarget.style.boxShadow = "0 0 0 4px rgba(59,130,246,0.12), var(--shadow-sm)";
-                      }}
-                      onBlur={(e) => {
-                        e.currentTarget.style.borderColor = "var(--border)";
-                        e.currentTarget.style.boxShadow = "var(--shadow-sm)";
-                      }}
-                    />
-
-                    {message && (
-                      <p className="text-[13px] text-center" style={{ color: "var(--status-danger)" }}>
-                        {message}
-                      </p>
-                    )}
-
-                    <button
-                      type="submit"
-                      disabled={status === "loading" || !email.trim()}
-                      className="w-full py-4 rounded-2xl text-[15px] font-semibold transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 active:scale-[0.98]"
-                      style={{
-                        background: status === "loading" ? "var(--surface-muted)" : "var(--brand)",
-                        color: "#fff",
-                      }}
-                    >
-                      {status === "loading" ? (
-                        <span className="animate-pulse">傳送中...</span>
-                      ) : (
-                        <>
-                          獲取 0 壓力早期測試資格
-                          <ArrowRight className="w-4 h-4" aria-hidden="true" />
-                        </>
-                      )}
-                    </button>
-                  </form>
-
-                  {/* 限量 + 不發垃圾信微文案 */}
-                  <p
-                    className="mt-4 text-[12px] leading-relaxed"
-                    style={{ color: "var(--text-tertiary)" }}
-                  >
-                    限量 50 名。保證不發垃圾信，而且就算你註冊後忘記打開，
-                    <br />
-                    我們也完全能理解 😂
-                  </p>
-
-                  {totalCount !== null && totalCount > 0 && (
-                    <p className="mt-4 text-[12px]" style={{ color: "var(--text-tertiary)" }}>
-                      目前已有 {totalCount} 位冒險者在等
-                    </p>
-                  )}
-                </motion.div>
+                <>
+                  {/* Google 圖標 SVG */}
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                    <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+                    <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+                    <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+                    <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+                  </svg>
+                  <Rocket className="w-4 h-4" aria-hidden="true" />
+                  獲取限量 Beta 測試資格
+                </>
               )}
-            </AnimatePresence>
-          </motion.div>
+            </button>
 
-          {/* 底部連結 */}
-          <motion.div
-            {...fadeUpDelay(0.2)}
-            className="mt-12 pt-8"
-          >
-            <Link
-              href="/login"
-              className="text-[13px] transition-colors duration-150 hover:opacity-80"
+            {/* 微文案 */}
+            <p
+              className="mt-4 text-[12px] leading-relaxed"
               style={{ color: "var(--text-tertiary)" }}
             >
-              已經有帳號？直接登入 →
-            </Link>
+              免註冊，直接使用 Google 登入。
+              <br />
+              保證沒有壓力，就算你登入後忘記打開，我們也完全能理解 😂
+            </p>
           </motion.div>
         </div>
       </section>
