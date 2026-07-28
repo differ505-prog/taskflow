@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/AppContext";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useProactiveClosure } from "@/hooks/useProactiveClosure";
+import { useAddToToday } from "@/hooks/useAddToToday";
+import { useTaskHotkeys } from "@/hooks/useTaskHotkeys";
 import { Task, AppView, TaskList } from "@/lib/types";
 import { TaskCard } from "./TaskCard";
 import { TaskSwipeWrapper } from "./SwipeableTaskCard";
@@ -91,6 +93,8 @@ export function AppShell({
   } = useApp();
   const router = useRouter();
   const confirm = useConfirm();
+  // 「加入今日」共用動作（§Sonner 固定 id + updateTask 自動 markRecentlyWritten）
+  const { addToToday, dismissAddToTodayToast } = useAddToToday();
 
   const listTasks = currentListId ? tasks.filter(t => t.listId === currentListId) : [];
 
@@ -117,6 +121,9 @@ export function AppShell({
   const [quickAddInput, setQuickAddInput] = useState("");
   const [quickAddHint, setQuickAddHint] = useState(false);
   const [sharedQuickAddInput, setSharedQuickAddInput] = useState("");
+  // 全域 hover 任務 id:供 useTaskHotkeys 判斷「T 鍵作用於哪個任務」
+  // - 桌機 hover、focus 都會設定;觸控裝置 hover 不會觸發(本來就無 hover)
+  const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
   // 「進行中」空白區的新增按鈕，點進來預設建立 in-progress 任務
   const [formInitialStatus, setFormInitialStatus] = useState<"todo" | "in-progress">("todo");
   const sharedQuickAddRef = useRef<HTMLInputElement>(null);
@@ -132,9 +139,11 @@ export function AppShell({
   const handleFocusNow = useCallback((taskId: string) => {
     const today = new Date().toLocaleDateString("en-CA");
     updateTask(taskId, { dueDate: today, order: -1 });
+    // Q3-A:一鍵入禪前主動關閉「加入今日」toast,避免殘留到 Zen 模式畫面
+    dismissAddToTodayToast();
     // 立刻路由切換 — Optimistic UI 不需 await,Zen 模式中央會自動撈 visibleTasks[0]
     router.push("/");
-  }, [updateTask, router]);
+  }, [updateTask, router, dismissAddToTodayToast]);
 
   // 觀看者模式：Viewer 在 shared list 是唯讀的
   const sharedRole = currentSharedListId ? getMyRole(currentSharedListId) : null;
@@ -152,6 +161,12 @@ export function AppShell({
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, []);
+
+  // Keyboard shortcut: T = 「加入今日」(需 hover 任務)
+  useTaskHotkeys({
+    hoveredTaskId,
+    onAddToToday: addToToday,
+  });
 
   const handleQuickAdd = useCallback(() => {
     if (!quickAddInput.trim()) return;
@@ -676,6 +691,7 @@ const canDrag = !currentSharedListId;
                                   isDone={task.status === "done"}
                                   onComplete={() => updateTask(task.id, { status: task.status === "done" ? "todo" : "done" })}
                                   onDelete={(id) => deleteTask(id)}
+                                  onAddToToday={currentSharedListId ? undefined : addToToday}
                                 >
                                   <SortableTaskItem
                                     task={task}
@@ -688,6 +704,8 @@ const canDrag = !currentSharedListId;
                                     onTogglePin={(id) => updateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
                                     onDelete={(id) => deleteTask(id)}
                                     onFocusNow={showFocusNow ? handleFocusNow : undefined}
+                                    onHoverEnter={currentSharedListId ? undefined : setHoveredTaskId}
+                                    onHoverLeave={currentSharedListId ? undefined : (id) => setHoveredTaskId((prev) => (prev === id ? null : prev))}
                                     allTags={Object.keys(getTagCounts())}
                                     batchMode={batchMode}
                                     batchSelected={!!batchSelectedIds?.has(task.id)}
@@ -725,6 +743,7 @@ const canDrag = !currentSharedListId;
                               isDone={task.status === "done"}
                               onComplete={() => updateTask(task.id, { status: task.status === "done" ? "todo" : "done" })}
                               onDelete={(id) => deleteTask(id)}
+                              onAddToToday={currentSharedListId ? undefined : addToToday}
                             >
                               <TaskListItem
                                 task={task}
@@ -737,6 +756,8 @@ const canDrag = !currentSharedListId;
                                 onTogglePin={(id) => updateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
                                 onDelete={(id) => deleteTask(id)}
                                 onFocusNow={showFocusNow ? handleFocusNow : undefined}
+                                onHoverEnter={currentSharedListId ? undefined : setHoveredTaskId}
+                                onHoverLeave={currentSharedListId ? undefined : (id) => setHoveredTaskId((prev) => (prev === id ? null : prev))}
                                 allTags={Object.keys(getTagCounts())}
                                 batchMode={batchMode}
                                 batchSelected={!!batchSelectedIds?.has(task.id)}

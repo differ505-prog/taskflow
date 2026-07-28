@@ -34,6 +34,9 @@ interface TaskListItemProps {
   sortable?: ReturnType<typeof useSortable>;
   // §26 任務大廳機制:點擊 → 一鍵入禪。undefined = 不顯示此按鈕。
   onFocusNow?: (taskId: string) => void;
+  // §新增「T 鍵加入今日」:hover/focus 任務時設到 AppShell 全域 state
+  onHoverEnter?: (id: string) => void;
+  onHoverLeave?: (id: string) => void;
 }
 
 import { sortSubTasks } from "@/utils/subtaskSort";
@@ -60,6 +63,8 @@ export function TaskListItem({
   onDelete,
   sortable,
   onFocusNow,
+  onHoverEnter,
+  onHoverLeave,
 }: TaskListItemProps) {
   // O-007：sortable 拖曳狀態
   // sortable.attributes：aria-*、role、tabIndex（給 KeyboardSensor 用）
@@ -161,6 +166,10 @@ export function TaskListItem({
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerLeave}
       onPointerCancel={handlePointerUp}
+      onMouseEnter={onHoverEnter ? () => onHoverEnter(task.id) : undefined}
+      onMouseLeave={onHoverLeave ? () => onHoverLeave(task.id) : undefined}
+      onFocus={onHoverEnter ? () => onHoverEnter(task.id) : undefined}
+      onBlur={onHoverLeave ? (e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) onHoverLeave(task.id); } : undefined}
       role="button"
       aria-label={`任務: ${task.title}`}
       aria-pressed={batchSelected}

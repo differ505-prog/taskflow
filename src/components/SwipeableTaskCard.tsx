@@ -2,7 +2,7 @@
 
 import { useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, CheckCircle2 } from "lucide-react";
+import { Trash2, CheckCircle2, Sun } from "lucide-react";
 import { haptic } from "@/lib/haptics";
 
 const ACTION_WIDTH = 80; // px, width of the revealed action strip
@@ -15,6 +15,8 @@ interface SwipeableTaskCardProps {
   onComplete?: () => void;
   /** Pass true to hide the complete swipe (e.g. when task is already done) */
   hideComplete?: boolean;
+  /** 加入今日:若有提供,左滑 strip 顯示第 3 顆按鈕;已是今日則由呼叫端不傳入此 prop(靜默隱藏) */
+  onAddToToday?: (id: string) => void;
 }
 
 export function SwipeableTaskCard({
@@ -23,6 +25,7 @@ export function SwipeableTaskCard({
   onDelete,
   onComplete,
   hideComplete = false,
+  onAddToToday,
 }: SwipeableTaskCardProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   // Track offset: negative = card shifted left, reveals right-side actions
@@ -35,6 +38,10 @@ export function SwipeableTaskCard({
   // 前 12px 移動內決定意圖,避免「上下滑偏一點」被當左滑
   const directionLockedRef = useRef<boolean | null>(null);
   const isProcessingRef = useRef(false); // 防止重複點擊
+
+  // Action strip 總寬度:有 onAddToToday = 3 顆,否則 2 顆;hideComplete 時縮減為 1 顆
+  const totalActions = (onAddToToday ? 1 : 0) + (hideComplete ? 0 : onComplete ? 1 : 0) + 1; // +1 = delete
+  const stripWidth = ACTION_WIDTH * totalActions;
 
   const close = useCallback(() => {
     setOffset(0);
@@ -52,7 +59,7 @@ export function SwipeableTaskCard({
     const touch = e.touches[0];
     const dx = touch.clientX - startXRef.current;
     const dy = touch.clientY - startYRef.current;
-    const max = hideComplete ? ACTION_WIDTH : ACTION_WIDTH * 2;
+    const max = stripWidth;
 
     // 方向鎖定：前 12px 內決定意圖（§E2：修「上下滑偏一下就觸發左滑」）
     if (directionLockedRef.current === null) {
@@ -69,7 +76,7 @@ export function SwipeableTaskCard({
     // Swipe left (dx < 0) reveals actions; swipe right closes
     const next = Math.min(0, Math.max(-max, currentOffsetRef.current + dx));
     setOffset(next);
-  }, [hideComplete]);
+  }, [stripWidth]);
 
   const handleTouchEnd = useCallback(() => {
     if (isProcessingRef.current) return; // 防止重複處理
@@ -79,7 +86,7 @@ export function SwipeableTaskCard({
     // 方向未定（使用者只上下滑未達 12px）→ 視為關閉
     if (directionLockedRef.current !== true) { close(); return; }
 
-    const max = hideComplete ? ACTION_WIDTH : ACTION_WIDTH * 2;
+    const max = stripWidth;
 
     if (offset < -max / 2) {
       // Snap fully open
@@ -95,7 +102,7 @@ export function SwipeableTaskCard({
       // Snap closed
       close();
     }
-  }, [offset, hideComplete, close]);
+  }, [offset, stripWidth, close]);
 
   // Tap scrim / outside closes the strip
   const handleOverlayClick = useCallback((e: React.MouseEvent) => {
@@ -108,9 +115,25 @@ export function SwipeableTaskCard({
       {/* Action strip behind the card */}
       <div
         className="absolute inset-y-0 right-0 z-10 flex items-stretch"
-        style={{ width: hideComplete ? ACTION_WIDTH : ACTION_WIDTH * 2 }}
+        style={{ width: stripWidth }}
       >
-        {/* Complete button (rightmost, revealed first on left-swipe) */}
+        {/* Add-to-today button (leftmost of revealed strip — appears first on left-swipe) */}
+        {onAddToToday && (
+          <button
+            className="relative z-40 flex flex-col items-center justify-center gap-1 text-white text-[11px] font-semibold"
+            style={{ width: ACTION_WIDTH, background: "var(--brand)" }}
+            onClick={() => {
+              haptic("light");
+              onAddToToday(taskId);
+              close();
+            }}
+            aria-label="加入今日"
+          >
+            <Sun className="w-5 h-5" />
+            今日
+          </button>
+        )}
+        {/* Complete button (middle when 3-slot; revealed after add-to-today on left-swipe) */}
         {!hideComplete && onComplete && (
           <button
             className="relative z-40 flex flex-col items-center justify-center gap-1 text-white text-[11px] font-semibold"
@@ -186,6 +209,8 @@ interface TaskSwipeWrapperProps {
   onComplete: () => void;
   onDelete: (id: string) => void;
   onArchive?: (id: string) => void;
+  /** 加入今日:undefined 表示不顯示此按鈕（已是今日 / 非當前 view） */
+  onAddToToday?: (id: string) => void;
   children: React.ReactNode;
 }
 
@@ -195,6 +220,7 @@ export function TaskSwipeWrapper({
   onComplete,
   onDelete,
   onArchive: _onArchive,
+  onAddToToday,
   children,
 }: TaskSwipeWrapperProps) {
   return (
@@ -203,6 +229,7 @@ export function TaskSwipeWrapper({
       onDelete={onDelete}
       onComplete={isDone ? undefined : onComplete}
       hideComplete={isDone}
+      onAddToToday={onAddToToday}
     >
       {children}
     </SwipeableTaskCard>

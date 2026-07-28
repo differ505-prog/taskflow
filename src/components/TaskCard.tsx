@@ -38,6 +38,9 @@ interface TaskCardProps {
   onFocusNow?: (taskId: string) => void;
   allTags?: string[];
   draggable?: boolean;
+  // §新增「T 鍵加入今日」:hover/focus 任務時設到 AppShell 全域 state
+  onHoverEnter?: (id: string) => void;
+  onHoverLeave?: (id: string) => void;
 }
 
 interface DueDateInfo {
@@ -133,6 +136,8 @@ export function TaskCard({
   onUpdateTags,
   onFocusNow,
   allTags = [],
+  onHoverEnter,
+  onHoverLeave,
 }: TaskCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showSubTaskInput, setShowSubTaskInput] = useState(false);
@@ -206,6 +211,10 @@ export function TaskCard({
       role="button"
       aria-label={`任務: ${task.title}`}
       tabIndex={0}
+      onMouseEnter={onHoverEnter ? () => onHoverEnter(task.id) : undefined}
+      onMouseLeave={onHoverLeave ? () => onHoverLeave(task.id) : undefined}
+      onFocus={onHoverEnter ? () => onHoverEnter(task.id) : undefined}
+      onBlur={onHoverLeave ? (e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) onHoverLeave(task.id); } : undefined}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();

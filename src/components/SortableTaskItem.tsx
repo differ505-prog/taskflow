@@ -20,6 +20,9 @@ interface SortableTaskItemProps {
   batchSelected?: boolean;
   onLongPress?: () => void;
   onBatchToggle?: () => void;
+  // §新增「T 鍵加入今日」:透傳 hover/focus 到 TaskListItem
+  onHoverEnter?: (id: string) => void;
+  onHoverLeave?: (id: string) => void;
 }
 
 /**
