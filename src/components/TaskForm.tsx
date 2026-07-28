@@ -18,6 +18,8 @@ import { deleteFile } from "@/lib/storageUpload";
 import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
 import { getEisenhowerVisual } from "@/lib/eisenhower";
 import { isComposingKey, isComposingSubmit } from "@/utils/imeGuard";
+import { logEvent } from "@/lib/eventLog";
+import { toast } from "sonner";
 
 interface TaskFormProps {
   isOpen: boolean;
@@ -374,17 +376,17 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                 ) : (
                   <button
                     type="button"
-                    onClick={async () => {
+                    onClick={() => {
                       if (!title.trim()) {
                         titleRef.current?.focus();
                         return;
                       }
-                      const steps = await aiShredder.shred(title);
-                      if (steps && steps.length > 0) {
-                        // 將 AI 拆解結果灌入 subTaskInputs
-                        // 嚴禁拖曳:不使用 dnd-kit SortableContext,子任務按順序固定
-                        setSubTaskInputs(steps);
-                      }
+                      // § Wizard of Oz MVP:攔截點擊 → 顯示提示 toast → 後台偷偷記錄意願
+                      logEvent("clicked_ai_smash", { buttonId: "task_form_ai_shred", metadata: { taskTitle: title.slice(0, 100) } });
+                      toast("🚀 任務粉碎機正在充能中！\n\n這個強大的 AI 魔法將在下一波更新解鎖。\n\n(我們已經記錄下你的渴望了 😉)", {
+                        duration: 4000,
+                        id: "ai-smash-ghost",
+                      });
                     }}
                     disabled={!title.trim() || aiShredder.loading}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
