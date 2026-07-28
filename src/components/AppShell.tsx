@@ -209,14 +209,19 @@ export function AppShell({
   // 用戶主動點了「已完成」狀態標籤時,只顯示已完成
   const explicitlyShowingDone = activeFilter.status === "done";
   // L6.5:已完成任務一律顯示在底部折疊區,所以 displayTasks 永遠包含全部
+  // 例外:用戶主動點「已完成」chip 時,只渲染 done — 此時 activeTasks 借用整個 displayTasks
+  // 避免 activeTasks = 0 + completedTasks 被 L6.5 折疊區跳過(!explicitlyShowingDone 條件)而空白
   const displayTasks = explicitlyShowingDone
     ? filteredTasks.filter((t) => t.status === "done")
     : currentView === "today" || currentView === "next7days" || currentView === "list"
       ? filteredTasks
       : filteredTasks;
-  // 拆分「進行中」與「已完成」,用於渲染時分區
-  const activeTasks = displayTasks.filter((t) => t.status !== "done");
-  const completedTasks = displayTasks.filter((t) => t.status === "done");
+  const activeTasks = explicitlyShowingDone
+    ? displayTasks
+    : displayTasks.filter((t) => t.status !== "done");
+  const completedTasks = explicitlyShowingDone
+    ? []
+    : displayTasks.filter((t) => t.status === "done");
 
   const stats = {
     total: tasks.filter((t) => !t.isArchived).length,
