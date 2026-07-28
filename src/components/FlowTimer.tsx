@@ -136,7 +136,7 @@ export function FlowTimer() {
         className="ml-0.5 text-[11px] text-zinc-300 transition-colors duration-150 hover:text-zinc-400 focus-visible:outline-none"
         aria-label="探索專注音樂（外部連結）"
       >
-        🎵 探索 60/120bpm
+        🎵 探索音樂
       </a>
     </div>
   );
