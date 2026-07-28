@@ -127,17 +127,6 @@ export function FlowTimer() {
       >
         ✨ 無限心流
       </button>
-
-      {/* §Ecosystem:生態系導流 */}
-      <a
-        href="https://your-music-saas.com"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="ml-0.5 text-[11px] text-zinc-300 transition-colors duration-150 hover:text-zinc-400 focus-visible:outline-none"
-        aria-label="探索專注音樂（外部連結）"
-      >
-        🎵 探索音樂
-      </a>
     </div>
   );
 }
