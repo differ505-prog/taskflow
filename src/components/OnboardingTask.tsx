@@ -5,7 +5,12 @@ import { useApp } from "@/lib/AppContext";
 import { DEFAULT_LIST_IDS } from "@/lib/types";
 
 /**
- * 首次載入偵測：當使用者任務清單為空時,塞入一筆 PWA 安裝教學任務。
+ * 首次載入偵測：當使用者任務清單為空時,連續注入 3 筆 PWA 安裝教學任務。
+ *
+ * 為什麼分 3 筆而不是 1 筆寫在 description？
+ *  Zen 模式焦點卡片沒有「展開詳情」互動,只能看標題 + 完成。
+ *  所以教學必須直接寫在 title 中,並拆成 3 個獨立任務(iOS / Android / 收尾)
+ *  讓使用者逐個勾選完成,獲得「斬擊快感」的反饋迴路。
  *
  * 觸發條件（全部 AND）：
  *  1. tasks 載入完成 (isAppReady)
@@ -16,12 +21,15 @@ import { DEFAULT_LIST_IDS } from "@/lib/types";
  *  - sentinel 一旦寫入永遠不再注入(即使日後使用者刪光任務)
  *  - 雲端同步:addTask 內部會 batchSaveTasksFirebase → 多裝置首次登入也只有一次
  *  - useRef 守衛 effect 重複觸發(StrictMode 雙 mount / 重渲染)
+ *  - 3 筆必須全部 addTask 完成才寫 sentinel;任一筆中斷則下次重試仍能補齊
  */
 const SENTINEL_KEY = "vibelist_onboarding_task_seen";
 
-const ONBOARDING_TASK_TITLE = "📱 將 VibeList 變成手機 App(點開看秘訣)";
-const ONBOARDING_TASK_DESCRIPTION =
-  "恭喜你來到這裡!為了獲得最沉浸的降噪體驗,強烈建議將 VibeList 加入主畫面:\n\n🍎 iOS: 點擊瀏覽器下方 [分享] 圖示 ➔ 選擇 [加入主畫面]\n🤖 Android: 點擊右上角 [⋮] ➔ 選擇 [加到主畫面]\n\n裝好之後,請勇敢地點擊這個任務的「完成」按鈕,體驗一下斬擊的快感吧!⚡️";
+const ONBOARDING_TASK_TITLES = [
+  "🍎 iOS 安裝:用 Safari 開啟本頁 ➔ 點下方 [分享] ➔ 選擇 [加入主畫面]",
+  "🤖 Android 安裝:點右上角 [⋮] ➔ 選擇 [加到主畫面]",
+  "⚡️ 裝好後,用 App 打開,把這三個任務全部斬斷吧!",
+];
 
 function getLocalToday(): string {
   return new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD(本地時區)
@@ -43,16 +51,20 @@ export function OnboardingTask() {
 
     injectedRef.current = true;
 
-    addTask({
-      title: ONBOARDING_TASK_TITLE,
-      description: ONBOARDING_TASK_DESCRIPTION,
-      priority: "schedule",
-      status: "todo",
-      dueDate: getLocalToday(),
-      tags: [],
-      listId: DEFAULT_LIST_IDS["收集箱"],
-      subTasks: [],
-    });
+    const dueDate = getLocalToday();
+    const listId = DEFAULT_LIST_IDS["收集箱"];
+
+    for (const title of ONBOARDING_TASK_TITLES) {
+      addTask({
+        title,
+        priority: "schedule",
+        status: "todo",
+        dueDate,
+        tags: [],
+        listId,
+        subTasks: [],
+      });
+    }
 
     try {
       localStorage.setItem(SENTINEL_KEY, "1");
