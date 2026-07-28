@@ -431,6 +431,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       // §26-J:切換帳號偵測,舊 uid 任務在 merge 前先過濾掉(避免觸發孤兒補推 RLS 403)
       // 注意:這裡只更新 LAST_USER_UID_KEY,實際任務過濾在 subscribeTasksSync callback 的 localOnly 階段
+      // §26-J:uid 切換時重置 firstTasksLoadDone + firstListsLoadDone
+      // 確保新 uid 的第一個 callback 正確跳過;否則跨 uid 時 firstLoadDone 殘留=true,
+      // 第一個 callback 仍執行 merge,把舊 uid 任務/清單寫入 state
+      firstTasksLoadDone.current = false;
+      firstListsLoadDone.current = false;
       if (user.uid) updateLastUserUid(user.uid);
 
       // 首次登入：把本地 localStorage 任務上傳到 Supabase（只上傳不在雲端的）
