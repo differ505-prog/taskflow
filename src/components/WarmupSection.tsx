@@ -81,6 +81,8 @@ export function WarmupSection() {
   };
 
   // Cold Start:零個 Habit → 角落原地建立，完成後立即消失（不打斷心流）
+  // §Bugfix:桌機版原設計 Branch 1 只渲染 sm:hidden,使用者反映「桌面版暖身按鈕不見了」
+  //         改為 sm:flex 雙平台都顯示,避免桌面使用者看不到入口
   if (habits.length === 0) {
     const handleCreateAndComplete = () => {
       const title = titleRef.current.trim();
@@ -103,6 +105,7 @@ export function WarmupSection() {
     return (
       <AnimatePresence>
         {!isCreating ? (
+          // 雙平台:桌機顯示 inline 文字提示 + icon；手機只顯示 icon
           <motion.button
             key="warmup-cta"
             type="button"
@@ -112,11 +115,14 @@ export function WarmupSection() {
             transition={{ duration: 0.4, ease: "easeOut", delay: 0.3 }}
             onClick={() => setIsCreating(true)}
             aria-label="建立第一個暖身習慣"
-            className="sm:hidden fixed bottom-6 left-6 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-rose-400 shadow-sm ring-1 ring-slate-200/60 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+            className="fixed bottom-6 left-6 z-20 flex items-center gap-2 rounded-full bg-white/80 px-3 py-2 text-rose-400 shadow-sm ring-1 ring-slate-200/60 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
             style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
             whileTap={{ scale: 0.92 }}
           >
             <Plus className="h-4 w-4" aria-hidden />
+            <span className="hidden text-xs font-medium uppercase tracking-widest sm:inline">
+              建立暖身
+            </span>
           </motion.button>
         ) : (
           <motion.div
@@ -125,7 +131,7 @@ export function WarmupSection() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95, y: 4 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="fixed bottom-6 left-6 z-20 rounded-2xl bg-white/90 p-3 shadow-lg ring-1 ring-slate-200/60 backdrop-blur sm:left-6"
+            className="fixed bottom-6 left-6 z-20 rounded-2xl bg-white/90 p-3 shadow-lg ring-1 ring-slate-200/60 backdrop-blur"
             style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
           >
             <p className="mb-2 text-[11px] font-medium uppercase tracking-widest text-slate-400">
