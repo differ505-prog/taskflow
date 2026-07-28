@@ -45,6 +45,7 @@ import { Hourglass, Users } from "lucide-react";
 import { useApp } from "@/lib/AppContext";
 import type { Task } from "@/lib/types";
 import { WarmupFlow } from "@/components/WarmupFlow";
+import { OnboardingTask } from "@/components/OnboardingTask";
 
 /** 禪模式看的任務樣態：嚴格「今日專注清單 (The Today Rule)」
  *  - 排除已封存、已完成、子任務
@@ -401,6 +402,10 @@ export default function ZenDashboard() {
 
       {/* FeedbackButton — 禪模式下淡化,hover 才完全顯示 */}
       <FeedbackButton isZenMode />
+
+      {/* §Onboarding Task：首次載入且任務清單為空時，自動注入 PWA 安裝教學任務。
+         純前端 + localStorage sentinel,見 OnboardingTask.tsx */}
+      <OnboardingTask />
 
       {/* 假門測試 A — 時間盲防禦條 Modal (幽靈按鈕點擊後彈出) */}
       <ProWaitlistModal
