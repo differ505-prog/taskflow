@@ -22,6 +22,7 @@
 | #005 | 象限雷達桌面 2x2 滾動錯位（單獨一卡片能滑、其他三張靜止），且 grid 高度被 1fr 鎖死 | view pattern vs page pattern 混用（候選 §26 類別 P） | `6f5c2ca` | 2026-07-24 |
 | #006 | 幽靈按鈕 1 週靜默期後再點無反應，客人以為按鍵故障 | hook 出口缺失 + GhostButton 已實作 `dismissed` prop 但無父層傳入 | `a6b7ea4` | 2026-07-26 |
 | #007 | 手機版點底部「今天」 → 「頁面錯誤，請重新整理」，重新整理也沒恢復 | React Hooks Rules 違規：`useProactiveClosure` 被放在條件 IIFE 內 | `c114f8c` | 2026-07-28 |
+| #008 | 切換帳號後舊 uid 任務仍顯示 + 觸發孤兒補推 RLS 403 | §26 類別 J：localOnly 任務無 ownerUid filter，舊 uid 任務被誤判為孤兒上傳 | `aaf7e47` | 2026-07-28 |
 
 ---
 
@@ -366,3 +367,41 @@ return (
 - **§27 debug 流程驗證**:本 bug 完全符合 §27 debug 流程 — 先讀 SSOT(`OPTIMIZATIONS.md`)確認「今天分頁錯誤」不在 backlog → 新增觀察 → grep 同檔所有 hook call（§14.1）→ 發現 IIFE 內 hook → 修復。沒有走盲改循環。
 - **§26 類別對照**:這不是「雙 hook 獨立 state 死鎖」（§26 類別 O'）,也不是「嵌套 ternary 修錯層」（§26 類別 N）,而是**hooks 呼叫數依 runtime condition 變動**這個獨立類別。雖然同樣是 React Hooks 錯誤家族,但根因機制完全不同,需獨立登記候選。
 - **§15.6 純結構修 0 tool call**:本修法純結構調整(hook 位置 + JSX 條件渲染),不需要 runtime/CDP/瀏覽器驗證 — 通過 tsc 即可,符合 §15.6 純樣式/結構類 0 tool call 上限。
+
+---
+
+## #007 — 切換帳號後舊 uid 任務觸發孤兒補推 RLS 403
+
+### 症狀（用戶描述）
+- 電腦版 Safari 切換了帳號（從舊帳號 uid A → 新帳號 uid B）
+- 切換後任務列仍顯示舊帳號的 47 筆任務，遲遲不消失
+- Console 出現大量錯誤：
+  - `[personalTaskSync] batchSaveTasks error: {code: '42501', ... 'row-level security policy'}`
+  - `[SUBSCRIBE TASKS] callback uid=ef1c519f... fbTasks=0`
+  - `[SUP SYNC] 自動補推 47 個孤兒任務上雲`（觸發 §26 類別 J）
+
+### Root Cause（§26 類別 J）
+- `saveTasks` 把**所有 uid 的任務**存在同一把 localStorage 鑰匙
+- 切換帳號後舊 uid (A) 的任務殘留本地
+- 新 uid (B) 的 Supabase 訂閱成功後返回 0 筆任務（因為 B 是乾淨帳號）
+- subscribeTasksSync 的 `localOnly` 篩選 `!fbIds.has(t.id)` → 47 筆舊 uid 任務被視為「本地獨有」
+- `orphans = localOnly.filter(t => !isWithinRecentWriteWindow(t.id))` → 全部 47 筆都是 orphan（不在 5 秒寫入窗）
+- `batchSaveTasksFirebase(user.uid=B, orphans)` → 把 A 的任務用 B 的 uid 寫入 → **RLS 403 Forbidden**
+
+### 修法（commit `aaf7e47`）
+1. **Task schema 加 `ownerUid?: string`** — 每個任務 tag 建立者 uid
+2. **storage.ts 加 `LAST_USER_UID_KEY` + `updateLastUserUid()` + `clearTasksIfUserChanged()`** — localStorage 追蹤當前 uid
+3. **AppContext `addTask` / `quickAddToShared`** — 新任務加 `ownerUid: user.uid` + `updateLastUserUid`
+4. **AppContext `subscribeTasksSync` localOnly 階段** — 加 `(!t.ownerUid || t.ownerUid === user.uid)` filter
+   - 根治：舊 uid 任務不再被視為「孤兒」，不再觸發 RLS 403 上傳
+5. **AppContext init useEffect** — `updateLastUserUid(user.uid)` 更新追蹤 key
+   - 根治：跨 session localStorage uid tag，下次切換能被偵測
+
+### 驗證
+- `npx tsc --noEmit` → exit 0,clean
+- `npm run build` → success
+- **用戶驗證**：切換帳號後舊任務不再出現，Console 不再出現 RLS 403 錯誤
+
+### 教訓
+- **§26 類別 J 的觸發條件更新**：孤兒偵測不只需要「不在 5 秒寫入窗」，還需要 `ownerUid === currentUid` filter 才能避免跨 uid 任務被誤判
+- **§23 同步層確認關鍵**：這次沒修 `personalTaskSync.ts` 而是修 `AppContext.tsx` — 因為 `localOnly` 邏輯在 AppContext 的 subscribeTasksSync callback 內，不是 personalTaskSync
