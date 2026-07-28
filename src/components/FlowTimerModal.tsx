@@ -6,10 +6,10 @@ import { useApp } from "@/lib/AppContext";
 import { useZenFlowContext, useFlowTimerContext } from "@/lib/ZenFlowContext";
 import type { FlowTimerType } from "@/lib/usePomodoro";
 import { Task } from "@/lib/types";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Play, Pause, RotateCcw, Coffee, Target,
-  X, Timer, Search,
+  X, Search,
 } from "lucide-react";
 
 interface FlowTimerModalProps {
@@ -39,8 +39,11 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
 
   const [taskSearch, setTaskSearch] = useState("");
   const [taskMenuOpen, setTaskMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const taskSearchRef = useRef<HTMLInputElement>(null);
   const taskMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setMounted(true); }, []);
 
   const totalSeconds = Math.floor(snapshot.totalMs / 1000);
   const minutes = Math.floor(secondsLeft / 60);
@@ -64,7 +67,7 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
     [activeTasks, snapshot.boundTaskId],
   );
 
-  // ── Click outside for task menu ────────────────────────────
+  // Click outside for task menu
   useEffect(() => {
     if (!taskMenuOpen) return;
     const onClickOutside = (e: MouseEvent) => {
@@ -79,45 +82,29 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [taskMenuOpen]);
 
-  // ── Alarm + Notification when a session completes ─────────
+  // Alarm + Notification when a session completes
   useEffect(() => {
     const unsubscribe = flowTimer.onComplete((finalSnapshot) => {
       const isFocus = finalSnapshot.type === "focus";
-
-      // 1. Play alarm sound
       try {
         const audio = new Audio("/sounds/alarm.mp3");
         audio.volume = 0.7;
-        audio.play().catch(() => {
-          // Autoplay may be blocked; the system notification still fires below
-        });
-      } catch {
-        // Audio API not available; continue with notification
-      }
-
-      // 2. System notification
+        audio.play().catch(() => {});
+      } catch {}
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
         try {
           new Notification("VibeList 心流計時器", {
             body: isFocus ? "專注時間結束！休息一下吧 🌿" : "休息結束,準備下一個專注 session ✨",
             icon: "/favicon.svg",
           });
-        } catch {
-          // Notification API unavailable on some browsers
-        }
+        } catch {}
       }
-
-      // 3. Stop focus music when focus session ends
-      if (isFocus) {
-        pause();
-      }
+      if (isFocus) pause();
     });
     return unsubscribe;
   }, [flowTimer, pause]);
 
-  // ── Auto-play music when focus session starts ──────────────
-  // (kept here, not in handleStart, so the same behavior holds whether
-  //  start() is invoked from this modal or from any future entry point.)
+  // Auto-play music when focus session starts
   useEffect(() => {
     if (snapshot.phase === "running" && snapshot.type === "focus" && !zenState.isPlaying) {
       play();
@@ -143,8 +130,13 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
   }, [reset, snapshot.type, pause]);
 
   if (!isOpen) return null;
+  if (!mounted) return null;
 
-  return (
+  // ── Portal: render the entire modal to body ──────────────────────────────
+  // This escapes ALL overflow/stacking-context ancestors — critical so that
+  // TaskMenuPortal (also portal'd to body) positions correctly without
+  // being clipped by any overflow:hidden scroll container.
+  return createPortal(
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -157,6 +149,7 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
         initial={{ scale: 0.95, y: 10 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.95, y: 10 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
         className="w-full max-w-sm p-8 text-center space-y-5 overflow-visible"
         style={{ background: "var(--surface-elevated)", boxShadow: "var(--shadow-lg)", borderRadius: "1.5rem" }}
       >
@@ -264,7 +257,7 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
           <div className="w-11" />
         </div>
 
-        {/* OmniSonic Deep Focus embed button — Free 25min auto-pause */}
+        {/* OmniSonic Deep Focus embed button */}
         {snapshot.type === "focus" && (
           <div className="flex flex-col items-center gap-2">
             <div
@@ -347,11 +340,12 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
           <X className="w-5 h-5" />
         </button>
       </motion.div>
-    </motion.div>
+    </motion.div>,
+    document.body,
   );
 }
 
-// ── Task menu — Portal to body to escape modal overflow:visible ──────────────
+// ── Task menu — Portal to body ─────────────────────────────────────────────────
 interface TaskMenuPortalProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   filteredTasks: Task[];
@@ -375,11 +369,11 @@ function TaskMenuPortal({
   taskSearchRef,
   selectedTaskId,
 }: TaskMenuPortalProps) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const [menuMounted, setMenuMounted] = useState(false);
+  useEffect(() => { setMenuMounted(true); }, []);
 
-  // click outside
   useEffect(() => {
+    if (!menuMounted) return;
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         onClose();
@@ -387,11 +381,10 @@ function TaskMenuPortal({
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [containerRef, onClose]);
+  }, [menuMounted, containerRef, onClose]);
 
-  if (!mounted) return null;
+  if (!menuMounted) return null;
 
-  // calculate position
   const rect = containerRef.current?.getBoundingClientRect();
   const top = rect ? rect.bottom + 6 : 0;
   const left = rect?.left ?? 0;
@@ -399,7 +392,7 @@ function TaskMenuPortal({
 
   return createPortal(
     <div
-      className="absolute rounded-xl shadow-lg z-[9999]"
+      className="absolute rounded-xl shadow-lg z-[9999] overflow-visible"
       style={{
         top,
         left,
