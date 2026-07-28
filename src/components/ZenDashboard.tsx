@@ -189,11 +189,11 @@ export default function ZenDashboard() {
           - 手機:Logo 自動縮成只有色塊,避免擠壓「任務大廳」按鈕
           - 從原本 floating 重構為 inline,不再遮擋內容 */}
       <div
-        className="relative mx-auto flex h-14 max-w-2xl items-center justify-between gap-3"
+        className="mx-auto grid h-14 max-w-2xl grid-cols-3 items-center gap-3"
         style={{ marginTop: "max(0px, env(safe-area-inset-top, 0px))" }}
       >
         {/* 左群組:Logo + Zen Mode 標題(身份歸屬) */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-start gap-3">
           <div className="flex items-center gap-2">
             <div
               className="flex h-8 w-8 items-center justify-center rounded-xl"
@@ -214,7 +214,6 @@ export default function ZenDashboard() {
               VibeList
             </span>
           </div>
-          {/* Zen Mode 標題跟 Logo 群組(桌機才顯示),用極淡分隔線點出群組關係 */}
           <span className="hidden text-balance text-sm font-medium uppercase tracking-widest text-slate-300 sm:inline">
             ·
           </span>
@@ -223,16 +222,16 @@ export default function ZenDashboard() {
           </span>
         </div>
 
-        {/* 中央 CTA:QuickCaptureTrigger 絕對置中 */}
-        <div className="absolute left-1/2 -translate-x-1/2">
+        {/* 中央 CTA:QuickCaptureTrigger 三欄置中 */}
+        <div className="flex items-center justify-center">
           <QuickCaptureTrigger
             variant="desktop"
             onClick={() => setQuickCaptureOpen(true)}
           />
         </div>
 
-        {/* 右群組:absolute 定位,不參與 flex 寬度計算,避免與中央 CTA 重疊 */}
-        <div className="absolute right-0 flex items-center gap-3">
+        {/* 右群組:獵人徽章 + 無聲營地 + 任務大廳 */}
+        <div className="flex items-center justify-end gap-3">
           <HunterStatusBadge />
           <GhostButton
             onClick={bodyDoublingGhost.handleClick}
