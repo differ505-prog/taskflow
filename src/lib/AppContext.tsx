@@ -107,6 +107,16 @@ interface AppContextValue {
 
   // ── 任務 CRUD ──────────────────────────────────────────
   addTask: (data: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order">) => string;
+  /**
+   * §PWA onboarding fix：批次新增多筆任務,正確累加 order。
+   * 為什麼 addTask 不能直接 for-loop 連續呼叫?React state 在同步 for-loop
+   * 內連續 setTasks 不會 commit,closure 內 `tasks.filter(...).length`
+   * 永遠讀到舊值,所有任務的 order 都會 = 0。
+   * 治本:1 次 setTasks + 1 次 saveTasks + 1 次 batchSaveTasksFirebase。
+   */
+  batchAddTasks: (
+    datas: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order">[]
+  ) => string[];
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => Promise<void>;
   toggleTaskStatus: (id: string) => void;
@@ -855,6 +865,44 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       batchSaveTasksFirebase(user.uid, [task]).catch((err) => console.error("[SUP SYNC] 新增失敗:", err));
     }
     return id;
+  }, [tasks, user, markRecentlyWritten]);
+
+  const batchAddTasks = useCallback((
+    datas: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order">[]
+  ): string[] => {
+    if (datas.length === 0) return [];
+    const now = new Date().toISOString();
+    const newTasks: Task[] = [];
+    const ids: string[] = [];
+    // 用當下 closure 的 tasks 起算,確保 order 正確累加(目前任務都是「未歸檔」)
+    // 注意:若呼叫方在多裝置同步中途,batch 內的 order 可能跟遠端衝突 → batchSave 後
+    // 雲端 echo 會以 updatedAt 較新者為準,屬 §26-A 保護窗範圍,可接受。
+    let nextOrder = tasks.filter((t) => !t.isArchived).length;
+    for (const data of datas) {
+      const id = generateId();
+      ids.push(id);
+      newTasks.push({
+        ...data,
+        id,
+        createdAt: now,
+        updatedAt: now,
+        focusMinutes: 0,
+        isArchived: false,
+        order: nextOrder++,
+        ownerUid: user?.uid,
+      });
+    }
+    const updated = [...newTasks, ...tasks];
+    setTasks(updated);
+    saveTasks(updated);
+    ids.forEach((id) => markRecentlyWritten(id));
+    if (user) {
+      updateLastUserUid(user.uid);
+      batchSaveTasksFirebase(user.uid, newTasks).catch((err) =>
+        console.error("[SUP SYNC] 批次新增失敗:", err)
+      );
+    }
+    return ids;
   }, [tasks, user, markRecentlyWritten]);
 
   const updateTask = useCallback((id: string, updates: Partial<Task>) => {
@@ -1849,7 +1897,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     currentSharedListId, setCurrentSharedList,
     searchQuery, setSearchQuery,
     activeFilter, setActiveFilter,
-    addTask, updateTask, deleteTask, toggleTaskStatus, archiveTask, unarchiveTask, escapeTask,
+    addTask, batchAddTasks, updateTask, deleteTask, toggleTaskStatus, archiveTask, unarchiveTask, escapeTask,
     addSubTask, toggleSubTask, deleteSubTask, reorderSubTasks,
     completeRecurringAndClone,
     addList, updateList, deleteList, reorderLists, reorderTasks,

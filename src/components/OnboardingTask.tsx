@@ -36,7 +36,7 @@ function getLocalToday(): string {
 }
 
 export function OnboardingTask() {
-  const { tasks, addTask, isAppReady } = useApp();
+  const { tasks, batchAddTasks, isAppReady } = useApp();
   const injectedRef = useRef(false);
 
   useEffect(() => {
@@ -54,8 +54,10 @@ export function OnboardingTask() {
     const dueDate = getLocalToday();
     const listId = DEFAULT_LIST_IDS["收集箱"];
 
-    for (const title of ONBOARDING_TASK_TITLES) {
-      addTask({
+    // §PWA onboarding fix:一次 batchAddTasks 確保 order 正確累加(0,1,2)
+    // 避免 for-loop 連續 addTask 撞 closure stale tasks.length → 3 筆都 order=0
+    batchAddTasks(
+      ONBOARDING_TASK_TITLES.map((title) => ({
         title,
         priority: "schedule",
         status: "todo",
@@ -63,15 +65,15 @@ export function OnboardingTask() {
         tags: [],
         listId,
         subTasks: [],
-      });
-    }
+      }))
+    );
 
     try {
       localStorage.setItem(SENTINEL_KEY, "1");
     } catch {
       // localStorage 寫入失敗(隱私模式/Quota)不阻塞,雲端已有任務就夠
     }
-  }, [isAppReady, tasks.length, addTask]);
+  }, [isAppReady, tasks.length, batchAddTasks]);
 
   return null;
 }
