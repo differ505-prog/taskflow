@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { useZenFlowContext } from "@/lib/ZenFlowContext";
 
 const FOCUS_DURATION = 25 * 60; // 25 分鐘（秒）
 
@@ -13,7 +12,6 @@ function formatTime(seconds: number): string {
 }
 
 export function FlowTimer() {
-  const { state: zenState, play, pause } = useZenFlowContext();
   const [remaining, setRemaining] = useState(FOCUS_DURATION);
   const [isRunning, setIsRunning] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -43,19 +41,6 @@ export function FlowTimer() {
     }, 1000);
     return () => clearTimer();
   }, [isRunning, clearTimer]);
-
-  // §26 升級:禪模式音樂按鈕改用 OmniSonic iframe (照抄 FlowTimerModal 設計),
-  // 25 分鐘計時到點時透過 key prop 重置 iframe 中斷音樂
-  const omnisonicBaseUrl = process.env.NEXT_PUBLIC_OMNISONIC_URL ?? "";
-  const iframeKeyRef = useRef(0);
-  const [iframeKey, setIframeKey] = useState(0);
-
-  // §26:計時到 0 時重置 iframe → 強制停止 iframe 內音樂(跨域無法 postMessage)
-  useEffect(() => {
-    if (remaining === 0 && isRunning) {
-      setIframeKey(++iframeKeyRef.current);
-    }
-  }, [remaining, isRunning]);
 
   const handlePlayPause = () => {
     if (isRunning) {
@@ -136,15 +121,14 @@ export function FlowTimer() {
       </button>
       </div>
 
-      {/* OmniSonic Deep Focus iframe 按鈕 — 照抄 FlowTimerModal circle 結構,精簡為 28px 配禪模式膠囊 */}
+      {/* OmniSonic Deep Focus iframe 按鈕 — 與 FlowTimerModal circle 結構完全一致,精簡為 28px 配禪模式膠囊 */}
       <div
         className="relative w-7 h-7 rounded-full overflow-hidden border cursor-pointer transition-all hover:scale-105 active:scale-95 flex-shrink-0"
         style={{ borderColor: "rgba(192,38,211,0.3)", boxShadow: "0 0 12px rgba(192,38,211,0.25)" }}
         aria-label={isRunning ? "心流音樂播放中" : "播放心流音樂"}
       >
         <iframe
-          key={iframeKey}
-          src={`${omnisonicBaseUrl}/embed/button`}
+          src={`${process.env.NEXT_PUBLIC_OMNISONIC_URL ?? ""}/embed/button`}
           title="OmniSonic Deep Focus Button"
           className="w-full h-full border-0"
           allow="autoplay"
