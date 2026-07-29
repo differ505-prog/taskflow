@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useZenFlowContext } from "@/lib/ZenFlowContext";
 
 const FOCUS_DURATION = 25 * 60; // 25 分鐘（秒）
 
@@ -11,11 +12,10 @@ function formatTime(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export function FlowTimer() {
+export function FlowTimer({ onOpenFlowTimer }: { onOpenFlowTimer: () => void }) {
+  const { state: zenState } = useZenFlowContext();
   const [remaining, setRemaining] = useState(FOCUS_DURATION);
   const [isRunning, setIsRunning] = useState(false);
-  const [musicOn, setMusicOn] = useState(false);
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const clearTimer = useCallback(() => {
@@ -58,23 +58,6 @@ export function FlowTimer() {
     toast(
       "✨ 想要一直聽下去嗎？\n\n「無限心流模式（無中斷連播）」目前正在秘密開發中！\n\n這將是未來 Pro 版的專屬能力。我們已經記錄下你的願望了 😉",
       { duration: 6000, id: "flow-pro-ghost" },
-    );
-  };
-
-  const handleMusicToggle = () => {
-    const next = !musicOn;
-    setMusicOn(next);
-    if (!iframeRef.current) {
-      const iframe = document.createElement("iframe");
-      iframe.src = `${process.env.NEXT_PUBLIC_OMNISONIC_URL ?? ""}/embed/button`;
-      iframe.style.display = "none";
-      iframe.allow = "autoplay";
-      iframeRef.current = iframe;
-      document.body.appendChild(iframe);
-    }
-    iframeRef.current.contentWindow?.postMessage(
-      { type: next ? "play" : "pause" },
-      "*",
     );
   };
 
@@ -140,11 +123,11 @@ export function FlowTimer() {
       </button>
       </div>
 
-      {/* 獨立音樂控制 — 與計時器各自獨立，iframe embed 方式（CORS 不受限） */}
+      {/* 獨立音樂控制 — 點擊後開啟 FlowTimerModal（與 FlowTimerModal 共享同一個 howler 實例） */}
       <button
         type="button"
-        onClick={handleMusicToggle}
-        aria-label={musicOn ? "暫停心流音樂" : "播放心流音樂"}
+        onClick={onOpenFlowTimer}
+        aria-label={zenState.isPlaying ? "暫停心流音樂" : "播放心流音樂"}
         className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 shadow-sm ring-1 ring-zinc-100 backdrop-blur transition-all duration-200 hover:-translate-y-0.5"
       >
         {/* 耳機圖示 */}
@@ -158,13 +141,13 @@ export function FlowTimer() {
           strokeLinecap="round"
           strokeLinejoin="round"
           aria-hidden
-          className={musicOn ? "text-purple-500" : "text-zinc-400"}
+          className={zenState.isPlaying ? "text-purple-500" : "text-zinc-400"}
         >
           <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
           <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
         </svg>
-        <span className={`text-[13px] font-medium ${musicOn ? "text-zinc-800" : "text-zinc-400"}`}>
-          {musicOn ? "音樂 ON" : "音樂 OFF"}
+        <span className={`text-[13px] font-medium ${zenState.isPlaying ? "text-zinc-800" : "text-zinc-400"}`}>
+          {zenState.isPlaying ? "音樂 ON" : "音樂 OFF"}
         </span>
       </button>
     </div>
