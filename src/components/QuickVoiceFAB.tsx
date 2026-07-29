@@ -67,8 +67,8 @@ export function QuickVoiceFAB() {
         onClick={() => setOpen(true)}
         className="md:hidden fixed z-50 rounded-full shadow-lg flex items-center justify-center text-white"
         style={{
-          bottom: "calc(164px + env(safe-area-inset-bottom, 0px))",
-          right: "calc(80px + env(safe-area-inset-right, 0px))",
+          bottom: "calc(208px + env(safe-area-inset-bottom, 0px))",
+          right: "calc(20px + env(safe-area-inset-right, 0px))",
         }}
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}

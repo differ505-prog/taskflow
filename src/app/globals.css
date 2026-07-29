@@ -481,8 +481,8 @@
   /* FAB — Floating Action Button */
   .fab {
     position: fixed;
-    bottom: calc(80px + env(safe-area-inset-bottom, 0px) + 16px);
-    right: 80px;
+    bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+    right: 20px;
     width: 56px;
     height: 56px;
     border-radius: 50%;
