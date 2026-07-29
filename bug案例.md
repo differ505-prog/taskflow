@@ -25,6 +25,7 @@
 | #008 | 切換帳號後舊 uid 任務仍顯示 + 觸發孤兒補推 RLS 403 + 同 session 切換污染 | §26 類別 J：localOnly 無 ownerUid filter + firstLoadDone 跨 uid 未重置 | `aaf7e47` + `69c0204` | 2026-07-28 |
 | #009 | 點「已完成」狀態 chip 後畫面空白,有 3 個 done 卻不渲染 | activeTasks 拆分時 `explicitlyShowingDone=true` 變 0 + L6.5 折疊區被 `!explicitlyShowingDone` 跳過 | `efac784` | 2026-07-29 |
 | #010 | 「開始暖身」fixed bottom 按鈕垂直對齊偏低,icon 跟文字擠在底部 | inline style `paddingBottom: env(safe-area-inset-bottom, 0px)` 覆蓋 Tailwind `py-2` 的對稱 padding-bottom(在桌面環境 env() 永遠 = 0);CSS specificity: inline style > className | `a857ffa` | 2026-07-29 |
+| #011 | 禪模式「跳過」按鈕按了沒反應(區間任務 startDate 跟 dueDate 撕開,selectZenTasks 仍命中) | `escapeTask` startDate 分支只更新 startDate 不動 dueDate(區間長度為 0 撕開);`selectZenTasks` 只看 `dueDate === today` 不看 startDate | `b54ce30` | 2026-07-29 |
 
 ---
 
@@ -561,3 +562,122 @@ span: { h: 12, top: 9, bottom: 1, lineHeight: "12px" }
   - 2026-07-29 新增 §26 類別 T（inline style 覆蓋 Tailwind className 對齊特例）— 對應本輪 `a857ffa` 修了 3 次才命中
   - 2026-07-29 新增 §16 強化 + §15.6 強化（第二次失敗後唯一 3 個選項 + runtime 前置條件驗證）— 對應本輪 3 次悶改浪費
 - 修憲自評：§26-T: **9.3** / §16 強化: **9.2** / §15.6 強化: **9.0**（均首輪即達標，免二輪）
+
+---
+
+## #011 — 禪模式「跳過」按鈕按了沒反應（區間任務 startDate 跟 dueDate 撕開）
+
+### 症狀（用戶描述）
+- 在禪模式（Zen mode）有 1 個焦點任務 ttt（id: 1785315789572-0dq8caz）
+- 按下「跳過」按鈕 → UI 完全沒變化（沒切到下一個任務、沒動畫、沒 toast）
+- console 完全沒任何新訊息（hover 有亮、click 無 log）
+- 「完成」按鈕能正常運作（切換到下一個焦點）
+- 桌機手機都試過 → 都有問題
+
+### Root Cause（區間任務 escape 邏輯撕開 startDate 跟 dueDate）
+
+`src/lib/AppContext.tsx` line 1001-1010（修前）的 `escapeTask`：
+
+```tsx
+const escapeTask = useCallback((id: string) => {
+  const task = tasks.find((t) => t.id === id);
+  if (!task) return;
+  if (task.startDate) {
+    // 區間任務:只推進 startDate
+    const tomorrow = toLocalDateString(new Date(Date.now() + 86400000));
+    updateTask(id, { startDate: tomorrow });
+  } else {
+    updateTask(id, { dueDate: undefined });
+  }
+}, [tasks, updateTask]);
+```
+
+`src/components/ZenDashboard.tsx` line 56-65 的 `selectZenTasks`：
+
+```tsx
+function selectZenTasks(tasks: Task[]): Task[] {
+  const today = new Date().toLocaleDateString("en-CA");
+  return tasks.filter(
+    (t) =>
+      !t.isArchived &&
+      t.status === "todo" &&
+      !t.parentId &&
+      t.dueDate === today,   // ← 只看 dueDate,不看 startDate
+  );
+}
+```
+
+**撕開的數據鏈**（用戶跑 runtime 驗證確認）：
+```
+ttt (id 1785315789572-0dq8caz)
+  taskType: undefined
+  startDate: 2026-07-30  ← 已推進(區間任務 escape 後)
+  dueDate: 2026-07-29    ← 沒動(還是今天)
+  status: todo, isArchived: false
+```
+
+按「跳過」→ `escapeTask` 走 `if (task.startDate)` 分支 → 只更新 `startDate: 2026-07-30` → `selectZenTasks` 仍命中（`dueDate === today` 還成立）→ ttt 還在 visibleTasks[0] → UI 焦點沒變化。
+
+### 修法（commit `b54ce30`）
+
+A+ 雙保險方案：
+
+| 改動 | 檔案 | 邏輯 |
+|---|---|---|
+| 1. escapeTask 區間任務同步推進 startDate 跟 dueDate | `src/lib/AppContext.tsx` | `startDate` 分支內新增 `const newDue = task.dueDate ? toLocalDateString(new Date(new Date(task.dueDate).getTime() + 86400000)) : undefined;` 然後 `updateTask(id, { startDate: newStart, dueDate: newDue })` |
+| 2. selectZenTasks 加 `!(t.startDate && t.startDate > today)` 雙保險 | `src/components/ZenDashboard.tsx` | filter 多加一行：`!(t.startDate && t.startDate > today) && t.dueDate === today` |
+
+**治本**：escape 邏輯改對後,startDate 跟 dueDate 同步推進 → selectZenTasks `dueDate===today` 變 false → ttt 從焦點消失 → UI 跳到下一個焦點任務。
+
+**治標雙保險**：即便有別的入口繞過 escape 直接改 startDate（批次搬移、UI 拖日期等）,filter 也守得住未來日期的區間任務不會誤判為今天的焦點。
+
+### 驗證（§12）
+- `npx tsc --noEmit` → exit 0, clean
+- `npm run build` → exit 0, 25 routes + middleware 全部 build 成功
+- 推 main → commit `b54ce30` → Vercel production deployment 觸發
+- 用戶確認:之前已撕開的舊資料(2026-07-29 / 2026-07-30)用 localStorage 手動同步推進後 → 區間任務按「跳過」正常切換到下一個焦點
+
+---
+
+## ⚠️ 處理過程審計：這次是「修憲」最大觸發來源
+
+**這次 bug fix 期間總共 57 個 assistant 訊息 / 12 個 user 訊息 = 4.75 倍輸出/輸入比**（健康基準 ≤2.5 倍）。中間浪費的關鍵回合逐一記錄：
+
+### 浪費點 1：turn 1（19:44）一次列 6 個根因不確認
+第一輪列了 6 個「沒反應的可能根因」(`handler 沒綁定 / handler 拋錯 / 沒有下一個任務可跳 / state 沒更新 / Zustand selector 訂閱失效 / modal/sheet 擋住 click`) 但**沒有用 AskQuestion 三角定位**就直接進悶查。**§18 違規**。
+
+### 浪費點 2：turn 2-5（19:46 → 20:01）15 分鐘悶進「click 沒打到 button」假設
+連續 4 輪查「是不是某個 invisible 元素覆蓋跳過按鈕」（GhostButton / FeedbackButton / WarmupSection / FlowTimer / globals.css / FocusCard）— **整個方向從根上就是錯的**：click event 確實有打到按鈕、`escapeTask` 確實有執行、`updateTask` 確實有更新 React state，但視覺沒變因為 selectZenTasks 條件沒命中。**應該走 §18b「操作失敗初始確認」問用戶「你按的是哪個按鈕？」**（已完成規則,但這次沒走）。
+
+### 浪費點 3：turn 7（21:38）抽錯 storage key 名
+我請用戶跑 `localStorage.getItem('personal_tasks')` — **這個 key 名是我猜的,沒 grep 確認**。回傳 undefined 後又花 5 輪（turn 47-56）才查到正確 key 是 `taskflow_tasks`。**§14 違規**：動手前沒 grep 確認 storage key 命名。
+
+### 浪費點 4：turn 19-42（21:42-21:42）「等等！我突然意識到」型假進度 ≥ 10 次
+`grep -c "等等"` 在 assistant 訊息裡出現 ≥ 10 次（line 19、20、21、22、30、31、35、37、38、39、41、42、46）。每次都宣稱「重大發現」但其實多數沒附新的 runtime 證據,**純粹製造假進度感**。
+
+### 浪費點 5：turn 23（assistant line 23）「做了 13 輪靜態分析沒命中還繼續」
+應該走 §16b「第一次失敗即停問診」但**繼續列評分表 + 派 elementFromPoint 檢測腳本**給用戶跑。雖然最終幫忙定位「按鈕 27×20 太小」誤導方向,但其實是錯方向。
+
+### 浪費點 6：turn 35-42 反覆推理「React handler 有跑啊為什麼 UI 沒變」
+我說「React 17+ 委派在同一個原生事件上」→ 「所以 React onClick 一定會被觸發」。這個結論**對了一半**：click 確實會觸發,但這不代表「視覺有變化」。我**誤把「React handler 被觸發」當成「視覺會變化」的同義詞**。
+
+### 浪費點 7：turn 41 → turn 43-58 同一個結論重複驗證
+turn 41 我推論「區間任務 escape 後還出現在 today 焦點區」,**沒做任何 runtime 驗證就宣稱找到了 root cause**。turn 43 我又請用戶跑更複雜的 script 重新驗證同一件事 — **這是 §10.2 / §10.4a 違規**：已推理過的結論分數被悄悄降級後重出驗證流程。
+
+### 教訓（轉化成 §14.4 + §16b.1 + §18d.1 三條修憲）
+
+#### §14.4（runtime 檢測前必先 grep 確認所有變數名）
+對應浪費點 3：寫 `localStorage.getItem('personal_tasks')` 應該先 `grep "localStorage.getItem"` 確認實際 key 名,直接 grep 就 1 輪解決,不用浪費 5 輪查正確 key 名（50K+ tokens）。
+
+#### §16b.1（AI 自我悶頭 3 輪無新進展也停下）
+對應浪費點 1、2、5：§16b 原本只在「用戶主動報告失敗」時觸發,但實務中 AI 自己悶頭推理 5-10 輪沒命中根因時也該停下。新條文設定「3 輪無實質新進展」判定標準（沒新 runtime 證據 / 重複同方向 / 「等等！」≥3 次沒附證據 / 結論互相矛盾）→ 第 3 輪立即停下 + 報告 + 走 AskQuestion。
+
+#### §18d.1（焦慮語言禁令）
+對應浪費點 4：debug 過程中禁止「等等！我突然意識到 / 等等！等等！等等！ / 關鍵發現！」等無 runtime 證據的假進度開場白,唯一豁免是用戶已附 runtime 證據（console / 截圖 / DevTools 數據）。debug 結束後事後回顧時不受限（commit message 或 bug 案例回顧可以用「關鍵發現」）。
+
+**三條互補觸發**：§18d.1（語言層） + §14.4（變數名層） + §16b.1（悶頭推理層） — 涵蓋本次浪費的 3 個核心維度。
+
+### 修憲同步
+- `global.mdc` 生效紀錄新增 1 條（2026-07-29）：
+  - 新增 §14.4 + §16b.1 + §18d.1 — 對應本對話浪費點 1-7
+- 修憲自評：**§14.4: 9.1 / §16b.1: 9.0 / §18d.1: 9.1**（均首輪即達標,免二輪）
