@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { useZenFlowContext } from "@/lib/ZenFlowContext";
 
 const FOCUS_DURATION = 25 * 60; // 25 分鐘（秒）
 
@@ -13,9 +12,10 @@ function formatTime(seconds: number): string {
 }
 
 export function FlowTimer() {
-  const { state: zenState, play, pause } = useZenFlowContext();
   const [remaining, setRemaining] = useState(FOCUS_DURATION);
   const [isRunning, setIsRunning] = useState(false);
+  const [musicOn, setMusicOn] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const clearTimer = useCallback(() => {
@@ -61,14 +61,21 @@ export function FlowTimer() {
     );
   };
 
-  const isPlaying = zenState.isPlaying;
-
   const handleMusicToggle = () => {
-    if (isPlaying) {
-      pause();
-    } else {
-      play();
+    const next = !musicOn;
+    setMusicOn(next);
+    if (!iframeRef.current) {
+      const iframe = document.createElement("iframe");
+      iframe.src = `${process.env.NEXT_PUBLIC_OMNISONIC_URL ?? ""}/embed/button`;
+      iframe.style.display = "none";
+      iframe.allow = "autoplay";
+      iframeRef.current = iframe;
+      document.body.appendChild(iframe);
     }
+    iframeRef.current.contentWindow?.postMessage(
+      { type: next ? "play" : "pause" },
+      "*",
+    );
   };
 
   return (
@@ -92,7 +99,7 @@ export function FlowTimer() {
           viewBox="0 0 12 12"
           fill="none"
           aria-hidden
-          className={`mr-0.5 transition-colors duration-300 ${isPlaying ? "text-purple-500" : "text-zinc-400"}`}
+          className={`mr-0.5 transition-colors duration-300 ${isRunning ? "text-purple-500" : "text-zinc-400"}`}
         >
           <path d="M10.5 8.5v-7A1.5 1.5 0 0 0 9 0H1.5A1.5 1.5 0 0 0 0 1.5v9A1.5 1.5 0 0 0 1.5 12h7.5A1.5 1.5 0 0 0 10.5 10.5V8.5z" fill="currentColor" opacity="0.3" />
           <rect x="2" y="2" width="8" height="8" rx="1.5" fill="currentColor" />
@@ -133,13 +140,12 @@ export function FlowTimer() {
       </button>
       </div>
 
-      {/* 獨立音樂控制 — 與計時器各自獨立 */}
+      {/* 獨立音樂控制 — 與計時器各自獨立，iframe embed 方式（CORS 不受限） */}
       <button
         type="button"
         onClick={handleMusicToggle}
-        disabled={zenState.isLoading && !isPlaying}
-        aria-label={zenState.isLoading ? "音樂載入中" : isPlaying ? "暫停心流音樂" : "播放心流音樂"}
-        className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 shadow-sm ring-1 ring-zinc-100 backdrop-blur transition-all duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+        aria-label={musicOn ? "暫停心流音樂" : "播放心流音樂"}
+        className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 shadow-sm ring-1 ring-zinc-100 backdrop-blur transition-all duration-200 hover:-translate-y-0.5"
       >
         {/* 耳機圖示 */}
         <svg
@@ -152,13 +158,13 @@ export function FlowTimer() {
           strokeLinecap="round"
           strokeLinejoin="round"
           aria-hidden
-          className={isPlaying ? "text-purple-500" : "text-zinc-400"}
+          className={musicOn ? "text-purple-500" : "text-zinc-400"}
         >
           <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
           <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
         </svg>
-        <span className={`text-[13px] font-medium ${isPlaying ? "text-zinc-800" : "text-zinc-400"}`}>
-          {zenState.isLoading ? "載入中…" : isPlaying ? "音樂 ON" : "音樂 OFF"}
+        <span className={`text-[13px] font-medium ${musicOn ? "text-zinc-800" : "text-zinc-400"}`}>
+          {musicOn ? "音樂 ON" : "音樂 OFF"}
         </span>
       </button>
     </div>
