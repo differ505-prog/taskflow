@@ -24,7 +24,7 @@ type TimerType = FlowTimerType;
 
 export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
   const { tasks, todayFocusMinutes } = useApp();
-  const { state: zenState, play, pause } = useZenFlowContext();
+  const { state: zenState } = useZenFlowContext();
   const flowTimer = useFlowTimerContext();
 
   const {
@@ -79,28 +79,24 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
           });
         } catch {}
       }
-      if (isFocus) pause();
       // 條件 B：首次番茄鐘完成 → 觸發 PWA 安裝提示
       dispatchPwaInstallPrompt();
     });
     return unsubscribe;
-  }, [flowTimer, pause]);
+  }, [flowTimer]);
 
   // Auto-play music when focus session starts
   useEffect(() => {
-    if (snapshot.phase === "running" && snapshot.type === "focus" && !zenState.isPlaying) {
-      play();
-    }
-  }, [snapshot.phase, snapshot.type, zenState.isPlaying, play]);
+    // 音樂控制已從計時器拆分，用戶需手動點擊音樂按鈕
+  }, [snapshot.phase, snapshot.type, zenState.isPlaying]);
 
   const handleStart = useCallback(() => {
     if (snapshot.phase === "paused") {
       resume();
-      if (snapshot.type === "focus" && !zenState.isPlaying) play();
     } else {
       start({ type: snapshot.type, taskId: snapshot.boundTaskId });
     }
-  }, [snapshot.phase, snapshot.type, snapshot.boundTaskId, start, resume, zenState.isPlaying, play]);
+  }, [snapshot.phase, snapshot.type, snapshot.boundTaskId, start, resume]);
 
   const handlePause = useCallback(() => {
     pauseFlowTimer();
@@ -108,8 +104,7 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
 
   const handleReset = useCallback(() => {
     reset({ type: snapshot.type });
-    if (snapshot.type === "focus") pause();
-  }, [reset, snapshot.type, pause]);
+  }, [reset, snapshot.type]);
 
   if (!isOpen) return null;
   if (!mounted) return null;
