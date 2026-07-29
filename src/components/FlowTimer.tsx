@@ -44,6 +44,19 @@ export function FlowTimer() {
     return () => clearTimer();
   }, [isRunning, clearTimer]);
 
+  // §26 升級:禪模式音樂按鈕改用 OmniSonic iframe (照抄 FlowTimerModal 設計),
+  // 25 分鐘計時到點時透過 key prop 重置 iframe 中斷音樂
+  const omnisonicBaseUrl = process.env.NEXT_PUBLIC_OMNISONIC_URL ?? "";
+  const iframeKeyRef = useRef(0);
+  const [iframeKey, setIframeKey] = useState(0);
+
+  // §26:計時到 0 時重置 iframe → 強制停止 iframe 內音樂(跨域無法 postMessage)
+  useEffect(() => {
+    if (remaining === 0 && isRunning) {
+      setIframeKey(++iframeKeyRef.current);
+    }
+  }, [remaining, isRunning]);
+
   const handlePlayPause = () => {
     if (isRunning) {
       clearTimer();
@@ -123,45 +136,20 @@ export function FlowTimer() {
       </button>
       </div>
 
-      {/* 獨立音樂控制 — 直接呼叫 useZenFlowContext play/pause，無需彈窗 */}
-      <button
-        type="button"
-        onClick={() => {
-          console.log("[FlowTimer] click", {
-            isPlaying: zenState.isPlaying,
-            playlistLen: zenState.playlist.length,
-            isLoading: zenState.isLoading,
-            error: zenState.error,
-          });
-          if (zenState.isPlaying) {
-            pause();
-          } else {
-            play();
-          }
-        }}
-        aria-label={zenState.isPlaying ? "暫停心流音樂" : "播放心流音樂"}
-        className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 shadow-sm ring-1 ring-zinc-100 backdrop-blur transition-all duration-200 hover:-translate-y-0.5"
+      {/* OmniSonic Deep Focus iframe 按鈕 — 照抄 FlowTimerModal circle 結構,精簡為 28px 配禪模式膠囊 */}
+      <div
+        className="relative w-7 h-7 rounded-full overflow-hidden border cursor-pointer transition-all hover:scale-105 active:scale-95 flex-shrink-0"
+        style={{ borderColor: "rgba(192,38,211,0.3)", boxShadow: "0 0 12px rgba(192,38,211,0.25)" }}
+        aria-label={isRunning ? "心流音樂播放中" : "播放心流音樂"}
       >
-        {/* 耳機圖示 */}
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-          className={zenState.isPlaying ? "text-purple-500" : "text-zinc-400"}
-        >
-          <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
-          <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
-        </svg>
-        <span className={`text-[13px] font-medium ${zenState.isPlaying ? "text-zinc-800" : "text-zinc-400"}`}>
-          {zenState.isPlaying ? "音樂 ON" : "音樂 OFF"}
-        </span>
-      </button>
+        <iframe
+          key={iframeKey}
+          src={`${omnisonicBaseUrl}/embed/button`}
+          title="OmniSonic Deep Focus Button"
+          className="w-full h-full border-0"
+          allow="autoplay"
+        />
+      </div>
     </div>
   );
 }
