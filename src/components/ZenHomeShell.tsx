@@ -123,7 +123,7 @@ function BoardDrawer({
             transition={{ duration: 0.3, ease: "easeOut" }}
             className="fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-[var(--surface-muted)] shadow-2xl md:max-w-[1280px] lg:max-w-[1440px]"
           >
-            <div className="flex items-center justify-end px-4 pt-3 sm:px-6">
+            <div className="flex items-center justify-end px-4 py-3 sm:px-6">
               <button
                 type="button"
                 onClick={onClose}
