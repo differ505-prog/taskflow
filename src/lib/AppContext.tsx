@@ -1002,8 +1002,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
     if (task.startDate) {
-      const tomorrow = toLocalDateString(new Date(Date.now() + 86400000));
-      updateTask(id, { startDate: tomorrow });
+      // §A+:區間任務同步推遲 startDate 跟 dueDate,保持區間長度不變(避免兩者撕開造成 selectZenTasks 仍命中)
+      const newStart = toLocalDateString(new Date(Date.now() + 86400000));
+      const newDue = task.dueDate
+        ? toLocalDateString(new Date(new Date(task.dueDate).getTime() + 86400000))
+        : undefined;
+      updateTask(id, { startDate: newStart, dueDate: newDue });
     } else {
       updateTask(id, { dueDate: undefined });
     }

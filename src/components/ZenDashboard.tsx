@@ -60,6 +60,8 @@ function selectZenTasks(tasks: Task[]): Task[] {
       !t.isArchived &&
       t.status === "todo" &&
       !t.parentId &&
+      // §A+ 雙保險:startDate 是未來天 → 該任務今天還沒開始,不應作為焦點
+      !(t.startDate && t.startDate > today) &&
       t.dueDate === today,
   );
 }
