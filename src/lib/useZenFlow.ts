@@ -170,8 +170,7 @@ export function useZenFlow(omnisonicBaseUrl: string) {
     (trackId?: string) => {
       if (!currentHowlRef.current) {
         if (playlistRef.current.length === 0) {
-          if (!state.isLoading && !state.error) {
-            setState((prev) => ({ ...prev, isLoading: true }));
+          setState((prev) => ({ ...prev, isLoading: true }));
             fetch(`${omnisonicBaseUrl}/api/zenflow/autodj/playlist`, { next: { revalidate: 10 } })
               .then((r) => r.json())
               .then((data: { tracks: ZenFlowTrack[]; sessionPlan: OmniSonicSessionPlan }) => {
@@ -188,8 +187,7 @@ export function useZenFlow(omnisonicBaseUrl: string) {
                 }));
                 if (tracks.length > 0) startTrack(0, 800);
               })
-              .catch(() => setState((prev) => ({ ...prev, isLoading: false })));
-          }
+                .catch(() => setState((prev) => ({ ...prev, isLoading: false })));
           return;
         }
         const idx = trackId
@@ -206,7 +204,7 @@ export function useZenFlow(omnisonicBaseUrl: string) {
         emit();
       }
     },
-    [emit, omnisonicBaseUrl, startTrack, state.error, state.isLoading],
+    [emit, omnisonicBaseUrl, startTrack],
   );
 
   const pause = useCallback(() => {
