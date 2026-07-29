@@ -743,7 +743,7 @@ function CalendarTaskSheetMobile({
   const handleRef = useRef<HTMLDivElement | null>(null);
   const quickAddInputRef = useRef<HTMLInputElement | null>(null);
 
-  const { level, open, toggleExpand, heightRatio, dragOffset, isDragging } = useBottomSheet({
+  const { level, toggleExpand, heightRatio, dragOffset, isDragging } = useBottomSheet({
     handleRef,
     sheetRef,
     defaultRatio: 0.7,
@@ -757,12 +757,6 @@ function CalendarTaskSheetMobile({
       setIsOpen(false);
     }
   }, [level]);
-
-  useEffect(() => {
-    if (selectedDate) {
-      open();
-    }
-  }, [selectedDate, open]);
 
   const selectedDateTasks = useMemo(() => {
     if (!selectedDate) return [];
