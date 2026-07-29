@@ -225,7 +225,10 @@ export function AppShell({
 
   const stats = {
     total: tasks.filter((t) => !t.isArchived).length,
-    today: tasks.filter((t) => !t.isArchived && t.dueDate === new Date().toISOString().split("T")[0]).length,
+    today: tasks.filter((t) => {
+      if (!t.dueDate || t.isArchived || t.status === "done") return false;
+      return t.dueDate === new Date().toISOString().split("T")[0] || t.dueDate < new Date().toISOString().split("T")[0];
+    }).length,
     overdue: tasks.filter((t) => {
       if (!t.dueDate || t.isArchived || t.status === "done") return false;
       return t.dueDate < new Date().toISOString().split("T")[0];

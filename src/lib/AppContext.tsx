@@ -691,7 +691,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const localWeekEnd = `${weekEndDate.getFullYear()}-${String(weekEndDate.getMonth()+1).padStart(2,"0")}-${String(weekEndDate.getDate()).padStart(2,"0")}`;
 
     if (currentView === "today") {
-      result = result.filter((t) => t.dueDate === localToday);
+      // Rollover 規則：同時包含今天 + 所有未完成的過去任務（單日 + 區間均適用）
+      result = result.filter((t) => {
+        if (!t.dueDate || t.status === "done") return false;
+        return t.dueDate === localToday || t.dueDate < localToday;
+      });
     } else if (currentView === "next7days") {
       result = result.filter((t) => t.dueDate && t.dueDate >= localToday && t.dueDate <= localWeekEnd);
     } else if (currentView === "list" && currentListId) {
@@ -736,7 +740,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const localWeekEnd = `${weekEndDate.getFullYear()}-${String(weekEndDate.getMonth()+1).padStart(2,"0")}-${String(weekEndDate.getDate()).padStart(2,"0")}`;
     return {
       inbox: active.filter((t) => !t.listId && t.status !== "done").length,
-      today: active.filter((t) => t.dueDate === localToday && t.status !== "done").length,
+      today: active.filter((t) => {
+        if (!t.dueDate || t.status === "done") return false;
+        return t.dueDate === localToday || t.dueDate < localToday;
+      }).length,
       next7days: active.filter((t) => t.dueDate && t.dueDate >= localToday && t.dueDate <= localWeekEnd && t.status !== "done").length,
       // Eisenhower 四象限計數 — 使用既有 priority 字段(已包含自動 Q1 提升規則由 getEisenhowerVisual 處理)
       // 視圖層渲染時呼叫 getEisenhowerVisual 取實時象限
