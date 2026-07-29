@@ -130,8 +130,9 @@ export function FlowTimer() {
       </div>
 
       {/* OmniSonic Deep Focus iframe 按鈕 — 與 FlowTimerModal circle 結構完全一致,精簡為 28px 配禪模式膠囊 */}
+      {/* flex 確保 OmniSonic embed 圖形在 28x28 正中央 */}
       <div
-        className="relative w-7 h-7 rounded-full overflow-hidden border cursor-pointer transition-all hover:scale-105 active:scale-95 flex-shrink-0"
+        className="relative w-7 h-7 rounded-full overflow-hidden border cursor-pointer transition-all hover:scale-105 active:scale-95 flex-shrink-0 flex items-center justify-center"
         style={{ borderColor: "rgba(192,38,211,0.3)", boxShadow: "0 0 12px rgba(192,38,211,0.25)" }}
         aria-label={isRunning ? "心流音樂播放中 🎵 點擊調整" : "點這裡播放心流音樂 🎵"}
       >
