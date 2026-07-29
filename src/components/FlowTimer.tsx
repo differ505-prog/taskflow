@@ -126,7 +126,19 @@ export function FlowTimer() {
       {/* 獨立音樂控制 — 直接呼叫 useZenFlowContext play/pause，無需彈窗 */}
       <button
         type="button"
-        onClick={zenState.isPlaying ? pause : () => play()}
+        onClick={() => {
+          console.log("[FlowTimer] click", {
+            isPlaying: zenState.isPlaying,
+            playlistLen: zenState.playlist.length,
+            isLoading: zenState.isLoading,
+            error: zenState.error,
+          });
+          if (zenState.isPlaying) {
+            pause();
+          } else {
+            play();
+          }
+        }}
         aria-label={zenState.isPlaying ? "暫停心流音樂" : "播放心流音樂"}
         className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 shadow-sm ring-1 ring-zinc-100 backdrop-blur transition-all duration-200 hover:-translate-y-0.5"
       >
