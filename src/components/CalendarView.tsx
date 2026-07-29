@@ -621,7 +621,7 @@ function DesktopCalendarLayout({
               onChange={(e) => setQuickAddTitle(e.target.value)}
               placeholder="新增任務…"
               className="input flex-1"
-              style={{ fontSize: 14, padding: "10px 14px" }}
+              style={{ fontSize: 16, padding: "10px 14px" }}
               aria-label="新增任務"
             />
             <button type="submit" className="btn-primary py-2.5 px-4 flex items-center gap-1.5 flex-shrink-0" aria-label="新增">
@@ -858,7 +858,7 @@ function CalendarTaskSheetMobile({
             onChange={(e) => setQuickAddTitle(e.target.value)}
             placeholder="新增任務…"
             className="input flex-1"
-            style={{ fontSize: 14, padding: "10px 14px" }}
+            style={{ fontSize: 16, padding: "10px 14px" }}
             aria-label="新增任務"
           />
           <button type="submit" className="btn-primary py-2.5 px-4 flex items-center gap-1.5 flex-shrink-0" aria-label="新增">
