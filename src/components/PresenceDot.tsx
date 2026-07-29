@@ -27,7 +27,7 @@ export default function PresenceDot() {
 
   return (
     <div
-      className="fixed right-6 z-20 inline-flex items-center gap-2 rounded-full bg-white/60 px-2.5 py-1.5 backdrop-blur"
+      className="fixed left-6 z-20 inline-flex items-center gap-2 rounded-full bg-white/60 px-2.5 py-1.5 backdrop-blur"
       style={{
         // §Q 2026-07-29：捕捉靈感 FAB 上緣 = 72px (24px bottom + 48px btn-h)
         // 原本「緊貼」設計會讓 PresenceDot 跟 FAB 視覺擠在一起,加 24px gap
