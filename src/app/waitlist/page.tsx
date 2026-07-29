@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Rocket, CheckCircle, Sparkles, Swords, Brain, Moon } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
+import { track } from "@/lib/analytics";
 
 export default function WaitlistPage() {
   const { signInWithGoogle } = useAuth();
@@ -12,6 +13,7 @@ export default function WaitlistPage() {
   const handleGoogleLogin = async () => {
     if (loading) return;
     setLoading(true);
+    track("waitlist_login_click");
     try {
       await signInWithGoogle();
     } catch {

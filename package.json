@@ -21,6 +21,7 @@
     "@supabase/supabase-js": "^2.110.1",
     "@types/canvas-confetti": "^1.9.0",
     "@types/howler": "^2.2.13",
+    "@vercel/analytics": "^2.0.1",
     "canvas-confetti": "^1.9.4",
     "date-fns": "^4.1.0",
     "firebase": "^12.15.0",
