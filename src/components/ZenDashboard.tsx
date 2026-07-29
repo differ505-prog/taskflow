@@ -65,7 +65,7 @@ function selectZenTasks(tasks: Task[]): Task[] {
 }
 
 export default function ZenDashboard() {
-  const { tasks, toggleTaskStatus, reorderTasks, updateTask } = useApp();
+  const { tasks, toggleTaskStatus, reorderTasks, updateTask, escapeTask } = useApp();
   const visibleTasks = useMemo(() => selectZenTasks(tasks), [tasks]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -322,7 +322,7 @@ export default function ZenDashboard() {
                 isSlashing={isSlashing}
                 isCrashing={isCrashing}
                 onComplete={() => handleComplete(focus.id)}
-                onSkip={() => updateTask(focus.id, { dueDate: "" })}
+                onSkip={() => escapeTask(focus.id)}
                 onUpdateTitle={(id, title) => updateTask(id, { title })}
                 ghostButton={
                   <GhostButton
@@ -597,24 +597,26 @@ function FocusCard({
         </p>
       )}
 
-      <button
-        type="button"
-        onClick={onComplete}
-        disabled={isSlashing || isCrashing || isEditing}
-        className="mt-8 inline-flex items-center gap-2 rounded-full bg-slate-800 px-6 py-3 text-sm font-medium text-slate-50 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-slate-900 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
-      >
-        <span aria-hidden>✓ 完成</span>
-        <span className="sr-only">完成任務</span>
-      </button>
-      <button
-        type="button"
-        onClick={onSkip}
-        disabled={isSlashing || isCrashing || isEditing}
-        className="mt-3 text-sm text-slate-400 transition-colors hover:text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
-        aria-label="跳過並退回收集箱"
-      >
-        退回收集箱
-      </button>
+      <div className="mt-8 flex flex-col items-center gap-3">
+        <button
+          type="button"
+          onClick={onComplete}
+          disabled={isSlashing || isCrashing || isEditing}
+          className="inline-flex items-center gap-2 rounded-full bg-slate-800 px-6 py-3 text-sm font-medium text-slate-50 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-slate-900 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+        >
+          <span aria-hidden>✓ 完成</span>
+          <span className="sr-only">完成任務</span>
+        </button>
+        <button
+          type="button"
+          onClick={onSkip}
+          disabled={isSlashing || isCrashing || isEditing}
+          className="text-sm text-slate-400 transition-colors hover:text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label="跳過此任務 — 區間任務推遲一天、單日任務退回收集箱"
+        >
+          跳過
+        </button>
+      </div>
     </motion.article>
   );
 }

@@ -7,18 +7,16 @@ import type { Task } from "@/lib/types";
 /**
  * useProactiveClosure — 「今天先這樣」共用行為 hook
  *
- * 設計動機（§5 DRY）：
+ * 設計動機(§5 DRY):
  * - Zen 模式 TodayWrapUpButton 與 AppShell 主清單 toolbar 的「今天先這樣」按鈕
- *   底層意圖完全相同:把未完成任務的 dueDate 清空,送回 Backlog
+ *   底層意圖完全相同:把未完成任務「逃生」回 Backlog
  * - 但兩處 UX 細節不同:Zen 模式給 PP 獎勵 + 安撫 toast,toolbar 給 confirm 確認窗
  * - 把「資料層行為 + wrapping 鎖 + 副作用 hook」統一,UX 細節留 callback 注入
  *
- * 絕對約束（§5-L 防線 + §X 戰略性撤退設定）:
- * - 永遠是 dueDate → undefined,絕對不可呼叫 archiveTask / isArchived
- * - 封存是「🍃 無罪赦免」的專屬特權
- *
- * sync 層（§23 確認）:
- * - 走 useApp().updateTask → batchSaveTasksFirebase + markRecentlyWritten(§26-A)
+ * 統一逃生邏輯(§Unified Escape Protocol):
+ * - 區間任務(有 startDate):startDate 推進 1 天,絕對不清空(防忘記死線)
+ * - 單日任務(無 startDate):dueDate → undefined(無罪赦免,退回收集箱)
+ * 實作走 AppContext.escapeTask(§23 sync 層)+ markRecentlyWritten(§26-A)
  *
  * @example
  *   const { wrapUp, wrapping } = useProactiveClosure({
@@ -38,7 +36,7 @@ type Options = {
 };
 
 export function useProactiveClosure(opts: Options = {}) {
-  const { updateTask } = useApp();
+  const { escapeTask } = useApp();
   const [wrapping, setWrapping] = useState(false);
   const { onBeforeWrap, onWrapComplete, cooldownMs = 1500 } = opts;
 
@@ -55,8 +53,9 @@ export function useProactiveClosure(opts: Options = {}) {
 
     setWrapping(true);
 
-    // 資料層:dueDate → undefined,任務回 Backlog
-    pending.forEach((task) => updateTask(task.id, { dueDate: undefined }));
+    // 統一逃生:區間任務(有 startDate)推遲 1 天,單日任務 dueDate → undefined
+    // 透過 escapeTask 走 updateTask sync 路徑,確保雲端同步
+    pending.forEach((task) => escapeTask(task.id));
 
     onWrapComplete?.(pending.length);
 

@@ -114,6 +114,8 @@ interface AppContextValue {
   clearEditingActivity: (id: string) => void;
   archiveTask: (id: string) => void;
   unarchiveTask: (id: string) => void;
+  /** 統一逃生:區間任務推 1 天,單日任務清 dueDate(退回收集箱) */
+  escapeTask: (id: string) => void;
 
   // ── 子任務 ─────────────────────────────────────────────
   addSubTask: (parentId: string, title: string) => void;
@@ -989,6 +991,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const archiveTask = useCallback((id: string) => updateTask(id, { isArchived: true }), [updateTask]);
   const unarchiveTask = useCallback((id: string) => updateTask(id, { isArchived: false }), [updateTask]);
 
+  /**
+   * 統一逃生邏輯(Unified Escape Protocol)
+   * - 區間任務(有 startDate):把 startDate 推遲 1 天,絕對不清空日期(防忘記死線)
+   * - 單日任務(無 startDate):dueDate → undefined(無罪赦免,退回收集箱)
+   * 走 updateTask sync 路徑(§23):markRecentlyWritten + batchSaveTasksFirebase
+   * 禪模式「跳過」與「今天先這樣」兩個入口共用此函式
+   */
+  const escapeTask = useCallback((id: string) => {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+    if (task.startDate) {
+      const tomorrow = toLocalDateString(new Date(Date.now() + 86400000));
+      updateTask(id, { startDate: tomorrow });
+    } else {
+      updateTask(id, { dueDate: undefined });
+    }
+  }, [tasks, updateTask]);
+
   // ── 子任務 ──────────────────────────────────────────────
   const addSubTask = useCallback((parentId: string, title: string) => {
     const task = tasks.find((t) => t.id === parentId);
@@ -1825,7 +1845,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     currentSharedListId, setCurrentSharedList,
     searchQuery, setSearchQuery,
     activeFilter, setActiveFilter,
-    addTask, updateTask, deleteTask, toggleTaskStatus, archiveTask, unarchiveTask,
+    addTask, updateTask, deleteTask, toggleTaskStatus, archiveTask, unarchiveTask, escapeTask,
     addSubTask, toggleSubTask, deleteSubTask, reorderSubTasks,
     completeRecurringAndClone,
     addList, updateList, deleteList, reorderLists, reorderTasks,
