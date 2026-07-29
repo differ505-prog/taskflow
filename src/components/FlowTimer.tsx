@@ -133,7 +133,7 @@ export function FlowTimer() {
       <div
         className="relative w-7 h-7 rounded-full overflow-hidden border cursor-pointer transition-all hover:scale-105 active:scale-95 flex-shrink-0"
         style={{ borderColor: "rgba(192,38,211,0.3)", boxShadow: "0 0 12px rgba(192,38,211,0.25)" }}
-        aria-label={isRunning ? "心流音樂播放中" : "播放心流音樂"}
+        aria-label={isRunning ? "心流音樂播放中 🎵 點擊調整" : "點這裡播放心流音樂 🎵"}
       >
         <iframe
           ref={omnisonicIframeRef}
