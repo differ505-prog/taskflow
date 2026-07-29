@@ -35,7 +35,6 @@ import { WarmupSection } from "@/components/WarmupSection";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import PresenceDot from "@/components/PresenceDot";
 import { FlowTimer } from "@/components/FlowTimer";
-import { FlowTimerModal } from "@/components/FlowTimerModal";
 import { BASE_TASK_PP } from "@/lib/progressRank";
 import { QuickCaptureTrigger } from "@/components/QuickCaptureTrigger";
 import { GhostButton } from "@/components/GhostButton";
@@ -80,7 +79,6 @@ export default function ZenDashboard() {
   // - 底部 FAB 點擊召喚(手機入口)
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false);
   const [warmupFlowOpen, setWarmupFlowOpen] = useState(false);
-  const [flowTimerOpen, setFlowTimerOpen] = useState(false);
   useQuickCaptureShortcut(
     () => setQuickCaptureOpen(true),
     true,
@@ -312,7 +310,7 @@ export default function ZenDashboard() {
             </button>
           )}
           {/* 心流計時器膠囊 — 置於焦點任務卡片上方 */}
-          <FlowTimer onOpenFlowTimer={() => setFlowTimerOpen(true)} />
+          <FlowTimer />
           <h1 id="focus-heading" className="sr-only">
             當前焦點
           </h1>
@@ -423,12 +421,6 @@ export default function ZenDashboard() {
         onClose={bodyDoublingGhost.handleDismiss}
         onJoin={bodyDoublingGhost.handleJoin}
         featureId="body_doubling"
-      />
-
-      {/* 心流計時器 + 音樂控制 Modal */}
-      <FlowTimerModal
-        isOpen={flowTimerOpen}
-        onClose={() => setFlowTimerOpen(false)}
       />
     </main>
   );

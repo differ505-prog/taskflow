@@ -12,8 +12,8 @@ function formatTime(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export function FlowTimer({ onOpenFlowTimer }: { onOpenFlowTimer: () => void }) {
-  const { state: zenState } = useZenFlowContext();
+export function FlowTimer() {
+  const { state: zenState, play, pause } = useZenFlowContext();
   const [remaining, setRemaining] = useState(FOCUS_DURATION);
   const [isRunning, setIsRunning] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -123,10 +123,10 @@ export function FlowTimer({ onOpenFlowTimer }: { onOpenFlowTimer: () => void }) 
       </button>
       </div>
 
-      {/* 獨立音樂控制 — 點擊後開啟 FlowTimerModal（與 FlowTimerModal 共享同一個 howler 實例） */}
+      {/* 獨立音樂控制 — 直接呼叫 useZenFlowContext play/pause，無需彈窗 */}
       <button
         type="button"
-        onClick={onOpenFlowTimer}
+        onClick={zenState.isPlaying ? pause : () => play()}
         aria-label={zenState.isPlaying ? "暫停心流音樂" : "播放心流音樂"}
         className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 shadow-sm ring-1 ring-zinc-100 backdrop-blur transition-all duration-200 hover:-translate-y-0.5"
       >
