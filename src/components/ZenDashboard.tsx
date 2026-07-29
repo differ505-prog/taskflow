@@ -322,6 +322,7 @@ export default function ZenDashboard() {
                 isSlashing={isSlashing}
                 isCrashing={isCrashing}
                 onComplete={() => handleComplete(focus.id)}
+                onSkip={() => updateTask(focus.id, { dueDate: "" })}
                 onUpdateTitle={(id, title) => updateTask(id, { title })}
                 ghostButton={
                   <GhostButton
@@ -433,6 +434,7 @@ function FocusCard({
   isSlashing,
   isCrashing,
   onComplete,
+  onSkip,
   ghostButton,
   onUpdateTitle,
 }: {
@@ -440,6 +442,7 @@ function FocusCard({
   isSlashing: boolean;
   isCrashing: boolean;
   onComplete: () => void;
+  onSkip: () => void;
   ghostButton?: React.ReactNode;
   onUpdateTitle: (id: string, title: string) => void;
 }) {
@@ -602,6 +605,15 @@ function FocusCard({
       >
         <span aria-hidden>✓ 完成</span>
         <span className="sr-only">完成任務</span>
+      </button>
+      <button
+        type="button"
+        onClick={onSkip}
+        disabled={isSlashing || isCrashing || isEditing}
+        className="mt-3 text-sm text-slate-400 transition-colors hover:text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+        aria-label="跳過並退回收集箱"
+      >
+        退回收集箱
       </button>
     </motion.article>
   );
