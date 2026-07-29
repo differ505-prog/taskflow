@@ -782,3 +782,29 @@
   70% { transform: scale(1.1) rotate(5deg); }
   100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
+
+/* ============================================================
+   THIRD-PARTY WIDGET OVERRIDES (e.g., Tally Feedback)
+   ============================================================ */
+/* 覆蓋 Tally Popup / Widget 預設位置，避免與底部按鈕、狀態文字重疊 */
+#tally-popup, 
+.tally-popup, 
+.tally-widget-container, 
+iframe[src*="tally.so"] {
+  /* 手機版：強制改放置於左側，避開右下的 FAB 與導覽列 */
+  left: 20px !important;
+  right: auto !important;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important; 
+}
+
+/* 桌面版 (md 以上)：維持右側但調高，避開右下角狀態文字 */
+@media (min-width: 768px) {
+  #tally-popup, 
+  .tally-popup, 
+  .tally-widget-container, 
+  iframe[src*="tally.so"] {
+    right: 20px !important;
+    left: auto !important;
+    bottom: 60px !important; 
+  }
+}
