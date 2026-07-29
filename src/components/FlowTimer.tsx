@@ -15,6 +15,14 @@ export function FlowTimer() {
   const [remaining, setRemaining] = useState(FOCUS_DURATION);
   const [isRunning, setIsRunning] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const omnisonicIframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  // §React 19 hydration workaround:iframe src 在 useEffect 才注入,
+  // 避免 SSR 階段 React 將 iframe 標記為 hydration mismatch 而跳過 element
+  useEffect(() => {
+    if (!omnisonicIframeRef.current) return;
+    omnisonicIframeRef.current.src = `${process.env.NEXT_PUBLIC_OMNISONIC_URL ?? ""}/embed/button`;
+  }, []);
 
   const clearTimer = useCallback(() => {
     if (intervalRef.current) {
@@ -128,7 +136,7 @@ export function FlowTimer() {
         aria-label={isRunning ? "心流音樂播放中" : "播放心流音樂"}
       >
         <iframe
-          src={`${process.env.NEXT_PUBLIC_OMNISONIC_URL ?? ""}/embed/button`}
+          ref={omnisonicIframeRef}
           title="OmniSonic Deep Focus Button"
           className="w-full h-full border-0"
           allow="autoplay"
