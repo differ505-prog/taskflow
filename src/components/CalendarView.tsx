@@ -773,9 +773,6 @@ function CalendarTaskSheetMobile({
 
   useEffect(() => {
     setQuickAddTitle("");
-    if (selectedDate && quickAddInputRef.current) {
-      setTimeout(() => quickAddInputRef.current?.focus(), 350);
-    }
   }, [selectedDate]);
 
   if (!selectedDate) return null;
