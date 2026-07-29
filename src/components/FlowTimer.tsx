@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Pause, Play } from "lucide-react";
+import { useZenFlowContext } from "@/lib/ZenFlowContext";
 
 const FOCUS_DURATION = 25 * 60; // 25 分鐘（秒）
 
@@ -16,6 +18,18 @@ export function FlowTimer() {
   const [isRunning, setIsRunning] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const omnisonicIframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  // §音樂控制對接:FlowTimer 是禪模式唯一的音樂入口,小紫圓 iframe 只負責啟動。
+  // 但用戶一旦進禪模式開始專注,iframe 內按鈕被焦點任務卡片遮住,找不到停止入口。
+  // 補一顆絕對定位的 ⏸/▶ overlay,綁 zenState.isPlaying,點擊 → controller[isPlaying ? 'pause' : 'play']()。
+  const { state: zenState, play: zenPlay, pause: zenPause } = useZenFlowContext();
+  const handleZenToggle = useCallback(() => {
+    if (zenState.isPlaying) {
+      zenPause();
+    } else {
+      zenPlay();
+    }
+  }, [zenState.isPlaying, zenPause, zenPlay]);
 
   // §React 19 hydration workaround:iframe src 在 useEffect 才注入,
   // 避免 SSR 階段 React 將 iframe 標記為 hydration mismatch 而跳過 element
@@ -132,7 +146,7 @@ export function FlowTimer() {
       {/* OmniSonic Deep Focus iframe 按鈕 — 與 FlowTimerModal circle 結構一致,w-10 配禪模式膠囊 */}
       {/* 之前 w-7 太小,OmniSonic embed 內部播放鍵圖形被裁到角落;放大到 40px 讓播放鍵在容器中央區域 */}
       <div
-        className="relative w-10 h-10 rounded-full overflow-hidden border cursor-pointer transition-all hover:scale-105 active:scale-95 flex-shrink-0"
+        className="group/omnibox relative w-10 h-10 rounded-full overflow-hidden border cursor-pointer transition-all hover:scale-105 active:scale-95 flex-shrink-0"
         style={{ borderColor: "rgba(192,38,211,0.3)", boxShadow: "0 0 14px rgba(192,38,211,0.28)" }}
         aria-label={isRunning ? "心流音樂播放中 🎵 點擊調整" : "點這裡播放心流音樂 🎵"}
       >
@@ -142,6 +156,23 @@ export function FlowTimer() {
           className="w-full h-full border-0"
           allow="autoplay"
         />
+        {/* §音樂控制 overlay:小紫圓右下方 20×20 按鈕,跟 zenState.isPlaying 雙向同步。
+            - 桌機:hover iframe 才完全顯示(預設低透明度,不搶主視覺焦點)
+            - 手機:始終顯示(無 hover 機制)
+            - 動態切換 ▶ / ⏸ icon,符合 §4 高級微互動原則 */}
+        <button
+          type="button"
+          onClick={handleZenToggle}
+          aria-label={zenState.isPlaying ? "暫停心流音樂" : "播放心流音樂"}
+          aria-pressed={zenState.isPlaying}
+          className="absolute bottom-0 right-0 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-white/90 text-purple-600 shadow-sm ring-1 ring-purple-200/60 backdrop-blur transition-all duration-200 ease-out hover:scale-110 hover:bg-white hover:shadow-md active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 opacity-90 group-hover/omnibox:opacity-100 sm:opacity-0 sm:group-hover/omnibox:opacity-100 focus-visible:opacity-100"
+        >
+          {zenState.isPlaying ? (
+            <Pause className="h-2.5 w-2.5" fill="currentColor" strokeWidth={0} />
+          ) : (
+            <Play className="h-2.5 w-2.5 ml-px" fill="currentColor" strokeWidth={0} />
+          )}
+        </button>
       </div>
     </div>
   );
