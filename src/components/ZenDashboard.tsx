@@ -546,14 +546,14 @@ function FocusCard({
         },
       }}
       exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.3 } }}
-      className="group relative w-full rounded-3xl bg-white px-6 pt-10 pb-8 text-center shadow-sm ring-1 ring-slate-200/60 sm:px-12 sm:pt-12 sm:pb-10"
+      className="group relative w-full rounded-3xl bg-white px-6 pt-16 pb-8 text-center shadow-sm ring-1 ring-slate-200/60 sm:px-12 sm:pt-20 sm:pb-10"
       aria-label={`當前焦點任務: ${task.title}`}
     >
       <SlashOverlay active={isSlashing} />
 
       {/* 幽靈按鈕 — 絕對定位於卡片右上,§假門測試用 */}
       {ghostButton && !isEditing && (
-        <div className="absolute right-4 top-4">{ghostButton}</div>
+        <div className="absolute right-5 top-5 sm:right-6 sm:top-6">{ghostButton}</div>
       )}
 
       {/* 標題區 — Desktop 雙擊 / Mobile 長按 500ms 觸發編輯 */}
