@@ -228,7 +228,6 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
     if (t) {
       setSubTaskInputs([...subTaskInputs, t]);
       setSubtaskInputValue("");
-      subtaskInputRef.current?.focus();
     }
   };
 
