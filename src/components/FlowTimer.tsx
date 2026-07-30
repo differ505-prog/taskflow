@@ -151,16 +151,12 @@ export function FlowTimer() {
           aria-label={isRunning ? "心流音樂播放中 🎵 點擊調整" : "點這裡播放心流音樂 🎵"}
         >
           {/* 獨立一層 overflow-hidden 處理 iframe 裁切，不再影響 overlay 按鈕 */}
-          <div className="pointer-events-none relative h-full w-full overflow-hidden rounded-full">
+          <div className="relative h-full w-full overflow-hidden rounded-full">
             <iframe
               ref={omnisonicIframeRef}
               title="OmniSonic Deep Focus Button"
-              className="absolute top-1/2 left-1/2 h-[40px] w-[40px] -translate-x-1/2 -translate-y-1/2 border-none bg-transparent"
-              style={{
-                transform: "scale(0.7)",
-                transformOrigin: "center center",
-                colorScheme: "light",
-              }}
+              className="absolute top-1/2 left-1/2 h-[40px] w-[40px] -translate-x-1/2 -translate-y-1/2 scale-[0.7] border-none bg-transparent"
+              style={{ colorScheme: "light" }}
               allow="autoplay"
             />
           </div>
