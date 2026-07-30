@@ -27,13 +27,7 @@ export default function PresenceDot() {
 
   return (
     <div
-      className="fixed left-6 z-20 inline-flex items-center gap-2 rounded-full bg-white/60 px-2.5 py-1.5 backdrop-blur"
-      style={{
-        // §Q 2026-07-29：捕捉靈感 FAB 上緣 = 72px (24px bottom + 48px btn-h)
-        // 原本「緊貼」設計會讓 PresenceDot 跟 FAB 視覺擠在一起,加 24px gap
-        // = 96px (max 6rem),符合 §2 留白紀律,兩個 floating 元素各自呼吸
-        bottom: "max(6rem, env(safe-area-inset-bottom, 0px))",
-      }}
+      className="inline-flex items-center gap-2 rounded-full bg-slate-100/50 px-3 py-1.5 backdrop-blur"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       aria-label={`估計目前有 ${range.min} 到 ${range.max} 位用戶同步專注,這是基於活躍用戶時區的估算數值`}
@@ -46,7 +40,7 @@ export default function PresenceDot() {
 
       {/* 主文案:字體縮小 + 顏色調淡,更緊密依附 FAB */}
       <span className="text-[11px] text-slate-400">
-        🟢 估計目前有 {range.min}-{range.max} 位用戶同步專注
+        估計目前有 {range.min}-{range.max} 位用戶同步專注
       </span>
 
       {/* Hover tooltip — 揭露這是估算,建立信任 */}

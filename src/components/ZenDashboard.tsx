@@ -249,7 +249,7 @@ export default function ZenDashboard() {
         />
 
         {/* 右群組:等 badge + 無聲專注室 + 任務大廳 */}
-        <div className="flex items-center justify-end gap-3">
+        <div className="flex items-center justify-end gap-3 sm:gap-4">
           <ProgressBadge />
           {/* §26 降噪:無聲營地 — 移除邊框(虛線/實線),改用極低透明度純色背景融入
               GhostButton 用 inline style 設 border,需用 style prop 覆寫 */}
@@ -375,6 +375,11 @@ export default function ZenDashboard() {
 
         {/* 「今天先這樣」 — 禪模式主動封存,只剩焦點卡時也可單獨封存 */}
         <TodayWrapUpButton tasks={visibleTasks} />
+
+        {/* 陪伴指示燈 — §26 放在「今天先這樣」正下方置中，統一中軸線 */}
+        <div className="mt-8 flex justify-center pb-24">
+          <PresenceDot />
+        </div>
       </div>
 
       {/* §10.3 9.2 方案:Spotlight 風格「大腦傾倒」浮動輸入框
@@ -397,11 +402,6 @@ export default function ZenDashboard() {
           setFocusMode(true);
         }}
       />
-
-      {/* 陪伴指示燈 — 右下角,跟左下 WarmupSection 對稱
-          §品牌承諾「真實與脆弱」:顯示估算範圍 + hover tooltip 揭露
-          桌機手機都顯示,右側無其他 fixed 元素競爭 */}
-      <PresenceDot />
 
       {/* FeedbackButton — 禪模式下淡化,hover 才完全顯示 */}
       <FeedbackButton isZenMode />
@@ -546,7 +546,7 @@ function FocusCard({
         },
       }}
       exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.3 } }}
-      className="group relative w-full rounded-3xl bg-white p-12 text-center shadow-sm ring-1 ring-slate-200/60"
+      className="group relative w-full rounded-3xl bg-white px-6 pt-10 pb-8 text-center shadow-sm ring-1 ring-slate-200/60 sm:px-12 sm:pt-12 sm:pb-10"
       aria-label={`當前焦點任務: ${task.title}`}
     >
       <SlashOverlay active={isSlashing} />
