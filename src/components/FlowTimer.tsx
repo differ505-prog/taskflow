@@ -141,41 +141,40 @@ export function FlowTimer() {
       >
         ✨ 無限心流
       </button>
-      {/* §OmniSonic 迷你播放圈圈: 外層強制尺寸(28x28)並隱藏溢出，內層放大(40x40)後等比縮放 */}
-      <div
-        className="group/omnibox relative ml-0.5 flex h-7 w-7 flex-shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border transition-all hover:scale-105 active:scale-95"
-        style={{ borderColor: "rgba(192,38,211,0.3)", boxShadow: "0 0 14px rgba(192,38,211,0.28)" }}
-        aria-label={isRunning ? "心流音樂播放中 🎵 點擊調整" : "點這裡播放心流音樂 🎵"}
-      >
-        <iframe
-          ref={omnisonicIframeRef}
-          title="OmniSonic Deep Focus Button"
-          className="absolute top-1/2 left-1/2 h-[40px] w-[40px] -translate-x-1/2 -translate-y-1/2 border-none bg-transparent"
-          style={{
-            transform: "scale(0.7)",
-            transformOrigin: "center center",
-            colorScheme: "light",
-          }}
-          allow="autoplay"
-        />
-        {/* §音樂控制 overlay:小紫圓右下方按鈕,跟 zenState.isPlaying 雙向同步。
-            - 桌機:hover iframe 才完全顯示(預設低透明度,不搶主視覺焦點)
-            - 手機:始終顯示(無 hover 機制)
-            - 動態切換 ▶ / ⏸ icon,符合 §4 高級微互動原則 */}
-        <button
-          type="button"
-          onClick={handleZenToggle}
-          aria-label={zenState.isPlaying ? "暫停心流音樂" : "播放心流音樂"}
-          aria-pressed={zenState.isPlaying}
-          className="absolute bottom-0 right-0 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-white/90 text-purple-600 shadow-sm ring-1 ring-purple-200/60 backdrop-blur transition-all duration-200 ease-out hover:scale-110 hover:bg-white hover:shadow-md active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 opacity-90 group-hover/omnibox:opacity-100 sm:opacity-0 sm:group-hover/omnibox:opacity-100 focus-visible:opacity-100"
-        >
-          {zenState.isPlaying ? (
-            <Pause className="h-2 w-2" fill="currentColor" strokeWidth={0} />
-          ) : (
-            <Play className="h-2 w-2 ml-px" fill="currentColor" strokeWidth={0} />
-          )}
-        </button>
-      </div>
     </div>
+
+    {/* §OmniSonic 迷你播放圈圈: 外層強制尺寸(28x28)並隱藏溢出，內層放大(40x40)後等比縮放 */}
+    <div
+      className="group/omnibox relative ml-0.5 flex h-7 w-7 flex-shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border transition-all hover:scale-105 active:scale-95"
+      style={{ borderColor: "rgba(192,38,211,0.3)", boxShadow: "0 0 14px rgba(192,38,211,0.28)" }}
+      aria-label={isRunning ? "心流音樂播放中 🎵 點擊調整" : "點這裡播放心流音樂 🎵"}
+    >
+      <iframe
+        ref={omnisonicIframeRef}
+        title="OmniSonic Deep Focus Button"
+        className="absolute top-1/2 left-1/2 h-[40px] w-[40px] -translate-x-1/2 -translate-y-1/2 border-none bg-transparent"
+        style={{
+          transform: "scale(0.7)",
+          transformOrigin: "center center",
+          colorScheme: "light",
+        }}
+        allow="autoplay"
+      />
+      {/* §音樂控制 overlay */}
+      <button
+        type="button"
+        onClick={handleZenToggle}
+        aria-label={zenState.isPlaying ? "暫停心流音樂" : "播放心流音樂"}
+        aria-pressed={zenState.isPlaying}
+        className="absolute bottom-0 right-0 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-white/90 text-purple-600 shadow-sm ring-1 ring-purple-200/60 backdrop-blur transition-all duration-200 ease-out hover:scale-110 hover:bg-white hover:shadow-md active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 opacity-90 group-hover/omnibox:opacity-100 sm:opacity-0 sm:group-hover/omnibox:opacity-100 focus-visible:opacity-100"
+      >
+        {zenState.isPlaying ? (
+          <Pause className="h-2 w-2" fill="currentColor" strokeWidth={0} />
+        ) : (
+          <Play className="h-2 w-2 ml-px" fill="currentColor" strokeWidth={0} />
+        )}
+      </button>
+    </div>
+  </div>
   );
 }
