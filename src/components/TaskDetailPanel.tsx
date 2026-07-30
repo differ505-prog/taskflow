@@ -372,6 +372,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     setSubTasks(updated);
     updateTask(task.id, { subTasks: updated });
     setSubtaskInputValue("");
+    subtaskInputRef.current?.focus();
   };
 
   const toggleSubTask = (subId: string) => {
