@@ -84,97 +84,103 @@ export function FlowTimer() {
   return (
     <div className="inline-flex items-center gap-2">
       <div
-        className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1.5 shadow-sm ring-1 ring-zinc-100 backdrop-blur"
+        className="inline-flex items-center rounded-full bg-white/70 py-1.5 pl-3 pr-1.5 shadow-sm ring-1 ring-zinc-100 backdrop-blur"
         role="group"
         aria-label="心流計時器"
       >
-      {/* 播放 / 暫停 + 音樂圖示指示燈 */}
-      <button
-        type="button"
-        onClick={handlePlayPause}
-        aria-label={isRunning ? "暫停專注倒數" : "開始專注倒數"}
-        className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors duration-150 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400"
-      >
-        {/* 音樂圖示（播放中微微亮起） */}
-        <svg
-          width="11"
-          height="11"
-          viewBox="0 0 12 12"
-          fill="none"
-          aria-hidden
-          className={`mr-0.5 transition-colors duration-300 ${isRunning ? "text-purple-500" : "text-zinc-400"}`}
+        {/* 播放 / 暫停 + 音樂圖示指示燈 */}
+        <button
+          type="button"
+          onClick={handlePlayPause}
+          aria-label={isRunning ? "暫停專注倒數" : "開始專注倒數"}
+          className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors duration-150 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400"
         >
-          <path d="M10.5 8.5v-7A1.5 1.5 0 0 0 9 0H1.5A1.5 1.5 0 0 0 0 1.5v9A1.5 1.5 0 0 0 1.5 12h7.5A1.5 1.5 0 0 0 10.5 10.5V8.5z" fill="currentColor" opacity="0.3" />
-          <rect x="2" y="2" width="8" height="8" rx="1.5" fill="currentColor" />
-        </svg>
-        {isRunning ? (
-          /* Pause icon */
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden className="ml-0.5">
-            <rect x="1.5" y="1" width="3.5" height="10" rx="0.5" />
-            <rect x="7" y="1" width="3.5" height="10" rx="0.5" />
+          {/* 音樂圖示（播放中微微亮起） */}
+          <svg
+            width="11"
+            height="11"
+            viewBox="0 0 12 12"
+            fill="none"
+            aria-hidden
+            className={`mr-0.5 transition-colors duration-300 ${isRunning ? "text-purple-500" : "text-zinc-400"}`}
+          >
+            <path d="M10.5 8.5v-7A1.5 1.5 0 0 0 9 0H1.5A1.5 1.5 0 0 0 0 1.5v9A1.5 1.5 0 0 0 1.5 12h7.5A1.5 1.5 0 0 0 10.5 10.5V8.5z" fill="currentColor" opacity="0.3" />
+            <rect x="2" y="2" width="8" height="8" rx="1.5" fill="currentColor" />
           </svg>
-        ) : (
-          /* Play icon */
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden className="ml-0.5">
-            <path d="M2.5 1.5L10.5 6L2.5 10.5V1.5Z" />
-          </svg>
-        )}
-      </button>
+          {isRunning ? (
+            /* Pause icon */
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden className="ml-0.5">
+              <rect x="1.5" y="1" width="3.5" height="10" rx="0.5" />
+              <rect x="7" y="1" width="3.5" height="10" rx="0.5" />
+            </svg>
+          ) : (
+            /* Play icon */
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden className="ml-0.5">
+              <path d="M2.5 1.5L10.5 6L2.5 10.5V1.5Z" />
+            </svg>
+          )}
+        </button>
 
-      {/* 倒數顯示 */}
-      <span
-        className={`font-mono text-[13px] tabular-nums font-medium tracking-tight transition-colors duration-300 ${
-          isRunning ? "text-zinc-800" : "text-zinc-400"
-        }`}
-        aria-live="polite"
-        aria-label={`剩餘 ${formatTime(remaining)}`}
-      >
-        {formatTime(remaining)}
-      </span>
+        {/* 倒數顯示 */}
+        <span
+          className={`ml-1.5 font-mono text-[13px] tabular-nums font-medium tracking-tight transition-colors duration-300 ${
+            isRunning ? "text-zinc-800" : "text-zinc-400"
+          }`}
+          aria-live="polite"
+          aria-label={`剩餘 ${formatTime(remaining)}`}
+        >
+          {formatTime(remaining)}
+        </span>
 
-      {/* §Fake Door:Pro 無限心流 */}
-      <button
-        type="button"
-        onClick={handleProClick}
-        className="ml-0.5 text-[11px] font-medium text-purple-400/80 transition-colors duration-150 hover:text-purple-500 focus-visible:outline-none focus-visible:underline"
-        aria-label="解鎖無限心流模式（Pro 版專屬）"
-      >
-        ✨ 無限心流
-      </button>
+        {/* §Fake Door:Pro 無限心流 */}
+        <button
+          type="button"
+          onClick={handleProClick}
+          className="ml-2 text-[11px] font-medium text-purple-400/80 transition-colors duration-150 hover:text-purple-500 focus-visible:outline-none focus-visible:underline"
+          aria-label="解鎖無限心流模式（Pro 版專屬）"
+        >
+          ✨ 無限心流
+        </button>
+
+        {/* 視覺分隔線 */}
+        <div className="mx-2 h-3.5 w-px bg-zinc-200/80" />
+
+        {/* §OmniSonic 迷你播放圈圈 */}
+        <div
+          className="group/omnibox relative flex h-7 w-7 flex-shrink-0 cursor-pointer items-center justify-center rounded-full border border-purple-500/30 bg-purple-50/50 shadow-[0_0_12px_rgba(192,38,211,0.25)] transition-all hover:scale-105 active:scale-95"
+          aria-label={isRunning ? "心流音樂播放中 🎵 點擊調整" : "點這裡播放心流音樂 🎵"}
+        >
+          {/* 獨立一層 overflow-hidden 處理 iframe 裁切，不再影響 overlay 按鈕 */}
+          <div className="pointer-events-none relative h-full w-full overflow-hidden rounded-full">
+            <iframe
+              ref={omnisonicIframeRef}
+              title="OmniSonic Deep Focus Button"
+              className="absolute top-1/2 left-1/2 h-[40px] w-[40px] -translate-x-1/2 -translate-y-1/2 border-none bg-transparent"
+              style={{
+                transform: "scale(0.7)",
+                transformOrigin: "center center",
+                colorScheme: "light",
+              }}
+              allow="autoplay"
+            />
+          </div>
+
+          {/* §音樂控制 overlay */}
+          <button
+            type="button"
+            onClick={handleZenToggle}
+            aria-label={zenState.isPlaying ? "暫停心流音樂" : "播放心流音樂"}
+            aria-pressed={zenState.isPlaying}
+            className="absolute -bottom-1 -right-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-white/95 text-purple-600 shadow-md ring-1 ring-purple-200/60 transition-all duration-200 ease-out hover:scale-110 hover:bg-white active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 sm:opacity-0 sm:group-hover/omnibox:opacity-100"
+          >
+            {zenState.isPlaying ? (
+              <Pause className="h-2 w-2" fill="currentColor" strokeWidth={0} />
+            ) : (
+              <Play className="h-2 w-2 ml-px" fill="currentColor" strokeWidth={0} />
+            )}
+          </button>
+        </div>
+      </div>
     </div>
-
-    {/* §OmniSonic 迷你播放圈圈: 外層強制尺寸(28x28)並隱藏溢出，內層放大(40x40)後等比縮放 */}
-    <div
-      className="group/omnibox relative ml-0.5 flex h-7 w-7 flex-shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border transition-all hover:scale-105 active:scale-95"
-      style={{ borderColor: "rgba(192,38,211,0.3)", boxShadow: "0 0 14px rgba(192,38,211,0.28)" }}
-      aria-label={isRunning ? "心流音樂播放中 🎵 點擊調整" : "點這裡播放心流音樂 🎵"}
-    >
-      <iframe
-        ref={omnisonicIframeRef}
-        title="OmniSonic Deep Focus Button"
-        className="absolute top-1/2 left-1/2 h-[40px] w-[40px] -translate-x-1/2 -translate-y-1/2 border-none bg-transparent"
-        style={{
-          transform: "scale(0.7)",
-          transformOrigin: "center center",
-          colorScheme: "light",
-        }}
-        allow="autoplay"
-      />
-      {/* §音樂控制 overlay */}
-      <button
-        type="button"
-        onClick={handleZenToggle}
-        aria-label={zenState.isPlaying ? "暫停心流音樂" : "播放心流音樂"}
-        aria-pressed={zenState.isPlaying}
-        className="absolute bottom-0 right-0 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-white/90 text-purple-600 shadow-sm ring-1 ring-purple-200/60 backdrop-blur transition-all duration-200 ease-out hover:scale-110 hover:bg-white hover:shadow-md active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 opacity-90 group-hover/omnibox:opacity-100 sm:opacity-0 sm:group-hover/omnibox:opacity-100 focus-visible:opacity-100"
-      >
-        {zenState.isPlaying ? (
-          <Pause className="h-2 w-2" fill="currentColor" strokeWidth={0} />
-        ) : (
-          <Play className="h-2 w-2 ml-px" fill="currentColor" strokeWidth={0} />
-        )}
-      </button>
-    </div>
-  </div>
   );
 }
