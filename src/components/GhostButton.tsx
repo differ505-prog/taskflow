@@ -85,7 +85,7 @@ export function GhostButton({
           background: dismissed
             ? "rgba(148, 163, 184, 0.04)"
             : "rgba(148, 163, 184, 0.08)",
-          color: dismissed ? "rgba(148, 163, 184, 0.55)" : "#94a3b8",
+          color: dismissed ? "rgba(100, 116, 139, 0.7)" : "#64748b", // slate-500
           border: dismissed
             ? "1px dashed rgba(148, 163, 184, 0.35)"
             : "1px solid rgba(148, 163, 184, 0.2)",

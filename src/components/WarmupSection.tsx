@@ -119,7 +119,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
             onClick={() => setIsCreating(true)}
             aria-label="建立第一個暖身習慣"
             className="fixed bottom-6 left-6 z-20 flex items-center gap-2 rounded-full bg-white/80 px-3 py-2 text-rose-400 shadow-sm ring-1 ring-slate-200/60 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
-            style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+            style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
             whileTap={{ scale: 0.92 }}
           >
             <Plus className="h-4 w-4" aria-hidden />
@@ -135,7 +135,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
             exit={{ opacity: 0, scale: 0.95, y: 4 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
             className="fixed bottom-6 left-6 z-20 rounded-2xl bg-white/90 p-3 shadow-lg ring-1 ring-slate-200/60 backdrop-blur"
-            style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+            style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
           >
             <p className="mb-2 text-[11px] font-medium uppercase tracking-widest text-slate-400">
               Warmup
@@ -186,7 +186,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut", delay: 0.3 }}
           className="hidden sm:flex fixed bottom-6 left-6 z-20 items-center gap-2 rounded-full bg-white/70 px-3 py-2 backdrop-blur"
-          style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+          style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
         >
           <span className="text-lg" aria-hidden>
             ✓
@@ -200,7 +200,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut", delay: 0.3 }}
           className="sm:hidden fixed bottom-6 left-6 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-500 shadow-sm ring-1 ring-emerald-200/60 backdrop-blur"
-          style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+          style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
           aria-label="今日暖身已就位"
           role="status"
         >
@@ -218,7 +218,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut", delay: 0.3 }}
         className="hidden sm:flex fixed bottom-6 left-6 z-20 flex-col items-start gap-2"
-        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
         role="group"
         aria-label="暖身習慣：點擊完成今日打卡"
       >
@@ -282,7 +282,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
         }}
         aria-label={`完成暖身：${pendingHabits[0]?.title ?? ""}`}
         className="sm:hidden fixed bottom-6 left-6 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-slate-400 shadow-sm ring-1 ring-slate-200/60 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
-        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
         whileTap={{ scale: 0.92 }}
       >
         <span className="text-base font-medium" aria-hidden>
