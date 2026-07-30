@@ -460,7 +460,7 @@ export function TaskCard({
                     onChange={(e) => setNewSubTaskTitle(e.target.value)}
                     placeholder="輸入子任務..."
                     className="input flex-1"
-                    style={{ fontSize: 13, padding: "6px 10px" }}
+                    style={{ fontSize: 16, padding: "6px 10px" }}
                     onKeyDown={(e) => {
                       if (e.key === "Escape") { setShowSubTaskInput(false); setNewSubTaskTitle(""); }
                     }}

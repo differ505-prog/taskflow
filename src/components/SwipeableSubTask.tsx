@@ -58,8 +58,8 @@ export function SwipeableSubTask({
             if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
             if (e.key === "Escape") { onEditCommit(sub.title); }
           }}
-          className="flex-1 text-[13px] bg-white/60 rounded px-1.5 py-0.5 outline-none border border-[var(--brand)]/40 focus:border-[var(--brand)]"
-          style={{ color: "var(--text-primary)" }}
+          className="flex-1 text-base bg-white/60 rounded px-1.5 py-0.5 outline-none border border-[var(--brand)]/40 focus:border-[var(--brand)]"
+          style={{ color: "var(--text-primary)", fontSize: 16 }}
           aria-label="編輯子任務"
         />
       ) : (

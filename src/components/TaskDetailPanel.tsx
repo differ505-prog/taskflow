@@ -647,7 +647,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               value={subtaskInputValue}
               onChange={(e) => setSubtaskInputValue(e.target.value)}
               onKeyDown={(e) => { if (!isComposingKey(e) && e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
-              placeholder="新增子任務..." className="input flex-1" style={{ fontSize: 13, padding: "8px 12px" }} />
+              placeholder="新增子任務..." className="input flex-1" style={{ fontSize: 16, padding: "8px 12px" }} />
             <button
               type="button"
               onClick={(e) => {
