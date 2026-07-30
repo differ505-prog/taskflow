@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Task, SubTask, Priority } from "@/lib/types";
 import { TaskQuickActions } from "./TaskQuickActions";
 import TaskCommentsInline from "./TaskCommentsInline";
@@ -141,6 +141,7 @@ export function TaskCard({
 }: TaskCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showSubTaskInput, setShowSubTaskInput] = useState(false);
+  const subtaskInputRef = useRef<HTMLInputElement>(null);
   const [tagColors, setTagColors] = useState<Record<string, string>>({});
   const [commentsDrawerOpen, setCommentsDrawerOpen] = useState(false);
 
@@ -198,7 +199,7 @@ export function TaskCard({
     if (!title || !onAddSubTask) return;
     onAddSubTask(task.id, title);
     setNewSubTaskTitle("");
-    setShowSubTaskInput(false);
+    subtaskInputRef.current?.focus();
   };
 
   return (
@@ -456,6 +457,7 @@ export function TaskCard({
                 >
                   <input
                     type="text"
+                    ref={subtaskInputRef}
                     value={newSubTaskTitle}
                     onChange={(e) => setNewSubTaskTitle(e.target.value)}
                     placeholder="輸入子任務..."
@@ -476,7 +478,7 @@ export function TaskCard({
                 </form>
               ) : (
                 <button
-                  onClick={(e) => { e.stopPropagation(); setShowSubTaskInput(true); }}
+                  onClick={(e) => { e.stopPropagation(); setShowSubTaskInput(true); subtaskInputRef.current?.focus(); }}
                   className="flex items-center gap-1.5 text-[12px] hover:underline transition-colors"
                   style={{ color: "var(--text-tertiary)" }}
                 >
