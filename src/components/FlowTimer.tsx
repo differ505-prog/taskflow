@@ -158,6 +158,7 @@ export function FlowTimer() {
               className="absolute top-1/2 left-1/2 h-[40px] w-[40px] -translate-x-1/2 -translate-y-1/2 scale-[0.7] border-none bg-transparent"
               style={{ colorScheme: "light" }}
               allow="autoplay"
+              scrolling="no"
             />
           </div>
 
