@@ -50,7 +50,6 @@ export function SwipeableSubTask({
       {/* Title */}
       {isEditing ? (
         <input
-          autoFocus
           type="text"
           defaultValue={sub.title}
           onBlur={(e) => onEditCommit(e.target.value)}

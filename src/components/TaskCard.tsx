@@ -461,7 +461,6 @@ export function TaskCard({
                     placeholder="輸入子任務..."
                     className="input flex-1"
                     style={{ fontSize: 13, padding: "6px 10px" }}
-                    autoFocus
                     onKeyDown={(e) => {
                       if (e.key === "Escape") { setShowSubTaskInput(false); setNewSubTaskTitle(""); }
                     }}
