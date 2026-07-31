@@ -294,11 +294,6 @@ export default function ZenDashboard() {
       </div>
 
       <div className="mx-auto mt-12 flex max-w-2xl flex-col gap-12 pb-12">
-        {/* Zen Mode 標題 — 手機才顯示在這裡(桌機已在頂部工具列中央顯示) */}
-        <header className="text-balance text-sm font-medium uppercase tracking-widest text-slate-400 sm:hidden">
-          Zen Mode
-        </header>
-
         {/* 焦點區 */}
         <section aria-labelledby="focus-heading" className="flex flex-col items-center gap-6">
           {/* §26 B 暖身完焦點模式:頂部加「展開 UPCOMING」按鈕,給逃離路徑 */}
@@ -346,13 +341,7 @@ export default function ZenDashboard() {
 
         {/* 排程區 — §26 B 暖身完焦點模式:收斂視野,隱藏 UPCOMING QUEUE */}
         {!focusMode && queue.length > 0 && (
-          <section aria-labelledby="queue-heading" className="flex flex-col gap-4">
-            <h2
-              id="queue-heading"
-              className="text-balance text-xs font-medium uppercase tracking-widest text-slate-400"
-            >
-              Upcoming Queue
-            </h2>
+          <section aria-label="Upcoming Queue" className="flex flex-col gap-4">
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
