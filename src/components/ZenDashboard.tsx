@@ -223,12 +223,6 @@ export default function ZenDashboard() {
               VibeList
             </span>
           </div>
-          <span className="hidden text-balance text-sm font-medium uppercase tracking-widest text-slate-300 sm:inline">
-            ·
-          </span>
-          <span className="hidden text-balance text-sm font-medium uppercase tracking-widest text-slate-400 sm:inline">
-            Zen Mode
-          </span>
         </div>
 
         {/* 中央 CTA:QuickCaptureTrigger — 桌機顯示在工具列，手機顯示底部 FAB */}
