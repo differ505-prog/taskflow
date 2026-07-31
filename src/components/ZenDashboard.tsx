@@ -637,8 +637,8 @@ function SortableQueueItem({ task }: { task: Task }) {
     <li
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-3 rounded-2xl bg-white/70 px-4 py-3 ring-1 ring-slate-200/60 transition-all duration-200 hover:bg-white ${
-        isDragging ? "opacity-30" : ""
+      className={`flex items-center gap-3 rounded-2xl bg-white/70 px-4 py-3 opacity-75 ring-1 ring-slate-200/40 transition-all duration-200 hover:opacity-90 ${
+        isDragging ? "!opacity-30" : ""
       }`}
     >
       <button
@@ -650,7 +650,7 @@ function SortableQueueItem({ task }: { task: Task }) {
       >
         <GripIcon />
       </button>
-      <QueueItemCard task={task} />
+      <QueueItemCard task={task} isDragging={isDragging} />
     </li>
   );
 }
@@ -658,7 +658,7 @@ function SortableQueueItem({ task }: { task: Task }) {
 function QueueItemCard({ task, isDragging = false }: { task: Task; isDragging?: boolean }) {
   return (
     <span
-      className={`flex-1 truncate text-sm text-slate-700 font-medium ${isDragging ? "rounded-2xl bg-white px-4 py-3 shadow-lg ring-1 ring-slate-200" : ""}`}
+      className={`flex-1 truncate text-[15px] font-medium text-slate-500 ${isDragging ? "rounded-2xl bg-white px-4 py-3 shadow-lg ring-1 ring-slate-200" : ""}`}
     >
       {task.title}
     </span>
