@@ -42,6 +42,8 @@ import { ProWaitlistModal } from "@/components/ProWaitlistModal";
 import { TodayWrapUpButton } from "@/components/TodayWrapUpButton";
 import { useGhostButton } from "@/hooks/useGhostButton";
 import { Hourglass, Users } from "lucide-react";
+import Image from "next/image";
+
 import { useApp } from "@/lib/AppContext";
 import type { Task } from "@/lib/types";
 import { WarmupFlow } from "@/components/WarmupFlow";
@@ -206,18 +208,16 @@ export default function ZenDashboard() {
                 - 桌機:打勾色塊 + 「VibeList」文字
                 - 手機:打勾色塊(隱藏文字避免擠壓) */}
             <div
-              className="group/logo flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-400 transition-all duration-200 ease-out hover:bg-[var(--brand)] hover:text-white focus-visible:bg-[var(--brand)] focus-visible:text-white"
+              className="group/logo relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-[10px] shadow-sm ring-1 ring-black/5 transition-transform duration-200 ease-out hover:scale-105 active:scale-95"
               aria-hidden
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path
-                  d="M3 8L6.5 11.5L13 4.5"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <Image
+                src="/images/vibe-list-icon.jpeg"
+                alt="VibeList Icon"
+                fill
+                className="object-cover"
+                sizes="32px"
+              />
             </div>
             <span className="hidden text-[16px] font-semibold tracking-tight text-slate-700 sm:inline">
               VibeList

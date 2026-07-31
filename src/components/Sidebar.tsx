@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { useApp } from "@/lib/AppContext";
 import { AppView, TaskList } from "@/lib/types";
 import { useConfirm } from "@/hooks/useConfirm";
@@ -113,10 +114,14 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
     >
       {/* Logo */}
       <div className="px-4 py-5 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "var(--brand)" }}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M3 8L6.5 11.5L13 4.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+        <div className="relative w-8 h-8 rounded-[10px] overflow-hidden flex-shrink-0 shadow-sm ring-1 ring-black/5 transition-transform duration-200 hover:scale-105 active:scale-95">
+          <Image
+            src="/images/vibe-list-icon.jpeg"
+            alt="VibeList Icon"
+            fill
+            className="object-cover"
+            sizes="32px"
+          />
         </div>
         <span className="text-[16px] font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>VibeList</span>
       </div>
