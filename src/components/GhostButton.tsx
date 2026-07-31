@@ -81,14 +81,14 @@ export function GhostButton({
             : "0 0 16px -2px rgba(139, 92, 246, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.05) inset",
         }
       : {
-          // 灰色低調 — 像 Pro 鎖住的舊版功能
+          // 灰色低調 — 像 Pro 鎖住的舊版功能，極度淡化避免干擾
           background: dismissed
-            ? "rgba(148, 163, 184, 0.04)"
-            : "rgba(148, 163, 184, 0.08)",
-          color: dismissed ? "rgba(100, 116, 139, 0.7)" : "#64748b", // slate-500
+            ? "transparent"
+            : "rgba(148, 163, 184, 0.04)",
+          color: dismissed ? "rgba(148, 163, 184, 0.5)" : "rgba(148, 163, 184, 0.8)", // slate-400 with opacity
           border: dismissed
-            ? "1px dashed rgba(148, 163, 184, 0.35)"
-            : "1px solid rgba(148, 163, 184, 0.2)",
+            ? "1px dashed rgba(148, 163, 184, 0.2)"
+            : "1px solid rgba(148, 163, 184, 0.15)",
         };
 
   return (
