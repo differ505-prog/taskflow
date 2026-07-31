@@ -29,7 +29,7 @@ export function ListChipPicker({ lists, value, onChange }: ListChipPickerProps) 
   const hasValue = Boolean(current);
 
   return (
-    <div ref={containerRef} className="relative inline-block">
+    <div ref={containerRef} className="relative inline-block" style={{ zIndex: 50 }}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
