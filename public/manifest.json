@@ -52,7 +52,7 @@
       "short_name": "新增",
       "description": "快速新增一筆任務",
       "url": "/?action=new",
-      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }
