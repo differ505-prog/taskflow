@@ -162,6 +162,7 @@ interface AppContextValue {
   // ── 通知 ──────────────────────────────────────────────
   requestNotificationPermission: () => Promise<boolean>;
   notificationPermission: NotificationPermission | "default";
+  setNotificationPermission: (perm: NotificationPermission | "default") => void;
 
   // ── Shared Lists ──────────────────────────────────────
   sharedLists: Record<string, SharedListData>;
@@ -1904,7 +1905,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addHabit, updateHabit, archiveHabit, unarchiveHabit, checkinHabit: checkinHabitFn,
     uncheckHabit: uncheckHabitFn,
     quickAdd,
-    requestNotificationPermission, notificationPermission,
+    requestNotificationPermission, notificationPermission, setNotificationPermission,
     sharedLists, sharedListIds: Object.keys(sharedLists),
     shareList, unshareList, acceptSharedList, removeAcceptedSharedList,
     checkIncomingShareLink, quickAddToShared, updateSharedTask, deleteSharedTask,

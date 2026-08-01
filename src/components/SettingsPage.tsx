@@ -37,7 +37,7 @@ interface SettingsPageProps {
 }
 
 export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
-  const { notificationPermission, requestNotificationPermission, tasks, habits, lists, addTask, addHabit, addList } = useApp();
+  const { notificationPermission, requestNotificationPermission, setNotificationPermission, tasks, habits, lists, addTask, addHabit, addList } = useApp();
   const { user, role, roleConfig, isAdmin } = useAuth();
   const confirm = useConfirm();
   // §假門測試 C:Pro 版專屬功能 (pro_themes) — 設定頁 外觀區
@@ -233,6 +233,8 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
       }
       toast.success("推播已強制重置，請重新啟用推播");
       setPushDbSubscribed(false);
+      // 同步把前端 Notification.permission 狀態歸零，讓 UI 回到「啟用推播」按鈕
+      setNotificationPermission("default");
     } catch (e) {
       toast.error(`強制重置失敗：${e instanceof Error ? e.message : String(e)}`);
     } finally {
