@@ -53,6 +53,109 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
   const [daysSinceBackup, setDaysSinceBackup] = useState<number>(Infinity);
   // ── 推播自測狀態 ──
   const [pushTestPending, setPushTestPending] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushDbSubscribed, setPushDbSubscribed] = useState<boolean | null>(null);
+
+  const detectPushDbState = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { supabase } = await import("@/lib/supabase");
+      const { data, error } = await supabase
+        .from("push_subscriptions")
+        .select("endpoint")
+        .eq("owner_uid", user.id)
+        .eq("is_active", true)
+        .limit(1);
+      if (error) {
+        console.warn("[push] detect DB state failed:", error);
+        return;
+      }
+      setPushDbSubscribed((data?.length ?? 0) > 0);
+    } catch (e) {
+      console.warn("[push] detect DB state threw:", e);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (isOpen && user) {
+      void detectPushDbState();
+    }
+  }, [isOpen, user, detectPushDbState]);
+
+  const handleResubscribePush = useCallback(async () => {
+    if (pushBusy) return;
+    setPushBusy(true);
+    try {
+      const { subscribeToPush } = await import("@/lib/push/vapid");
+      const sub = await subscribeToPush();
+      if (!sub) {
+        toast.error("瀏覽器拒絕授權或推播不支援");
+        return;
+      }
+      const json = sub.toJSON() as {
+        endpoint: string;
+        keys: { p256dh: string; auth: string };
+      };
+      const ua = navigator.userAgent;
+      const deviceLabel = /iPhone|iPad/.test(ua)
+        ? "iOS Safari"
+        : /Android/.test(ua)
+        ? "Android Chrome"
+        : /Mac/.test(ua)
+        ? "Mac"
+        : /Windows/.test(ua)
+        ? "Windows"
+        : "Unknown";
+      const res = await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          endpoint: json.endpoint,
+          keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+          deviceLabel,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast.error(`訂閱寫入失敗：${err.error ?? res.status}`);
+        return;
+      }
+      toast.success("推播已重新訂閱");
+      setPushDbSubscribed(true);
+    } catch (e) {
+      toast.error(`訂閱失敗：${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setPushBusy(false);
+    }
+  }, [pushBusy]);
+
+  const handleUnsubscribePush = useCallback(async () => {
+    if (pushBusy) return;
+    setPushBusy(true);
+    try {
+      const { unsubscribeFromPush } = await import("@/lib/push/vapid");
+      const registration = await navigator.serviceWorker.ready;
+      const sub = await registration.pushManager.getSubscription();
+      if (!sub) {
+        toast.info("瀏覽器端沒有訂閱");
+        setPushDbSubscribed(false);
+        return;
+      }
+      const endpoint = sub.endpoint;
+      await unsubscribeFromPush();
+      await fetch("/api/push/unsubscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint }),
+      }).catch(() => {});
+      toast.success("已取消推播訂閱");
+      setPushDbSubscribed(false);
+    } catch (e) {
+      toast.error(`取消失敗：${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setPushBusy(false);
+    }
+  }, [pushBusy]);
 
   const handleTestPush = useCallback(async () => {
     if (pushTestPending) return;
@@ -676,18 +779,50 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                   <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>任務到期時收到提醒</p>
                 </div>
                 {notificationPermission === "granted" ? (
-                  <div className="flex items-center gap-2">
-                    <span className="flex items-center gap-1 text-[12px]" style={{ color: "var(--status-success)" }}>
-                      <CheckCircle2 className="w-4 h-4" /> 已授權
-                    </span>
-                    <button
-                      onClick={handleTestPush}
-                      disabled={pushTestPending}
-                      className="px-3 py-1.5 rounded-xl text-[12px] font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
-                      style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
-                    >
-                      {pushTestPending ? "送出中…" : "測試推播"}
-                    </button>
+                  <div className="flex flex-col items-end gap-2">
+                    <div className="flex items-center gap-2">
+                      {pushDbSubscribed === false && (
+                        <span
+                          className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-lg"
+                          style={{ background: "rgba(255,149,0,0.1)", color: "var(--status-warning)" }}
+                          title="瀏覽器有訂閱但雲端資料庫沒有，需要重新訂閱"
+                        >
+                          <AlertCircle className="w-3 h-3" /> 雲端未同步
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1 text-[12px]" style={{ color: "var(--status-success)" }}>
+                        <CheckCircle2 className="w-4 h-4" /> 已授權
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleTestPush}
+                        disabled={pushTestPending}
+                        className="px-3 py-1.5 rounded-xl text-[12px] font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+                        style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+                      >
+                        {pushTestPending ? "送出中…" : "測試推播"}
+                      </button>
+                      <button
+                        onClick={handleResubscribePush}
+                        disabled={pushBusy}
+                        title="瀏覽器重新註冊訂閱並把雲端資料庫補上"
+                        className="px-3 py-1.5 rounded-xl text-[12px] font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+                        style={{ background: "var(--surface-muted)", color: "var(--text-secondary)" }}
+                      >
+                        {pushBusy ? "處理中…" : "重新訂閱"}
+                      </button>
+                      <button
+                        onClick={handleUnsubscribePush}
+                        disabled={pushBusy}
+                        title="取消瀏覽器推播訂閱"
+                        className="p-1.5 rounded-xl text-[12px] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+                        style={{ background: "transparent", color: "var(--text-tertiary)" }}
+                        aria-label="取消推播訂閱"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ) : notificationPermission === "denied" ? (
                   <span className="flex items-center gap-1 text-[12px]" style={{ color: "var(--status-danger)" }}>
