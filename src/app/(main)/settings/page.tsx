@@ -1,12 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Settings as SettingsIcon, Trash2, Download, Moon, Bell, Shield, Info, CalendarDays, Copy, Check, type LucideIcon } from "lucide-react";
 import { getTasks } from "@/lib/storage";
 import { downloadICal } from "@/lib/ical";
 import DefaultLaunchViewSection from "@/components/DefaultLaunchViewSection";
 import PageHeader from "@/components/PageHeader";
 import { UserMenu } from "@/components/UserMenu";
+import {
+  subscribeToPush,
+  unsubscribeFromPush,
+  getPushSubscriptionStatus,
+} from "@/lib/push/vapid";
+import { supabase } from "@/lib/supabase";
+
+type PushState = "loading" | "unsupported" | "denied" | "default" | "subscribed" | "unsubscribed";
 
 export default function SettingsPage() {
   type SettingsItem =
@@ -19,12 +27,161 @@ export default function SettingsPage() {
     items: SettingsItem[];
     isTheory?: boolean;
     isCalendar?: boolean;
+    isPush?: boolean;
   };
 
   const [showConfirm, setShowConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
   const [lastAction, setLastAction] = useState<string | null>(null);
   const [calCopied, setCalCopied] = useState(false);
+
+  // ─── 推播訂閱狀態 (§24.1: 推播設定狀態) ───
+  const [pushState, setPushState] = useState<PushState>("loading");
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      // 給 SW 一點時間註冊
+      if ("serviceWorker" in navigator) {
+        try {
+          await navigator.serviceWorker.ready;
+        } catch {
+          // ignore
+        }
+      }
+      const status = await getPushSubscriptionStatus();
+      if (cancelled) return;
+      if (!status.supported) {
+        setPushState("unsupported");
+      } else if (status.subscribed) {
+        setPushState("subscribed");
+      } else if (status.permission === "denied") {
+        setPushState("denied");
+      } else {
+        setPushState("unsubscribed");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleEnablePush = async () => {
+    setPushBusy(true);
+    setPushError(null);
+    try {
+      const sub = await subscribeToPush();
+      if (!sub) {
+        setPushError("瀏覽器拒絕授權或推播不支援");
+        setPushState("denied");
+        return;
+      }
+
+      const json = sub.toJSON() as {
+        endpoint: string;
+        keys: { p256dh: string; auth: string };
+      };
+      const deviceLabel = (() => {
+        const ua = navigator.userAgent;
+        if (/iPhone|iPad/.test(ua)) return "iOS Safari";
+        if (/Android/.test(ua)) return "Android Chrome";
+        if (/Mac/.test(ua)) return "Mac";
+        if (/Windows/.test(ua)) return "Windows";
+        return "Unknown";
+      })();
+
+      const res = await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          endpoint: json.endpoint,
+          keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+          deviceLabel,
+        }),
+      });
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        setPushError(errBody.error || "訂閱失敗");
+        setPushState("unsubscribed");
+        return;
+      }
+
+      setPushState("subscribed");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setPushError(msg);
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  const handleDisablePush = async () => {
+    setPushBusy(true);
+    setPushError(null);
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const sub = await registration.pushManager.getSubscription();
+      if (sub) {
+        const endpoint = sub.endpoint;
+        await unsubscribeFromPush();
+        // 通知 server 標記失效
+        await fetch("/api/push/unsubscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint }),
+        }).catch(() => {
+          // 即使 server 沒收到，本地已取消，下次同步會一致
+        });
+      }
+      setPushState("unsubscribed");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setPushError(msg);
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  const handleTestPush = async () => {
+    setPushBusy(true);
+    setPushError(null);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const uid = sessionData.session?.user?.id;
+      if (!uid) {
+        setPushError("請先登入");
+        return;
+      }
+      const res = await fetch("/api/push/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          owner_uid: uid,
+          title: "TaskFlow 測試",
+          body: "如果你看到這則通知，推播設定成功 ✓",
+          url: "/",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPushError(data.error || "測試失敗");
+        return;
+      }
+      if (data.sent === 0) {
+        setPushError("已送出但沒有訂閱裝置（試一次「啟用推播」）");
+      } else {
+        setPushError(`已送到 ${data.sent} 個裝置`);
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setPushError(msg);
+    } finally {
+      setPushBusy(false);
+    }
+  };
 
   const theoryCards = [
     {
@@ -97,15 +254,8 @@ export default function SettingsPage() {
     },
     {
       title: "通知",
-      items: [
-        {
-          icon: Bell,
-          label: "截止提醒",
-          description: "任務到期通知",
-          type: "info",
-          value: "開發中",
-        },
-      ],
+      items: [],
+      isPush: true,
     },
     {
       title: "日曆同步",
@@ -281,6 +431,90 @@ export default function SettingsPage() {
                       ))}
                     </div>
                   </div>
+                </div>
+              </>
+            ) : group.isPush ? (
+              <>
+                <h2
+                  id={`settings-${group.title}`}
+                  className="text-[12px] font-medium text-[var(--text-tertiary)] uppercase tracking-wide mb-3 px-1"
+                >
+                  {group.title}
+                </h2>
+                <div
+                  className="p-5 rounded-2xl space-y-4"
+                  style={{ background: "var(--surface-elevated)", border: "1px solid var(--border)" }}
+                >
+                  <div className="flex items-start gap-4">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: "var(--brand-tint)" }}
+                    >
+                      <Bell className="w-5 h-5" style={{ color: "var(--brand)" }} aria-hidden="true" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14px] font-semibold" style={{ color: "var(--text-primary)" }}>任務到期推播</p>
+                      <p className="text-[12px] mt-0.5 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                        即使關閉瀏覽器或 PWA 沒開著，任務到時間也會送到你手機 / 電腦的通知中心。
+                      </p>
+                    </div>
+                  </div>
+
+                  <div
+                    className="flex items-center justify-between p-3 rounded-xl"
+                    style={{ background: "var(--surface-muted)" }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>推播狀態</p>
+                      <p className="text-[14px] font-semibold mt-0.5" style={{ color: "var(--text-primary)" }}>
+                        {pushState === "loading" && "讀取中…"}
+                        {pushState === "unsupported" && "此瀏覽器不支援推播"}
+                        {pushState === "denied" && "已封鎖（請到瀏覽器設定開啟）"}
+                        {pushState === "default" && "未授權"}
+                        {pushState === "subscribed" && "已啟用 ✓"}
+                        {pushState === "unsubscribed" && "未啟用"}
+                      </p>
+                    </div>
+                    {pushState === "subscribed" ? (
+                      <button
+                        onClick={handleDisablePush}
+                        disabled={pushBusy}
+                        className="btn-ghost text-[12px] disabled:opacity-50"
+                      >
+                        關閉
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleEnablePush}
+                        disabled={pushBusy || pushState === "unsupported" || pushState === "denied"}
+                        className="px-4 py-2 rounded-xl text-[12px] font-medium text-white transition-all active:scale-98 disabled:opacity-50"
+                        style={{ background: "var(--brand)" }}
+                      >
+                        {pushBusy ? "處理中…" : "啟用推播"}
+                      </button>
+                    )}
+                  </div>
+
+                  {pushState === "subscribed" && (
+                    <button
+                      onClick={handleTestPush}
+                      disabled={pushBusy}
+                      className="w-full p-3 rounded-xl text-[12px] font-medium transition-all active:scale-98 disabled:opacity-50"
+                      style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+                    >
+                      送一則測試通知
+                    </button>
+                  )}
+
+                  {pushError && (
+                    <p className="text-[11px] leading-relaxed" style={{ color: "var(--text-tertiary)" }}>
+                      {pushError}
+                    </p>
+                  )}
+
+                  <p className="text-[11px] leading-relaxed" style={{ color: "var(--text-tertiary)" }}>
+                    💡 iPhone 需 iOS 16.4+ 且把網站「加入主畫面」後才支援背景推播。
+                  </p>
                 </div>
               </>
             ) : (
