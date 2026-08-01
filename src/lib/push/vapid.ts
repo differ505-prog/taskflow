@@ -16,7 +16,7 @@
  */
 
 export const VAPID_PUBLIC_KEY =
-  "BEGIwtReUeUUWsreqpsPKeuNw53ylHxUleF6sF4j5DgICL21jKz1TZ693ShTeAfT5dNVNtumq2193VpNyI-Ei-0";
+  "BMkZA2s-HcC9554layYDt7aIjzXyMghnNEbiaqTTDIB5ALszTuUHsRdlj5KhUXaBKaOwpgAxhL13Jegs0Kk1zf0";
 
 /**
  * 把 base64url VAPID 公鑰轉成 Uint8Array（pushManager.subscribe 需要的格式）
