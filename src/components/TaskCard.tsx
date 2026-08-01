@@ -18,7 +18,7 @@ import { FocusNowButton } from "./FocusNowButton";
 import {
   CheckCircle2, Circle, Clock, Tag as TagIcon,
   Trash2, Edit3, Archive, Repeat, Plus, Trash,
-  AlertCircle, Timer, ListChecks, Paperclip,
+  AlertCircle, Timer, ListChecks, Paperclip, Bell,
   ChevronDown, ChevronRight, ExternalLink,
 } from "lucide-react";
 
@@ -154,6 +154,23 @@ export function TaskCard({
   const isDone = task.status === "done";
   // 死線引擎：當 dueInfo 為 null 或為非緊急情況時,優先用 deadlineStatus 給予視覺警示
   const deadlineStatus = getDeadlineStatus(task.dueDate, task.dueTime, isDone);
+  // B1: 計算「距 dueDate+dueTime 還剩多久」決定是否顯示 bell icon
+  // 不責備使用者,只在「即將到來」時溫和提示
+  const now = new Date();
+  let showBell = false;
+  let isUrgentSoon = false; // 1 小時內 (用 amber 色而非紅色)
+  if (!isDone && task.dueDate) {
+    const dueDateTime = task.dueTime
+      ? new Date(`${task.dueDate}T${task.dueTime}:00`)
+      : new Date(`${task.dueDate}T23:59:59`);
+    if (!isNaN(dueDateTime.getTime())) {
+      const diffMs = dueDateTime.getTime() - now.getTime();
+      // 未到期且 24 小時內 → 顯示 bell
+      showBell = diffMs > 0 && diffMs <= 24 * 60 * 60 * 1000;
+      // 未到期且 1 小時內 → 標記 urgentSoon (用 amber)
+      isUrgentSoon = diffMs > 0 && diffMs <= 60 * 60 * 1000;
+    }
+  }
   const subTasks = task.subTasks || [];
   const completedSubTasks = subTasks.filter((s) => s.status === "done").length;
   const todoSubTasks = subTasks.filter((s) => s.status !== "done");
@@ -318,20 +335,39 @@ export function TaskCard({
                   >
                     <Clock className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
                     {deadlineStatus.text}
+                    {showBell && (
+                      <Bell
+                        className="w-3 h-3 flex-shrink-0 ml-0.5"
+                        style={isUrgentSoon ? { animation: "bellRing 1.5s ease-in-out infinite" } : undefined}
+                        aria-label="即將到來"
+                      />
+                    )}
                   </span>
                 ) : (
                   <span
                     className="pill-muted text-[11px] py-0.5"
                     style={
+                      // B1 §L1 防護:過期不再用紅色(status-danger),改用中性灰藍 text-tertiary
+                      // 「逾期」字眼改為「風鈴提示」中性詞,避免責備感
                       dueInfo.isOverdue && !isDone
-                        ? { background: "rgba(255,59,48,0.08)", color: "var(--status-danger)" }
+                        ? { background: "var(--surface-muted)", color: "var(--text-tertiary)" }
                         : dueInfo.isToday
                         ? { background: "var(--brand-tint)", color: "var(--brand)" }
+                        : isUrgentSoon
+                        ? { background: "rgba(245,158,11,0.10)", color: "#d97706" } // amber-600 暖色
                         : {}
                     }
                   >
                     <Clock className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
-                    {dueInfo.isOverdue && !isDone && "逾期 "}{dueInfo.text}
+                    {/* §L1-L4 防護:不再顯示「逾期」責備字眼,過期也用「風鈴提示」中性詞 */}
+                    {dueInfo.isOverdue && !isDone ? "風鈴提示" : dueInfo.text}
+                    {showBell && (
+                      <Bell
+                        className="w-3 h-3 flex-shrink-0 ml-0.5"
+                        style={isUrgentSoon ? { animation: "bellRing 1.5s ease-in-out infinite" } : undefined}
+                        aria-label="即將到來"
+                      />
+                    )}
                   </span>
                 )
               )}

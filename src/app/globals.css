@@ -783,6 +783,16 @@
   100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
 
+/* B1: 到期提醒 bell icon 柔和搖擺 (只用在 1 小時內任務,1.5s 週期避免持續吸引注意力) */
+@keyframes bellRing {
+  0%, 60%, 100% { transform: rotate(0deg); }
+  10% { transform: rotate(-12deg); }
+  20% { transform: rotate(10deg); }
+  30% { transform: rotate(-8deg); }
+  40% { transform: rotate(6deg); }
+  50% { transform: rotate(-3deg); }
+}
+
 /* ============================================================
    THIRD-PARTY WIDGET OVERRIDES (e.g., Tally Feedback)
    ============================================================ */
