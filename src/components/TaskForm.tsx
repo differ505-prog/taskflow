@@ -20,6 +20,8 @@ import { getEisenhowerVisual } from "@/lib/eisenhower";
 import { isComposingKey, isComposingSubmit } from "@/utils/imeGuard";
 import { logEvent } from "@/lib/eventLog";
 import { toast } from "sonner";
+import { parseNaturalLanguage } from "@/lib/nlp";
+import { NlpPreviewChip, ParsedPreview } from "./NlpPreviewChip";
 
 interface TaskFormProps {
   isOpen: boolean;
@@ -76,6 +78,20 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
   const [recurrenceDaysOfWeek, setRecurrenceDaysOfWeek] = useState<number[]>([]);
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
   const [subTaskInputs, setSubTaskInputs] = useState<string[]>([]);
+
+  // ─── A1 NLP 即時預覽 ───────────────────────────────
+  // 標題打字時 debounce 200ms 跑 parseNaturalLanguage,把解析結果
+  // 顯示為 preview chip,使用者可單獨關閉任一欄位。**只預覽不覆寫**
+  // (Q1 選擇):使用者手動改欄位時,preview 會自動對齊新值,但不會
+  // 反過來覆蓋使用者已調整的 state。
+  const [parsedPreview, setParsedPreview] = useState<ParsedPreview | null>(null);
+  const [previewDismissed, setPreviewDismissed] = useState({
+    dueDate: false,
+    dueTime: false,
+    priority: false,
+    tags: false,
+  });
+  const previewTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const formatDateLabel = (iso: string): string => {
     if (!iso) return "";
@@ -218,6 +234,57 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
     return () => document.removeEventListener("keydown", handler);
   }, [isOpen, onClose]);
 
+  // ── NLP 即時預覽 debounce ──────────────────────────────────
+  // 編輯模式不跑 NLP (使用者已輸入完整標題,不需要自動覆寫提示)
+  useEffect(() => {
+    if (initialData) {
+      setParsedPreview(null);
+      return;
+    }
+    if (!title.trim()) {
+      setParsedPreview(null);
+      return;
+    }
+    if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+    previewTimerRef.current = setTimeout(() => {
+      const p = parseNaturalLanguage(title);
+      // 只在解析出實際欄位時設定,空解析不顯示 chip
+      if (p.dueDate || p.dueTime || (p.priority && p.priority !== "delegate") || p.tags.length > 0) {
+        setParsedPreview({
+          dueDate: p.dueDate,
+          dueTime: p.dueTime,
+          priority: p.priority && p.priority !== "delegate" ? p.priority : undefined,
+          tags: p.tags.length > 0 ? p.tags : undefined,
+        });
+        // 重置 dismissed (新解析結果出來,使用者重新選擇)
+        setPreviewDismissed({ dueDate: false, dueTime: false, priority: false, tags: false });
+      } else {
+        setParsedPreview(null);
+      }
+    }, 200);
+    return () => {
+      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+    };
+  }, [title, initialData]);
+
+  // 把「今天/明天/後天」等相對日期轉成人話
+  const formatRelativeDate = (iso: string): string => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(iso + "T00:00:00");
+    const diffDays = Math.round((target.getTime() - today.getTime()) / 86400000);
+    if (diffDays === 0) return "今天";
+    if (diffDays === 1) return "明天";
+    if (diffDays === 2) return "後天";
+    if (diffDays === 3) return "大後天";
+    if (diffDays > 0 && diffDays <= 7) {
+      const weekdays = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
+      return weekdays[target.getDay()];
+    }
+    const [y, m, d] = iso.split("-").map(Number);
+    return `${m}/${d}`;
+  };
+
   const addTag = () => {
     const t = tagInput.trim();
     if (t && !tags.includes(t)) { setTags([...tags, t]); setTagInput(""); }
@@ -257,16 +324,30 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
     }));
     // 區間：未填截止日但有起始日 → 自動把截止日 = 起始日（單日任務）
     // Today 視圖新建時：未填截止日 → 預設為今天（符合 Smart Defaults 原則）
-    const finalDueDate = dueDate || startDate || (currentView === "today" ? new Date().toISOString().split("T")[0] : undefined);
+    // A1: NLP 預覽 — 使用者尚未手動設定欄位時,套用 NLP 解析結果
+    // (Q1「只預覽不覆寫」意涵:使用者手動改的不覆蓋,空欄位才套用)
+    const finalDueDate =
+      dueDate ||
+      (parsedPreview?.dueDate && !previewDismissed.dueDate ? parsedPreview.dueDate : "") ||
+      startDate ||
+      (currentView === "today" ? new Date().toISOString().split("T")[0] : undefined);
+    const finalDueTime = dueTime || (parsedPreview?.dueTime && !previewDismissed.dueTime ? parsedPreview.dueTime : undefined);
+    // priority 預設值是 "none",若使用者沒從 EisenhowerQuadrantGrid 改過,就套用 NLP 結果
+    const finalPriority = parsedPreview?.priority && !previewDismissed.priority && priority === "none"
+      ? parsedPreview.priority
+      : priority;
+    const finalTags = tags.length > 0
+      ? tags
+      : parsedPreview?.tags && !previewDismissed.tags ? parsedPreview.tags : tags;
     onSubmit({
       title: title.trim(),
       description: description.trim() || undefined,
-      priority, status,
+      priority: finalPriority, status,
       startDate: startDate || undefined,
       dueDate: finalDueDate,
-      dueTime: dueTime || undefined,
+      dueTime: finalDueTime,
       listId,
-      tags,
+      tags: finalTags,
       subTasks,
       recurrence,
       attachments,
@@ -353,6 +434,15 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                     {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                   </button>
                 </div>
+                {/* A1: NLP 即時預覽 chip — 標題打字時自動解析日期/時間/優先級/標籤 */}
+                {!initialData && (
+                  <NlpPreviewChip
+                    parsed={parsedPreview}
+                    dismissed={previewDismissed}
+                    onDismiss={(key) => setPreviewDismissed((prev) => ({ ...prev, [key]: true }))}
+                    formatRelativeDate={formatRelativeDate}
+                  />
+                )}
                 {errors.title && <p className="mt-1.5 text-[12px] px-2.5 py-1.5 rounded-lg" style={{ background: "rgba(239,68,68,0.08)", color: "var(--status-danger)" }}>{errors.title}</p>}
               </div>
 
