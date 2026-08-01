@@ -13,16 +13,19 @@ interface ParsedTask {
 
 // ─── Priority patterns (order matters — longer/more specific first) ──
 const PRIORITY_PATTERNS: Array<{ pattern: RegExp; priority: Priority }> = [
+  // ASCII 短碼保留 \b (避免 apple / happy 誤觸發 p0/p1/p2/p3/h/m/l)
   { pattern: /\b(p0|p-)\b/i, priority: "do-now" },
-  { pattern: /\b非常重要\b|\b急要\b|\b超緊急\b|\b緊急\b/i, priority: "do-now" },
-  { pattern: /\b優先\b.*高|\b高優先\b|\b很重要\b/i, priority: "schedule" },
+  // 中文 pattern 移除 \b: \b 在中文不是 word boundary (中文字符不是 \w 字符),
+  // 用 \b 永遠不匹配 → 整個 NLP 中文解析失效 (BUG-2026-08-01)
+  { pattern: /非常重要|急要|超緊急|緊急/i, priority: "do-now" },
+  { pattern: /優先.*高|高優先|很重要/i, priority: "schedule" },
   { pattern: /\b(p1|h)\b/i, priority: "schedule" },
-  { pattern: /\b排程\b|\b排入\b.*日程/i, priority: "schedule" },
-  { pattern: /\b優先\b.*中|\b中優先\b/i, priority: "delegate" },
+  { pattern: /排程|排入.*日程/i, priority: "schedule" },
+  { pattern: /優先.*中|中優先/i, priority: "delegate" },
   { pattern: /\b(p2|m)\b/i, priority: "delegate" },
-  { pattern: /\b轉交\b|\b委派\b|\b併購\b/i, priority: "delegate" },
-  { pattern: /\b優先\b.*低|\b低優先\b|\b有空再\b/i, priority: "none" },
-  { pattern: /\b暫緩\b|\b緩\b/i, priority: "none" },
+  { pattern: /轉交|委派|併購/i, priority: "delegate" },
+  { pattern: /優先.*低|低優先|有空再/i, priority: "none" },
+  { pattern: /暫緩|緩/i, priority: "none" },
   { pattern: /\b(p3|l)\b/i, priority: "none" },
 ];
 
@@ -31,18 +34,18 @@ const DATE_PATTERNS: Array<{ pattern: RegExp; getDate: (text?: string) => string
   // Absolute dates
   { pattern: /(\d{1,2})\/(\d{1,2})/, getDate: () => "" }, // placeholder
   { pattern: /(\d{4})-(\d{1,2})-(\d{1,2})/, getDate: () => "" },
-  // Relative
-  { pattern: /\b今天\b/i, getDate: () => today() },
-  { pattern: /\b明天\b/i, getDate: () => addDays(1) },
-  { pattern: /\b後天\b/i, getDate: () => addDays(2) },
-  { pattern: /\b大後天\b/i, getDate: () => addDays(3) },
-  { pattern: /\b下週[一二三四五六日天]/i, getDate: (text) => nextWeekday(text || "") },
-  { pattern: /\b下週\b/i, getDate: () => addDays(7) },
-  { pattern: /\b這週\b/i, getDate: () => today() },
-  { pattern: /\b本週\b/i, getDate: () => today() },
-  { pattern: /\b下個月\b/i, getDate: () => addDays(30) },
+  // Relative(中文 pattern 全部移除 \b,理由同 priority)
+  { pattern: /今天/, getDate: () => today() },
+  { pattern: /明天/, getDate: () => addDays(1) },
+  { pattern: /後天/, getDate: () => addDays(2) },
+  { pattern: /大後天/, getDate: () => addDays(3) },
+  { pattern: /下週[一二三四五六日天]/, getDate: (text) => nextWeekday(text || "") },
+  { pattern: /下週/, getDate: () => addDays(7) },
+  { pattern: /這週/, getDate: () => today() },
+  { pattern: /本週/, getDate: () => today() },
+  { pattern: /下個月/, getDate: () => addDays(30) },
   // Weekday names — 需傳入 text 才能從匹配字串解析具體週X
-  { pattern: /\b(週|星期|禮拜)[一二三四五六日天]\b/i, getDate: (text) => nextWeekday(text || "") },
+  { pattern: /(?:週|星期|禮拜)[一二三四五六日天]/, getDate: (text) => nextWeekday(text || "") },
 ];
 
 // ─── Time patterns ──────────────────────────────────────────
@@ -59,11 +62,11 @@ const TIME_PATTERNS = [
 
 // ─── Recurrence patterns ─────────────────────────────────────
 const RECURRENCE_PATTERNS: Array<{ pattern: RegExp; getRecurrence: () => Recurrence }> = [
-  { pattern: /\b每天\b|\b每日\b/i, getRecurrence: () => ({ pattern: "daily", interval: 1, completedCount: 0 }) },
-  { pattern: /\b每週\b/i, getRecurrence: () => ({ pattern: "weekly", interval: 1, completedCount: 0 }) },
-  { pattern: /\b每個月\b/i, getRecurrence: () => ({ pattern: "monthly", interval: 1, completedCount: 0 }) },
-  { pattern: /\b每隔(\d+)[天日]/i, getRecurrence: () => ({ pattern: "custom", interval: 1, completedCount: 0 }) },
-  { pattern: /每[週周](\S)/i, getRecurrence: () => ({ pattern: "weekly", interval: 1, daysOfWeek: [], completedCount: 0 }) },
+  { pattern: /每天|每日/, getRecurrence: () => ({ pattern: "daily", interval: 1, completedCount: 0 }) },
+  { pattern: /每週/, getRecurrence: () => ({ pattern: "weekly", interval: 1, completedCount: 0 }) },
+  { pattern: /每個月/, getRecurrence: () => ({ pattern: "monthly", interval: 1, completedCount: 0 }) },
+  { pattern: /每隔(\d+)[天日]/, getRecurrence: () => ({ pattern: "custom", interval: 1, completedCount: 0 }) },
+  { pattern: /每[週周](\S)/, getRecurrence: () => ({ pattern: "weekly", interval: 1, daysOfWeek: [], completedCount: 0 }) },
 ];
 
 // ─── Tag extraction ──────────────────────────────────────────
