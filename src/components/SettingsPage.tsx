@@ -185,6 +185,54 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
     }
   }, []);
 
+  /**
+   * 強制重置推播 —
+   * 當 iOS PWA 內 SW.ready 卡死、瀏覽器端有訂閱但「取消失敗」時的治本按鈕。
+   * 直接刪 SW 註冊 + DB 對應紀錄（透過 owner_uid 而不是 endpoint），
+   * 下次重新訂閱會拿全新的 SW 重新走完整流程。
+   */
+  const handleForceResetPush = useCallback(async () => {
+    if (pushBusyRef.current) return;
+    pushBusyRef.current = true;
+    setPushBusy(true);
+    const rescue = () => {
+      pushBusyRef.current = false;
+      setPushBusy(false);
+    };
+    const timeout = setTimeout(rescue, 15000);
+    try {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (const reg of registrations) {
+        try {
+          const sub = await reg.pushManager.getSubscription();
+          if (sub) await sub.unsubscribe();
+        } catch {
+          // 個別 unsubscribe 失敗仍繼續
+        }
+        try {
+          await reg.unregister();
+        } catch {
+          // unregister 失敗仍繼續
+        }
+      }
+      if (user) {
+        const { supabase } = await import("@/lib/supabase");
+        await supabase
+          .from("push_subscriptions")
+          .update({ is_active: false, updated_at: new Date().toISOString() })
+          .eq("owner_uid", user.id)
+          .eq("is_active", true);
+      }
+      toast.success("推播已強制重置，請重新啟用推播");
+      setPushDbSubscribed(false);
+    } catch (e) {
+      toast.error(`強制重置失敗：${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      clearTimeout(timeout);
+      rescue();
+    }
+  }, [user]);
+
   const handleTestPush = useCallback(async () => {
     if (pushTestPending) return;
     setPushTestPending(true);
@@ -851,6 +899,15 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                         <X className="w-4 h-4" />
                       </button>
                     </div>
+                    <button
+                      onClick={handleForceResetPush}
+                      disabled={pushBusy}
+                      title="iOS PWA SW 卡死時的治本按鈕：unregister SW + 清 DB"
+                      className="text-[10px] underline disabled:opacity-50"
+                      style={{ color: "var(--text-tertiary)" }}
+                    >
+                      推播卡住了？強制重置
+                    </button>
                   </div>
                 ) : notificationPermission === "denied" ? (
                   <span className="flex items-center gap-1 text-[12px]" style={{ color: "var(--status-danger)" }}>
