@@ -4,15 +4,14 @@
  * 用途：使用者按 SettingsPage 的「測試推播」按鈕時呼叫。
  * 不需使用者貼 user_id — 從 cookie 自動解析自己。
  *
- * 底層呼叫 /api/push/send，套用既有「登入者只能送給自己」的安全檢查（line 95-97）。
+ * 直接呼叫共用 sendPush 函式（src/lib/push/sendPush.ts），不繞道 /api/push/send —
+ * 避免 server-side fetch 帶 cookie 的複雜性。
  *
  * Response: { sent: number, failed: number, expired: number }
- *
- * 注意：必須用 createServerClient + req.cookies.getAll()，
- *       不能用 createClient + getSession()（server-side 沒有 localStorage）。
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { sendPush } from "@/lib/push/sendPush";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,23 +43,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "請先登入" }, { status: 401 });
     }
 
-    // 內部 call /api/push/send — 用 request URL 推導 base，避免硬寫 domain
-    const base = new URL(request.url).origin;
-    const res = await fetch(`${base}/api/push/send`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        owner_uid: user.id,
-        title: "TaskFlow 推播成功",
-        body: "你收到這則就代表全鏈通了 🎉",
-        url: "/",
-      }),
+    const result = await sendPush({
+      owner_uid: user.id,
+      title: "TaskFlow 推播成功",
+      body: "你收到這則就代表全鏈通了 🎉",
+      url: "/",
     });
 
-    const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
+    return NextResponse.json(result);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[push/test-self] error:", msg);
