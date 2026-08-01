@@ -51,6 +51,32 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [lastBackupAt, setLastBackupAt] = useState<string | null>(null);
   const [daysSinceBackup, setDaysSinceBackup] = useState<number>(Infinity);
+  // ── 推播自測狀態 ──
+  const [pushTestPending, setPushTestPending] = useState(false);
+
+  const handleTestPush = useCallback(async () => {
+    if (pushTestPending) return;
+    setPushTestPending(true);
+    try {
+      const res = await fetch("/api/push/test-self", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(`測試失敗：${data?.error ?? res.status}`);
+        return;
+      }
+      if (data.sent > 0) {
+        toast.success(`推播已送出 ${data.sent} 則`);
+      } else if (data.expired > 0) {
+        toast.warning("訂閱已過期，請重新授權通知");
+      } else {
+        toast.error("沒有可送達的訂閱，請確認已授權通知權限");
+      }
+    } catch (e) {
+      toast.error(`測試失敗：${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setPushTestPending(false);
+    }
+  }, [pushTestPending]);
   // ── Webhook 整合狀態 ──
   const webhook = useWebhookSettings();
   const [webhookDraft, setWebhookDraft] = useState("");
@@ -650,9 +676,19 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                   <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>任務到期時收到提醒</p>
                 </div>
                 {notificationPermission === "granted" ? (
-                  <span className="flex items-center gap-1 text-[12px]" style={{ color: "var(--status-success)" }}>
-                    <CheckCircle2 className="w-4 h-4" /> 已授權
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1 text-[12px]" style={{ color: "var(--status-success)" }}>
+                      <CheckCircle2 className="w-4 h-4" /> 已授權
+                    </span>
+                    <button
+                      onClick={handleTestPush}
+                      disabled={pushTestPending}
+                      className="px-3 py-1.5 rounded-xl text-[12px] font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+                      style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+                    >
+                      {pushTestPending ? "送出中…" : "測試推播"}
+                    </button>
+                  </div>
                 ) : notificationPermission === "denied" ? (
                   <span className="flex items-center gap-1 text-[12px]" style={{ color: "var(--status-danger)" }}>
                     <AlertCircle className="w-4 h-4" /> 已拒絕
