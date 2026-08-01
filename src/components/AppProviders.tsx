@@ -7,6 +7,7 @@ import { AuthGate } from "@/components/AuthGate";
 import { FirebaseDataProvider, SyncWriter } from "@/components/FirebaseDataProvider";
 import { ZenFlowProvider } from "@/lib/ZenFlowProvider";
 import { ToastProvider } from "@/components/ToastProvider";
+import { DueDateReminderWatcher } from "@/components/DueDateReminderWatcher";
 import { useAuth } from "@/lib/AuthContext";
 
 const OMNISONIC_URL = process.env.NEXT_PUBLIC_OMNISONIC_URL ?? "";
@@ -25,15 +26,17 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
       <AuthGate onGuestEnter={() => setGuestModeEntered(true)}>
-        <AppProvider>
-          <ZenFlowProvider omnisonicBaseUrl={OMNISONIC_URL}>
-            <FirebaseDataProvider>
-              <SyncWriterGate />
-              <ToastProvider />
-              {children}
-            </FirebaseDataProvider>
-          </ZenFlowProvider>
-        </AppProvider>
+      <AppProvider>
+        <ZenFlowProvider omnisonicBaseUrl={OMNISONIC_URL}>
+          <FirebaseDataProvider>
+            <SyncWriterGate />
+            <ToastProvider />
+            {/* B1: 到期提醒 watcher — 掃描 tasks,在 3 個時點觸發 toast */}
+            <DueDateReminderWatcher />
+            {children}
+          </FirebaseDataProvider>
+        </ZenFlowProvider>
+      </AppProvider>
       </AuthGate>
     </AuthProvider>
   );
