@@ -223,6 +223,16 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
           // unregister 失敗仍繼續
         }
       }
+      // §26 命中類別：handleForceResetPush unregister SW 後沒重灌，使用者按「啟用推播」
+      // 會卡在 navigator.serviceWorker.ready 永久 pending（12s timeout 顯示「瀏覽器拒絕授權」）。
+      // 治本：unregister 完立刻重新註冊，讓下次訂閱能拿到 SW。
+      if ("serviceWorker" in navigator) {
+        try {
+          await navigator.serviceWorker.register("/sw.js");
+        } catch {
+          // SW 重註冊失敗仍繼續
+        }
+      }
       if (user) {
         const { supabase } = await import("@/lib/supabase");
         await supabase
