@@ -27,7 +27,7 @@ const PRIORITY_PATTERNS: Array<{ pattern: RegExp; priority: Priority }> = [
 ];
 
 // ─── Date / Time patterns ───────────────────────────────────
-const DATE_PATTERNS: Array<{ pattern: RegExp; getDate: () => string }> = [
+const DATE_PATTERNS: Array<{ pattern: RegExp; getDate: (text?: string) => string }> = [
   // Absolute dates
   { pattern: /(\d{1,2})\/(\d{1,2})/, getDate: () => "" }, // placeholder
   { pattern: /(\d{4})-(\d{1,2})-(\d{1,2})/, getDate: () => "" },
@@ -36,15 +36,13 @@ const DATE_PATTERNS: Array<{ pattern: RegExp; getDate: () => string }> = [
   { pattern: /\b明天\b/i, getDate: () => addDays(1) },
   { pattern: /\b後天\b/i, getDate: () => addDays(2) },
   { pattern: /\b大後天\b/i, getDate: () => addDays(3) },
-  { pattern: /\b下週[一二三四五六日天]/i, getDate: () => nextWeekDay() },
+  { pattern: /\b下週[一二三四五六日天]/i, getDate: (text) => nextWeekday(text || "") },
   { pattern: /\b下週\b/i, getDate: () => addDays(7) },
   { pattern: /\b這週\b/i, getDate: () => today() },
   { pattern: /\b本週\b/i, getDate: () => today() },
   { pattern: /\b下個月\b/i, getDate: () => addDays(30) },
-  // Weekday names
-  { pattern: /\b週[一二三四五六日天]\b/i, getDate: () => nextWeekday() },
-  { pattern: /\b星期[一二三四五六日天]\b/i, getDate: () => nextWeekday() },
-  { pattern: /\b禮拜[一二三四五六日天]\b/i, getDate: () => nextWeekday() },
+  // Weekday names — 需傳入 text 才能從匹配字串解析具體週X
+  { pattern: /\b(週|星期|禮拜)[一二三四五六日天]\b/i, getDate: (text) => nextWeekday(text || "") },
 ];
 
 // ─── Time patterns ──────────────────────────────────────────
@@ -116,7 +114,7 @@ export function parseNaturalLanguage(input: string): ParsedTask {
       } else if (item.pattern.source.includes("4")) {
         dueDate = m[0];
       } else {
-        dueDate = item.getDate();
+        dueDate = item.getDate(text);
       }
       text = text.replace(item.pattern, "").trim();
       break;
@@ -175,13 +173,28 @@ function addDays(n: number): string {
   return toLocalDateString(new Date(Date.now() + n * 86400000));
 }
 
-function nextWeekday(): string {
-  const weekdays = ["週日", "星期日", "禮拜日", "週一", "星期一", "禮拜一", "週二", "星期二", "禮拜二", "週三", "星期三", "禮拜三", "週四", "星期四", "禮拜四", "週五", "星期五", "禮拜五", "週六", "星期六", "禮拜六"];
-  const idx = weekdays.findIndex((w) => {
-    // match in input
-    return false; // placeholder
-  });
-  return addDays(1);
+function nextWeekday(text: string): string {
+  const weekdayMap: Record<string, number> = {
+    // 週 / 星期 / 禮拜 → JavaScript getDay() 對應
+    "日": 0, "天": 0,
+    "一": 1,
+    "二": 2,
+    "三": 3,
+    "四": 4,
+    "五": 5,
+    "六": 6,
+  };
+  const m = text.match(/(週|星期|禮拜)([一二三四五六日天])/);
+  if (!m) return addDays(1);
+  const target = weekdayMap[m[2]];
+  if (target === undefined) return addDays(1);
+  const d = new Date();
+  // 若今天就是目標日且有時間上下文(沒傳時間關鍵字),視為「下週」
+  // 簡化:今天也算,因為使用者通常指「最近一次週X」(今天就今天,下週就下週)
+  let diff = target - d.getDay();
+  if (diff <= 0) diff += 7; // 已經過或就是今天 → 排下週
+  d.setDate(d.getDate() + diff);
+  return toLocalDateString(d);
 }
 
 function nextWeekDay(): string {
