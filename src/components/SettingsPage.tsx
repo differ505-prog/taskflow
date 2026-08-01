@@ -55,6 +55,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
   const [pushTestPending, setPushTestPending] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushDbSubscribed, setPushDbSubscribed] = useState<boolean | null>(null);
+  const pushBusyRef = useRef(false);
 
   const detectPushDbState = useCallback(async () => {
     if (!user) return;
@@ -83,13 +84,22 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
   }, [isOpen, user, detectPushDbState]);
 
   const handleResubscribePush = useCallback(async () => {
-    if (pushBusy) return;
+    if (pushBusyRef.current) return;
+    pushBusyRef.current = true;
     setPushBusy(true);
+    const rescue = () => {
+      pushBusyRef.current = false;
+      setPushBusy(false);
+    };
+    const timeout = setTimeout(rescue, 15000);
     try {
       const { subscribeToPush } = await import("@/lib/push/vapid");
-      const sub = await subscribeToPush();
+      const sub = await Promise.race([
+        subscribeToPush(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 12000)),
+      ]);
       if (!sub) {
-        toast.error("瀏覽器拒絕授權或推播不支援");
+        toast.error("瀏覽器拒絕授權或推播不支援（逾時 12 秒）");
         return;
       }
       const json = sub.toJSON() as {
@@ -106,15 +116,20 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
         : /Windows/.test(ua)
         ? "Windows"
         : "Unknown";
-      const res = await fetch("/api/push/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          endpoint: json.endpoint,
-          keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
-          deviceLabel,
+      const res = await Promise.race([
+        fetch("/api/push/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            endpoint: json.endpoint,
+            keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+            deviceLabel,
+          }),
         }),
-      });
+        new Promise<Response>((_, reject) =>
+          setTimeout(() => reject(new Error("API 連線逾時 12 秒")), 12000)
+        ),
+      ]);
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         toast.error(`訂閱寫入失敗：${err.error ?? res.status}`);
@@ -125,16 +140,28 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
     } catch (e) {
       toast.error(`訂閱失敗：${e instanceof Error ? e.message : String(e)}`);
     } finally {
-      setPushBusy(false);
+      clearTimeout(timeout);
+      rescue();
     }
-  }, [pushBusy]);
+  }, []);
 
   const handleUnsubscribePush = useCallback(async () => {
-    if (pushBusy) return;
+    if (pushBusyRef.current) return;
+    pushBusyRef.current = true;
     setPushBusy(true);
+    const rescue = () => {
+      pushBusyRef.current = false;
+      setPushBusy(false);
+    };
+    const timeout = setTimeout(rescue, 12000);
     try {
       const { unsubscribeFromPush } = await import("@/lib/push/vapid");
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<ServiceWorkerRegistration>((_, reject) =>
+          setTimeout(() => reject(new Error("Service Worker ready 逾時 10 秒")), 10000)
+        ),
+      ]);
       const sub = await registration.pushManager.getSubscription();
       if (!sub) {
         toast.info("瀏覽器端沒有訂閱");
@@ -153,9 +180,10 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
     } catch (e) {
       toast.error(`取消失敗：${e instanceof Error ? e.message : String(e)}`);
     } finally {
-      setPushBusy(false);
+      clearTimeout(timeout);
+      rescue();
     }
-  }, [pushBusy]);
+  }, []);
 
   const handleTestPush = useCallback(async () => {
     if (pushTestPending) return;
