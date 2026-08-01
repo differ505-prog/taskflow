@@ -58,8 +58,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
   const pushBusyRef = useRef(false);
 
   const detectPushDbState = useCallback(async () => {
-    if (!user) return;
-    try {
+    if (!user) return;    try {
       const { supabase } = await import("@/lib/supabase");
       const { data, error } = await supabase
         .from("push_subscriptions")
@@ -99,7 +98,16 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
         new Promise<null>((resolve) => setTimeout(() => resolve(null), 12000)),
       ]);
       if (!sub) {
-        toast.error("瀏覽器拒絕授權或推播不支援（逾時 12 秒）");
+        // 拆出三種原因讓使用者知道怎麼處理
+        if (typeof Notification === "undefined") {
+          toast.error("此瀏覽器不支援推播");
+        } else if (Notification.permission === "denied") {
+          toast.error("通知已被拒絕，請到 iOS 設定 → Safari → 網站資料 → 清除後重試");
+        } else if (Notification.permission === "default") {
+          toast.error("通知權限視窗被略過，請用 Safari 一般 tab 開站一次並允許通知");
+        } else {
+          toast.error("瀏覽器拒絕授權或推播不支援（逾時 12 秒）");
+        }
         return;
       }
       const json = sub.toJSON() as {
