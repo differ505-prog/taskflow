@@ -2,48 +2,57 @@
  * 測試推播 API（user self-test）
  *
  * 用途：使用者按 SettingsPage 的「測試推播」按鈕時呼叫。
- * 不需使用者貼 user_id — 從 cookie/JWT 自動解析自己。
+ * 不需使用者貼 user_id — 從 cookie 自動解析自己。
  *
  * 底層呼叫 /api/push/send，套用既有「登入者只能送給自己」的安全檢查（line 95-97）。
  *
  * Response: { sent: number, failed: number, expired: number }
+ *
+ * 注意：必須用 createServerClient + req.cookies.getAll()，
+ *       不能用 createClient + getSession()（server-side 沒有 localStorage）。
  */
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@supabase/ssr";
 
-function getBrowserSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) {
-    throw new Error("Supabase browser client not configured");
-  }
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-export async function POST(_request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const browser = getBrowserSupabase();
-    const { data: sessionData } = await browser.auth.getSession();
-    const callerUid = sessionData.session?.user?.id ?? null;
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) => {
+              request.cookies.set(name, value);
+            });
+          },
+        },
+      }
+    );
 
-    if (!callerUid) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
       return NextResponse.json({ error: "請先登入" }, { status: 401 });
     }
 
-    // 內部 call /api/push/send — 用 NEXT_PUBLIC 內部絕對 URL
-    // 但同網域直接用 request.url 推導 base 即可，避免硬寫 domain
-    const base = new URL(_request.url).origin;
+    // 內部 call /api/push/send — 用 request URL 推導 base，避免硬寫 domain
+    const base = new URL(request.url).origin;
     const res = await fetch(`${base}/api/push/send`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        owner_uid: callerUid,
+        owner_uid: user.id,
         title: "TaskFlow 推播成功",
         body: "你收到這則就代表全鏈通了 🎉",
         url: "/",
