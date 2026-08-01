@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/lib/AppContext";
 import { useStatusWindow } from "@/hooks/useStatusWindow";
@@ -51,10 +51,24 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
 
   const [isCreating, setIsCreating] = useState(false);
   const [newHabitTitle, setNewHabitTitle] = useState("");
+  // A 方案:點圓圈 → 展開顯示完整名稱 + 確認按鈕;再按 ✓ 才完成
+  // 原因:原本「點圓圈直接完成」對單字 icon 過於曖昧,使用者看不到完整名稱
+  //        容易誤觸;新行為:點擊 → 展開 chip (icon + 完整標題 + ✓ 完成) → 確認才送出
+  const [confirmingHabitId, setConfirmingHabitId] = useState<string | null>(null);
   const titleRef = useRef(newHabitTitle);
   const habitsLenRef = useRef(habits.length);
   titleRef.current = newHabitTitle;
   habitsLenRef.current = habits.length;
+
+  // §O dep 完整性:展開確認時按 ESC 收回,但不影響新建習慣輸入框的 ESC(那個自己處理)
+  useEffect(() => {
+    if (!confirmingHabitId) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setConfirmingHabitId(null);
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [confirmingHabitId]);
 
   // 過濾：今日尚未 checkin + 未封存
   const today = getLocalToday();
@@ -212,7 +226,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
 
   return (
     <>
-      {/* 桌機:原貌 */}
+      {/* 桌機:原貌 — 點圓圈 → 展開 chip 顯示完整名稱 + ✓ 完成按鈕 */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -220,33 +234,74 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
         className="hidden sm:flex fixed bottom-6 left-6 z-20 flex-col items-start gap-2"
         style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
         role="group"
-        aria-label="暖身習慣：點擊完成今日打卡"
+        aria-label="暖身習慣：點擊展開確認"
       >
         <p className="text-balance text-[11px] font-medium uppercase tracking-widest text-slate-400">
           Warmup
         </p>
         <div className="flex items-center gap-2">
-          {pendingHabits.map((habit, idx) => (
-            <motion.button
-              key={habit.id}
-              type="button"
-              onClick={() => handleComplete(habit.id, habit.title)}
-              aria-label={`完成暖身：${habit.title}`}
-              className="group flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-slate-400 shadow-sm ring-1 ring-slate-200/60 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
-              whileTap={{ scale: 0.92 }}
-              animate={{ opacity: 1 }}
-              initial={{ opacity: 0, y: 6 }}
-              transition={{ delay: 0.4 + idx * 0.05, duration: 0.3 }}
-            >
-              {/* 圓形 icon — 預設用第一個字符當 icon fallback */}
-              <span
-                className="text-base font-medium transition-colors duration-200 group-hover:opacity-100"
-                aria-hidden
+          {pendingHabits.map((habit, idx) => {
+            const isConfirming = confirmingHabitId === habit.id;
+            return (
+              <motion.button
+                key={habit.id}
+                type="button"
+                onClick={() => setConfirmingHabitId(isConfirming ? null : habit.id)}
+                aria-label={`展開暖身：${habit.title}`}
+                aria-expanded={isConfirming}
+                className="group flex h-10 items-center justify-center rounded-full bg-white/80 text-slate-400 shadow-sm ring-1 ring-slate-200/60 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                whileTap={{ scale: 0.92 }}
+                animate={{ opacity: 1 }}
+                initial={{ opacity: 0, y: 6 }}
+                transition={{ delay: 0.4 + idx * 0.05, duration: 0.3 }}
               >
-                {habit.title.slice(0, 1)}
-              </span>
-</motion.button>
-        ))}
+                {/* 圓形 icon — 預設用第一個字符當 icon fallback */}
+                <span
+                  className="flex h-10 w-10 items-center justify-center text-base font-medium transition-colors duration-200 group-hover:opacity-100"
+                  aria-hidden
+                >
+                  {habit.title.slice(0, 1)}
+                </span>
+                <AnimatePresence initial={false}>
+                  {isConfirming && (
+                    <motion.span
+                      key="confirm-row"
+                      initial={{ width: 0, opacity: 0 }}
+                      animate={{ width: "auto", opacity: 1 }}
+                      exit={{ width: 0, opacity: 0 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      className="flex items-center gap-2 overflow-hidden pr-3 whitespace-nowrap"
+                    >
+                      <span className="text-xs font-medium text-slate-600">
+                        {habit.title}
+                      </span>
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleComplete(habit.id, habit.title);
+                          setConfirmingHabitId(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleComplete(habit.id, habit.title);
+                            setConfirmingHabitId(null);
+                          }
+                        }}
+                        className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-400 text-white transition-colors hover:bg-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                        aria-label={`完成暖身：${habit.title}`}
+                      >
+                        <Check className="h-3.5 w-3.5" aria-hidden />
+                      </span>
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </motion.button>
+            );
+          })}
         </div>
       </motion.div>
 
@@ -269,8 +324,8 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
         </motion.button>
       )}
 
-      {/* 手機:單顆 compact icon(只取第一個 pending habit 作為捷徑),點擊直接完成
-          §ADHD 最小摩擦:不開中間 sheet,輕點即完成(符合 §1 焦點不中斷) */}
+      {/* 手機:單顆 compact icon(只取第一個 pending habit 作為捷徑),點擊展開確認
+          §ADHD 最小摩擦:不開中間 sheet,但需看到完整名稱才能完成 */}
       <motion.button
         type="button"
         initial={{ opacity: 0, y: 8 }}
@@ -278,16 +333,65 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
         transition={{ duration: 0.4, ease: "easeOut", delay: 0.3 }}
         onClick={() => {
           const first = pendingHabits[0];
-          if (first) handleComplete(first.id, first.title);
+          if (!first) return;
+          setConfirmingHabitId((prev) => (prev === first.id ? null : first.id));
         }}
-        aria-label={`完成暖身：${pendingHabits[0]?.title ?? ""}`}
-        className="sm:hidden fixed bottom-6 left-6 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-slate-400 shadow-sm ring-1 ring-slate-200/60 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+        aria-label={`展開暖身：${pendingHabits[0]?.title ?? ""}`}
+        aria-expanded={confirmingHabitId === pendingHabits[0]?.id}
+        className="sm:hidden fixed bottom-6 left-6 z-20 flex h-10 items-center justify-center rounded-full bg-white/80 text-slate-400 shadow-sm ring-1 ring-slate-200/60 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
         style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
         whileTap={{ scale: 0.92 }}
       >
-        <span className="text-base font-medium" aria-hidden>
+        <span
+          className="flex h-10 w-10 items-center justify-center text-base font-medium"
+          aria-hidden
+        >
           {pendingHabits[0]?.title.slice(0, 1) ?? "·"}
         </span>
+        <AnimatePresence initial={false}>
+          {confirmingHabitId === pendingHabits[0]?.id && pendingHabits[0] && (
+            <motion.span
+              key="mobile-confirm-row"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: "auto", opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="flex items-center gap-2 overflow-hidden pr-3 whitespace-nowrap"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="text-xs font-medium text-slate-600">
+                {pendingHabits[0].title}
+              </span>
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const first = pendingHabits[0];
+                  if (first) {
+                    handleComplete(first.id, first.title);
+                    setConfirmingHabitId(null);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const first = pendingHabits[0];
+                    if (first) {
+                      handleComplete(first.id, first.title);
+                      setConfirmingHabitId(null);
+                    }
+                  }
+                }}
+                className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-400 text-white transition-colors hover:bg-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                aria-label={`完成暖身：${pendingHabits[0].title}`}
+              >
+                <Check className="h-3.5 w-3.5" aria-hidden />
+              </span>
+            </motion.span>
+          )}
+        </AnimatePresence>
       </motion.button>
     </>
   );
