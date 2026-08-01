@@ -13,6 +13,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@supabase/ssr";
 
 function getSupabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -21,19 +22,6 @@ function getSupabaseAdmin() {
     throw new Error("Supabase admin client not configured");
   }
   return createClient(url, key);
-}
-
-function getBrowserSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) {
-    throw new Error("Supabase browser client not configured");
-  }
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
 }
 
 interface SubscribeBody {
@@ -46,9 +34,27 @@ interface SubscribeBody {
 export async function POST(request: NextRequest) {
   try {
     // ── 1. 驗證登入身份（從 cookie 讀 session） ──
-    const browser = getBrowserSupabase();
-    const { data: sessionData } = await browser.auth.getSession();
-    const user = sessionData.session?.user;
+    // §23: 用 createServerClient + getUser，跟 test-self 一致；
+    //      不要用 getSession()（server-side 拿不到 localStorage → null → 401）
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) => {
+              request.cookies.set(name, value);
+            });
+          },
+        },
+      }
+    );
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -64,13 +70,11 @@ export async function POST(request: NextRequest) {
 
     // ── 3. upsert（同一個 endpoint 重訂就更新） ──
     const admin = getSupabaseAdmin();
-    const id = `ps_${crypto.randomUUID()}`;
 
     const { data, error } = await admin
       .from("push_subscriptions")
       .upsert(
         {
-          id,
           owner_uid: user.id,
           endpoint: body.endpoint,
           p256dh: body.keys.p256dh,
