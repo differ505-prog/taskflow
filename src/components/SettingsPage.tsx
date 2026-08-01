@@ -918,9 +918,14 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                     </button>
                   </div>
                 ) : notificationPermission === "denied" ? (
-                  <span className="flex items-center gap-1 text-[12px]" style={{ color: "var(--status-danger)" }}>
-                    <AlertCircle className="w-4 h-4" /> 已拒絕
-                  </span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="flex items-center gap-1 text-[12px]" style={{ color: "var(--status-danger)" }}>
+                      <AlertCircle className="w-4 h-4" /> 已拒絕
+                    </span>
+                    <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>
+                      設定 → Safari → 進階 → 網站資料 → 刪除 vercel domain
+                    </span>
+                  </div>
                 ) : (
                   <button
                     onClick={requestNotificationPermission}
