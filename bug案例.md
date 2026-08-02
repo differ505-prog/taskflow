@@ -31,6 +31,7 @@
 | #013-A ✅ | 任務詳情手機版卷不回去(三層 overflow 衝突) | 命中 §26 類別 B + §15.3 雙 scroll container 陷阱;AppLayout 中間多餘 div + TaskDetailPanel panelRef overflow-hidden + scrollRef 缺 min-h-0 | `3da471c` | 2026-08-02 |
 | #013-B ❌ | 經驗條滿時 PP 被重置為 0 + 重置後再次完成任務從 0 開始 | ❌ 失敗,待定位:已試過 root cause 1.ProgressBadge state isolation(被「重置後從 0 開始」排除) 2.hydratedRef dead code(非 reset 路徑) 3.多 caller race condition(無 runtime 證據);grep `localStorage.setItem` 全文只有 `useProgressStatus` 寫,沒看到 `writeToStorage(0)` 路徑;下一步需要 runtime 證據:console.log 在跨門檻前後觀察 localStorage + addPp 呼叫鏈 | （待修） | 2026-08-02 |
 | #014 ✅ | 清單任務列表手機版卷到底卷不回去 | 命中 §26 類別 B + §15.3 雙 scroll container 陷阱;跟 Bug A #013-A 同源 pattern:AppShell L489 外層 `overflow-hidden` 跟 L493 內層 `overflow-y-auto` 衝突;Bug A 修完只改了 TaskDetailPanel,沒改 AppShell 同根因 | `531ea5e` | 2026-08-02 |
+| #014-r2 ✅ | 第 1 輪修 AppShell L489 overflow-hidden 後症狀從「卡住」變成「過度滾動」;第 2 輪定位:真根因是 PullToRefresh L71 `touchAction: "pan-down"` 禁止向上 pan,瀏覽器無法把向上拖動交給內層滾動容器 | `0f29168`(PullToRefresh touchAction "pan-down" → "pan-y") | 2026-08-02 |
 
 ---
 
