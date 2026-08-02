@@ -51,14 +51,34 @@ export async function subscribeToPush(): Promise<PushSubscription | null> {
     return null;
   }
 
+  console.log("[push] Step A: awaiting serviceWorker.ready...");
   const registration = await navigator.serviceWorker.ready;
+  console.log("[push] Step B: SW ready, scope =", registration.scope);
+  console.log("[push] Step C: checking existing subscription...");
   let subscription = await registration.pushManager.getSubscription();
 
   if (!subscription) {
-    subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
-    });
+    console.log("[push] Step D: no existing subscription, calling pushManager.subscribe()...");
+    try {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
+      });
+      console.log("[push] Step E: subscribe() SUCCESS, endpoint =", subscription.endpoint.substring(0, 60) + "...");
+    } catch (e) {
+      console.error("[push] Step E: subscribe() THREW:", e);
+      console.error("[push]   - error name:", (e as Error)?.name);
+      console.error("[push]   - error message:", (e as Error)?.message);
+      console.error("[push]   - error stack:", (e as Error)?.stack);
+      console.error("[push]   - 已知 iOS PWA 訂閱失敗可能原因:");
+      console.error("[push]     (1) NotAllowedError: userVisibleOnly 未滿足 或 Permission 還沒完全生效");
+      console.error("[push]     (2) InvalidStateError: SW 還沒 activate");
+      console.error("[push]     (3) AbortError: iOS PWA 對 Web Push 暫時性拒絕(已知 iOS 17-18 行為)");
+      console.error("[push]     (4) NotSupportedError: VAPID key 解析失敗");
+      throw e;
+    }
+  } else {
+    console.log("[push] Step D: existing subscription found, endpoint =", subscription.endpoint.substring(0, 60) + "...");
   }
 
   return subscription;
