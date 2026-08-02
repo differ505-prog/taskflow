@@ -27,12 +27,6 @@
       "type": "image/png",
       "purpose": "maskable"
     },
-    {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
-    }
   ],
   "categories": ["productivity", "utilities"],
   "lang": "zh-TW",
