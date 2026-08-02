@@ -3,24 +3,36 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { calculateProgressLevel, didLevelUp, BASE_TASK_PP } from "@/lib/progressRank";
 import type { ProgressLevel } from "@/lib/progressRankTypes";
+import { useAuth } from "@/lib/AuthContext";
+import {
+  loadTotalPp,
+  saveTotalPp,
+  subscribeTotalPp,
+} from "@/lib/progressRankSync";
 
 /**
- * useProgressStatus — Pro 等級進步 Hook（localStorage 版本）
+ * useProgressStatus — Pro 等級進步 Hook
  *
- * 當前實作：localStorage
- * 限制：跨裝置不同步
+ * 持久化層：Supabase `user_progress` 表（取代 localStorage）
+ *   - loadTotalPp(uid)：登入後一次性讀取雲端值
+ *   - saveTotalPp(uid, n)：本地 addPp 後背景推送雲端（樂觀更新）
+ *   - subscribeTotalPp(uid, cb)：realtime 訂閱跨裝置變更
  *
- * 切換到 Supabase 時：
- * - 將 STORAGE_KEY 改為從 Supabase `profiles.total_pp` 讀寫
- * - 保留相同 export 介面:{ totalPp, levelInfo, addPp, currentLevel }
+ * 訪客模式（未登入）：降級用 localStorage，避免破壞訪客體驗
+ *
+ * 跨裝置同步保證（§26-A 5 秒保護窗）：
+ *   - 本地 addPp 後 5 秒內，雲端 echo 即使 total_pp 較舊也忽略
+ *   - 避免「剛升級又被雲端舊值覆蓋」
  */
 
-const STORAGE_KEY = "vibelist:totalPp";
+const LEGACY_STORAGE_KEY = "vibelist:totalPp";
+/** 本地最近寫入的時間戳 + 值 — 用於 ignore-stale-cloud-echo */
+const RECENT_WRITE_MS = 5000;
 
-function readFromStorage(): number {
+function readLegacyFromStorage(): number {
   if (typeof window === "undefined") return 0;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
     if (!raw) return 0;
     const parsed = Number.parseInt(raw, 10);
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
@@ -29,12 +41,12 @@ function readFromStorage(): number {
   }
 }
 
-function writeToStorage(value: number): void {
+function clearLegacyStorage(): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, String(Math.max(0, Math.floor(value))));
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
   } catch {
-    // quota exceeded / private mode → silently ignore
+    // ignore
   }
 }
 
@@ -53,25 +65,74 @@ export interface UseProgressStatusReturn {
 }
 
 export function useProgressStatus(): UseProgressStatusReturn {
-  const [totalPp, setTotalPpState] = useState(0);
+  // 初始值：嘗試讀 legacy localStorage（訪客模式 + 登入前首次 render）
+  const [totalPp, setTotalPpState] = useState<number>(() => readLegacyFromStorage());
+
+  const { user } = useAuth();
+  const uid = user?.uid ?? null;
+
   const hydratedRef = useRef(false);
+  /** 最近一次本地寫入的 timestamp + value，用於保護窗 */
+  const lastLocalWriteRef = useRef<{ at: number; value: number } | null>(null);
+  /** 已 migrate 旗標，避免重複把 legacy localStorage 推上雲 */
+  const migratedRef = useRef(false);
 
-  useEffect(() => {
-    const stored = readFromStorage();
-    setTotalPpState(stored);
-    hydratedRef.current = true;
-  }, []);
-
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY && e.newValue) {
-        const next = Number.parseInt(e.newValue, 10);
-        if (Number.isFinite(next) && next >= 0) setTotalPpState(next);
+  const setTotalPp = useCallback((value: number) => {
+    const safe = Math.max(0, Math.floor(value));
+    setTotalPpState(safe);
+    lastLocalWriteRef.current = { at: Date.now(), value: safe };
+    if (uid) {
+      void saveTotalPp(uid, safe);
+    } else {
+      try {
+        window.localStorage.setItem(LEGACY_STORAGE_KEY, String(safe));
+      } catch {
+        // ignore
       }
+    }
+  }, [uid]);
+
+  // 登入後：一次性讀雲端 + 訂閱 realtime + migrate legacy localStorage
+  useEffect(() => {
+    if (!uid) return;
+
+    let cancelled = false;
+    let unsubscribe: (() => void) | null = null;
+
+    (async () => {
+      const cloudValue = await loadTotalPp(uid);
+      if (cancelled) return;
+
+      // Migrate：若 localStorage 有既有值，取 max 推上雲（避免覆蓋更高進度）
+      const legacyValue = readLegacyFromStorage();
+      if (!migratedRef.current && legacyValue > 0) {
+        migratedRef.current = true;
+        const merged = Math.max(cloudValue, legacyValue);
+        setTotalPpState(merged);
+        lastLocalWriteRef.current = { at: Date.now(), value: merged };
+        await saveTotalPp(uid, merged);
+        clearLegacyStorage();
+      } else {
+        setTotalPpState(cloudValue);
+        hydratedRef.current = true;
+      }
+
+      // Realtime 訂閱跨裝置變更
+      unsubscribe = await subscribeTotalPp(uid, (next) => {
+        // §26-A 保護窗：本地剛寫入 5 秒內，若雲端 echo 較舊則忽略
+        const recent = lastLocalWriteRef.current;
+        if (recent && Date.now() - recent.at < RECENT_WRITE_MS) {
+          if (next <= recent.value) return;
+        }
+        setTotalPpState(next);
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      if (unsubscribe) unsubscribe();
     };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  }, [uid]);
 
   const addPp = useCallback(
     (delta: number = BASE_TASK_PP): AddPpResult => {
@@ -79,18 +140,24 @@ export function useProgressStatus(): UseProgressStatusReturn {
       const prev = totalPp;
       const next = prev + safeDelta;
       setTotalPpState(next);
-      writeToStorage(next);
+      lastLocalWriteRef.current = { at: Date.now(), value: next };
       const leveledUpTo = didLevelUp(prev, next);
+
+      // 背景推雲端（fire-and-forget；保留本地同步 UX）
+      if (uid) {
+        void saveTotalPp(uid, next);
+      } else {
+        try {
+          window.localStorage.setItem(LEGACY_STORAGE_KEY, String(next));
+        } catch {
+          // ignore
+        }
+      }
+
       return { newTotal: next, delta: safeDelta, leveledUpTo };
     },
-    [totalPp],
+    [totalPp, uid],
   );
-
-  const setTotalPp = useCallback((value: number) => {
-    const safe = Math.max(0, Math.floor(value));
-    setTotalPpState(safe);
-    writeToStorage(safe);
-  }, []);
 
   const levelInfo = calculateProgressLevel(totalPp);
 
