@@ -7,6 +7,13 @@
 --   3) shared_tasks：每個任務獨立 row（含 position 排序欄位）
 --   4) RLS：成員可讀、owner/editor 可寫
 --   5) Edge Function security definer helpers：incoming JWT email 比對
+--
+-- 2026-08-03 修憲：
+--   - Auth 已從 Firebase 遷移到 Supabase Auth（OAuth + email），
+--     auth.uid() 可以正確解析 Supabase UUID
+--   - 寫入路徑在 migration 0019 開始改用 SECURITY DEFINER RPC，
+--     本檔案的 sl_write / slm_owner_all / st_write 仍保留作為
+--     「client 端誤用直接寫入時的最後一道防線」
 -- =============================================================================
 
 -- 先清除舊的不完整版本（避免 position 欄位缺失）
