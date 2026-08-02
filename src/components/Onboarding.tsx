@@ -5,9 +5,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Briefcase, ShoppingBag, Code2, GraduationCap, Github, Sparkles, ArrowRight, SkipForward } from "lucide-react";
 import { TEMPLATES, applyTemplate } from "@/lib/templates";
 import { useApp } from "@/lib/AppContext";
+import { useAuth } from "@/lib/AuthContext";
 import { toast } from "sonner";
 
-const ONBOARDING_KEY = "taskflow_onboarding_v1_done";
+const ONBOARDING_KEY_PREFIX = "taskflow_onboarding_v1_done";
 
 interface RoleCard {
   id: string;
@@ -56,18 +57,22 @@ interface OnboardingProps {
 }
 
 export function Onboarding({ forceShow = false, onClose }: OnboardingProps) {
-  const { addList, addTask } = useApp();
+  const { addTaskLocalOnly, addList } = useApp();
+  const { user } = useAuth();
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showSkipConfirm, setShowSkipConfirm] = useState(false);
 
+  // §修法 A:per-user sentinel,跨裝置/瀏覽器/隱私視窗獨立追蹤
+  const onboardingKey = user?.uid ? `${ONBOARDING_KEY_PREFIX}_${user.uid}` : null;
+
   // 若已完成 onboarding 且非強制顯示,直接返回 null
-  if (!forceShow && typeof window !== "undefined" && localStorage.getItem(ONBOARDING_KEY) === "1") {
+  if (!forceShow && typeof window !== "undefined" && onboardingKey && localStorage.getItem(onboardingKey) === "1") {
     return null;
   }
 
   const markDone = () => {
-    localStorage.setItem(ONBOARDING_KEY, "1");
+    if (onboardingKey) localStorage.setItem(onboardingKey, "1");
     onClose?.();
   };
 
@@ -79,7 +84,15 @@ export function Onboarding({ forceShow = false, onClose }: OnboardingProps) {
     const template = TEMPLATES.find((t) => t.id === role.recommendedTemplateId);
     if (!template) { setBusy(false); return; }
     try {
-      const { taskIds } = applyTemplate(template, { addList, addTask });
+      // §修法 A:範本任務也走 addTaskLocalOnly(系統一次性教學/範本)
+      // → 不上雲端 → 登出再登入不會殘留污染
+      const { taskIds } = applyTemplate(template, {
+        addList,
+        addTask: (data) => {
+          const ids = addTaskLocalOnly([data]);
+          return ids[0];
+        },
+      });
       toast.success(
         `已套用「${template.name}」,新增 ${taskIds.length} 個任務`,
         { description: "從左側清單開始你的第一週。" }
@@ -259,7 +272,8 @@ export function Onboarding({ forceShow = false, onClose }: OnboardingProps) {
 }
 
 /** 對外暴露的檢查 helper,給 AppLayout 使用 */
-export function hasCompletedOnboarding(): boolean {
+export function hasCompletedOnboarding(uid?: string | null): boolean {
   if (typeof window === "undefined") return true;
-  return localStorage.getItem(ONBOARDING_KEY) === "1";
+  const key = uid ? `${ONBOARDING_KEY_PREFIX}_${uid}` : ONBOARDING_KEY_PREFIX;
+  return localStorage.getItem(key) === "1";
 }

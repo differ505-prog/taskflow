@@ -108,6 +108,16 @@ interface AppContextValue {
   // ── 任務 CRUD ──────────────────────────────────────────
   addTask: (data: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order">) => string;
   /**
+   * §修法 A:系統性任務注入(只用於 OnboardingTask / Onboarding 一次性教學任務)
+   * 與 `addTask` 唯一差別:**不上雲端、不更新 LAST_USER_UID_KEY**。
+   * 用戶登出 → signOut() → clearAllData() 後,這批任務就跟著本地清掉。
+   * 重新登入後,如果 SENTINEL 還在,不會再注入;若 SENTINEL 不在(per-user 命名後),
+   * 會重新注入(這次因為 addTaskLocalOnly 不上雲端,不會跨裝置污染)。
+   */
+  addTaskLocalOnly: (
+    datas: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order" | "ownerUid">[]
+  ) => string[];
+  /**
    * §PWA onboarding fix：批次新增多筆任務,正確累加 order。
    * 為什麼 addTask 不能直接 for-loop 連續呼叫?React state 在同步 for-loop
    * 內連續 setTasks 不會 commit,closure 內 `tasks.filter(...).length`
@@ -867,6 +877,46 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     return id;
   }, [tasks, user, markRecentlyWritten]);
+
+  /**
+   * §修法 A:系統性任務注入(只用於 OnboardingTask 一次性教學任務)。
+   * 與 `addTask` 差別:**不上雲端、不寫 LAST_USER_UID_KEY、不打上 ownerUid**。
+   * 對應 §26-J 的「localOnly」語意:這些任務只活在當前裝置的 localStorage,
+   * 登出後若 clearAllData 一併清掉,就完全蒸發;跨裝置只會因為 per-user
+   * SENTINEL 阻擋而不會重複注入。
+   */
+  const addTaskLocalOnly = useCallback((
+    datas: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order" | "ownerUid">[]
+  ): string[] => {
+    if (datas.length === 0) return [];
+    const now = new Date().toISOString();
+    const newTasks: Task[] = [];
+    const ids: string[] = [];
+    let nextOrder = tasks.filter((t) => !t.isArchived).length;
+    for (const data of datas) {
+      const id = generateId();
+      ids.push(id);
+      newTasks.push({
+        ...data,
+        id,
+        createdAt: now,
+        updatedAt: now,
+        focusMinutes: 0,
+        isArchived: false,
+        order: nextOrder++,
+        // 故意不設 ownerUid — 雲端 sync 過濾時,沒 ownerUid 的任務會被視為
+        // 「不屬於任何使用者」,即使被 batchSaveTasksFirebase 寫入雲端,也會
+        // 在 §26-J 合併階段被判定為「不屬於當前 uid」而排除。
+        // 但此函式根本不會 batchSaveTasksFirebase,所以雲端也不會有這批。
+      });
+    }
+    const updated = [...newTasks, ...tasks];
+    setTasks(updated);
+    saveTasks(updated);
+    // 不呼叫 markRecentlyWritten / updateLastUserUid — 這是系統注入,
+    // 不要干擾真實使用者的「最近寫入保護窗」與「最後登入 uid」紀錄。
+    return ids;
+  }, [tasks]);
 
   const batchAddTasks = useCallback((
     datas: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order">[]
@@ -1898,7 +1948,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     currentSharedListId, setCurrentSharedList,
     searchQuery, setSearchQuery,
     activeFilter, setActiveFilter,
-    addTask, batchAddTasks, updateTask, deleteTask, toggleTaskStatus, archiveTask, unarchiveTask, escapeTask,
+    addTask, addTaskLocalOnly, batchAddTasks, updateTask, deleteTask, toggleTaskStatus, archiveTask, unarchiveTask, escapeTask,
     addSubTask, toggleSubTask, deleteSubTask, reorderSubTasks,
     completeRecurringAndClone,
     addList, updateList, deleteList, reorderLists, reorderTasks,

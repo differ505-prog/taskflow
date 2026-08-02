@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useApp } from "@/lib/AppContext";
+import { useAuth } from "@/lib/AuthContext";
 import { DEFAULT_LIST_IDS } from "@/lib/types";
 
 /**
@@ -15,15 +16,17 @@ import { DEFAULT_LIST_IDS } from "@/lib/types";
  * 觸發條件（全部 AND）：
  *  1. tasks 載入完成 (isAppReady)
  *  2. tasks.length === 0(全新使用者,沒有任何任務)
- *  3. localStorage 沒有 sentinel key `vibelist_onboarding_task_seen`
+ *  3. localStorage 沒有 sentinel key(per-user)
+ *  4. 使用者已登入(user.uid 已確定)
  *
  * 防重複保證：
- *  - sentinel 一旦寫入永遠不再注入(即使日後使用者刪光任務)
- *  - 雲端同步:addTask 內部會 batchSaveTasksFirebase → 多裝置首次登入也只有一次
+ *  - sentinel 改用 `${uid}_${key}` 格式綁定使用者,跨裝置/瀏覽器/隱私視窗獨立追蹤
+ *  - 教學任務透過 useApp.addTaskLocalOnly 注入,**不上雲端**（§修法 A）：
+ *    避免「登出再登入時雲端殘留任務又 sync 回來」的 UX 噩夢
  *  - useRef 守衛 effect 重複觸發(StrictMode 雙 mount / 重渲染)
  *  - 3 筆必須全部 addTask 完成才寫 sentinel;任一筆中斷則下次重試仍能補齊
  */
-const SENTINEL_KEY = "vibelist_onboarding_task_seen";
+const SENTINEL_KEY_PREFIX = "vibelist_onboarding_task_seen";
 
 const ONBOARDING_TASK_TITLES = [
   "🍎 iOS 安裝:用 Safari 開啟本頁 ➔ 點下方 [分享] ➔ 選擇 [加入主畫面]",
@@ -36,16 +39,21 @@ function getLocalToday(): string {
 }
 
 export function OnboardingTask() {
-  const { tasks, batchAddTasks, isAppReady } = useApp();
+  const { tasks, addTaskLocalOnly, isAppReady } = useApp();
+  const { user } = useAuth();
   const injectedRef = useRef(false);
 
   useEffect(() => {
+    const uid = user?.uid;
+    if (!uid) return; // §修法 A:必須有 uid 才能寫入 per-user sentinel
+    const sentinelKey = `${SENTINEL_KEY_PREFIX}_${uid}`;
+
     // 守衛 1:元件已注入過(StrictMode 雙 mount 或重新 mount)
     if (injectedRef.current) return;
     // 守衛 2:資料還沒載入完成
     if (!isAppReady) return;
-    // 守衛 3:sentinel 已存在 → 使用者曾經看過/刪除過,絕不再重生
-    if (typeof window !== "undefined" && localStorage.getItem(SENTINEL_KEY) === "1") return;
+    // 守衛 3:per-user sentinel 已存在 → 此使用者已看過/刪除過,絕不再重生
+    if (typeof window !== "undefined" && localStorage.getItem(sentinelKey) === "1") return;
     // 守衛 4:任務清單不是空(已有任務 → 不算首次使用者)
     if (tasks.length > 0) return;
 
@@ -54,13 +62,13 @@ export function OnboardingTask() {
     const dueDate = getLocalToday();
     const listId = DEFAULT_LIST_IDS["收集箱"];
 
-    // §PWA onboarding fix:一次 batchAddTasks 確保 order 正確累加(0,1,2)
-    // 避免 for-loop 連續 addTask 撞 closure stale tasks.length → 3 筆都 order=0
-    batchAddTasks(
+    // §修法 A:用 addTaskLocalOnly 注入,**純本地、不上雲端**。
+    // 避免「登出再登入 → 雲端 sync 把這 3 筆教學任務又拉回來」的 UX 噩夢。
+    addTaskLocalOnly(
       ONBOARDING_TASK_TITLES.map((title) => ({
         title,
-        priority: "schedule",
-        status: "todo",
+        priority: "schedule" as const,
+        status: "todo" as const,
         dueDate,
         tags: [],
         listId,
@@ -69,11 +77,11 @@ export function OnboardingTask() {
     );
 
     try {
-      localStorage.setItem(SENTINEL_KEY, "1");
+      localStorage.setItem(sentinelKey, "1");
     } catch {
       // localStorage 寫入失敗(隱私模式/Quota)不阻塞,雲端已有任務就夠
     }
-  }, [isAppReady, tasks.length, batchAddTasks]);
+  }, [isAppReady, tasks.length, addTaskLocalOnly, user?.uid]);
 
   return null;
 }

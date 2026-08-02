@@ -8,6 +8,12 @@ const FLOW_TIMER_KEY = "taskflow_flow_timer";
 const TAGS_KEY = "taskflow_tags";
 const SHARED_LISTS_KEY = "taskflow_shared_lists"; // { [sharedId]: { list, tasks } }
 const OWNED_SHARED_LIST_IDS_KEY = "taskflow_owned_shared_ids"; // string[] of owned shared list IDs
+// §修法 A:per-user sentinel/ONBOARDING 採 uid 命名,登出時清掉所有可能的舊 uid key
+// 這些 key 在 signOut() 後無 uid 殘留 → 避免「換瀏覽器/換裝置」SENTINEL 失效
+const SYSTEM_KEY_PREFIXES = [
+  "vibelist_onboarding_task_seen_",
+  "taskflow_onboarding_v1_done_",
+] as const;
 
 // ─── Generic helpers ────────────────────────────────────────────
 function read<T>(key: string, fallback: T): T {
@@ -327,6 +333,16 @@ export function clearAllData(): void {
   [TASKS_KEY, LISTS_KEY, HABITS_KEY, FLOW_TIMER_KEY, TAGS_KEY].forEach((k) =>
     localStorage.removeItem(k)
   );
+  // §修法 A:連同所有 per-user sentinel/ONBOARDING key 全部清除
+  // (per-user 命名 = `${prefix}_${uid}`,必須掃所有 localStorage 才能清乾淨)
+  if (typeof window !== "undefined") {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && SYSTEM_KEY_PREFIXES.some((p) => k.startsWith(p))) {
+        localStorage.removeItem(k);
+      }
+    }
+  }
 }
 
 // ─── CSV Export ─────────────────────────────────────────────────
