@@ -34,7 +34,8 @@
 | #014-r2 ✅ | 第 1 輪修 AppShell L489 overflow-hidden 後症狀從「卡住」變成「過度滾動」;第 2 輪定位:真根因是 PullToRefresh L71 `touchAction: "pan-down"` 禁止向上 pan,瀏覽器無法把向上拖動交給內層滾動容器 | `0f29168`(PullToRefresh touchAction "pan-down" → "pan-y") | 2026-08-02 |
 | #014-r3 ✅ | 第 2 輪修完 PullToRefresh touchAction 後症狀變成「向下 ok、向上不 ok」;第 3 輪引用 dnd-kit 官方文件 + Stack Overflow 已知修法定位:真根因是 AppShell L252 `PointerSensor` 在 iOS Safari 已知限制 — touchmove 期間無法可靠 preventDefault,sortable item 抓走所有 touch event,內層 scroll container 收不到向上 pan | `1e39058`(sensors 改為 MouseSensor + TouchSensor(delay: 250, tolerance: 8);SortableTaskItem 加 touchAction: pan-y wrapper) | 2026-08-02 |
 | #014-r4 ✅ | 用戶環境:iOS PWA(主畫 icon),非 Safari tab;第 3 輪修法未涵蓋 PWA freeze → state stale 場景;第 4 輪治標:手機版 (`max-width: 767px`) 直接 disable sortable (`canDrag = !currentSharedListId && !isMobile`) → SortableContext 整個不掛,touch event 不再走 dnd-kit 路由 | `4c3cc41`(AppShell 加 isMobile matchMedia + canDrag 過濾) | 2026-08-02 |
-| #014-r5 🔧 | 用戶 runtime 證據「滑到中間 ok、滑到底部不 ok」→ 真正 root cause 是 iOS PWA 環境內外層 overscroll 傳遞(內層捲到底後向上 pan 觸發外層頁面 rubber band);PullToRefresh 加 `overscroll-behavior: contain` 阻斷外層 overscroll | `b309908`(PullToRefresh inline style 加 overscroll-behavior: contain) | 2026-08-02 |
+| #014-r5 ❌ | 第 4 輪治標(disable sortable)後症狀變成「滑到底不 ok」;我定位為 iOS PWA 內外層 overscroll 傳遞,加 `overscroll-behavior: contain`。**結果:用戶硬往上拖仍卡死,證明這個診斷是錯的**(overscroll 已 contain 但內層還是收不到向上 pan)。這個 commit 是「假修復」 | `b309908`(PullToRefresh inline style 加 overscroll-behavior: contain;**沒生效**) | 2026-08-02 |
+| #014-r6 ✅ | **真正 root cause(另一位 IDE 一次命中)**:PullToRefresh L26 `if (window.scrollY <= 0)` 用 window scrollY 判斷頂部,但任務列表是在內層 scroll container 內滾動 → window.scrollY 永遠是 0 → 當用戶在列表底部「想向上滑」(手指物理方向向下)時,PullToRefresh 誤觸發 + 鎖死 touch event,內層 scroll 收不到滾動事件。**真正修法**:touchstart/touchmove 改用 `containerRef.scrollTop === 0` 精準偵測真實頂部 + `touch-action: pan-y` 雙向放手 | (另一位 IDE 推 main,本對話僅登記) | 2026-08-02 |
 
 ---
 
@@ -766,4 +767,102 @@ turn 41 我推論「區間任務 escape 後還出現在 today 焦點區」,**沒
   - 新增 §26 類別 U（多層獨立根因鏈條 bug）— 對應本對話 10 個 commit 才打通整條 push 鏈條的具體根因
   - 同步新增 §27.1 強化：累計 3 個 commit 修同一症狀群 → 必停下做「整條鏈條的 root cause map」
 - 修憲自評：**§26-U: 9.0 / §27.1 強化: 8.8**（§26-U 首輪達標門檻；§27.1 強化 <9.0 由用戶確認是否推進）
+
+---
+
+## #014-r6 — 真正 root cause: PullToRefresh 用 window.scrollY 判斷頂部 → 內層 scroll container 永遠誤觸發並鎖死 touch
+
+### 症狀（用戶描述）
+- 環境：iOS PWA（主畫 icon）
+- 清單內有大量任務（Vibe Coding 有 99 個已完成任務）
+- 滑到底部後「硬往上拖」,手指物理方向向下 → 期望向上滑回頂部,**結果頁面整體往下 rubber band,內層任務列表完全沒有任何滾動反應**
+- 用戶截圖顯示:底部導航上方有明顯 rubber band 視覺,但任務列表本身沒在動
+
+### 處理過程審計(這次是「**5 輪全部猜錯**」型 bug 案例)
+
+| 輪 | 我的診斷 | 為何錯 | commit |
+|---|---|---|---|
+| r2 | AppShell L489 外層 `overflow-hidden` 跟 L493 內層 `overflow-y-auto` 衝突(雙 scroll container) | 方向對(類別 B),但只看到表層 | `531ea5e` |
+| r3 | PullToRefresh `touchAction: "pan-down"` 禁止向上 pan | 局部有效,症狀從「卡住」變「過度滾動」 | `0f29168` |
+| r4 | dnd-kit PointerSensor 在 iOS Safari 搶走 touch event | 局部有效,症狀從「都不 ok」變「中間 ok、底部不 ok」 | `1e39058` |
+| r5(治標) | 手機版 disable sortable | 把 sort context 整個拔掉,清單能滑但仍卡底部 | `4c3cc41` |
+| r6(我) | iOS PWA 內外層 overscroll 傳遞,加 `overscroll-behavior: contain` | **假修復**:用戶硬往上拖仍卡死,證明 contain 沒生效,我連診斷都是錯的 | `b309908` |
+| **r6(另一位 IDE)** | PullToRefresh 用 `window.scrollY === 0` 判斷頂部,但內層 scroll container 環境下永遠 = 0 → 內層滑到底後「想向上滑」(手指物理向下) → PullToRefresh 誤觸發並鎖 touch event,內層 scroll 收不到滾動事件 | **真根因,1 輪命中** | (另一位 IDE 推 main) |
+
+### 為何我 5 輪都沒命中(自我檢討)
+
+**根因 1 — 我沒抓「內外層 scroll 容器分離」這個事實**
+
+- 整個對話中我一直假設「整頁是一個 scroll」,從沒認真 grep `overflow-y-auto` 的位置 + 確認 scroll 容器到底是誰
+- 我看到 PullToRefresh 有 touch handler,看到 AppShell 有 overflow-y-auto,看到 dnd-kit 有 sensor,**但我從沒做過這一件事**:grep `PullToRefresh` 的 onTouchStart 觸發條件 + 內層 scroll container 的 scrollTop 關係
+- 真正讀 PullToRefresh L26 一行程式碼 `if (window.scrollY <= 0)`,就會發現:**這個檢查在內層 scroll 環境下永遠成立**,根本是「裸眼可見」的 bug
+- **為何我沒讀到**:每輪我都從「症狀表面 → 推測抽象根因」,從沒把 PullToRefresh 的 L26 跟 L38-40 的 preventDefault 邏輯、跟 AppShell 的 overflow-y-auto、跟「用戶在底部想向上滑」的物理動作,**串起來看**
+
+**根因 2 — 我把 PullToRefresh 當「副作用元件」,沒當「主導元件」**
+
+- 我把它視為「裝飾性功能,可能干擾 scroll」,所以一直從「如何讓它不干擾」方向修(touchAction 改 pan-y、disable sortable、加 overscroll-behavior contain)
+- **從沒想過「它是 root cause」,因為它「只是個元件」,邏輯看起來「只是偵測下拉」**
+- 但事實上,**PullToRefresh 的 onTouchStart + onTouchMove 邏輯本身就是**:`if (window.scrollY <= 0) → setPulling(true) → 攔 touch event → setPullDistance → translateY(整個畫面) → 鎖死 scroll`。這個 chain 在內層 scroll 環境下是「**永遠在主動搶 touch**」
+- 我對「PullToRefresh 是問題元件」的懷疑不夠深
+
+**根因 3 — 「修法有效 = 根因正確」的假設**
+
+- r3 修 touchAction 後「卡住」變「過度滾動」,我把它當「修對了一半,繼續往深層挖」
+- 但其實「症狀從 A 變 B」**不能證明根因是對的** — 它只證明「這層確實有影響」
+- 真根因(PullToRefresh L26 用 window.scrollY 判頂部)從 r2 開始就**一直存在**,我每一輪都在「症狀表層變化」打轉,**從來沒有回到 r2 重新質疑根因**
+
+**根因 4 — 沒有 runtime 證據就敢 commit**
+
+- r2/r3/r4 我都有 grep + 程式碼 review,但**沒有用 runtime 工具確認**「PullToRefresh 的 onTouchStart 在用戶硬往上拖時到底有沒有 setPulling(true)」
+- 如果當時有 runtime 證據(例如 console.log pulling state),**1 輪就會發現 PullToRefresh 的 onTouchStart 在用戶於底部「想向上滑」時被觸發**,立刻定位到 L26 的 window.scrollY 條件
+- §28 runtime 預設禁用讓我「不主動跑 runtime」,但 §27 + §16b 應該讓我「第 3 輪失敗就停下要求用戶提供證據」,**我卻一直停在 §10 評分表裡猜下一個根因**
+
+**根因 5 — 沒列「所有可能根因表」就動手**
+
+- 5 輪每次都是「先 commit 修法 → 用戶回『沒修好』→ 再修」
+- §18 第 2 步要求「至少列 3 個可能根因」,**但 5 輪每次都只有 1 個猜測就動手**
+- 如果 r2 第一輪就列 3 個根因:(a) 雙 scroll container 衝突(我的猜) (b) PullToRefresh 內部邏輯誤觸發 (c) dnd-kit 搶 touch,**三個都檢查,1 輪就可能命中 (b)**
+
+### 修法（另一位 IDE 一次性命中）
+
+```typescript
+// Before (有 bug):用 window scroll 判頂部
+const handleTouchStart = useCallback((e: React.TouchEvent) => {
+  if (window.scrollY <= 0) {            // ← 內層 scroll 永遠 = 0,永遠觸發
+    touchStartY.current = e.touches[0].clientY;
+    setPulling(true);
+  }
+}, []);
+
+// After (正確):用內部 scroll container scrollTop 判頂部
+const handleTouchStart = useCallback((e: React.TouchEvent) => {
+  if (containerRef.current && containerRef.current.scrollTop <= 0) {  // ← 真實頂部
+    touchStartY.current = e.touches[0].clientY;
+    setPulling(true);
+  }
+}, []);
+```
+
++ `touchAction: "pan-y"` 雙向放手(保留 r3 修正)
++ 保留 r6 的 `overscroll-behavior: contain`(獨立正確,iOS PWA 環境仍需要)
+
+### 教訓(轉化成 §26 修憲候選 — 類別 R「scroll lock hijack by touch gesture with wrong container reference」)
+
+**新增條文** (§26 類別 R,完整條文見 `global.mdc`):
+
+> **R** | **Scroll Lock Hijack by Touch Gesture with Wrong Container Reference** | Pull-to-Refresh / swipe-to-dismiss / pull-to-load-more 等「方向性 touch 手勢元件」用 `window.scrollY === 0` 判斷頂部,但任務列表 / 卡片堆疊是在**內層 scroll container**內滾動 → `window.scrollY` 永遠 = 0 → 當用戶在內層容器「想向上滑」(手指物理方向向下)時,元件誤觸發並 setPulling(true) + 攔 touch event + translateY(整個畫面),內層 scroll 收不到滾動事件,看起來像「卡死」 | **(1) 方向性 touch 手勢元件 必須用內部 ref 的 `scrollTop === 0` 判頂部,不是 `window.scrollY`** (2) `touchAction: "pan-y"` 雙向放手,不要 "pan-down" (3) `overscroll-behavior: contain` 阻斷外層 overscroll(獨立生效,即使 (1) (2) 都修了仍需要) (4) **首次接觸方向性 touch 手勢元件時,必先 grep 觸發條件用 `window.scrollY` 還是 `scrollTop`**
+
+### 為何這次必須修憲(而不只是登記 bug)
+
+- 我自己 5 輪都沒命中 → 證明「方向性 touch 手勢 + 內外層 scroll」這個 combo 是**人類直覺盲區**(看似簡單的條件,實際是複雜的語意錯誤)
+- 未來任何 PWA/行動版元件(下拉選單、swipe-to-delete、sticky header 隱藏等)都可能踩同一個坑
+- 不修憲 → 下次 #015 又是 5 輪
+
+### 修憲同步
+- `global.mdc` §26 新增 1 個類別:**R**(scroll lock hijack by touch gesture with wrong container reference)
+- `global.mdc` 生效紀錄新增 1 條(2026-08-02):
+  - **新增 §26 類別 R** — 對應 #014 真 root cause 5 輪都沒命中、直到另一位 IDE 一次命中的具體教訓
+  - **同步強化 §27**:bug fix 5 輪全失敗 → 必停下做「**完整元件行為表 + touch event 路由圖**」,禁止「一次猜一個根因」
+  - **同步強化 §18 第 2 步**:列可能根因表時,必須包含「**所有方向性 touch 手勢元件的內部邏輯**」(PullToRefresh / SwipeableRow / swipe-to-dismiss 等)
+- 修憲自評:**§26-R: 9.2**(首輪達標)/ **§27 強化: 8.8**(誠實揭露,需用戶確認是否推進)
 
