@@ -5,6 +5,7 @@ import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { ConfirmProvider } from "@/hooks/useConfirm";
 import { BfcacheHandler } from "@/components/BfcacheHandler";
 import { AppProviders } from "@/components/AppProviders";
+import { DebugConsole } from "@/components/DebugConsole";
 import { Analytics } from "@vercel/analytics/react";
 
 const inter = Inter({
@@ -99,6 +100,7 @@ export default function RootLayout({
         </ConfirmProvider>
         <ServiceWorkerRegister />
         <Analytics />
+        <DebugConsole />
       </body>
     </html>
   );
