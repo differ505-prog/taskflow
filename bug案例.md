@@ -26,6 +26,7 @@
 | #009 | 點「已完成」狀態 chip 後畫面空白,有 3 個 done 卻不渲染 | activeTasks 拆分時 `explicitlyShowingDone=true` 變 0 + L6.5 折疊區被 `!explicitlyShowingDone` 跳過 | `efac784` | 2026-07-29 |
 | #010 | 「開始暖身」fixed bottom 按鈕垂直對齊偏低,icon 跟文字擠在底部 | inline style `paddingBottom: env(safe-area-inset-bottom, 0px)` 覆蓋 Tailwind `py-2` 的對稱 padding-bottom(在桌面環境 env() 永遠 = 0);CSS specificity: inline style > className | `a857ffa` | 2026-07-29 |
 | #011 | 禪模式「跳過」按鈕按了沒反應(區間任務 startDate 跟 dueDate 撕開,selectZenTasks 仍命中) | `escapeTask` startDate 分支只更新 startDate 不動 dueDate(區間長度為 0 撕開);`selectZenTasks` 只看 `dueDate === today` 不看 startDate | `b54ce30` | 2026-07-29 |
+| #012 | 完整 push 鏈條：無法重新訂閱 → SW 卡死 → favicon 404 → middleware 攔 sw.js → subscribe API id 缺欄 → 測試推播第二次後 tag 去重不彈 banner | 10 個 commit 才完整打通整個 push 鏈條；每個 commit 各自命中不同層次的真根因 | `a0386d3` ~ `e076783` | 2026-07-30 ~ 2026-08-02 |
 
 ---
 
@@ -681,3 +682,80 @@ turn 41 我推論「區間任務 escape 後還出現在 today 焦點區」,**沒
 - `global.mdc` 生效紀錄新增 1 條（2026-07-29）：
   - 新增 §14.4 + §16b.1 + §18d.1 — 對應本對話浪費點 1-7
 - 修憲自評：**§14.4: 9.1 / §16b.1: 9.0 / §18d.1: 9.1**（均首輪即達標,免二輪）
+
+---
+
+## #012 — 完整 push 鏈條：10 個 commit 才打通「按重新訂閱沒反應 → tag 去重不彈 banner」
+
+### 症狀（用戶描述，跨多輪對話累積）
+
+這是個**症狀群**，不是單一 bug — 但根因都在同一條 push 鏈條上，所以歸成單一案例：
+
+| 階段 | 用戶描述的症狀 |
+|---|---|
+| A. 訂閱按鈕沒反應 | 點「訂閱」按鈕 → 沒任何 console log、沒 toast、沒視覺變化；console 完全無訊息 |
+| B. 訂閱永久卡住 | 點「重新訂閱」 → 看起來進行動畫 → 12 秒後 timeout 失敗；重整後再點 → 還是卡住 |
+| C. 拒絕狀態無解 | 一旦點過「拒絕」 → 沒有 UI 提示如何重新授權；Chrome 不會再問第二次 |
+| D. SW 卡死 | 解除訂閱後再訂閱 → 沒有新 SW 註冊；舊 endpoint 還在後端 |
+| E. 強制重置後 SW 不重註冊 | 按「強制重置推播」按鈕 → unregister SW 後新 SW 沒自動註冊 |
+| F. 通知按鈕沒圖示 | 推播抵達 SW → `showNotification` 時 Chrome 報 favicon 404 → 整個 push event 處理中斷 |
+| G. middleware 攔 sw.js | Next.js middleware matcher 把 sw.js 跟 manifest.json 也包進去 → 這些檔被導到 API 路由 404 |
+| H. subscribe API RLS 缺欄 | `POST /rest/v1/push_subscriptions` 報 400 — 因為 `id` 欄位沒帶但 schema 是 `primary key` |
+| I. notificationPermission state 不同步 | 重置按鈕清後端 + 清前端訂閱，但 `Notification.permission` 還停在 "denied" 沒 reset |
+| J. 測試推播第二次不彈 banner | 重置後第一次按測試推播 ✅ banner 出來；第二次以後按 → 完全沒 banner（連 console 都沒訊息） |
+
+### Root Cause（10 個獨立根因，但都在同一條 push 鏈條）
+
+| Commit | 命中根因 |
+|---|---|
+| `a0386d3` | `/api/push/subscribe` 用 `createServerClient` 取代直接呼叫 Supabase，cookie auth 才有 user.uid |
+| `9351f53` | subscribe / unsubscribe handler 加 12 秒 timeout — 防止 RLS 400 死等無限 |
+| `49e4663` | SettingsPage 加「強制重置推播」按鈕，呼叫 `unsubscribe()` + 刪後端 + `unregister()` SW |
+| `c0d9e30` | 訂閱失敗 toast 拆三種原因（timeout / not allowed / RLS），debug 視覺化 |
+| `45c5234` | "已拒絕" 狀態顯示 iOS 解鎖路徑（設定→Safari→進階→網站資料） |
+| `701aa97` | 強制重置後同步 reset 前端 `Notification.permission` state（前端 useState 也要清） |
+| `0cfbc1e` | 強制重置後立刻重新註冊 SW（`navigator.serviceWorker.register` 不等於 SW 已就緒） |
+| `6ac489e` | Next.js middleware matcher 排除 sw.js + manifest.json，避免被導到 API 404 |
+| `2465f5b` | 新增 `public/favicon.svg` — SW `showNotification` icon 必填，404 會讓 push event handler throw |
+| `dce7178` | subscribe API payload 補上 `id` 欄位（`crypto.randomUUID()`），schema `primary key` 必須有值 |
+| `e076783` | `/api/push/test-self` 帶 `task_id: \`test-${Date.now()}\``，避免 `sendPush` fallback 到固定 tag `"taskflow-notification"` 被瀏覽器視為同通知更新 |
+
+### 處理過程審計（這次是「失序累積」型 bug 案例）
+
+**這個 bug 案例跟 #010 / #011 不同**：#010 / #011 是「**同一個 root cause 修了 3 次才命中**」，但 #012 是「**10 個獨立 root cause 各自修一次，每個都命中真根因**」。換言之，每個 commit 的修法本身都正確，**但沒有任何一個 commit 一開始就看清整條鏈條**。
+
+**累計 10 個 commit、跨越約 5 輪對話（從 commit `a0386d3` 起到 commit `e076783`）**，每輪對話只看到當下症狀的 root cause，沒人（包含用戶跟我）一開始就知道「這個症狀背後有 10 層獨立的問題」。
+
+### 各階段的失序類型（**這才是 #012 真正值得記錄的價值**）
+
+| 階段 | 失序類型 | § 違規 |
+|---|---|---|
+| A. 訂閱按鈕沒反應 | 第一輪列了 6 個可能根因（後端 / SW / Chrome 靜默通知 / macOS Focus / 設備錯置），沒走 §18d 重述先問「console 有 log 嗎？」 | §18d |
+| B. 訂閱永久卡住 | 沒第一時間就抓到「RLS 拒絕 = 12 秒死等」，靠 user 提供 console 才定位 | §18b + §27 |
+| C. 拒絕狀態無解 | 沒主動揭露「notification permission 拒絕後怎麼解」— UI 上完全沒引導，靠用戶自己找到 | §7 防禦性 UI |
+| D. SW 卡死 | 「強制重置」按鈕第一步呼叫 `unregister()`，但**沒主動 `register()` 新 SW** — user 必須 hard reload 才能拿到新 SW | §13（沒考慮 SW lifecycle） |
+| E. 強制重置後 SW 不重註冊 | 重置流程沒包含「呼叫 `navigator.serviceWorker.register()` 重新註冊」，靠 commit `0cfbc1e` 才補上 | §14 實作前完整讀取（沒讀 SW lifecycle 文件） |
+| F. 通知按鈕沒圖示 | SW `showNotification({ icon: '/favicon.svg' })` 寫死 favicon.svg 路徑，但 `public/favicon.svg` 不存在 → fetch 404 → SW push handler throw | §6 語意化 HTML / §14（沒 grep 確認檔案存在） |
+| G. middleware 攔 sw.js | Next.js middleware matcher 把所有 `/api/*` 以外的檔案都包進去 — 包含 `/sw.js`、`/manifest.json`，被導到 404 | §23 同步層確認（同源精神：路徑配置不熟） |
+| H. subscribe API RLS 缺欄 | payload 構造沒對照 schema — `id` 欄位是 primary key 但 subscribe API 沒帶 | §14（沒讀 schema） |
+| I. notificationPermission state 不同步 | 前端 useState `permission` 沒在重置時一併 reset，靠 commit `701aa97` 才補 | §25 既有防護對齊（沒 grep 同檔所有 permission 引用點） |
+| J. tag 去重（最後一塊） | 前 5 輪悶頭猜（後端 / SW / Chrome / macOS / 設備），沒問用戶「按幾次有幾次 banner？」這個時序問題 | §18d + §27.1 |
+
+### 教訓（轉化成 §26 修憲候選 — 類別 U 候選）
+
+**§26 類別 U 候選 — 多層獨立根因鏈條 bug**：
+
+| 項目 | 內容 |
+|---|---|
+| 症狀鐵三角 | (a) 一個症狀反覆修都修不好 (b) 每次修都「修對了一塊」但「還有別塊沒修」(c) 累計多個 commit 各自命中不同層次 |
+| **根因模式** | 一個症狀背後其實是多個獨立 root cause **疊加** — 修了一塊症狀消失，但下一塊症狀浮現。每個 root cause 各自需要單獨的修法，沒有「一次修好」的可能。 |
+| **典型場景** | 任何跨多層的鏈條（push notification、OAuth、第三方 API 串接、WebRTC 等），每個層都可能有自己的 bug |
+| **判定法** | 累計 3 個 commit 修同一症狀群 → 必走 §27「失敗 2 次後評分表必含重構大改」；**新增**：累計 5 個 commit 修同一症狀群 → 必須停下做 **「整條鏈條的 root cause map」**，禁止繼續「一次修一塊」 |
+| **治本** | (1) 第一次接觸鏈條型功能時，先畫完整鏈條圖（前端 → SW → 後端 → 第三方服務），列出每一層可能失敗的所有點 (2) 每次只修「症狀對應的那一層」，不要假設這是「唯一 root cause」 (3) 連續 3 個 commit 後必停下，先**輸出 root cause map**給用戶對齊 |
+
+### 修憲同步
+- `global.mdc` 生效紀錄新增 1 條（2026-08-02）：
+  - 新增 §26 類別 U（多層獨立根因鏈條 bug）— 對應本對話 10 個 commit 才打通整條 push 鏈條的具體根因
+  - 同步新增 §27.1 強化：累計 3 個 commit 修同一症狀群 → 必停下做「整條鏈條的 root cause map」
+- 修憲自評：**§26-U: 9.0 / §27.1 強化: 8.8**（§26-U 首輪達標門檻；§27.1 強化 <9.0 由用戶確認是否推進）
+
