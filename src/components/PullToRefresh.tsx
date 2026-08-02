@@ -68,7 +68,15 @@ export function PullToRefresh({ onRefresh, children, className = "" }: PullToRef
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      style={{ touchAction: "pan-y", userSelect: "none" }}
+      style={{
+        touchAction: "pan-y",
+        userSelect: "none",
+        // Bug C #014 第 5 輪(iOS PWA 環境):滑到底向上 pan 只剩頁面 rubber band。
+        // 原因:內層 scroll container 捲到底後,預設會把 overscroll 傳給外層 → 整頁 rubber band。
+        // 修正:overscroll-behavior: contain 阻斷外層 overscroll 傳遞,內層已捲到底時
+        // 即使繼續向上 pan 也不觸發外層 bounce,內層 touch event 仍可被 AppShell 的 scroll 接收。
+        overscrollBehavior: "contain",
+      }}
     >
       {/* Pull indicator — absolute over top, does not block scroll */}
       <div
