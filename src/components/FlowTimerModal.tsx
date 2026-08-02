@@ -6,6 +6,7 @@ import { useApp } from "@/lib/AppContext";
 import { useZenFlowContext, useFlowTimerContext } from "@/lib/ZenFlowContext";
 import type { FlowTimerType } from "@/lib/usePomodoro";
 import { Task } from "@/lib/types";
+import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
   Play, Pause, RotateCcw, Coffee, Target,
@@ -26,15 +27,6 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
   const { tasks, todayFocusMinutes } = useApp();
   const { state: zenState, play: zenPlay, pause: zenPause } = useZenFlowContext();
   const flowTimer = useFlowTimerContext();
-
-  const handleZenToggle = useCallback(() => {
-    if (zenState.isPlaying) {
-      zenPause();
-    } else {
-      zenPlay();
-    }
-  }, [zenState.isPlaying, zenPause, zenPlay]);
-
   const {
     snapshot,
     secondsLeft,
@@ -45,6 +37,19 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
     cycleType,
     setBoundTask,
   } = flowTimer;
+
+  // §音樂鑰匙守衛:計時器不在 running → 拒絕播放(與 FlowTimer 共用同樣規則,DRY §6)
+  const handleZenToggle = useCallback(() => {
+    if (zenState.isPlaying) {
+      zenPause();
+      return;
+    }
+    if (snapshot.phase !== "running") {
+      toast("請先開啟心流計時器 🎯", { id: "flow-timer-guard-modal", duration: 2200 });
+      return;
+    }
+    zenPlay();
+  }, [zenState.isPlaying, zenPause, zenPlay, snapshot.phase]);
 
   const [taskSearch, setTaskSearch] = useState("");
   const [mounted, setMounted] = useState(false);
@@ -71,6 +76,8 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
   }, [activeTasks, taskSearch]);
 
   // Alarm + Notification when a session completes
+  // §phase → idle / paused / completed → 停止音樂 的橋接已統一在 ZenFlowProvider
+  // (FlowTimerMusicBridge) 處理,本元件不再重複訂閱,以符合 DRY §6
   useEffect(() => {
     const unsubscribe = flowTimer.onComplete((finalSnapshot) => {
       const isFocus = finalSnapshot.type === "focus";
@@ -92,26 +99,6 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
     });
     return unsubscribe;
   }, [flowTimer]);
-
-  // Auto-pause music when focus session completes or resets (Free tier: 25-min cap).
-  // Music playback is intentionally independent from timer start — users tap music
-  // manually; we only mirror the "stop" signal so the playlist dies with the timer.
-  // Covers both onComplete (natural countdown reached 0) and reset/pause (manual stop).
-  useEffect(() => {
-    const unsubscribe = flowTimer.onComplete(() => {
-      if (zenState.isPlaying) zenPause();
-    });
-    return unsubscribe;
-  }, [flowTimer, zenState.isPlaying, zenPause]);
-
-  // Also pause music when user manually resets / pauses / closes the modal mid-session.
-  // snapshot.phase → "idle" || "paused" transition with isPlaying music → zenPause.
-  useEffect(() => {
-    if (!zenState.isPlaying) return;
-    if (snapshot.phase === "idle" || snapshot.phase === "paused") {
-      zenPause();
-    }
-  }, [snapshot.phase, zenState.isPlaying, zenPause]);
 
   const handleStart = useCallback(() => {
     if (snapshot.phase === "paused") {
@@ -278,9 +265,11 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
                 <button
                   type="button"
                   onClick={handleZenToggle}
+                  disabled={snapshot.phase !== "running" && !zenState.isPlaying}
                   aria-label={zenState.isPlaying ? "暫停心流音樂" : "播放心流音樂"}
                   aria-pressed={zenState.isPlaying}
-                  className="absolute bottom-1 right-1 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-purple-600 shadow-md ring-1 ring-purple-200/60 backdrop-blur transition-all duration-200 ease-out hover:scale-110 hover:bg-white hover:shadow-lg active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 opacity-90 group-hover/omnibox-modal:opacity-100 sm:opacity-0 sm:group-hover/omnibox-modal:opacity-100 focus-visible:opacity-100"
+                  aria-disabled={snapshot.phase !== "running" && !zenState.isPlaying}
+                  className="absolute bottom-1 right-1 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-purple-600 shadow-md ring-1 ring-purple-200/60 backdrop-blur transition-all duration-200 ease-out hover:scale-110 hover:bg-white hover:shadow-lg active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 opacity-90 group-hover/omnibox-modal:opacity-100 sm:opacity-0 sm:group-hover/omnibox-modal:opacity-100 focus-visible:opacity-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
                 >
                   {zenState.isPlaying ? (
                     <Pause className="h-3.5 w-3.5" fill="currentColor" strokeWidth={0} />

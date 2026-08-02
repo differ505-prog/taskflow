@@ -1,13 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Pause, Play } from "lucide-react";
-import { useZenFlowContext } from "@/lib/ZenFlowContext";
+import { useZenFlowContext, useFlowTimerContext } from "@/lib/ZenFlowContext";
 import { ProWaitlistModal } from "@/components/ProWaitlistModal";
 import { useGhostButton } from "@/hooks/useGhostButton";
-
-const FOCUS_DURATION = 25 * 60; // 25 分鐘（秒）
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -15,23 +13,30 @@ function formatTime(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+/**
+ * §禪模式膠囊計時器
+ *
+ * 設計動機：
+ * - 計時器必須在切換分頁（禪模式 unmount）時持續倒數 — 因此 state 必須在
+ *   Provider 層（ZenFlowProvider）而非元件 local 持有。改用 useFlowTimerContext
+ *   取代原本自寫的 useState + setInterval（已升級為既有 useFlowTimer hook）。
+ * - 音樂是計時器的「附屬服務」：使用者必須先開計時器才能開音樂；
+ *   計時器停止（自然歸零 / 手動暫停）→ 音樂同步停。
+ *   橋接邏輯集中在 ZenFlowProvider（集中式 phase → zenPause 訂閱），避免在
+ *   兩處元件（FlowTimer / FlowTimerModal）重複維護。
+ */
 export function FlowTimer() {
-  const [remaining, setRemaining] = useState(FOCUS_DURATION);
-  const [isRunning, setIsRunning] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const omnisonicIframeRef = useRef<HTMLIFrameElement | null>(null);
-
-  // §音樂控制對接:FlowTimer 是禪模式唯一的音樂入口,小紫圓 iframe 只負責啟動。
-  // 但用戶一旦進禪模式開始專注,iframe 內按鈕被焦點任務卡片遮住,找不到停止入口。
-  // 補一顆絕對定位的 ⏸/▶ overlay,綁 zenState.isPlaying,點擊 → controller[isPlaying ? 'pause' : 'play']()。
   const { state: zenState, play: zenPlay, pause: zenPause } = useZenFlowContext();
-  const handleZenToggle = useCallback(() => {
-    if (zenState.isPlaying) {
-      zenPause();
-    } else {
-      zenPlay();
-    }
-  }, [zenState.isPlaying, zenPause, zenPlay]);
+  const {
+    snapshot,
+    secondsLeft,
+    start,
+    pause: pauseFlowTimer,
+    resume,
+  } = useFlowTimerContext();
+
+  const isRunning = snapshot.phase === "running";
 
   // §React 19 hydration workaround:iframe src 在 useEffect 才注入,
   // 避免 SSR 階段 React 將 iframe 標記為 hydration mismatch 而跳過 element
@@ -40,53 +45,30 @@ export function FlowTimer() {
     omnisonicIframeRef.current.src = `${process.env.NEXT_PUBLIC_OMNISONIC_URL ?? ""}/embed/button`;
   }, []);
 
-  const clearTimer = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  }, []);
-
-  // §Free Tier:25 分鐘倒數中
-  useEffect(() => {
-    if (!isRunning) return;
-    intervalRef.current = setInterval(() => {
-      setRemaining((prev) => {
-        if (prev <= 1) {
-          toast("🍅 25 分鐘專注達成！讓大腦休息一下吧。", {
-            duration: 5000,
-            id: "flow-timer-break",
-          });
-          setIsRunning(false);
-          // §Free Tier:計時歸零 → 同步停止心流音樂(需求:計時停 → 音樂停)
-          if (zenState.isPlaying) zenPause();
-          return FOCUS_DURATION;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearTimer();
-  }, [isRunning, clearTimer, zenState.isPlaying, zenPause]);
-
-  // §Free Tier:使用者手動暫停計時器 → 同步停止心流音樂
-  // (需求:計時停止 → 音樂同步停止,包含「手動暫停」與「歸零自動重置」兩種路徑)
-  useEffect(() => {
-    if (isRunning) return;
-    if (zenState.isPlaying) zenPause();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRunning]);
-
-  const handlePlayPause = () => {
-    if (isRunning) {
-      clearTimer();
-      setIsRunning(false);
+  const handlePlayPause = useCallback(() => {
+    if (snapshot.phase === "running") {
+      pauseFlowTimer();
+    } else if (snapshot.phase === "paused") {
+      resume();
     } else {
-      setIsRunning(true);
+      start({ type: "focus" });
     }
-  };
+  }, [snapshot.phase, pauseFlowTimer, resume, start]);
+
+  // §音樂鑰匙守衛:計時器不在 running → 拒絕播放(計時停止時計時器已觸發 zenPause 橋接)
+  const handleZenToggle = useCallback(() => {
+    if (zenState.isPlaying) {
+      zenPause();
+      return;
+    }
+    if (snapshot.phase !== "running") {
+      toast("請先開啟心流計時器 🎯", { id: "flow-timer-guard", duration: 2200 });
+      return;
+    }
+    zenPlay();
+  }, [zenState.isPlaying, zenPause, zenPlay, snapshot.phase]);
 
   // §Free Tier:用戶點「無限心流」→ 統一走 ProWaitlistModal 假門 pattern
-  // 文案補上「解鎖 25 分鐘限制」對齊本對話新需求(原 toast 沒有提到 25 分鐘限制)
   const infiniteFlowGhost = useGhostButton({ buttonId: "infinite_focus" });
 
   return (
@@ -100,7 +82,13 @@ export function FlowTimer() {
         <button
           type="button"
           onClick={handlePlayPause}
-          aria-label={isRunning ? "暫停專注倒數" : "開始專注倒數"}
+          aria-label={
+            snapshot.phase === "running"
+              ? "暫停專注倒數"
+              : snapshot.phase === "paused"
+                ? "繼續專注倒數"
+                : "開始專注倒數"
+          }
           className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors duration-150 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400"
         >
           {/* 音樂圖示（播放中微微亮起） */}
@@ -135,9 +123,9 @@ export function FlowTimer() {
             isRunning ? "text-zinc-800" : "text-zinc-400"
           }`}
           aria-live="polite"
-          aria-label={`剩餘 ${formatTime(remaining)}`}
+          aria-label={`剩餘 ${formatTime(secondsLeft)}`}
         >
-          {formatTime(remaining)}
+          {formatTime(secondsLeft)}
         </span>
 
         {/* §Fake Door:Pro 無限心流 — 解鎖 25 分鐘限制 */}
@@ -155,7 +143,7 @@ export function FlowTimer() {
 
         {/* §OmniSonic 迷你播放圈圈 */}
         <div
-          className="group/omnibox relative flex h-7 w-7 flex-shrink-0 cursor-pointer items-center justify-center rounded-full border border-purple-500/30 bg-purple-50/50 shadow-[0_0_12px_rgba(192,38,211,0.25)] transition-all hover:scale-105 active:scale-95"
+          className="group/omnibox relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-purple-500/30 bg-purple-50/50 shadow-[0_0_12px_rgba(192,38,211,0.25)] transition-all hover:scale-105 active:scale-95"
           aria-label={isRunning ? "心流音樂播放中 🎵 點擊調整" : "點這裡播放心流音樂 🎵"}
         >
           {/* 獨立一層 overflow-hidden 處理 iframe 裁切，不再影響 overlay 按鈕 */}
@@ -174,9 +162,11 @@ export function FlowTimer() {
           <button
             type="button"
             onClick={handleZenToggle}
+            disabled={!isRunning && !zenState.isPlaying}
             aria-label={zenState.isPlaying ? "暫停心流音樂" : "播放心流音樂"}
             aria-pressed={zenState.isPlaying}
-            className="absolute -bottom-1 -right-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-white/95 text-purple-600 shadow-md ring-1 ring-purple-200/60 transition-all duration-200 ease-out hover:scale-110 hover:bg-white active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 sm:opacity-0 sm:group-hover/omnibox:opacity-100"
+            aria-disabled={!isRunning && !zenState.isPlaying}
+            className="absolute -bottom-1 -right-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-white/95 text-purple-600 shadow-md ring-1 ring-purple-200/60 transition-all duration-200 ease-out hover:scale-110 hover:bg-white active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 sm:opacity-0 sm:group-hover/omnibox:opacity-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
           >
             {zenState.isPlaying ? (
               <Pause className="h-2 w-2" fill="currentColor" strokeWidth={0} />
