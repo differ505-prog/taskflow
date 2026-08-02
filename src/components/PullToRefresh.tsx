@@ -68,7 +68,7 @@ export function PullToRefresh({ onRefresh, children, className = "" }: PullToRef
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      style={{ touchAction: "pan-down", userSelect: "none" }}
+      style={{ touchAction: "pan-y", userSelect: "none" }}
     >
       {/* Pull indicator — absolute over top, does not block scroll */}
       <div
