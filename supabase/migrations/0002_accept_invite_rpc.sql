@@ -1,5 +1,5 @@
 -- =============================================================================
--- acceptance RPC：補釘 #3 — 將 email 比對邏輯放在後端，避免惡意綁 UID
+-- acceptance RPC：將 email 比對邏輯放在後端，避免惡意綁 UID
 -- =============================================================================
 -- 流程：
 --   client 呼叫 public.accept_invite(p_sid text, p_uid text, p_email text)
@@ -7,14 +7,11 @@
 --   2) 若找到，update member_uid = p_uid, status = 'active', accepted_at = now()
 --   3) 否則 raise exception
 --
--- 另外：因為 client 是用 Firebase ID token（非 Supabase Auth JWT），
--- 我們用 RLS 的 create policy "self_accept_invite" 讓「pending row owner 自我標記 active」。
--- 而為了嚴格，RLS 層有另外兩條 security：
---   a) self_accept_invite policy：要求執行者是 anon 角色（已帶 id_token），
---      但因為 supabase 的 anon JWT 沒有 firebase uid 對應，
---      真正比對 email 的工作就交給 RPC 內部 SQL 直接更新。
---
--- 在實際部署時，把 SECURITY DEFINER 套在這個 function 上，讓它可以繞過 RLS。
+-- Security model（2026-08-03 修憲後）：
+--   - Auth 用 Supabase Auth（OAuth + email），不再用 Firebase ID token
+--   - Function 套用 SECURITY DEFINER 並 set search_path = public，
+--     讓 SQL 內部可以繞過 RLS 直接 update
+--   - email 比對在 SQL 內部執行，client 端的 callerEmail 不可信
 -- =============================================================================
 
 create or replace function public.accept_invite(

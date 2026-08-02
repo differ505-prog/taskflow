@@ -2,7 +2,7 @@ import { supabase, isSupabaseConfigured } from "./supabase";
 import type { Task, TaskList } from "./types";
 
 /**
- * Shared-list realtime sync layer (Supabase) — v2.
+ * Shared-list realtime sync layer (Supabase) — v3.
  *
  * Design:
  *  - Postgres rows are the source of truth.
@@ -10,12 +10,16 @@ import type { Task, TaskList } from "./types";
  *  - `shared_list_members`  : 成員（含 role / status / 邀請時間）
  *  - `shared_tasks`         : 每個任務獨立 row + position (排序欄位)
  *
- * 安全機制：
- *  - 客戶端拿 Firebase ID token 注入 Supabase REST + Realtime
- *  - RLS 用 `can_read_list` / `can_write_list` 兩條 function 決定誰能看 / 寫
- *  - 接受邀請時，client 端必須帶上 supabase user.email；
- *    並在 binding 前比對該 email 是否存在於 invited member list 中。
- *    (詳見 bindCurrentUserToInvite)
+ * 安全機制（2026-08-03 修憲）：
+ *  - 客戶端用 Supabase Auth（OAuth + email，見 src/lib/AuthContext.tsx）
+ *    由 /api/auth/session 透過 setSession 把 sb-auth-token cookie 寫入，
+ *    supabase client 自動讀取 → RLS 的 auth.uid() 才能正確解析當前登入者。
+ *  - 寫入路徑走 SECURITY DEFINER RPC（見 supabase/migrations/0019）：
+ *      create_shared_list_v2  解決「owner 第一次建立清單」雞生蛋問題
+ *      （migration 0019 系列尚未涵蓋的寫入路徑：upsertSharedTasks /
+ *       inviteMember / removeMember / changeMemberRole / deleteSharedList）
+ *  - 接受邀請時用 accept_invite RPC（migration 0002）做 email 比對
+ *    確保只有被邀請者本人能把自己 bind 到 member row。
  *
  * 排序：
  *  - 每個任務的 `position` 是 double。
@@ -67,6 +71,12 @@ export function renormalizePositions(positions: number[]): number[] {
 }
 
 // ── Owner: 建立清單（含 owner 自己為 active member）────────────
+// v3 改用 SECURITY DEFINER RPC（migration 0019）避免 RLS 雞生蛋：
+//   - 舊版直接 upsert shared_lists + shared_list_members 兩張表，
+//     撞上 sl_write / slm_owner_all 的 owner_uid = auth.uid() 比對。
+//     在「第一次建立清單」時 owner member row 還不存在就被擋。
+//   - 新版用 create_shared_list_v2 RPC，function 內部繞過 RLS，
+//     並驗證 caller auth.uid() == p_owner_uid 才寫入。
 export async function ensureSharedList(args: {
   sharedListId: string;
   ownerUid: string;
@@ -77,42 +87,20 @@ export async function ensureSharedList(args: {
   if (!supabase) throw new Error("Supabase not configured");
   const { sharedListId, ownerUid, ownerEmail, ownerName, list } = args;
 
-  const { error: listErr } = await supabase.from("shared_lists").upsert(
-    {
-      id: sharedListId,
-      owner_uid: ownerUid,
-      name: list.name,
-      icon: list.icon || "📋",
-      color: list.color || "#3B82F6",
-      owner_email: ownerEmail,
-      owner_name: ownerName,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "id" }
-  );
-  if (listErr) throw listErr;
-
-  // 把 owner 自己寫進 members（idempotent，用 email/uid 為對 key）。
-  // 注意：在 RLS 下 anon 寫入 owner row 會需要 service-role 或放寬政策，
-  // 因此這條也必須在 supabase 端用 service-role key。
-  // 為簡化，這裡假設 migration 已開 policy：
-  //   create policy slm_owner_all on public.shared_list_members ...
-  // 並允許 anon 把「自己 uid 對應到的 row」insert。詳見 supabase/migrations/0001_shared_lists_v2.sql。
-  const { error: memErr } = await supabase.from("shared_list_members").upsert(
-    {
-      shared_list_id: sharedListId,
-      member_uid: ownerUid,
-      member_email: (ownerEmail || "").toLowerCase(),
-      role: "owner",
-      status: "active",
-      accepted_at: new Date().toISOString(),
-    },
-    { onConflict: "shared_list_id,member_email" }
-  );
-  if (memErr) throw memErr;
+  const { error } = await supabase.rpc("create_shared_list_v2", {
+    p_sid: sharedListId,
+    p_owner_uid: ownerUid,
+    p_owner_email: ownerEmail,
+    p_owner_name: ownerName,
+    p_name: list.name,
+    p_icon: list.icon || "📋",
+    p_color: list.color || "#3B82F6",
+  });
+  if (error) throw error;
 }
 
 // ── Owner: 邀請成員 ───────────────────────────────────────────
+// v3 改用 SECURITY DEFINER RPC（migration 0020）繞過 slm_owner_all RLS
 export async function inviteMember(args: {
   sharedListId: string;
   memberEmail: string;
@@ -121,23 +109,14 @@ export async function inviteMember(args: {
   if (!supabase) throw new Error("Supabase not configured");
   const email = args.memberEmail.toLowerCase();
 
-  // upsert：以 (list_id, email) 為唯一；若已存在就更新 role
-  const { data, error } = await supabase
-    .from("shared_list_members")
-    .upsert(
-      {
-        shared_list_id: args.sharedListId,
-        member_email: email,
-        role: args.role,
-        status: "pending",
-        invited_at: new Date().toISOString(),
-      },
-      { onConflict: "shared_list_id,member_email" }
-    )
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc("invite_member_v2", {
+    p_sid: args.sharedListId,
+    p_member_email: email,
+    p_role: args.role,
+  });
   if (error) throw error;
-  return mapMemberRow(data);
+  // rpc 預設回傳單一 row；若 .single() 沒給則包成陣列，需相容舊行為
+  return mapMemberRow(Array.isArray(data) ? data[0] : data);
 }
 
 // ── Recipient: 接受邀請（必須 email 自報且符合 pending row）───
@@ -163,31 +142,32 @@ export async function acceptInvite(args: {
 }
 
 // ── Owner: 移除成員（軟刪除：status='removed'）────────────────
+// v3 改用 SECURITY DEFINER RPC（migration 0020）繞過 slm_owner_all RLS
 export async function removeMember(args: {
   sharedListId: string;
   memberEmail: string;
 }): Promise<void> {
   if (!supabase) throw new Error("Supabase not configured");
-  const { error } = await supabase
-    .from("shared_list_members")
-    .update({ status: "removed" })
-    .eq("shared_list_id", args.sharedListId)
-    .eq("member_email", args.memberEmail.toLowerCase());
+  const { error } = await supabase.rpc("remove_member_v2", {
+    p_sid: args.sharedListId,
+    p_member_email: args.memberEmail.toLowerCase(),
+  });
   if (error) throw error;
 }
 
-// ── Owner: 降級成員角色 ─────────────────────────────────────────
+// ── Owner: 變更成員角色 ─────────────────────────────────────────
+// v3 改用 SECURITY DEFINER RPC（migration 0020）繞過 slm_owner_all RLS
 export async function changeMemberRole(args: {
   sharedListId: string;
   memberEmail: string;
   role: MemberRole;
 }): Promise<void> {
   if (!supabase) throw new Error("Supabase not configured");
-  const { error } = await supabase
-    .from("shared_list_members")
-    .update({ role: args.role })
-    .eq("shared_list_id", args.sharedListId)
-    .eq("member_email", args.memberEmail.toLowerCase());
+  const { error } = await supabase.rpc("change_member_role_v2", {
+    p_sid: args.sharedListId,
+    p_member_email: args.memberEmail.toLowerCase(),
+    p_role: args.role,
+  });
   if (error) throw error;
 }
 
@@ -238,6 +218,7 @@ export async function fetchMySharedListIds(uid: string): Promise<string[]> {
 }
 
 // ── 任務 CRUD：upsert / delete / setPosition ────────────────────
+// v3 改用 SECURITY DEFINER RPC（migration 0020）繞過 st_write RLS
 export async function upsertSharedTasks(
   sharedListId: string,
   tasks: Task[]
@@ -245,7 +226,7 @@ export async function upsertSharedTasks(
   if (!supabase) throw new Error("Supabase not configured");
   if (tasks.length === 0) return;
 
-  // 讀現有 positions 做 nudge，避免撞 key
+  // 讀現有 positions 做 nudge，避免撞 key（SELECT 路徑，不被 st_write RLS 擋）
   const { data: posRows } = await supabase
     .from("shared_tasks")
     .select("id,position")
@@ -255,8 +236,7 @@ export async function upsertSharedTasks(
   (posRows || []).forEach((r: any) => posMap.set(r.id, r.position as number));
 
   let cursor = await nextTaskPosition(sharedListId);
-  const rows = tasks.map((t) => {
-    // 如果 task 已經存在，沿用它的 position；新任務給新的 cursor
+  const tasksJson = tasks.map((t) => {
     let position = posMap.get(t.id);
     if (position === undefined) {
       position = cursor;
@@ -264,16 +244,15 @@ export async function upsertSharedTasks(
     }
     return {
       id: t.id,
-      shared_list_id: sharedListId,
       data: stripUndefined(t),
       position,
-      updated_at: new Date().toISOString(),
     };
   });
 
-  const { error } = await supabase
-    .from("shared_tasks")
-    .upsert(rows, { onConflict: "shared_list_id,id" });
+  const { error } = await supabase.rpc("upsert_shared_tasks_v2", {
+    p_sid: sharedListId,
+    p_tasks: tasksJson,
+  });
   if (error) throw error;
 }
 
@@ -282,11 +261,11 @@ export async function deleteSharedTask(
   taskId: string
 ): Promise<void> {
   if (!supabase) throw new Error("Supabase not configured");
-  const { error } = await supabase
-    .from("shared_tasks")
-    .delete()
-    .eq("shared_list_id", sharedListId)
-    .eq("id", taskId);
+  // v3 改用 SECURITY DEFINER RPC（migration 0020）繞過 st_write RLS
+  const { error } = await supabase.rpc("delete_shared_task_v2", {
+    p_sid: sharedListId,
+    p_task_id: taskId,
+  });
   if (error) throw error;
 }
 
@@ -296,11 +275,12 @@ export async function setSharedTaskPosition(
   position: number
 ): Promise<void> {
   if (!supabase) throw new Error("Supabase not configured");
-  const { error } = await supabase
-    .from("shared_tasks")
-    .update({ position, updated_at: new Date().toISOString() })
-    .eq("shared_list_id", sharedListId)
-    .eq("id", taskId);
+  // v3 改用 SECURITY DEFINER RPC（migration 0020）繞過 st_write RLS
+  const { error } = await supabase.rpc("set_shared_task_position_v2", {
+    p_sid: sharedListId,
+    p_task_id: taskId,
+    p_position: position,
+  });
   if (error) throw error;
 }
 
