@@ -486,7 +486,7 @@ const canDrag = !currentSharedListId;
         {/* Main Content — explicit height chain via h-[calc(...)] */}
         <main className={`flex-shrink-0 flex flex-row md:flex-row h-[calc(100dvh-var(--header-height,64px)-var(--search-bar-height,52px)-var(--safe-area-bottom,60px))] md:h-[calc(100vh-var(--header-height,64px)-var(--search-bar-height,52px))] ${selectedTaskId ? "md:max-w-[calc(100vw-480px-1px)]" : ""}`}>
           {/* Scroll wrapper: explicit height so inner overflow-y-auto calculates bounds correctly */}
-          <div className="flex flex-col min-h-0 w-full h-full overflow-hidden">
+          <div className="flex flex-col min-h-0 w-full h-full">
           {/* Left: Task list — scroll container */}
           <div
             style={{ WebkitOverflowScrolling: "touch" }}
