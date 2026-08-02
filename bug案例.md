@@ -33,6 +33,7 @@
 | #014 ✅ | 清單任務列表手機版卷到底卷不回去 | 命中 §26 類別 B + §15.3 雙 scroll container 陷阱;跟 Bug A #013-A 同源 pattern:AppShell L489 外層 `overflow-hidden` 跟 L493 內層 `overflow-y-auto` 衝突;Bug A 修完只改了 TaskDetailPanel,沒改 AppShell 同根因 | `531ea5e` | 2026-08-02 |
 | #014-r2 ✅ | 第 1 輪修 AppShell L489 overflow-hidden 後症狀從「卡住」變成「過度滾動」;第 2 輪定位:真根因是 PullToRefresh L71 `touchAction: "pan-down"` 禁止向上 pan,瀏覽器無法把向上拖動交給內層滾動容器 | `0f29168`(PullToRefresh touchAction "pan-down" → "pan-y") | 2026-08-02 |
 | #014-r3 ✅ | 第 2 輪修完 PullToRefresh touchAction 後症狀變成「向下 ok、向上不 ok」;第 3 輪引用 dnd-kit 官方文件 + Stack Overflow 已知修法定位:真根因是 AppShell L252 `PointerSensor` 在 iOS Safari 已知限制 — touchmove 期間無法可靠 preventDefault,sortable item 抓走所有 touch event,內層 scroll container 收不到向上 pan | `1e39058`(sensors 改為 MouseSensor + TouchSensor(delay: 250, tolerance: 8);SortableTaskItem 加 touchAction: pan-y wrapper) | 2026-08-02 |
+| #014-r4 ✅ | 用戶環境:iOS PWA(主畫 icon),非 Safari tab;第 3 輪修法未涵蓋 PWA freeze → state stale 場景;第 4 輪治標:手機版 (`max-width: 767px`) 直接 disable sortable (`canDrag = !currentSharedListId && !isMobile`) → SortableContext 整個不掛,touch event 不再走 dnd-kit 路由 | `4c3cc41`(AppShell 加 isMobile matchMedia + canDrag 過濾) | 2026-08-02 |
 
 ---
 
