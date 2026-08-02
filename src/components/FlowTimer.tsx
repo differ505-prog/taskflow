@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Pause, Play } from "lucide-react";
 import { useZenFlowContext } from "@/lib/ZenFlowContext";
+import { ProWaitlistModal } from "@/components/ProWaitlistModal";
+import { useGhostButton } from "@/hooks/useGhostButton";
 
 const FOCUS_DURATION = 25 * 60; // 25 分鐘（秒）
 
@@ -56,13 +58,23 @@ export function FlowTimer() {
             id: "flow-timer-break",
           });
           setIsRunning(false);
+          // §Free Tier:計時歸零 → 同步停止心流音樂(需求:計時停 → 音樂停)
+          if (zenState.isPlaying) zenPause();
           return FOCUS_DURATION;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearTimer();
-  }, [isRunning, clearTimer]);
+  }, [isRunning, clearTimer, zenState.isPlaying, zenPause]);
+
+  // §Free Tier:使用者手動暫停計時器 → 同步停止心流音樂
+  // (需求:計時停止 → 音樂同步停止,包含「手動暫停」與「歸零自動重置」兩種路徑)
+  useEffect(() => {
+    if (isRunning) return;
+    if (zenState.isPlaying) zenPause();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRunning]);
 
   const handlePlayPause = () => {
     if (isRunning) {
@@ -73,13 +85,9 @@ export function FlowTimer() {
     }
   };
 
-  const handleProClick = () => {
-    console.log("clicked_pro_infinite_flow");
-    toast(
-      "✨ 想要一直聽下去嗎？\n\n「無限心流模式（無中斷連播）」目前正在秘密開發中！\n\n這將是未來 Pro 版的專屬能力。我們已經記錄下你的願望了 😉",
-      { duration: 6000, id: "flow-pro-ghost" },
-    );
-  };
+  // §Free Tier:用戶點「無限心流」→ 統一走 ProWaitlistModal 假門 pattern
+  // 文案補上「解鎖 25 分鐘限制」對齊本對話新需求(原 toast 沒有提到 25 分鐘限制)
+  const infiniteFlowGhost = useGhostButton({ buttonId: "infinite_focus" });
 
   return (
     <div className="inline-flex items-center gap-2">
@@ -132,12 +140,12 @@ export function FlowTimer() {
           {formatTime(remaining)}
         </span>
 
-        {/* §Fake Door:Pro 無限心流 */}
+        {/* §Fake Door:Pro 無限心流 — 解鎖 25 分鐘限制 */}
         <button
           type="button"
-          onClick={handleProClick}
+          onClick={infiniteFlowGhost.handleClick}
           className="ml-2 text-[11px] font-medium text-purple-400/80 transition-colors duration-150 hover:text-purple-500 focus-visible:outline-none focus-visible:underline"
-          aria-label="解鎖無限心流模式（Pro 版專屬）"
+          aria-label="解鎖 25 分鐘限制（Pro 版專屬）"
         >
           ✨ 無限心流
         </button>
@@ -178,6 +186,14 @@ export function FlowTimer() {
           </button>
         </div>
       </div>
+
+      {/* §Free Tier:無限心流 → 解鎖 25 分鐘限制假門 */}
+      <ProWaitlistModal
+        open={infiniteFlowGhost.open}
+        onClose={infiniteFlowGhost.handleDismiss}
+        onJoin={infiniteFlowGhost.handleJoin}
+        featureId="infinite_focus"
+      />
     </div>
   );
 }

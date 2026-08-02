@@ -33,7 +33,8 @@ export type GhostFeatureId =
   | "time_bar"
   | "infinite_ai"
   | "pro_themes"
-  | "body_doubling";
+  | "body_doubling"
+  | "infinite_focus";
 
 export interface GhostButtonProps {
   /** 點擊事件(由父層傳入,通常接 useGhostButton.handleClick) */

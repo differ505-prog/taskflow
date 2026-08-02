@@ -93,10 +93,25 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
     return unsubscribe;
   }, [flowTimer]);
 
-  // Auto-play music when focus session starts
+  // Auto-pause music when focus session completes or resets (Free tier: 25-min cap).
+  // Music playback is intentionally independent from timer start — users tap music
+  // manually; we only mirror the "stop" signal so the playlist dies with the timer.
+  // Covers both onComplete (natural countdown reached 0) and reset/pause (manual stop).
   useEffect(() => {
-    // 音樂控制已從計時器拆分，用戶需手動點擊音樂按鈕
-  }, [snapshot.phase, snapshot.type, zenState.isPlaying]);
+    const unsubscribe = flowTimer.onComplete(() => {
+      if (zenState.isPlaying) zenPause();
+    });
+    return unsubscribe;
+  }, [flowTimer, zenState.isPlaying, zenPause]);
+
+  // Also pause music when user manually resets / pauses / closes the modal mid-session.
+  // snapshot.phase → "idle" || "paused" transition with isPlaying music → zenPause.
+  useEffect(() => {
+    if (!zenState.isPlaying) return;
+    if (snapshot.phase === "idle" || snapshot.phase === "paused") {
+      zenPause();
+    }
+  }, [snapshot.phase, zenState.isPlaying, zenPause]);
 
   const handleStart = useCallback(() => {
     if (snapshot.phase === "paused") {

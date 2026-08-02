@@ -50,6 +50,10 @@ const PRO_WAITLIST_COPY: Record<GhostFeatureId, { title: string; body: string }>
     title: "🎧 無聲專注室醞釀中...",
     body: "「你發現了未來的隱藏空間！沒有語音、沒有鏡頭、零社交壓力。這是一個與全球用戶一起無聲專注的虛擬空間。想第一時間獲得解鎖通知嗎？」",
   },
+  infinite_focus: {
+    title: "⏳ 解鎖 25 分鐘限制醞釀中...",
+    body: "「你發現了未來的 Pro 版能力！免費版心流計時器每 25 分鐘自動停止音樂;Pro 版將解除這層限制,讓音樂與心流無縫接軌。想第一時間獲得解鎖通知嗎？」",
+  },
 };
 
 export interface ProWaitlistModalProps {
