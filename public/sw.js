@@ -21,7 +21,7 @@
  * - App Shell 架構：HTML + CSS + JS 全部離線
  * - API 請求不做離線寫入（任務資料以 Supabase Realtime 為準）
  */
-const CACHE_NAME = "taskflow-zY6AV9SmFlgt"; // ← build/dev 時由 scripts/patch-sw.js 自動替換為 taskflow-{hash}
+const CACHE_NAME = "taskflow-zY6AV9SmFlgt_v4"; // ← build/dev 時由 scripts/patch-sw.js 自動替換為 taskflow-{hash}
 // STATIC_ASSETS 不再放 HTML("/") ，否則 cache-first 永遠命中舊 HTML 導致 SW 更新也吃不到新內容
 const STATIC_ASSETS = [
   "/manifest.json",
@@ -143,6 +143,7 @@ async function syncTasks() {
 self.addEventListener("push", (event) => {
   if (!event.data) return;
   const data = event.data.json();
+  const title = data.title || "TaskFlow";
   const options = {
     body: data.body,
     icon: "/icon-192.png",
@@ -152,10 +153,18 @@ self.addEventListener("push", (event) => {
     actions: data.actions || [],
   };
   event.waitUntil(
-    self.registration.showNotification(
-      data.title || "TaskFlow",
-      options
-    )
+    Promise.all([
+      self.registration.showNotification(title, options),
+      self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+        clientList.forEach((client) => {
+          client.postMessage({
+            type: "PUSH_RECEIVED",
+            title,
+            body: data.body,
+          });
+        });
+      })
+    ])
   );
 });
 

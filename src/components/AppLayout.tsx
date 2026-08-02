@@ -1,4 +1,5 @@
 "use client";
+import { toast } from "sonner";
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
@@ -292,6 +293,26 @@ function AppLayoutInner() {
       )}
     </AnimatePresence>
   );
+  // ── Foreground Push Notification Toast ───────────────────────
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === "PUSH_RECEIVED") {
+        toast(
+          <div className="flex flex-col gap-1">
+            <span className="font-semibold text-sm">{event.data.title}</span>
+            <span className="text-xs opacity-90">{event.data.body}</span>
+          </div>,
+          {
+            duration: 4000,
+            icon: "🔔",
+          }
+        );
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", handleMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", handleMessage);
+  }, []);
 
   return (
     <>
