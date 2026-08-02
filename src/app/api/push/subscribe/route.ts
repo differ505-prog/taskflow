@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
+import { randomUUID } from "crypto";
 
 function getSupabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
       .from("push_subscriptions")
       .upsert(
         {
+          id: randomUUID(),
           owner_uid: user.id,
           endpoint: body.endpoint,
           p256dh: body.keys.p256dh,
