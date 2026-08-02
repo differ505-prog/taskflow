@@ -32,5 +32,15 @@ interface SortableTaskItemProps {
  */
 export function SortableTaskItem(props: SortableTaskItemProps) {
   const sortable = useSortable({ id: props.task.id });
-  return <TaskListItem {...props} sortable={sortable} />;
+  return (
+    <div
+      style={{ touchAction: "pan-y" }}
+      // Bug C #014 第 3 輪修法：明確設定 touchAction: pan-y,
+      // 確保 sortable item 允許瀏覽器原生垂直 pan(scroll container 收到 touch 事件),
+      // 配合 TouchSensor(delay: 250) 處理拖曳意圖,scroll 跟 drag 互不干擾。
+      data-sortable-task-item
+    >
+      <TaskListItem {...props} sortable={sortable} />
+    </div>
+  );
 }

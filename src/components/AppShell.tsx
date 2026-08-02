@@ -24,7 +24,7 @@ import {
 import { isComposingKey } from "@/utils/imeGuard";
 import {
   DndContext, DragEndEvent, DragOverlay, DragStartEvent,
-  KeyboardSensor, PointerSensor, closestCenter,
+  KeyboardSensor, MouseSensor, TouchSensor, closestCenter,
   useSensor, useSensors,
 } from "@dnd-kit/core";
 import {
@@ -248,9 +248,15 @@ export function AppShell({
 // 拖曳中用 DragOverlay 顯示半透明浮起卡片,完成後從 activeTasks 算新 order 寫入 store
 // L6.5:已完成任務不可拖曳（它們已折疊於獨立區段,不參與 active 排序）
 const canDrag = !currentSharedListId;
-  // activation distance 8px：避免手機 scroll-to-select 時誤觸發拖曳
+  // MouseSensor + TouchSensor(取代 PointerSensor)
+  // 原因:PointerSensor 在 iOS Safari 上已知限制 — touchmove 期間無法可靠 preventDefault,
+  // 導致 sortable item 抓走所有 touch event,內層 scroll container 收不到向上 pan,
+  // 出現「向下滑正常、向上滑只看到頁面 rubber band」的症狀(Bug C #014 第 3 輪 root cause)
+  // TouchSensor + delay: 250ms + tolerance: 8px:scroll 可立即開始,
+  // hold 250ms 才進入拖曳意圖,避免誤觸。
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
