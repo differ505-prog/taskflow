@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
       title: "TaskFlow 推播成功",
       body: "你收到這則就代表全鏈通了 🎉",
       url: "/",
+      task_id: `test-${Date.now()}`,
     });
 
     return NextResponse.json(result);
