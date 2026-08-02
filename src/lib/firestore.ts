@@ -351,10 +351,14 @@ export async function subscribeToSharedSnapshot(
 }
 
 export async function deleteSharedList(sharedListId: string): Promise<void> {
-  // 透過 cascade 自然刪掉 tasks / members；只要刪 shared_lists row
+  // v3 改用 SECURITY DEFINER RPC（migration 0020）繞過 sl_write RLS；
+  // cascade 仍由 FK 自動清掉 tasks / members。
   const { supabase } = await import("./supabase");
   if (supabase) {
-    await supabase.from("shared_lists").delete().eq("id", sharedListId);
+    const { error } = await supabase.rpc("delete_shared_list_v2", {
+      p_sid: sharedListId,
+    });
+    if (error) throw error;
   }
 }
 

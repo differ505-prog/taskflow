@@ -100,6 +100,7 @@ export async function ensureSharedList(args: {
 }
 
 // ── Owner: 邀請成員 ───────────────────────────────────────────
+// v3 改用 SECURITY DEFINER RPC（migration 0020）繞過 slm_owner_all RLS
 export async function inviteMember(args: {
   sharedListId: string;
   memberEmail: string;
@@ -108,23 +109,14 @@ export async function inviteMember(args: {
   if (!supabase) throw new Error("Supabase not configured");
   const email = args.memberEmail.toLowerCase();
 
-  // upsert：以 (list_id, email) 為唯一；若已存在就更新 role
-  const { data, error } = await supabase
-    .from("shared_list_members")
-    .upsert(
-      {
-        shared_list_id: args.sharedListId,
-        member_email: email,
-        role: args.role,
-        status: "pending",
-        invited_at: new Date().toISOString(),
-      },
-      { onConflict: "shared_list_id,member_email" }
-    )
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc("invite_member_v2", {
+    p_sid: args.sharedListId,
+    p_member_email: email,
+    p_role: args.role,
+  });
   if (error) throw error;
-  return mapMemberRow(data);
+  // rpc 預設回傳單一 row；若 .single() 沒給則包成陣列，需相容舊行為
+  return mapMemberRow(Array.isArray(data) ? data[0] : data);
 }
 
 // ── Recipient: 接受邀請（必須 email 自報且符合 pending row）───
@@ -150,31 +142,32 @@ export async function acceptInvite(args: {
 }
 
 // ── Owner: 移除成員（軟刪除：status='removed'）────────────────
+// v3 改用 SECURITY DEFINER RPC（migration 0020）繞過 slm_owner_all RLS
 export async function removeMember(args: {
   sharedListId: string;
   memberEmail: string;
 }): Promise<void> {
   if (!supabase) throw new Error("Supabase not configured");
-  const { error } = await supabase
-    .from("shared_list_members")
-    .update({ status: "removed" })
-    .eq("shared_list_id", args.sharedListId)
-    .eq("member_email", args.memberEmail.toLowerCase());
+  const { error } = await supabase.rpc("remove_member_v2", {
+    p_sid: args.sharedListId,
+    p_member_email: args.memberEmail.toLowerCase(),
+  });
   if (error) throw error;
 }
 
-// ── Owner: 降級成員角色 ─────────────────────────────────────────
+// ── Owner: 變更成員角色 ─────────────────────────────────────────
+// v3 改用 SECURITY DEFINER RPC（migration 0020）繞過 slm_owner_all RLS
 export async function changeMemberRole(args: {
   sharedListId: string;
   memberEmail: string;
   role: MemberRole;
 }): Promise<void> {
   if (!supabase) throw new Error("Supabase not configured");
-  const { error } = await supabase
-    .from("shared_list_members")
-    .update({ role: args.role })
-    .eq("shared_list_id", args.sharedListId)
-    .eq("member_email", args.memberEmail.toLowerCase());
+  const { error } = await supabase.rpc("change_member_role_v2", {
+    p_sid: args.sharedListId,
+    p_member_email: args.memberEmail.toLowerCase(),
+    p_role: args.role,
+  });
   if (error) throw error;
 }
 
@@ -225,6 +218,7 @@ export async function fetchMySharedListIds(uid: string): Promise<string[]> {
 }
 
 // ── 任務 CRUD：upsert / delete / setPosition ────────────────────
+// v3 改用 SECURITY DEFINER RPC（migration 0020）繞過 st_write RLS
 export async function upsertSharedTasks(
   sharedListId: string,
   tasks: Task[]
@@ -232,7 +226,7 @@ export async function upsertSharedTasks(
   if (!supabase) throw new Error("Supabase not configured");
   if (tasks.length === 0) return;
 
-  // 讀現有 positions 做 nudge，避免撞 key
+  // 讀現有 positions 做 nudge，避免撞 key（SELECT 路徑，不被 st_write RLS 擋）
   const { data: posRows } = await supabase
     .from("shared_tasks")
     .select("id,position")
@@ -242,8 +236,7 @@ export async function upsertSharedTasks(
   (posRows || []).forEach((r: any) => posMap.set(r.id, r.position as number));
 
   let cursor = await nextTaskPosition(sharedListId);
-  const rows = tasks.map((t) => {
-    // 如果 task 已經存在，沿用它的 position；新任務給新的 cursor
+  const tasksJson = tasks.map((t) => {
     let position = posMap.get(t.id);
     if (position === undefined) {
       position = cursor;
@@ -251,16 +244,15 @@ export async function upsertSharedTasks(
     }
     return {
       id: t.id,
-      shared_list_id: sharedListId,
       data: stripUndefined(t),
       position,
-      updated_at: new Date().toISOString(),
     };
   });
 
-  const { error } = await supabase
-    .from("shared_tasks")
-    .upsert(rows, { onConflict: "shared_list_id,id" });
+  const { error } = await supabase.rpc("upsert_shared_tasks_v2", {
+    p_sid: sharedListId,
+    p_tasks: tasksJson,
+  });
   if (error) throw error;
 }
 
@@ -269,11 +261,11 @@ export async function deleteSharedTask(
   taskId: string
 ): Promise<void> {
   if (!supabase) throw new Error("Supabase not configured");
-  const { error } = await supabase
-    .from("shared_tasks")
-    .delete()
-    .eq("shared_list_id", sharedListId)
-    .eq("id", taskId);
+  // v3 改用 SECURITY DEFINER RPC（migration 0020）繞過 st_write RLS
+  const { error } = await supabase.rpc("delete_shared_task_v2", {
+    p_sid: sharedListId,
+    p_task_id: taskId,
+  });
   if (error) throw error;
 }
 
@@ -283,11 +275,12 @@ export async function setSharedTaskPosition(
   position: number
 ): Promise<void> {
   if (!supabase) throw new Error("Supabase not configured");
-  const { error } = await supabase
-    .from("shared_tasks")
-    .update({ position, updated_at: new Date().toISOString() })
-    .eq("shared_list_id", sharedListId)
-    .eq("id", taskId);
+  // v3 改用 SECURITY DEFINER RPC（migration 0020）繞過 st_write RLS
+  const { error } = await supabase.rpc("set_shared_task_position_v2", {
+    p_sid: sharedListId,
+    p_task_id: taskId,
+    p_position: position,
+  });
   if (error) throw error;
 }
 
