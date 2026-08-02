@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { getTasks } from "@/lib/storage";
 import { TemplateMarketplace } from "./TemplateMarketplace";
+import { subscribeToPush, unsubscribeFromPush } from "@/lib/push/vapid";
 import { downloadICal } from "@/lib/ical";
 import { useWebhookSettings, triggerWebhook } from "@/lib/useWebhook";
 import { ROLE_CONFIGS, UserRole } from "@/lib/types";
@@ -97,7 +98,6 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
     };
     const timeout = setTimeout(rescue, 15000);
     try {
-      const { subscribeToPush } = await import("@/lib/push/vapid");
       const sub = await Promise.race([
         subscribeToPush(),
         new Promise<null>((resolve) => setTimeout(() => resolve(null), 12000)),
@@ -168,7 +168,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
     };
     const timeout = setTimeout(rescue, 12000);
     try {
-      const { unsubscribeFromPush } = await import("@/lib/push/vapid");
+      await unsubscribeFromPush();
       const registration = await Promise.race([
         navigator.serviceWorker.ready,
         new Promise<ServiceWorkerRegistration>((_, reject) =>
