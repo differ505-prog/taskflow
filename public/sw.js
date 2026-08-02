@@ -21,7 +21,7 @@
  * - App Shell 架構：HTML + CSS + JS 全部離線
  * - API 請求不做離線寫入（任務資料以 Supabase Realtime 為準）
  */
-const CACHE_NAME = "taskflow-zY6AV9SmFlgt_v4"; // ← build/dev 時由 scripts/patch-sw.js 自動替換為 taskflow-{hash}
+const CACHE_NAME = "taskflow-zY6AV9SmFlgt_v5"; // ← build/dev 時由 scripts/patch-sw.js 自動替換為 taskflow-{hash}
 // STATIC_ASSETS 不再放 HTML("/") ，否則 cache-first 永遠命中舊 HTML 導致 SW 更新也吃不到新內容
 const STATIC_ASSETS = [
   "/manifest.json",
@@ -153,9 +153,12 @@ self.addEventListener("push", (event) => {
     actions: data.actions || [],
   };
   event.waitUntil(
-    Promise.all([
-      self.registration.showNotification(title, options),
-      self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      // 檢查是否有任何視窗處於可見狀態（前景）
+      const isFocused = clientList.some((client) => client.visibilityState === "visible");
+      
+      if (isFocused) {
+        // App 在前景：發送廣播讓網頁顯示內置 Toast，不要跳系統通知
         clientList.forEach((client) => {
           client.postMessage({
             type: "PUSH_RECEIVED",
@@ -163,8 +166,11 @@ self.addEventListener("push", (event) => {
             body: data.body,
           });
         });
-      })
-    ])
+      } else {
+        // App 在背景或未開啟：顯示系統橫幅通知
+        return self.registration.showNotification(title, options);
+      }
+    })
   );
 });
 
