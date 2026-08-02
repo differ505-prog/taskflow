@@ -247,7 +247,21 @@ export function AppShell({
 // 僅同清單內（簡單版範圍）；shared list 跳過拖曳(viewer 唯讀 + 簡單版不跨清單)
 // 拖曳中用 DragOverlay 顯示半透明浮起卡片,完成後從 activeTasks 算新 order 寫入 store
 // L6.5:已完成任務不可拖曳（它們已折疊於獨立區段,不參與 active 排序）
-const canDrag = !currentSharedListId;
+// Bug C #014 第 4 輪:手機 PWA 環境下,即便 sensors 已改 MouseSensor+TouchSensor,
+// dnd-kit SortableContext 仍可能干擾 touch event 路由(尤其 iOS PWA 在 background
+// freeze 解除後 React state stale 期間)。
+// 解法:手機版直接 disable sortable(也不掛 SortableContext),治標但可靠;
+// 桌面版維持 sortable 完整功能。
+const [isMobile, setIsMobile] = useState(false);
+useEffect(() => {
+  const mql = window.matchMedia("(max-width: 767px)");
+  const handler = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+  handler(mql);
+  mql.addEventListener("change", handler);
+  return () => mql.removeEventListener("change", handler);
+}, []);
+
+const canDrag = !currentSharedListId && !isMobile;
   // MouseSensor + TouchSensor(取代 PointerSensor)
   // 原因:PointerSensor 在 iOS Safari 上已知限制 — touchmove 期間無法可靠 preventDefault,
   // 導致 sortable item 抓走所有 touch event,內層 scroll container 收不到向上 pan,
