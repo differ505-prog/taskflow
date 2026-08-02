@@ -55,6 +55,11 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
   const [pushTestPending, setPushTestPending] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushDbSubscribed, setPushDbSubscribed] = useState<boolean | null>(null);
+  const [pushSafariHint, setPushSafariHint] = useState<string | null>(null);
+  const [isPwa] = useState(
+    typeof window !== "undefined" &&
+      window.matchMedia?.("(display-mode: standalone)").matches,
+  );
   const pushBusyRef = useRef(false);
 
   const detectPushDbState = useCallback(async () => {
@@ -939,13 +944,34 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                     </span>
                   </div>
                 ) : (
-                  <button
-                    onClick={requestNotificationPermission}
-                    className="px-3 py-1.5 rounded-xl text-[12px] font-medium"
-                    style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
-                  >
-                    開啟通知
-                  </button>
+                  <div className="flex flex-col items-end gap-1">
+                    <button
+                      onClick={async () => {
+                        const ok = await requestNotificationPermission();
+                        if (!ok) {
+                          const permNow = typeof Notification !== "undefined" ? Notification.permission : "default";
+                          setPushSafariHint(
+                            permNow === "denied"
+                              ? "瀏覽器已封鎖,請到 iOS 設定 → Safari → 進階 → 網站資料 → 刪除此網站再重試"
+                              : isPwa
+                                ? "瀏覽器已靜默拒絕,請檢查 iOS 設定 → Safari → 進階 → 網站資料"
+                                : "Safari 分頁不支援,請將網站加入主畫後再開啟通知",
+                          );
+                        } else {
+                          setPushSafariHint(null);
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-xl text-[12px] font-medium"
+                      style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+                    >
+                      開啟通知
+                    </button>
+                    {pushSafariHint && (
+                      <span className="text-[10px] text-right" style={{ color: "var(--text-tertiary)" }}>
+                        {pushSafariHint}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
               <div className="h-px" style={{ background: "var(--border)" }} />
