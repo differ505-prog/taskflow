@@ -482,7 +482,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   return (
     <div
       ref={panelRef}
-      className="flex flex-col h-full overflow-hidden"
+      className="flex flex-col h-full"
       onTouchStart={onClose ? handleTouchStart : undefined}
       onTouchMove={onClose ? handleTouchMove : undefined}
       onTouchEnd={onClose ? handleTouchEnd : undefined}
@@ -555,7 +555,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
         </div>
 
         {/* Form body */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-5 pb-24">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-6 space-y-5 pb-24">
 
         {/* Title */}
         <div>

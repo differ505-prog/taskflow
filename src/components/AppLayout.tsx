@@ -278,18 +278,16 @@ function AppLayoutInner() {
           exit={{ opacity: 0, x: isMobile ? "100%" : 20 }}
           transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
           className={isMobile ? "fixed inset-0 z-[60] overflow-y-auto overscroll-contain" : "w-full md:w-[480px] flex-shrink-0 border-l overflow-hidden"}
-          style={{ 
-            borderColor: "var(--border)", 
+          style={{
+            borderColor: "var(--border)",
             background: "var(--surface)",
             width: isMobile ? "100%" : 480
           }}
         >
-          <div className="h-full overflow-y-auto overscroll-contain">
-            <TaskDetailPanel
-              task={detailTask}
-              onClose={() => { setSelectedTaskId(null); setCalendarSelectedTask(null); }}
-            />
-          </div>
+          <TaskDetailPanel
+            task={detailTask}
+            onClose={() => { setSelectedTaskId(null); setCalendarSelectedTask(null); }}
+          />
         </motion.div>
       )}
     </AnimatePresence>
