@@ -23,7 +23,17 @@ export function PullToRefresh({ onRefresh, children, className = "" }: PullToRef
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (window.scrollY <= 0) {
+    let node = e.target as HTMLElement | null;
+    let isAtTop = true;
+    while (node && node !== document.body && node !== document.documentElement) {
+      if (node.scrollTop > 0) {
+        isAtTop = false;
+        break;
+      }
+      node = node.parentElement;
+    }
+
+    if (isAtTop) {
       touchStartY.current = e.touches[0].clientY;
       setPulling(true);
     }
