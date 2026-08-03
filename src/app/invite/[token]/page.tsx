@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Users, Loader2, AlertCircle, CheckCircle2, ShieldCheck, Mail } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 type PageState = "loading" | "invalid_token" | "expired" | "wrong_email" | "already_member" | "authenticated" | "joining" | "success";
@@ -112,9 +113,8 @@ export default function InvitePage() {
     setPageState("joining");
 
     try {
-      const sessionRes = await fetch("/api/auth/session");
-      const sessionData = await sessionRes.json();
-      const accessToken = sessionData?.accessToken;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
 
       if (!accessToken) {
         toast.error("請重新登入後再試");
