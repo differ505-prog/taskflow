@@ -4,10 +4,11 @@ import { useState, useCallback } from "react";
 import Link from "next/link";
 import {
   Inbox, Sun, CalendarDays, Layers, Tag, BarChart3, CalendarRange,
-  Settings, List as ListIcon, Timer, Sparkles, Flame,
+  Settings, List as ListIcon, Timer, Sparkles, Flame, LogOut
 } from "lucide-react";
 import { AppView, TaskList } from "@/lib/types";
 import { haptic } from "@/lib/haptics";
+import { supabase } from "@/lib/supabase";
 
 interface BottomNavItem {
   view: AppView;
@@ -141,11 +142,20 @@ function MorePopover({ onItem, onFlowTimer, onSettings, onSelectList, onOpenSide
   lists: TaskList[];
   onClose: () => void;
 }) {
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      window.location.href = "/login";
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} aria-hidden="true" />
       <div
-        className="fixed bottom-[calc(60px+env(safe-area-inset-bottom,0px))] right-3 z-50 rounded-2xl overflow-hidden"
+        className="fixed bottom-[calc(60px+env(safe-area-inset-bottom,0px))] right-3 z-50 rounded-2xl overflow-y-auto overflow-x-hidden max-h-[75vh]"
         style={{ background: "var(--surface-elevated)", boxShadow: "var(--shadow-lg)", border: "1px solid var(--border)" }}
         role="menu"
         aria-label="更多選項"
@@ -222,6 +232,16 @@ function MorePopover({ onItem, onFlowTimer, onSettings, onSelectList, onOpenSide
         >
           <Settings className="w-[22px] h-[22px]" />
           設定
+        </button>
+        <div style={{ height: "1px", background: "var(--border)" }} />
+        <button
+          className="flex items-center gap-3 px-5 py-3.5 text-[14px] font-medium w-full text-left transition-colors hover:bg-red-50"
+          style={{ color: "var(--status-danger)" }}
+          onClick={handleSignOut}
+          role="menuitem"
+        >
+          <LogOut className="w-[22px] h-[22px]" />
+          登出
         </button>
       </div>
     </>
