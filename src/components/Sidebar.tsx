@@ -56,7 +56,7 @@ interface SidebarProps {
 const LIST_ICONS = ["📋", "💼", "🏠", "🏃", "📚", "💡", "🎯", "🌟", "💰", "🏥", "✈️", "🎨", "🍽️", "🛠️", "📱", "💻"];
 
 export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditList, onDeleteList, onOpenFlowTimer, onOpenShareModal, onOpenSharedLists, onOpenSharedList, onLeaveSharedList }: SidebarProps) {
-  const { currentView, currentListId, currentSharedListId, setCurrentView, viewCounts, lists, reorderLists, sharedLists, getListTaskCount, tasks } = useApp();
+  const { currentView, currentListId, currentSharedListId, setCurrentView, viewCounts, lists, reorderLists, sharedLists, getListTaskCount, tasks, acceptedSharedListIds } = useApp();
   const { user } = useAuth();
   const confirm = useConfirm();
   const [listsExpanded, setListsExpanded] = useState(true);
@@ -273,13 +273,19 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
         <div className="h-px mx-2 mt-2" style={{ background: "var(--border)" }} />
 
         {/* Shared lists */}
-        {Object.values(sharedLists).filter((d) => d.list.ownerId !== user?.uid).length > 0 && (
+        {Object.values(sharedLists).filter((d) => {
+          const key = d.list.sharedId ?? d.list.id;
+          return d.list.ownerId !== user?.uid && acceptedSharedListIds.includes(key);
+        }).length > 0 && (
           <div className="pt-2 space-y-0.5">
             <div className="px-3 py-1 text-[11px] font-medium uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
               共用清單
             </div>
             {Object.values(sharedLists)
-              .filter((d) => d.list.ownerId !== user?.uid)
+              .filter((d) => {
+                const key = d.list.sharedId ?? d.list.id;
+                return d.list.ownerId !== user?.uid && acceptedSharedListIds.includes(key);
+              })
               .map((data) => {
               const key = data.list.sharedId ?? data.list.id;
               const isActiveShared = currentSharedListId === key;

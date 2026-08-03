@@ -180,6 +180,7 @@ interface AppContextValue {
   // ── Shared Lists ──────────────────────────────────────
   sharedLists: Record<string, SharedListData>;
   sharedListIds: string[];
+  acceptedSharedListIds: string[];
   shareList: (listId: string) => Promise<string | null>;
   unshareList: (sharedListId: string) => Promise<void>;
   acceptSharedList: (sharedListId: string, data: SharedListSnapshot) => void;
@@ -2048,7 +2049,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     uncheckHabit: uncheckHabitFn,
     quickAdd,
     requestNotificationPermission, notificationPermission, setNotificationPermission,
-    sharedLists, sharedListIds: Object.keys(sharedLists),
+    sharedLists, sharedListIds: Object.keys(sharedLists), acceptedSharedListIds,
     shareList, unshareList, acceptSharedList, removeAcceptedSharedList,
     checkIncomingShareLink, quickAddToShared, updateSharedTask, deleteSharedTask,
     reorderSharedTask,
