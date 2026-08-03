@@ -112,6 +112,7 @@ export async function POST(req: NextRequest) {
       .select("id")
       .eq("shared_list_id", invite.shared_list_id)
       .eq("member_email", userEmail)
+      .eq("member_uid", userUid)
       .eq("status", "active")
       .limit(1);
 
