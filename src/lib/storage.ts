@@ -336,16 +336,6 @@ export function clearAllData(): void {
   [TASKS_KEY, LISTS_KEY, HABITS_KEY, FLOW_TIMER_KEY, TAGS_KEY].forEach((k) =>
     localStorage.removeItem(k)
   );
-  // §修法 A:連同所有 per-user sentinel/ONBOARDING key 全部清除
-  // (per-user 命名 = `${prefix}_${uid}`,必須掃所有 localStorage 才能清乾淨)
-  if (typeof window !== "undefined") {
-    for (let i = localStorage.length - 1; i >= 0; i--) {
-      const k = localStorage.key(i);
-      if (k && SYSTEM_KEY_PREFIXES.some((p) => k.startsWith(p))) {
-        localStorage.removeItem(k);
-      }
-    }
-  }
 }
 
 // ─── CSV Export ─────────────────────────────────────────────────
