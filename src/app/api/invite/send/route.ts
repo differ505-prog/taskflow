@@ -26,7 +26,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { renderInviteEmail } from "@/emails";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vibelist.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.vibelist.work";
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "VibeList <noreply@vibelist.app>";
 
 // ─── Lazy client factory ────────────────────────────────────────────────────
