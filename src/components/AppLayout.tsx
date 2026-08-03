@@ -92,10 +92,10 @@ function AppLayoutInner() {
   };
   const handleBatchDelete = async () => {
     const ok = await confirm({
+      intent: "delete",
       title: `刪除 ${batchSelectedIds.size} 項任務`,
       message: `這 ${batchSelectedIds.size} 項任務將從所有清單中移除,此操作無法復原。`,
       impactDetail: `${batchSelectedIds.size} 項任務將永久刪除`,
-      confirmText: "刪除",
       tone: "danger",
     });
     if (!ok) return;

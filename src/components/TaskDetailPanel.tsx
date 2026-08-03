@@ -382,9 +382,9 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
 
   const handleDelete = async () => {
     const ok = await confirm({
+      intent: "delete",
       title: `刪除任務「${task.title}」`,
       message: "此任務的所有資料（子任務、附件、註解）將一併移除,此操作無法復原。",
-      confirmText: "刪除任務",
       tone: "danger",
     });
     if (ok) {

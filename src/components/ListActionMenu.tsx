@@ -72,10 +72,10 @@ export function ListActionMenu({
 
   const handleDelete = async () => {
     const ok = await confirm({
+      intent: "delete",
       title: `刪除清單「${targetList.name}」`,
       message: "此操作會將清單下的任務改為「未分類」,清單本身將永久移除。",
       impactDetail: taskCount > 0 ? `${taskCount} 項任務將改為未分類` : "此清單下沒有任務",
-      confirmText: "刪除清單",
       tone: "danger",
     });
     if (ok) {

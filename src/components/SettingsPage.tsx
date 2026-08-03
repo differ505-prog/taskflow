@@ -27,6 +27,7 @@ import { ROLE_CONFIGS, UserRole } from "@/lib/types";
 import { getConfettiEnabled, setConfettiEnabled, previewConfetti } from "@/lib/confetti";
 import { toast } from "sonner";
 import { useConfirm } from "@/hooks/useConfirm";
+import { translatePushError } from "@/lib/errorMessages";
 import { isComposingKey } from "@/utils/imeGuard";
 import { ProGhostButton } from "./ProGhostButton";
 import { GhostButton } from "./GhostButton";
@@ -109,15 +110,15 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
         new Promise<null>((resolve) => setTimeout(() => resolve(null), 12000)),
       ]);
       if (!sub) {
-        // 拆出三種原因讓使用者知道怎麼處理
+        // 拆出三種原因讓使用者知道怎麼處理（對齊 VOICE_AND_TONE.md §5）
         if (typeof Notification === "undefined") {
           toast.error("此瀏覽器不支援推播");
         } else if (Notification.permission === "denied") {
-          toast.error("通知已被拒絕，請到 iOS 設定 → Safari → 網站資料 → 清除後重試");
+          toast.error("推播被拒絕,到 iOS 設定 → Safari 開啟");
         } else if (Notification.permission === "default") {
-          toast.error("通知權限視窗被略過，請用 Safari 一般 tab 開站一次並允許通知");
+          toast.error("通知權限視窗被略過,請用 Safari 一般 tab 開站一次並允許");
         } else {
-          toast.error("瀏覽器拒絕授權或推播不支援（逾時 12 秒）");
+          toast.error("訂閱逾時,請再試一次");
         }
         return;
       }
@@ -157,7 +158,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
       toast.success("推播已重新訂閱");
       setPushDbSubscribed(true);
     } catch (e) {
-      toast.error(`訂閱失敗：${e instanceof Error ? e.message : String(e)}`);
+      toast.error(translatePushError(e, "subscribe"));
     } finally {
       clearTimeout(timeout);
       rescue();
@@ -197,7 +198,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
       toast.success("已取消推播訂閱");
       setPushDbSubscribed(false);
     } catch (e) {
-      toast.error(`取消失敗：${e instanceof Error ? e.message : String(e)}`);
+      toast.error(translatePushError(e, "unsubscribe"));
     } finally {
       clearTimeout(timeout);
       rescue();
@@ -257,7 +258,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
       // 同步把前端 Notification.permission 狀態歸零，讓 UI 回到「啟用推播」按鈕
       setNotificationPermission("default");
     } catch (e) {
-      toast.error(`強制重置失敗：${e instanceof Error ? e.message : String(e)}`);
+      toast.error(translatePushError(e, "reset"));
     } finally {
       clearTimeout(timeout);
       rescue();
@@ -282,7 +283,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
         toast.error("沒有可送達的訂閱，請確認已授權通知權限");
       }
     } catch (e) {
-      toast.error(`測試失敗：${e instanceof Error ? e.message : String(e)}`);
+      toast.error(translatePushError(e, "test"));
     } finally {
       setPushTestPending(false);
     }
@@ -423,11 +424,10 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
 
   const handleClearAll = async () => {
     const ok = await confirm({
+      intent: "delete",
       title: "清除所有資料",
       message: "所有任務、清單、習慣、設定將從本機與雲端完全移除。匯出備份後再清除可避免資料遺失。",
       impactDetail: `${tasks.length} 項任務 · ${habits.length} 個習慣 · ${lists.length} 個清單將永久刪除`,
-      confirmText: "永久清除",
-      cancelText: "取消",
       tone: "danger",
     });
     if (!ok) return;

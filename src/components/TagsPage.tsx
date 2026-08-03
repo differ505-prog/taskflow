@@ -120,10 +120,10 @@ export function TagsPage() {
   const handleRemoveTag = async (tagName: string) => {
     const usedByCount = tasks.filter((t) => !t.isArchived && t.tags.includes(tagName)).length;
     const ok = await confirm({
+      intent: "delete",
       title: `刪除標籤「${tagName}」`,
       message: "標籤將從所有任務中移除,此操作無法復原。",
       impactDetail: usedByCount > 0 ? `${usedByCount} 項任務將移除此標籤` : "此標籤目前沒有任務使用",
-      confirmText: "刪除標籤",
       tone: "danger",
     });
     if (!ok) return;

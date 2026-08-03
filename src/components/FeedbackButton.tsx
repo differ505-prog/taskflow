@@ -175,7 +175,7 @@ function FeedbackModal({ open, onClose, userEmail, userRole }: FeedbackModalProp
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "送出失敗");
       }
-      toast.success("已收到,謝謝你的反饋 ✨");
+      toast.success("已收到你的反饋,謝謝");
       onClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "送出失敗,請稍後再試");

@@ -169,7 +169,7 @@ export default function AdminFeedbackPage() {
     const markdown = buildFeedbackMarkdown(selected);
     const ok = await copyToClipboard(markdown);
     if (ok) {
-      toast.success(`已複製 ${selected.length} 筆反饋 ✨ — 貼到 Cursor / Claude 即可整理`);
+      toast.success(`已複製 ${selected.length} 筆反饋 — 貼到 Cursor / Claude 即可整理`);
     } else {
       toast.error("複製失敗,請手動選取");
     }

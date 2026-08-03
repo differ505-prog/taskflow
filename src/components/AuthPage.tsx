@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
 import { AUTH_PROVIDERS } from "@/lib/authConfig";
+import { translateAuthError } from "@/lib/errorMessages";
 import {
   Mail, Lock, LogIn, AlertCircle, Loader2, ShieldCheck, CheckCircle2, ArrowLeft,
 } from "lucide-react";
@@ -45,7 +46,7 @@ export function AuthPage({ onGuestMode }: AuthPageProps) {
     try {
       await signInWithGoogle();
     } catch (e: any) {
-      setError(e.message || "Google 登入失敗");
+      setError(translateAuthError(e));
     }
   };
 
@@ -54,7 +55,7 @@ export function AuthPage({ onGuestMode }: AuthPageProps) {
     try {
       await signInWithApple();
     } catch (e: any) {
-      setError(e.message || "Apple 登入失敗");
+      setError(translateAuthError(e));
     }
   };
 
@@ -68,21 +69,8 @@ export function AuthPage({ onGuestMode }: AuthPageProps) {
       } else {
         await signUpWithEmail(email, password);
       }
-    } catch (e: any) {
-      // Supabase Auth error codes
-      const msg =
-        e?.message?.includes("Invalid login credentials")
-          ? "Email 或密碼錯誤"
-          : e?.message?.includes("Email not confirmed")
-          ? "請先至信箱點擊驗證連結"
-          : e?.message?.includes("already registered")
-          ? "此 Email 已被註冊"
-          : e?.message?.includes("Password should be at least")
-          ? "密碼至少需要 6 個字元"
-          : e?.message?.includes("canceled")
-          ? "已取消"
-          : e?.message || "發生錯誤";
-      setError(msg);
+    } catch (err) {
+      setError(translateAuthError(err));
     } finally {
       setSubmitting(false);
     }
@@ -95,16 +83,8 @@ export function AuthPage({ onGuestMode }: AuthPageProps) {
     try {
       await resetPasswordForEmail(email);
       setMode("forgot-sent");
-    } catch (e: any) {
-      const msg =
-        e?.message?.includes("rate limit")
-          ? "請求過於頻繁，請稍後再試"
-          : e?.message?.includes("valid email")
-          ? "Email 格式不正確"
-          : e?.message?.includes("not found")
-          ? "查無此 Email 帳號"
-          : e?.message || "寄送失敗，請稍後再試";
-      setError(msg);
+    } catch (err) {
+      setError(translateAuthError(err));
     } finally {
       setSubmitting(false);
     }

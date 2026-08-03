@@ -696,7 +696,17 @@ const canDrag = !currentSharedListId && !isMobile;
                       setFormInitialStatus(activeFilter.status === "in-progress" ? "in-progress" : "todo");
                       setIsFormOpen(true);
                     }}
-                    variant="general"
+                    variant={
+                      currentView === "today"
+                        ? "today"
+                        : currentView === "all"
+                        ? "all"
+                        : currentView === "tags"
+                        ? "tags"
+                        : currentView === "stats"
+                        ? "stats"
+                        : "general"
+                    }
                   />
                 ) : (
                   <div className="flex flex-col gap-1">

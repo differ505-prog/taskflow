@@ -350,11 +350,10 @@ export function HabitsPage() {
                   }}
                   onDelete={async () => {
                   const ok = await confirm({
+                    intent: "defer",
                     title: `封存習慣「${habit.title}」`,
                     message: "此習慣將從主列表移除,但 streak、checkins 紀錄仍會保留,可在「查看封存」中還原。",
                     impactDetail: `${habit.checkins.filter((c) => c.completed).length} 次打卡紀錄將保留`,
-                    confirmText: "封存",
-                    cancelText: "取消",
                     tone: "warning",
                   });
                   if (ok) archiveHabit(habit.id);
