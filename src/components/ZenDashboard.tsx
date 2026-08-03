@@ -138,6 +138,23 @@ export default function ZenDashboard() {
     reorderTasks([...newQueue, ...otherTasks]);
   };
 
+  // §A1:輕量「下一個輪值」入口 — 把 visibleTasks[0] 跟 [1] 對調,
+  // 讓下一個任務「輪值上來」當焦點(視覺上 = 下一個任務進場)。
+  // 不寫新 state、不擴 schema、不破壞 escapeTask / toggleTaskStatus /
+  // UPCOMING drag 任何既有路徑。復用 reorderTasks + 5 秒保護窗(§26-A)。
+  const shiftFocusWithNext = () => {
+    if (visibleTasks.length < 2) return;
+    const newOrderIds = [visibleTasks[1].id, visibleTasks[0].id, ...visibleTasks.slice(2).map((t) => t.id)];
+    const todayIds = new Set(visibleTasks.map((t) => t.id));
+    const todayById = new Map<string, Task>();
+    visibleTasks.forEach((t) => todayById.set(t.id, t));
+    const reorderedToday = newOrderIds
+      .map((id) => todayById.get(id))
+      .filter((t): t is Task => Boolean(t));
+    const otherTasks = tasks.filter((t) => !todayIds.has(t.id));
+    reorderTasks([...reorderedToday, ...otherTasks]);
+  };
+
   const handleComplete = async (taskId: string) => {
     const completedTask = visibleTasks.find((t) => t.id === taskId);
     if (!completedTask) return;
@@ -314,6 +331,8 @@ export default function ZenDashboard() {
                 isCrashing={isCrashing}
                 onComplete={() => handleComplete(focus.id)}
                 onSkip={() => escapeTask(focus.id)}
+                onShiftNext={shiftFocusWithNext}
+                canShiftNext={visibleTasks.length >= 2}
                 onUpdateTitle={(id, title) => updateTask(id, { title })}
                 ghostButton={
                   <GhostButton
@@ -420,6 +439,8 @@ function FocusCard({
   isCrashing,
   onComplete,
   onSkip,
+  onShiftNext,
+  canShiftNext,
   ghostButton,
   onUpdateTitle,
 }: {
@@ -428,6 +449,8 @@ function FocusCard({
   isCrashing: boolean;
   onComplete: () => void;
   onSkip: () => void;
+  onShiftNext: () => void;
+  canShiftNext: boolean;
   ghostButton?: React.ReactNode;
   onUpdateTitle: (id: string, title: string) => void;
 }) {
@@ -583,6 +606,25 @@ function FocusCard({
       )}
 
       <div className="mt-8 flex flex-col items-center gap-3">
+        {/* §A1 焦點順序微調入口 — 「▶ 下一個」按鈕:
+            把今天 task 的 [0] 跟 [1] 對調,讓下一個輪值上來當焦點。
+            視覺上 =「下一個任務進場」,不像「跳過」會把任務推到明天。
+            設計決策:只放單向「▶」(不放 ◀),因為今日任務只要有下一個,
+            對調後都是「下一個進場」,雙向箭頭反而會讓 ADHD 用戶分心。
+            - 桌機:group-hover / group-focus-within / focus-visible 才浮現
+            - 手機 (sm 以下):常駐可見(hover 不可達)
+            - 只有 1 個 today 任務時 disabled(無下一個可輪值) */}
+        <button
+          type="button"
+          onClick={onShiftNext}
+          disabled={!canShiftNext || isSlashing || isCrashing || isEditing}
+          aria-label="輪值下一個任務為新焦點(今日順序微調,不會跳過或封存)"
+          title="下一個輪值上來"
+          className="inline-flex items-center gap-1.5 rounded-full bg-slate-100/80 px-4 py-2 text-xs font-medium uppercase tracking-widest text-slate-500 ring-1 ring-inset ring-slate-200/60 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-slate-200/60 hover:text-slate-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 sm:focus-visible:opacity-100"
+        >
+          <ChevronRightIcon />
+          <span>下一個輪值</span>
+        </button>
         <button
           type="button"
           onClick={onComplete}
@@ -703,6 +745,26 @@ function GripIcon() {
       <circle cx="15" cy="6" r="1" />
       <circle cx="15" cy="12" r="1" />
       <circle cx="15" cy="18" r="1" />
+    </svg>
+  );
+}
+
+// §A1 焦點輪值按鈕用的 chevron icon(沿用 lucide 風格 24x24 stroke=1.75,
+// 跟既有 GripIcon 視覺權重一致)
+function ChevronRightIcon() {
+  return (
+    <svg
+      aria-hidden
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M9 6l6 6-6 6" />
     </svg>
   );
 }
