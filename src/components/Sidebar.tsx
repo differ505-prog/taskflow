@@ -440,6 +440,17 @@ function SortableListItem({
         >
           <span className="flex-shrink-0 text-base leading-none">{list.icon}</span>
           <span className="flex-1 truncate">{list.name}</span>
+          {list.sharedId && (
+            <span
+              className="flex items-center gap-1 flex-shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-medium"
+              style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+              title="共享清單"
+              aria-label="共享清單"
+            >
+              <Users className="w-3 h-3" aria-hidden="true" />
+              共享
+            </span>
+          )}
           <span className="text-[12px]" style={{ opacity: 0.5 }}>{taskCount}</span>
         </button>
       </div>
