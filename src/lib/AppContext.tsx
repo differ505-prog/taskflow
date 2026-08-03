@@ -308,8 +308,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // ── Shared List State ───────────────────────────────────
   const [sharedLists, setSharedLists] = useState<Record<string, SharedListData>>({});
-  const [ownedSharedListIds, _setOwnedSharedListIds] = useState<string[]>([]);
+  const [ownedSharedListIds, _setOwnedSharedListIds] = useState<string[]>(() => {
+    if (typeof window !== "undefined") return getOwnedSharedListIds();
+    return [];
+  });
   const ownedSharedListIdsRef = useRef<string[]>([]);
+  // 同步 ref（避免 closure 問題）
+  useEffect(() => {
+    ownedSharedListIdsRef.current = ownedSharedListIds;
+  }, [ownedSharedListIds]);
   const setOwnedSharedListIds = useCallback((updater: string[] | ((prev: string[]) => string[])) => {
     _setOwnedSharedListIds((prev) => {
       const next = typeof updater === "function" ? updater(prev) : updater;
@@ -358,16 +365,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     console.log(`[APP INIT] localStorage tasks=${localTasks.length} user=${user?.uid ?? "null"}`);
     setHabits(getHabits());
     setTodayFocusMinutes(getTodayFocusMinutes());
-    const storedOwnedIds = getOwnedSharedListIds();
-    if (storedOwnedIds.length > 0) {
-      _setOwnedSharedListIds(storedOwnedIds);
-      ownedSharedListIdsRef.current = storedOwnedIds;
-    }
+    // ownedSharedListIds 已由 lazy init 恢復（見上 useState(() => getOwnedSharedListIds())）
     const storedSharedLists = getSharedLists();
     setSharedLists(storedSharedLists);
 
     // Init 時主動拉 owned/accepted shared list 的角色（防止 reload 後 owner 身份丟失）
     if (user) {
+      const storedOwnedIds = getOwnedSharedListIds();
       const storedAcceptedIds = storedSharedLists ? Object.keys(storedSharedLists) : [];
       const allIds = [...new Set([...storedOwnedIds, ...storedAcceptedIds])];
       if (allIds.length > 0) {
