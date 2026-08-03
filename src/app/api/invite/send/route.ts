@@ -71,26 +71,24 @@ export async function POST(req: NextRequest) {
     let senderUid: string;
     let senderEmail: string;
     try {
+      const authHeader = req.headers.get("Authorization");
+      const tokenStr = authHeader ? authHeader.replace("Bearer ", "").trim() : "none";
+      const tokenPrefix = tokenStr.substring(0, 15);
+      
       const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
+          global: { headers: { Authorization: authHeader || "" } },
           cookies: {
-            getAll() {
-              return req.cookies.getAll();
-            },
-            setAll(cookiesToSet) {
-              cookiesToSet.forEach(({ name, value }) => {
-                req.cookies.set(name, value);
-              });
-            },
+            getAll() { return req.cookies.getAll(); },
+            setAll(cookiesToSet) { cookiesToSet.forEach(({ name, value }) => req.cookies.set(name, value)); },
           },
         }
       );
       const { data: { user }, error } = await supabase.auth.getUser();
       if (error || !user) {
-        console.error("getUser error:", error);
-        return NextResponse.json({ error: `Invalid token: ${error?.message || 'unknown'}` }, { status: 401 });
+        return NextResponse.json({ error: `Invalid token (${tokenPrefix}...): ${error?.message || 'unknown'}` }, { status: 401 });
       }
       senderUid = user.id;
       senderEmail = user.email ?? "";
