@@ -1485,6 +1485,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const snapshot = await getSharedSnapshot(sharedListId);
     if (!snapshot) return;
 
+    // 防重複加入：若已有相同 (name + ownerId) 的清單，直接 skip
+    const existing = getSharedLists();
+    const duplicate = Object.entries(existing).find(
+      ([id, d]) =>
+        id !== sharedListId &&
+        d.list.name === snapshot.list.name &&
+        d.list.ownerId === (snapshot.ownerId || snapshot.list.ownerId)
+    );
+    if (duplicate) {
+      // eslint-disable-next-line no-console
+      console.warn("[Shared] 跳過重複加入：", snapshot.list.name, "(已有)", duplicate[0]);
+      return;
+    }
+
     const ownerId = snapshot.ownerId || snapshot.list.ownerId;
     const listWithDefaults: TaskList = {
       ...snapshot.list, ownerId,
