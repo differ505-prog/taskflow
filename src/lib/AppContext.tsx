@@ -818,8 +818,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [tasks]);
 
   const getListTaskCount = useCallback((listId: string) => {
+    const list = lists.find((l) => l.id === listId);
+    if (list?.sharedId && sharedLists[list.sharedId]) {
+      return sharedLists[list.sharedId].tasks.filter((t) => !t.isArchived && t.status !== "done").length;
+    }
     return tasks.filter((t) => t.listId === listId && !t.isArchived && t.status !== "done").length;
-  }, [tasks]);
+  }, [tasks, lists, sharedLists]);
 
   const getTagCounts = useCallback(() => {
     const counts: Record<string, number> = {};
