@@ -1673,16 +1673,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user, acceptedSharedListIds]);
 
-  // ── 拉回自己身份（收件人第一次進入時） ─────────────────
+  // ── 拉回自己身份（收件人第一次進入時或從 Firebase 同步清單時） ─────────────────
   useEffect(() => {
     if (!user) return;
-    const allIds = Array.from(new Set([...ownedSharedListIds, ...acceptedSharedListIds]));
+    const listSharedIds = lists.map(l => l.sharedId).filter(Boolean) as string[];
+    const allIds = Array.from(new Set([...ownedSharedListIds, ...acceptedSharedListIds, ...listSharedIds]));
     allIds.forEach(async (sid) => {
       if (myRoleByList[sid]) return;
       const r = await getMyRoleInSharedList(sid, user.uid);
       if (r) setMyRoleByList((prev) => ({ ...prev, [sid]: r }));
     });
-  }, [user, ownedSharedListIds, acceptedSharedListIds, myRoleByList]);
+  }, [user, ownedSharedListIds, acceptedSharedListIds, lists, myRoleByList]);
 
   // ── Quick Add（個人） ──────────────────────────────────
   const quickAdd = useCallback((input: string, currentView?: string): string | null => {
