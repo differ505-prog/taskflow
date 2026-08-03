@@ -172,20 +172,36 @@ export async function changeMemberRole(args: {
 }
 
 // ── 查詢：自己在此清單的身分 ──────────────────────────────────
+// 優先查 shared_list_members（精確角色）
+// fallback：如果 members 查不到（時序問題或 legacy 資料），
+// 直接從 shared_lists.owner_uid 判斷（確保 owner 不會「變成成員」）
 export async function getMyRole(args: {
   sharedListId: string;
   callerUid: string;
 }): Promise<MemberRole | null> {
   if (!supabase) return null;
-  const { data, error } = await supabase
+
+  // 先查 members table
+  const { data: memberData } = await supabase
     .from("shared_list_members")
-    .select("role,status")
+    .select("role")
     .eq("shared_list_id", args.sharedListId)
     .eq("member_uid", args.callerUid)
     .eq("status", "active")
     .maybeSingle();
-  if (error || !data) return null;
-  return data.role as MemberRole;
+
+  if (memberData) return memberData.role as MemberRole;
+
+  // Fallback：用 owner_uid 直接判斷（繞過 member_uid 時序問題）
+  const { data: listData } = await supabase
+    .from("shared_lists")
+    .select("owner_uid")
+    .eq("id", args.sharedListId)
+    .maybeSingle();
+
+  if (listData?.owner_uid === args.callerUid) return "owner";
+
+  return null;
 }
 
 // ── 查詢：取得成員名單 ─────────────────────────────────────────
