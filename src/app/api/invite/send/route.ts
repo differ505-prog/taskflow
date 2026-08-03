@@ -169,7 +169,8 @@ export async function POST(req: NextRequest) {
 
     if (emailError) {
       console.error("[invite/send] Email send failed:", emailError);
-      // 不阻擋成功（token 已寫入 DB，可重發）
+      // 發信失敗（可能是尚未驗證網域或測試帳號限制），退回到「複製連結」模式
+      return NextResponse.json({ success: true, token, emailSkipped: true }, { status: 200 });
     }
 
     return NextResponse.json({ success: true, token }, { status: 200 });
