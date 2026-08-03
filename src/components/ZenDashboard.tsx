@@ -141,13 +141,19 @@ export default function ZenDashboard() {
     reorderTasks([...newQueue, ...otherTasks]);
   };
 
-  // §A1:輕量「下一個輪值」入口 — 把 visibleTasks[0] 跟 [1] 對調,
-  // 讓下一個任務「輪值上來」當焦點(視覺上 = 下一個任務進場)。
+  // §A1:輕量「下一個輪值」入口 — 把 visibleTasks[0] 移到清單最尾端,
+  // 其他任務往前遞補一格,形成「跑馬燈式循環」:
+  //   5 個任務 → 連按 5 次,焦點依序為 F → Q1 → Q2 → Q3 → Q4 → F(回到原點)
+  // 視覺上:每次按「下一個輪值」,新的焦點從清單尾巴遞補上來,
+  // 原焦點保留在新焦點前方(若使用者按「跳過/完成」才真的離開)。
   // 不寫新 state、不擴 schema、不破壞 escapeTask / toggleTaskStatus /
   // UPCOMING drag 任何既有路徑。復用 reorderTasks + 5 秒保護窗(§26-A)。
   const shiftFocusWithNext = () => {
     if (visibleTasks.length < 2) return;
-    const newOrderIds = [visibleTasks[1].id, visibleTasks[0].id, ...visibleTasks.slice(2).map((t) => t.id)];
+    const newOrderIds = [
+      ...visibleTasks.slice(1).map((t) => t.id),
+      visibleTasks[0].id,
+    ];
     const todayIds = new Set(visibleTasks.map((t) => t.id));
     const todayById = new Map<string, Task>();
     visibleTasks.forEach((t) => todayById.set(t.id, t));
