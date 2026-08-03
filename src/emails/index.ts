@@ -22,3 +22,7 @@ export {
   WeeklyReportEmail,
   renderWeeklyReportEmail,
 } from "./WeeklyReportEmail";
+
+export {
+  renderInviteEmail,
+} from "./InviteEmail";

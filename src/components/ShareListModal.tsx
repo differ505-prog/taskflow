@@ -152,7 +152,6 @@ export function ShareListModal({ isOpen, onClose, listToShare: staleListToShare,
     removeAcceptedSharedList,
     membersBySharedList,
     listSharedMembers,
-    inviteToSharedList,
     kickFromSharedList,
     changeSharedMemberRole,
     getMyRole,
@@ -280,14 +279,46 @@ export function ShareListModal({ isOpen, onClose, listToShare: staleListToShare,
     setInviteBusy(true);
     setInviteError(null);
     try {
-      await inviteToSharedList(sharedListId, email, inviteRole);
+      // 取得 access token
+      const sessionRes = await fetch("/api/auth/session");
+      const sessionData = await sessionRes.json();
+      const accessToken = sessionData?.accessToken;
+      if (!accessToken) throw new Error("請先登入");
+
+      const res = await fetch("/api/invite/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          sharedListId,
+          inviteeEmail: email,
+          role: inviteRole,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.status === 409) {
+        setInviteError("這個人已經有有效邀請了");
+        return;
+      }
+
+      if (!res.ok) {
+        throw new Error(data.error || "邀請失敗");
+      }
+
+      toast.success(`邀請已發送至 ${email}，對方會收到 email 通知`);
       setInviteEmail("");
+      // 刷新成員列表
+      await listSharedMembers(sharedListId);
     } catch (err: any) {
-      setInviteError(err?.message || "邀請失敗");
+      setInviteError(err?.message || "邀請失敗，請稍後再試");
     } finally {
       setInviteBusy(false);
     }
-  }, [sharedListId, inviteEmail, inviteRole, inviteToSharedList, user]);
+  }, [sharedListId, inviteEmail, inviteRole, user, listSharedMembers]);
 
   const handleKick = useCallback(async (email: string) => {
     if (!sharedListId) return;
@@ -420,8 +451,7 @@ export function ShareListModal({ isOpen, onClose, listToShare: staleListToShare,
                   </h3>
                   <ShareLinkButton shareUrl={shareUrl} listName={listToShare.name} />
                   <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
-                    收到連結的人必須用 <strong>Google 帳號</strong> 登入並通過 Email 比對才能加入。
-                  </p>
+                    輸入對方 email 並點「邀請」，系統會自動寄送 email 通知。</p>
                 </div>
 
                 {/* 邀請新成員（owner only） */}
