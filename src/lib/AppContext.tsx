@@ -680,13 +680,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const { fetchMySharedListIds } = await import("./sharedSync");
         const allIds = await fetchMySharedListIds(user.uid);
         
+        // 1. 新增我新加入的清單
         const newAcceptedIds = allIds.filter(
           (id) => !ownedSharedListIds.includes(id) && !acceptedIds.includes(id)
         );
         
-        if (newAcceptedIds.length > 0) {
-          console.log("[SharedList] Discovered new shared lists:", newAcceptedIds);
-          setAcceptedSharedListIds(prev => Array.from(new Set([...prev, ...newAcceptedIds])));
+        // 2. 找出 localStorage 殘留的「幽靈清單」（我已經不是成員，或綁錯 uid 的），將其清除
+        const orphanIds = acceptedIds.filter(id => !allIds.includes(id));
+        
+        if (newAcceptedIds.length > 0 || orphanIds.length > 0) {
+          console.log("[SharedList] Syncing shared lists. New:", newAcceptedIds, "Orphans to remove:", orphanIds);
+          
+          if (orphanIds.length > 0) {
+            orphanIds.forEach(id => removeSharedList(id));
+            setSharedLists(getSharedLists());
+          }
+
+          setAcceptedSharedListIds(prev => {
+            const next = new Set([...prev, ...newAcceptedIds]);
+            orphanIds.forEach(id => next.delete(id));
+            return Array.from(next);
+          });
         }
       } catch (err) {
         console.warn("[SharedList] Failed to discover new shared lists:", err);
