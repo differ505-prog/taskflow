@@ -107,37 +107,38 @@ export async function POST(req: NextRequest) {
     // ── 4. 檢查是否已有有效邀請 ──────────────────────────────────────────────
     const { data: existingInvite } = await admin
       .from("shared_invites")
-      .select("id")
+      .select("id, token")
       .eq("shared_list_id", sharedListId)
       .eq("invitee_email", inviteeEmail.toLowerCase())
       .is("used_at", null)
       .gt("expires_at", new Date().toISOString())
       .limit(1);
 
+    let token: string;
     if (existingInvite && existingInvite.length > 0) {
-      return NextResponse.json({ error: "An active invite already exists for this email" }, { status: 409 });
-    }
+      token = existingInvite[0].token;
+    } else {
+      // ── 5. 生成 token 並寫入 ────────────────────────────────────────────────
+      token = crypto.randomUUID();
+      const { error: insertError } = await admin
+        .from("shared_invites")
+        .insert({
+          token,
+          shared_list_id: sharedListId,
+          invitee_email: inviteeEmail.toLowerCase(),
+          inviter_uid: senderUid,
+          inviter_name: list.owner_name ?? senderEmail.split("@")[0],
+          role,
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        });
 
-    // ── 5. 生成 token 並寫入 ────────────────────────────────────────────────
-    const token = crypto.randomUUID();
-    const { error: insertError } = await admin
-      .from("shared_invites")
-      .insert({
-        token,
-        shared_list_id: sharedListId,
-        invitee_email: inviteeEmail.toLowerCase(),
-        inviter_uid: senderUid,
-        inviter_name: list.owner_name ?? senderEmail.split("@")[0],
-        role,
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      });
-
-    if (insertError) {
-      console.error("[invite/send] Insert failed:", insertError);
-      return NextResponse.json(
-        { error: "Failed to create invite", detail: insertError.message, code: insertError.code },
-        { status: 500 }
-      );
+      if (insertError) {
+        console.error("[invite/send] Insert failed:", insertError);
+        return NextResponse.json(
+          { error: "Failed to create invite", detail: insertError.message, code: insertError.code },
+          { status: 500 }
+        );
+      }
     }
 
     // ── 6. 寄送 email ────────────────────────────────────────────────────────
