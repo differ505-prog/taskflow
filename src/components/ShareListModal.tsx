@@ -141,9 +141,10 @@ function MemberRow({
   );
 }
 
-export function ShareListModal({ isOpen, onClose, listToShare, listTasks, incomingShareData }: ShareListModalProps) {
+export function ShareListModal({ isOpen, onClose, listToShare: staleListToShare, listTasks, incomingShareData }: ShareListModalProps) {
   const { user } = useAuth();
   const {
+    lists,
     sharedLists,
     shareList,
     unshareList,
@@ -167,6 +168,11 @@ export function ShareListModal({ isOpen, onClose, listToShare, listTasks, incomi
   const [inviteRole, setInviteRole] = useState<MemberRole>("editor");
   const [inviteBusy, setInviteBusy] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
+
+  const listToShare = useMemo(() => {
+    if (!staleListToShare) return null;
+    return lists.find((l) => l.id === staleListToShare.id) || staleListToShare;
+  }, [staleListToShare, lists]);
 
   const sharedListId = listToShare?.sharedId ?? undefined;
   const myRole = sharedListId ? getMyRole(sharedListId) : null;
