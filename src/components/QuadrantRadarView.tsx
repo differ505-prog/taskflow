@@ -224,7 +224,7 @@ interface QuadrantRadarViewProps {
 }
 
 export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
-  const { tasks, toggleTaskStatus, addTask, deleteTask } = useApp();
+  const { tasks, toggleTaskStatus, completeTask, addTask, deleteTask } = useApp();
   // 本地 TaskForm state — 跟其他 view 一樣獨立持有,避免把 state 提升到 AppLayout (§13 最小變更)
   const [isFormOpen, setIsFormOpen] = useState(false);
   // 預填 priority — 從象限 + 進入則對應該象限;從 header 預設 + 進入則 = "none"
@@ -299,7 +299,7 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
             colorHex="#D70015"
             tasks={grouped["do-now"]}
             onTaskClick={onTaskSelect}
-            onToggleStatus={toggleTaskStatus}
+            onToggleStatus={completeTask}
             onDeleteTask={deleteTask}
             onAddTask={() => handleOpenForm("do-now")}
           />
@@ -313,7 +313,7 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
             colorHex="#F97316"
             tasks={grouped["schedule"]}
             onTaskClick={onTaskSelect}
-            onToggleStatus={toggleTaskStatus}
+            onToggleStatus={completeTask}
             onDeleteTask={deleteTask}
             onAddTask={() => handleOpenForm("schedule")}
           />
@@ -327,7 +327,7 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
             colorHex="#EAB308"
             tasks={grouped["delegate"]}
             onTaskClick={onTaskSelect}
-            onToggleStatus={toggleTaskStatus}
+            onToggleStatus={completeTask}
             onDeleteTask={deleteTask}
             onAddTask={() => handleOpenForm("delegate")}
           />
@@ -341,7 +341,7 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
             colorHex="#9CA3AF"
             tasks={grouped["none"]}
             onTaskClick={onTaskSelect}
-            onToggleStatus={toggleTaskStatus}
+            onToggleStatus={completeTask}
             onDeleteTask={deleteTask}
             onAddTask={() => handleOpenForm("none")}
           />

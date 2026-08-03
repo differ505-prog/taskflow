@@ -35,7 +35,7 @@ import { Calendar, Clock, Eye, Flame } from "lucide-react";
 
 // ─── Inner app (has access to useApp) ───────────────────────
 function AppLayoutInner() {
-  const { currentView, currentListId, currentSharedListId, addList, updateList, deleteList, setCurrentView, setCurrentSharedList, removeAcceptedSharedList, viewCounts, tasks, checkIncomingShareLink, lists, toggleTaskStatus, deleteTask, forceReload } = useApp();
+  const { currentView, currentListId, currentSharedListId, addList, updateList, deleteList, setCurrentView, setCurrentSharedList, removeAcceptedSharedList, viewCounts, tasks, checkIncomingShareLink, lists, toggleTaskStatus, completeTask, deleteTask, forceReload } = useApp();
   const { user } = useAuth();
   const confirm = useConfirm();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -82,10 +82,11 @@ function AppLayoutInner() {
   };
 
   // 批次標記完成 / 刪除
+  // §A2 批次完成走 completeTask:週期任務會自動推進到下個週期(就跟 ✓ 按下時一致)
   const handleBatchComplete = async () => {
     for (const id of batchSelectedIds) {
       const t = tasks.find((x) => x.id === id);
-      if (t && t.status !== "done") toggleTaskStatus(id);
+      if (t && t.status !== "done") completeTask(id);
     }
     exitBatchMode();
   };

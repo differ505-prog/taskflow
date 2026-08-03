@@ -72,7 +72,7 @@ function selectZenTasks(tasks: Task[]): Task[] {
 }
 
 export default function ZenDashboard() {
-  const { tasks, toggleTaskStatus, reorderTasks, updateTask, escapeTask } = useApp();
+  const { tasks, toggleTaskStatus, completeTask, reorderTasks, updateTask, escapeTask } = useApp();
   const visibleTasks = useMemo(() => selectZenTasks(tasks), [tasks]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -171,12 +171,12 @@ export default function ZenDashboard() {
     // 0.0s — 完成特效啟動
     setIsSlashing(true);
 
-    // 0.3s — 完成特效結束,同時觸發崩解 + 呼叫 toggleTaskStatus
+    // 0.3s — 完成特效結束,同時觸發崩解 + 呼叫 completeTask
     window.setTimeout(() => {
       setIsSlashing(false);
       setIsCrashing(true);
       // 真實狀態切換 — 同步層會處理 supabase realtime echo 與保護窗(§26-A)
-      toggleTaskStatus(taskId);
+      completeTask(taskId);
     }, 300);
 
     // 0.5s — 狀態窗降臨 + 累計 PP

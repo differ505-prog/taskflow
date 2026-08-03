@@ -49,6 +49,29 @@ const RECURRENCE_OPTIONS = [
 
 const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
 
+/**
+ * 同 describeRecurrence 於 TaskDetailPanel — 讓使用者選完 recurrence 後即時預覽人話
+ */
+function describeRecurrence(
+  type: string,
+  interval: number,
+  daysOfWeek: number[],
+  dayOfMonth: number | undefined
+): string {
+  if (type === "none") return "";
+  if (type === "daily") return interval === 1 ? "每天" : `每 ${interval} 天`;
+  if (type === "weekly") {
+    const intervalText = interval === 1 ? "每週" : `每 ${interval} 週`;
+    if (daysOfWeek.length === 0) return intervalText;
+    const days = daysOfWeek.slice().sort((a, b) => a - b).map((d) => WEEKDAY_LABELS[d]).join("、");
+    return `${intervalText}(${days})`;
+  }
+  if (type === "monthly") return dayOfMonth ? `每月 ${dayOfMonth} 號` : interval === 1 ? "每月" : `每 ${interval} 個月`;
+  if (type === "yearly") return interval === 1 ? "每年" : `每 ${interval} 年`;
+  if (type === "custom") return `每 ${interval} 天`;
+  return "";
+}
+
 const SELECT_ARROW = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23999' strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E";
 
 export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId, currentView, onDeleteAttachment, initialStatus, initialPriority }: TaskFormProps) {
@@ -76,6 +99,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
   const [recurrenceType, setRecurrenceType] = useState("none");
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
   const [recurrenceDaysOfWeek, setRecurrenceDaysOfWeek] = useState<number[]>([]);
+  const [recurrenceDayOfMonth, setRecurrenceDayOfMonth] = useState<number | undefined>(undefined);
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
   const [subTaskInputs, setSubTaskInputs] = useState<string[]>([]);
 
@@ -212,13 +236,14 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
       setRecurrenceType(initialData.recurrence?.pattern || "none");
       setRecurrenceInterval(initialData.recurrence?.interval || 1);
       setRecurrenceDaysOfWeek(initialData.recurrence?.daysOfWeek || []);
+      setRecurrenceDayOfMonth(initialData.recurrence?.dayOfMonth);
       setRecurrenceEndDate(initialData.recurrence?.endDate || "");
     } else {
       setTitle(""); setDescription(""); setPriority(initialPriority ?? "none"); setStatus(initialStatus ?? "todo");
       setDueDate(currentView === "today" ? new Date().toISOString().split("T")[0] : ""); setStartDate(""); setDueTime(""); setListId(currentListId); setTags([]);
       setSubTaskInputs([]);
       setRecurrenceType("none"); setRecurrenceInterval(1);
-      setRecurrenceDaysOfWeek([]); setRecurrenceEndDate("");
+      setRecurrenceDaysOfWeek([]); setRecurrenceDayOfMonth(undefined); setRecurrenceEndDate("");
       setAttachments([]);
       setTagColors(getTagColors());
       setTagInput(""); setSuggestions([]); setShowSuggestions(false);
@@ -311,6 +336,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
         interval: recurrenceInterval,
         completedCount: initialData?.recurrence?.completedCount || 0,
         daysOfWeek: recurrenceType === "weekly" ? recurrenceDaysOfWeek : undefined,
+        dayOfMonth: recurrenceType === "monthly" ? recurrenceDayOfMonth : undefined,
         endDate: recurrenceEndDate || undefined,
       };
     }
@@ -666,11 +692,40 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                     <span className="text-[13px]" style={{ color: "var(--text-secondary)" }}>天</span>
                   </div>
                 )}
+                {recurrenceType === "monthly" && (
+                  <div className="mt-3">
+                    <label className="block mb-1.5 text-[12px]" style={{ color: "var(--text-tertiary)" }}>每月幾號</label>
+                    <select
+                      value={recurrenceDayOfMonth ?? ""}
+                      onChange={(e) => setRecurrenceDayOfMonth(e.target.value ? Math.max(1, Math.min(31, parseInt(e.target.value))) : undefined)}
+                      className="input cursor-pointer"
+                    >
+                      <option value="">沿用截止日</option>
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                        <option key={d} value={d}>{d} 號</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 {recurrenceType !== "none" && (
                   <div className="mt-3">
                     <label className="block mb-1.5 text-[12px]" style={{ color: "var(--text-tertiary)" }}>結束日期（選填）</label>
                     <input type="date" value={recurrenceEndDate} onChange={(e) => setRecurrenceEndDate(e.target.value)} className="input" />
                   </div>
+                )}
+                {recurrenceType !== "none" && (
+                  <p className="mt-2 text-[12px] px-3 py-2 rounded-xl flex items-center gap-2" style={{ background: "var(--surface-muted)", color: "var(--text-secondary)" }}>
+                    <Repeat className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--brand)" }} />
+                    <span>
+                      {describeRecurrence(recurrenceType, recurrenceInterval, recurrenceDaysOfWeek, recurrenceDayOfMonth)}
+                      {dueDate && recurrenceType !== "none" && (
+                        <span style={{ color: "var(--text-tertiary)" }}> · 下次 {(() => {
+                          const d = new Date(dueDate + "T00:00:00");
+                          return `${d.getMonth() + 1}/${d.getDate()}`;
+                        })()}</span>
+                      )}
+                    </span>
+                  </p>
                 )}
               </div>
 

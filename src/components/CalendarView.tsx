@@ -42,7 +42,7 @@ export function CalendarView({
   isMobile,
   onOpenMobileSidebar,
 }: CalendarViewProps) {
-  const { tasks, updateTask, toggleTaskStatus, addTask, deleteTask, searchQuery } = useApp();
+  const { tasks, updateTask, toggleTaskStatus, completeTask, addTask, deleteTask, searchQuery } = useApp();
   const [mounted, setMounted] = useState(false);
 
   // ─── 月視圖邏輯抽出 useMonthGrid(§A1 整合:共用元件+hook)───
@@ -162,7 +162,7 @@ export function CalendarView({
         selectedTask={selectedTask}
         onSelectDate={onSelectDate}
         onSelectTask={onSelectTask}
-        onToggleStatus={toggleTaskStatus}
+        onToggleStatus={completeTask}
         onDelete={deleteTask}
         onQuickAdd={submitQuickAdd}
         onOpenTaskForm={openTaskForm}
@@ -734,7 +734,7 @@ function CalendarTaskSheetMobile({
   onSelectTask: (task: Task) => void;
   onQuickAdd: (dateStr: string, title: string) => void;
 }) {
-  const { tasks, toggleTaskStatus, deleteTask } = useApp();
+  const { tasks, completeTask, deleteTask } = useApp();
   const [quickAddTitle, setQuickAddTitle] = useState("");
   const [doneExpanded, setDoneExpanded] = useState<Record<string, boolean>>({});
   const [isOpen, setIsOpen] = useState(false);
@@ -884,7 +884,7 @@ function CalendarTaskSheetMobile({
                     task={task}
                     isSelected={selectedTask?.id === task.id}
                     onClick={() => { onSelectTask(task); onClose(); }}
-                    onToggleStatus={() => toggleTaskStatus(task.id)}
+                    onToggleStatus={() => completeTask(task.id)}
                     onDelete={() => deleteTask(task.id)}
                   />
                 </SwipeableTaskCard>
@@ -908,7 +908,7 @@ function CalendarTaskSheetMobile({
                             task={task}
                             isSelected={selectedTask?.id === task.id}
                             onClick={() => { onSelectTask(task); onClose(); }}
-                            onToggleStatus={() => toggleTaskStatus(task.id)}
+                            onToggleStatus={() => completeTask(task.id)}
                             onDelete={() => deleteTask(task.id)}
                           />
                         </SwipeableTaskCard>

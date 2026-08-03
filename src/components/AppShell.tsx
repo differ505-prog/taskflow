@@ -86,7 +86,7 @@ export function AppShell({
     addTask, updateTask, deleteTask, toggleTaskStatus,
     quickAdd, getFilteredTasks, viewCounts,
     getTagCounts,
-    toggleSubTask, addSubTask, deleteSubTask, completeRecurringAndClone,
+    toggleSubTask, addSubTask, deleteSubTask, completeRecurringAndClone, completeTask,
     quickAddToShared, updateSharedTask, deleteSharedTask,
     getMyRole,
     reorderTasks,
@@ -725,7 +725,7 @@ const canDrag = !currentSharedListId && !isMobile;
                                     task={task}
                                     isSelected={task.id === selectedTaskId}
                                     onClick={() => handleSelectTask(task.id)}
-                                    onToggleStatus={toggleTaskStatus}
+                                    onToggleStatus={completeTask}
                                     onToggleSubTask={toggleSubTask}
                                     onUpdatePriority={(id, p) => updateTask(id, { priority: p })}
                                     onUpdateTags={(id, tags) => updateTask(id, { tags })}
@@ -777,7 +777,7 @@ const canDrag = !currentSharedListId && !isMobile;
                                 task={task}
                                 isSelected={task.id === selectedTaskId}
                                 onClick={() => handleSelectTask(task.id)}
-                                onToggleStatus={toggleTaskStatus}
+                                onToggleStatus={completeTask}
                                 onToggleSubTask={toggleSubTask}
                                 onUpdatePriority={(id, p) => updateTask(id, { priority: p })}
                                 onUpdateTags={(id, tags) => updateTask(id, { tags })}
@@ -849,7 +849,7 @@ const canDrag = !currentSharedListId && !isMobile;
                                     task={task}
                                     isSelected={task.id === selectedTaskId}
                                     onClick={() => handleSelectTask(task.id)}
-                                    onToggleStatus={toggleTaskStatus}
+                                    onToggleStatus={completeTask}
                                     onToggleSubTask={toggleSubTask}
                                     onUpdatePriority={(id, p) => updateTask(id, { priority: p })}
                                     onUpdateTags={(id, tags) => updateTask(id, { tags })}

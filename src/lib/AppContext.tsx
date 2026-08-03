@@ -149,6 +149,11 @@ interface AppContextValue {
 
   // ── 週期 ──────────────────────────────────────────────
   completeRecurringAndClone: (taskId: string) => void;
+  /**
+   * §A2 集中完成入口 — 所有 ✓ 完成按鈕應優先呼叫此函式
+   * 內部已分流:有 recurrence → 推進下個週期、無 → 原本 toggleTaskStatus
+   */
+  completeTask: (taskId: string) => void;
 
   // ── 清單 CRUD ──────────────────────────────────────────
   addList: (data: Omit<TaskList, "id" | "createdAt" | "updatedAt" | "order">) => string;
@@ -1189,14 +1194,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * 統一逃生邏輯(Unified Escape Protocol)
-   * - 區間任務(有 startDate):把 startDate 推遲 1 天,絕對不清空日期(防忘記死線)
-   * - 單日任務(無 startDate):dueDate → undefined(無罪赦免,退回收集箱)
+   * - 週期任務(有 recurrence):推到下個週期(用 getNextRecurrenceDate,同步 startDate)— 跟 ✓ 完成時行為一致
+   * - 區間任務(有 startDate 但無 recurrence):把 startDate 推遲 1 天,絕對不清空日期(防忘記死線)
+   * - 單日任務(無 startDate 也無 recurrence):dueDate → undefined(無罪赦免,退回收集箱)
    * 走 updateTask sync 路徑(§23):markRecentlyWritten + batchSaveTasksFirebase
    * 禪模式「跳過」與「今天先這樣」兩個入口共用此函式
    */
   const escapeTask = useCallback((id: string) => {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
+    if (task.recurrence) {
+      // §A2:週期任務的「跳過」 = 推進到下個週期(跟完成行為一致)
+      const baseFrom = task.dueDate || new Date().toISOString().split("T")[0];
+      const { dueDate: nextDate, startDate: nextStartDate } = getNextRecurrenceDate(
+        baseFrom,
+        task.recurrence,
+        task.startDate
+      );
+      updateTask(id, { dueDate: nextDate, startDate: nextStartDate ?? task.startDate });
+      return;
+    }
     if (task.startDate) {
       // §A+:區間任務同步推遲 startDate 跟 dueDate,保持區間長度不變(避免兩者撕開造成 selectZenTasks 仍命中)
       const newStart = toLocalDateString(new Date(Date.now() + 86400000));
@@ -1253,21 +1270,77 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateTask(parentId, { subTasks: merged });
   }, [tasks, updateTask]);
 
-  // ── 週期任務 ────────────────────────────────────────────
+  // ── 週期任務：完成時「不真的設為 done」,直接推進到下個週期,並標記完成次數 ──
+  // 設計:§26 新類別 W(週期任務複製接線)— 整條鏈條都到位,只有這個接線缺了。
+  // 1. 「完成」對使用者來說 = 這週期已辦完,直接到下個週期,UI 上 ✓ 變成圈圈、新週期任務會出現在未來日期
+  // 2. 區間任務:同步推進 startDate(避免 selectZenTasks 撕開 — 對應 #011 教訓)
+  // 3. 到達 endDate 後:不再推進,改走原本 toggleTaskStatus 路徑(toggle 成 done,讓它真的出現在已完成區)
   const completeRecurringAndClone = useCallback((taskId: string) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task?.recurrence) return;
-    const nextDate = getNextRecurrenceDate(task.dueDate || new Date().toISOString().split("T")[0], task.recurrence);
-    if (task.recurrence.endDate && nextDate > task.recurrence.endDate) return;
+    const baseFrom = task.dueDate || new Date().toISOString().split("T")[0];
+    const { dueDate: nextDate, startDate: nextStartDate } = getNextRecurrenceDate(
+      baseFrom,
+      task.recurrence,
+      task.startDate
+    );
+    if (task.recurrence.endDate && nextDate > task.recurrence.endDate) {
+      // 已過 endDate → 不再推進,退回一般完成路徑(讓使用者看到「這週期真的結束了」)
+      toggleTaskStatusRef.current?.(taskId);
+      return;
+    }
     const updatedRecurrence = { ...task.recurrence, completedCount: task.recurrence.completedCount + 1 };
     const updated = tasks.map((t) =>
       t.id === taskId
-        ? { ...t, status: "todo" as const, dueDate: nextDate, recurrence: updatedRecurrence, updatedAt: new Date().toISOString() }
+        ? {
+            ...t,
+            status: "todo" as const,
+            dueDate: nextDate,
+            startDate: nextStartDate ?? t.startDate,
+            recurrence: updatedRecurrence,
+            updatedAt: new Date().toISOString(),
+          }
         : t
     );
     setTasks(updated);
     saveTasks(updated);
-  }, [tasks]);
+    markRecentlyWritten(taskId);
+    if (user) {
+      const updatedTask = updated.find((t) => t.id === taskId);
+      if (updatedTask) batchSaveTasksFirebase(user.uid, [updatedTask]).catch((err) => console.error("[SUP SYNC] rec 失敗:", err));
+    }
+  }, [tasks, user, markRecentlyWritten]);
+
+  // §A2: 週期任務複製接線 — 用 ref 化解依賴循環
+  // (completeRecurringAndClone 在「已到 endDate」分支需要退回一般 toggle 路徑)
+  const toggleTaskStatusRef = useRef<(id: string) => void>(() => {});
+  toggleTaskStatusRef.current = toggleTaskStatus;
+
+  /**
+   * §A2 集中完成入口 — 所有 ✓ 完成按鈕都應呼叫這個
+   * - 有 recurrence → completeRecurringAndClone(推進到下個週期)
+   * - 已 done → 退回「取消完成」(只清狀態,不另存一次 dueDate 複製)
+   * - 其他 → 原本 toggleTaskStatus
+   *
+   * 用包裝層而非改 toggleTaskStatus 內部分支的理由:
+   * - toggleTaskStatus 仍維持「無腦切換 status」單一職責,Recurrence 行為只在 ✓ 完成時才介入
+   * - 「取消完成」路徑語意清楚:把 dueDate 推回本週期原本日期(useRecurrenceAutoClone 的「撤回」)
+   * - 任何呼叫 toggleTaskStatus 的地方都不用改,既有測試/CalendarView/ZenDashboard 都安全
+   */
+  const completeTask = useCallback((id: string) => {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+    if (task.status === "done") {
+      // 取消完成:不該把週期任務的 dueDate 提前或推遲,直接清回 todo 即可
+      toggleTaskStatusRef.current(id);
+      return;
+    }
+    if (task.recurrence) {
+      completeRecurringAndClone(id);
+      return;
+    }
+    toggleTaskStatusRef.current(id);
+  }, [tasks, completeRecurringAndClone]);
 
   // ── 清單 CRUD ────────────────────────────────────────────
   const addList = useCallback((data: Omit<TaskList, "id" | "createdAt" | "updatedAt" | "order">): string => {
@@ -2071,7 +2144,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     activeFilter, setActiveFilter,
     addTask, addTaskLocalOnly, batchAddTasks, updateTask, deleteTask, toggleTaskStatus, archiveTask, unarchiveTask, escapeTask,
     addSubTask, toggleSubTask, deleteSubTask, reorderSubTasks,
-    completeRecurringAndClone,
+    completeRecurringAndClone, completeTask,
     addList, updateList, deleteList, reorderLists, reorderTasks,
     addHabit, updateHabit, archiveHabit, unarchiveHabit, checkinHabit: checkinHabitFn,
     uncheckHabit: uncheckHabitFn,
@@ -2124,10 +2197,19 @@ function computeHabitStreak(habit: Habit, checkins: Habit["checkins"]): number {
   return streak;
 }
 
-function getNextRecurrenceDate(from: string, recurrence: Recurrence): string {
+/**
+ * 從 dueDate 算出下一個 dueDate,並同步推進 startDate(若任務是區間任務)
+ * - daily/weekly/monthly/yearly/custom 各自依自身規律跳過
+ * - 月份支援 dayOfMonth:clamp 到該月最大日期(例如「每月 31 號」在 2 月會到 2/28)
+ * - 區間任務(有 startDate):同步推進 startDate 與 dueDate,避免撕開造成 selectZenTasks 仍命中
+ *   (對應 bug 案例 #011 教訓 — escapeTask 已併修一致行為)
+ */
+function getNextRecurrenceDate(from: string, recurrence: Recurrence, startFrom?: string): { dueDate: string; startDate?: string } {
   const d = new Date(from);
   switch (recurrence.pattern) {
-    case "daily": d.setDate(d.getDate() + recurrence.interval); break;
+    case "daily":
+      d.setDate(d.getDate() + recurrence.interval);
+      break;
     case "weekly":
       if (recurrence.daysOfWeek && recurrence.daysOfWeek.length > 0) {
         d.setDate(d.getDate() + 1);
@@ -2144,8 +2226,23 @@ function getNextRecurrenceDate(from: string, recurrence: Recurrence): string {
         d.setDate(Math.min(recurrence.dayOfMonth, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()));
       }
       break;
-    case "yearly": d.setFullYear(d.getFullYear() + recurrence.interval); break;
-    case "custom": d.setDate(d.getDate() + recurrence.interval); break;
+    case "yearly":
+      d.setFullYear(d.getFullYear() + recurrence.interval);
+      break;
+    case "custom":
+      d.setDate(d.getDate() + recurrence.interval);
+      break;
   }
-  return d.toISOString().split("T")[0];
+  const nextDueDate = d.toISOString().split("T")[0];
+  // 區間任務:同步推進 startDate,長度不變
+  if (startFrom) {
+    const s = new Date(startFrom);
+    // 算 startFrom 與 from 的天數差,套到下一輪
+    const fromDate = new Date(from);
+    const daysDelta = Math.round((fromDate.getTime() - s.getTime()) / 86400000);
+    const nextStartDate = new Date(d.getTime());
+    nextStartDate.setDate(nextStartDate.getDate() - daysDelta);
+    return { dueDate: nextDueDate, startDate: nextStartDate.toISOString().split("T")[0] };
+  }
+  return { dueDate: nextDueDate };
 }
