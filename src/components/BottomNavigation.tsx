@@ -4,11 +4,12 @@ import { useState, useCallback } from "react";
 import Link from "next/link";
 import {
   Inbox, Sun, CalendarDays, Layers, Tag, BarChart3, CalendarRange,
-  Settings, List as ListIcon, Timer, Sparkles, Flame, LogOut
+  Settings, List as ListIcon, Timer, Sparkles, Flame, LogOut, MoreVertical
 } from "lucide-react";
-import { AppView, TaskList } from "@/lib/types";
+import { AppView, TaskList, Task } from "@/lib/types";
 import { haptic } from "@/lib/haptics";
 import { supabase } from "@/lib/supabase";
+import { ListActionMenu } from "@/components/ListActionMenu";
 
 interface BottomNavItem {
   view: AppView;
@@ -34,16 +35,22 @@ interface BottomNavigationProps {
   currentView: AppView;
   currentListId: string | null;
   lists: TaskList[];
+  tasks: Task[];
   onNavigate: (view: AppView) => void;
   onSelectList: (listId: string) => void;
   onOpenSidebar: () => void;
   onOpenSettings: () => void;
   onOpenFlowTimer?: () => void;
+  onEditList?: (list: TaskList) => void;
+  onDeleteList?: (id: string) => void;
+  onOpenShareModal?: (list: TaskList, tasks: Task[]) => void;
   todayCount?: number;
 }
 
-export function BottomNavigation({ currentView, currentListId, lists, onNavigate, onSelectList, onOpenSidebar, onOpenSettings, onOpenFlowTimer, todayCount = 0 }: BottomNavigationProps) {
+export function BottomNavigation({ currentView, currentListId, lists, tasks, onNavigate, onSelectList, onOpenSidebar, onOpenSettings, onOpenFlowTimer, onEditList, onDeleteList, onOpenShareModal, todayCount = 0 }: BottomNavigationProps) {
   const [moreOpen, setMoreOpen] = useState(false);
+  // 手機版清單 menu — 哪一個清單的「⋯」被按
+  const [menuListId, setMenuListId] = useState<string | null>(null);
 
   const handleTap = useCallback((view: AppView) => {
     haptic("selection");
@@ -71,6 +78,17 @@ export function BottomNavigation({ currentView, currentListId, lists, onNavigate
     setMoreOpen(false);
     onOpenSettings();
   }, [onOpenSettings]);
+
+  const handleListMore = useCallback((listId: string) => {
+    haptic("selection");
+    setMenuListId((prev) => (prev === listId ? null : listId));
+  }, []);
+
+  const handleListMenuClose = useCallback(() => {
+    setMenuListId(null);
+  }, []);
+
+  const menuTargetList = menuListId ? lists.find((l) => l.id === menuListId) ?? null : null;
 
   const moreActive = MORE_ITEMS.some((i) => i.view === currentView);
 
@@ -116,7 +134,26 @@ export function BottomNavigation({ currentView, currentListId, lists, onNavigate
       </nav>
 
       {/* More popover */}
-      {moreOpen && <MorePopover onItem={handleMoreItem} onFlowTimer={onOpenFlowTimer ? handleFlowTimer : undefined} onSettings={handleSettings} onSelectList={onSelectList} onOpenSidebar={onOpenSidebar} currentView={currentView} currentListId={currentListId} lists={lists} onClose={() => setMoreOpen(false)} />}
+      {moreOpen && (
+        <MorePopover
+          onItem={handleMoreItem}
+          onFlowTimer={onOpenFlowTimer ? handleFlowTimer : undefined}
+          onSettings={handleSettings}
+          onSelectList={onSelectList}
+          onOpenSidebar={onOpenSidebar}
+          currentView={currentView}
+          currentListId={currentListId}
+          lists={lists}
+          onEditList={onEditList}
+          onDeleteList={onDeleteList}
+          onOpenShareModal={onOpenShareModal}
+          onListMore={handleListMore}
+          menuListId={menuListId}
+          onMenuClose={handleListMenuClose}
+          onClose={() => setMoreOpen(false)}
+          onCloseAll={() => { setMoreOpen(false); setMenuListId(null); }}
+        />
+      )}
     </>
   );
 }
@@ -131,7 +168,12 @@ function MoreIcon() {
   );
 }
 
-function MorePopover({ onItem, onFlowTimer, onSettings, onSelectList, onOpenSidebar, currentView, currentListId, lists, onClose }: {
+function MorePopover({
+  onItem, onFlowTimer, onSettings, onSelectList, onOpenSidebar,
+  currentView, currentListId, lists,
+  onEditList, onDeleteList, onOpenShareModal,
+  onListMore, menuListId, onMenuClose, onClose, onCloseAll,
+}: {
   onItem: (v: AppView) => void;
   onFlowTimer?: () => void;
   onSettings: () => void;
@@ -140,7 +182,14 @@ function MorePopover({ onItem, onFlowTimer, onSettings, onSelectList, onOpenSide
   currentView: AppView;
   currentListId: string | null;
   lists: TaskList[];
+  onEditList?: (list: TaskList) => void;
+  onDeleteList?: (id: string) => void;
+  onOpenShareModal?: (list: TaskList, tasks: Task[]) => void;
+  onListMore: (listId: string) => void;
+  menuListId: string | null;
+  onMenuClose: () => void;
   onClose: () => void;
+  onCloseAll: () => void;
 }) {
   const handleSignOut = async () => {
     try {
@@ -150,6 +199,9 @@ function MorePopover({ onItem, onFlowTimer, onSettings, onSelectList, onOpenSide
       console.error(err);
     }
   };
+
+  const menuTargetList = menuListId ? lists.find((l) => l.id === menuListId) ?? null : null;
+  const listHasHandlers = onEditList != null || onDeleteList != null || onOpenShareModal != null;
 
   return (
     <>
@@ -195,18 +247,58 @@ function MorePopover({ onItem, onFlowTimer, onSettings, onSelectList, onOpenSide
             <div className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
               我的清單
             </div>
-            {lists.map((list) => (
-              <button
-                key={list.id}
-                className="flex items-center gap-3 px-5 py-3 text-[14px] font-medium w-full text-left transition-colors"
-                style={{ color: currentListId === list.id ? "var(--brand)" : "var(--text-primary)" }}
-                onClick={() => { onSelectList(list.id); onClose(); }}
-                role="menuitem"
-              >
-                <span className="text-base">{list.icon}</span>
-                {list.name}
-              </button>
-            ))}
+            {lists.map((list) => {
+              const isActive = currentListId === list.id;
+              const isMenuOpen = menuListId === list.id;
+              return (
+                <div
+                  key={list.id}
+                  className="flex flex-col"
+                  style={{
+                    color: isActive ? "var(--brand)" : "var(--text-primary)",
+                    background: isMenuOpen ? "var(--surface-hover)" : undefined,
+                  }}
+                >
+                  <div className="flex items-center">
+                    <button
+                      className="flex-1 min-w-0 flex items-center gap-3 px-5 py-3 text-[14px] font-medium text-left transition-colors"
+                      onClick={() => { onSelectList(list.id); onClose(); }}
+                      role="menuitem"
+                    >
+                      <span className="text-base">{list.icon}</span>
+                      <span className="truncate">{list.name}</span>
+                    </button>
+                    {listHasHandlers && (
+                      <button
+                        type="button"
+                        aria-label={`更多操作 ${list.name}`}
+                        aria-expanded={isMenuOpen}
+                        className="flex-shrink-0 mr-2 p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+                        style={{ color: "var(--text-tertiary)" }}
+                        onClick={(e) => { e.stopPropagation(); onListMore(list.id); }}
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  {/* Inline menu — 在該列下方展開(如 iOS inline action sheet) */}
+                  {isMenuOpen && menuTargetList && (
+                    <div className="mx-3 mb-2">
+                      <ListActionMenu
+                        variant="inline"
+                        open
+                        onClose={onMenuClose}
+                        list={menuTargetList}
+                        tasksForShare={[]}
+                        onEdit={onEditList ? (l) => { onEditList(l); onCloseAll(); } : undefined}
+                        onShare={onOpenShareModal ? (l, tasks) => { onOpenShareModal(l, tasks); onCloseAll(); } : undefined}
+                        onDelete={onDeleteList ? (l) => { onDeleteList(l.id); onCloseAll(); } : undefined}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
             <div style={{ height: "1px", background: "var(--border)" }} />
           </>
         )}
@@ -244,6 +336,10 @@ function MorePopover({ onItem, onFlowTimer, onSettings, onSelectList, onOpenSide
           登出
         </button>
       </div>
+
+      {/* 清單 menu：在 popover 內 inline 展開(取代該列「⋯」位置),
+           iOS 慣例 — 不需要額外定位/處理 backdrop,z-index 由 popover 本身的 z-50 統一管理。
+           (menu 內容在下方 trigger row 內 conditional render) */}
     </>
   );
 }

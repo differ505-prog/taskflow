@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useApp } from "@/lib/AppContext";
 import { useAuth } from "@/lib/AuthContext";
 import { AppView, TaskList } from "@/lib/types";
-import { useConfirm } from "@/hooks/useConfirm";
 import {
   DndContext,
   closestCenter,
@@ -28,9 +27,10 @@ import {
   Inbox, Sun, CalendarDays, CalendarRange, Layers, Tag, Clock,
   Plus, ChevronDown, ChevronRight, CheckCircle2,
   BarChart3, Timer, Heart, Settings, Archive,
-  MoreHorizontal, Edit3, Trash2, X, Share2, Users,
+  X, Users,
   Pin, Gauge, Flame,
 } from "lucide-react";
+import { ListActionMenu } from "@/components/ListActionMenu";
 
 interface NavItem {
   view: AppView;
@@ -58,7 +58,6 @@ const LIST_ICONS = ["📋", "💼", "🏠", "🏃", "📚", "💡", "🎯", "�
 export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditList, onDeleteList, onOpenFlowTimer, onOpenShareModal, onOpenSharedLists, onOpenSharedList, onLeaveSharedList }: SidebarProps) {
   const { currentView, currentListId, currentSharedListId, setCurrentView, viewCounts, lists, reorderLists, sharedLists, getListTaskCount, tasks, acceptedSharedListIds } = useApp();
   const { user } = useAuth();
-  const confirm = useConfirm();
   const [listsExpanded, setListsExpanded] = useState(true);
   const [showListMenu, setShowListMenu] = useState<string | null>(null);
   const [showSharedListMenu, setShowSharedListMenu] = useState<string | null>(null);
@@ -246,21 +245,12 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
                       }}
                       taskCount={getListTaskCount(list.id)}
                       onEdit={() => { onEditList?.(list); setShowListMenu(null); }}
-                      onShare={onOpenShareModal ? () => { onOpenShareModal(list, tasks.filter((t) => t.listId === list.id)); setShowListMenu(null); } : undefined}
-                      onDelete={onDeleteList ? async () => {
-                        const taskCount = tasks.filter((t) => t.listId === list.id && !t.isArchived).length;
-                        const ok = await confirm({
-                          title: `刪除清單「${list.name}」`,
-                          message: "此操作會將清單下的任務改為「未分類」,清單本身將永久移除。",
-                          impactDetail: taskCount > 0 ? `${taskCount} 項任務將改為未分類` : "此清單下沒有任務",
-                          confirmText: "刪除清單",
-                          tone: "danger",
-                        });
-                        if (ok) {
-                          onDeleteList(list.id);
-                          setShowListMenu(null);
-                        }
+                      onShare={onOpenShareModal ? (list, listTasks) => { onOpenShareModal(list, listTasks); setShowListMenu(null); } : undefined}
+                      onDelete={onDeleteList ? (list) => {
+                        setShowListMenu(null);
+                        onDeleteList(list.id);
                       } : undefined}
+                      allTasks={tasks}
                     />
                   ))}
                 </div>
@@ -311,18 +301,12 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
 
                   {/* Shared list context menu */}
                   {showSharedListMenu === key && (
-                    <div
-                      className="absolute right-2 top-full z-50 mt-1 py-1 w-44 rounded-xl border"
-                      style={{ background: "var(--surface-elevated)", boxShadow: "var(--shadow-md)", borderColor: "var(--border)" }}
-                    >
-                      <button
-                        onClick={() => { onLeaveSharedList?.(key); setShowSharedListMenu(null); }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-                        style={{ color: "var(--status-danger)" }}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" /> 退出共用清單
-                      </button>
-                    </div>
+                    <ListActionMenu
+                      open
+                      onClose={() => setShowSharedListMenu(null)}
+                      sharedList={data}
+                      onLeaveShared={(sharedId) => { onLeaveSharedList?.(sharedId); }}
+                    />
                   )}
                 </div>
               );
@@ -392,7 +376,7 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
 // 只把 list 整列的拖曳 handlers 交給手柄按鈕，按鈕本體仍正常 click/cxtmenu 不衝突
 function SortableListItem({
   list, isActive, showMenu, onSelect, onContextMenu, taskCount,
-  onEdit, onShare, onDelete,
+  onEdit, onShare, onDelete, allTasks,
 }: {
   list: TaskList;
   isActive: boolean;
@@ -400,9 +384,10 @@ function SortableListItem({
   onSelect: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
   taskCount: number;
-  onEdit: () => void;
-  onShare?: () => void;
-  onDelete?: () => void;
+  onEdit?: () => void;
+  onShare?: (list: TaskList, tasks: import("@/lib/types").Task[]) => void;
+  onDelete?: (list: TaskList) => void;
+  allTasks: import("@/lib/types").Task[];
 }) {
   const {
     attributes, listeners, setNodeRef, transform, transition, isDragging,
@@ -459,37 +444,19 @@ function SortableListItem({
         </button>
       </div>
 
-      {/* Context menu */}
+      {/* Context menu — 用共用 ListActionMenu 元件(桌機與手機 MorePopover 共用) */}
       {showMenu && (
-        <div
-          className="absolute right-2 top-full z-50 mt-1 py-1 w-44 rounded-xl border"
-          style={{ background: "var(--surface-elevated)", boxShadow: "var(--shadow-md)", borderColor: "var(--border)" }}
-        >
-          <button
-            onClick={onEdit}
-            className="w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-            style={{ color: "var(--text-primary)" }}
-          >
-            <Edit3 className="w-3.5 h-3.5" /> 編輯清單
-          </button>
-          {onShare && (
-            <button
-              onClick={onShare}
-              className="w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-              style={{ color: "var(--brand)" }}
-            >
-              <Share2 className="w-3.5 h-3.5" /> 分享清單
-            </button>
-          )}
-          {onDelete && (
-            <button
-              onClick={onDelete}
-              className="w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-              style={{ color: "var(--status-danger)" }}
-            >
-              <Trash2 className="w-3.5 h-3.5" /> 刪除清單
-            </button>
-          )}
+        <div className="absolute right-2 top-full z-50 mt-1">
+          <ListActionMenu
+            open
+            onClose={() => {/* 由父層透過 onEdit/onShare/onDelete 各自處理關閉 */}}
+            list={list}
+            tasksForShare={allTasks.filter((t) => t.listId === list.id)}
+            onEdit={onEdit}
+            onShare={onShare}
+            onDelete={onDelete}
+            taskCount={allTasks.filter((t) => t.listId === list.id && !t.isArchived).length}
+          />
         </div>
       )}
     </div>

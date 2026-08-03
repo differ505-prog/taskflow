@@ -401,11 +401,15 @@ function AppLayoutInner() {
           currentView={currentView}
           currentListId={currentListId ?? null}
           lists={lists}
+          tasks={tasks}
           onNavigate={(v) => setCurrentView(v)}
           onSelectList={(id) => setCurrentView("list", id)}
           onOpenSidebar={() => setIsMobileSidebarOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenFlowTimer={() => setIsFlowTimerOpen(true)}
+          onEditList={handleEditList}
+          onDeleteList={deleteList}
+          onOpenShareModal={(list, listTasks) => setShareModalList({ list, tasks: listTasks })}
           todayCount={viewCounts.today}
         />
       </div>
