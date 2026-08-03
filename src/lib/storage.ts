@@ -1,4 +1,5 @@
 import { Task, TaskList, Habit, FlowTimerSession, Tag, DEFAULT_LISTS, DEFAULT_LIST_IDS } from "./types";
+import { MemberRole } from "./sharedSync";
 
 const TASKS_KEY = "taskflow_tasks";
 const LAST_USER_UID_KEY = "taskflow_last_user_uid"; // §26-J:追蹤寫入的 uid,切換帳號時用來過濾殘留任務
@@ -8,6 +9,8 @@ const FLOW_TIMER_KEY = "taskflow_flow_timer";
 const TAGS_KEY = "taskflow_tags";
 const SHARED_LISTS_KEY = "taskflow_shared_lists"; // { [sharedId]: { list, tasks } }
 const OWNED_SHARED_LIST_IDS_KEY = "taskflow_owned_shared_ids"; // string[] of owned shared list IDs
+const MY_ROLE_BY_LIST_KEY = "taskflow_my_role_by_list"; // Record<string, MemberRole>
+
 // §修法 A:per-user sentinel/ONBOARDING 採 uid 命名,登出時清掉所有可能的舊 uid key
 // 這些 key 在 signOut() 後無 uid 殘留 → 避免「換瀏覽器/換裝置」SENTINEL 失效
 const SYSTEM_KEY_PREFIXES = [
@@ -526,6 +529,14 @@ export function getOwnedSharedListIds(): string[] {
 
 export function saveOwnedSharedListIds(ids: string[]): void {
   write(OWNED_SHARED_LIST_IDS_KEY, ids);
+}
+
+export function getMyRoleByList(): Record<string, MemberRole> {
+  return read<Record<string, MemberRole>>(MY_ROLE_BY_LIST_KEY, {});
+}
+
+export function saveMyRoleByList(roles: Record<string, MemberRole>): void {
+  write(MY_ROLE_BY_LIST_KEY, roles);
 }
 
 export function addOwnedSharedListId(id: string): void {

@@ -39,6 +39,8 @@ import {
   removeSharedList,
   saveOwnedSharedListIds,
   getOwnedSharedListIds,
+  getMyRoleByList,
+  saveMyRoleByList,
   clearTasksIfUserChanged,
   updateLastUserUid,
 } from "./storage";
@@ -331,8 +333,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const tasksRef = useRef<Task[]>([]); // 給 Firebase callback 用，避免 stale closure
   const fbSyncDebug = false; // 由 window.__FB_SYNC_DEBUG__ 控制
 
-  // 我在每個 shared list 的角色
-  const [myRoleByList, setMyRoleByList] = useState<Record<string, MemberRole>>({});
+  // 我在每個 shared list 的角色（lazy init 從 localStorage，變動時自動寫回）
+  const [myRoleByList, _setMyRoleByList] = useState<Record<string, MemberRole>>(() => {
+    if (typeof window !== "undefined") return getMyRoleByList();
+    return {};
+  });
+  const setMyRoleByList = useCallback((updater: Record<string, MemberRole> | ((prev: Record<string, MemberRole>) => Record<string, MemberRole>)) => {
+    _setMyRoleByList((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      saveMyRoleByList(next);
+      return next;
+    });
+  }, []);
 
   // members 列表（給 ShareListModal 顯示用）
   const [membersBySharedList, setMembersBySharedList] = useState<Record<string, SharedMember[]>>({});
