@@ -37,6 +37,7 @@ import {
   saveSharedList,
   getSharedLists,
   removeSharedList,
+  deduplicateSharedLists,
   saveOwnedSharedListIds,
   getOwnedSharedListIds,
   getMyRoleByList,
@@ -366,6 +367,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setHabits(getHabits());
     setTodayFocusMinutes(getTodayFocusMinutes());
     // ownedSharedListIds 已由 lazy init 恢復（見上 useState(() => getOwnedSharedListIds())）
+    // 清除重複加入的 shared list（同一清單因 bug 被重複加入多次）
+    const removed = deduplicateSharedLists();
+    if (removed > 0) {
+      void fetch("/api/push/test-self", { method: "POST" }).catch(() => {}); // noop：僅觸發一次性的 SSR log
+    }
     const storedSharedLists = getSharedLists();
     setSharedLists(storedSharedLists);
 

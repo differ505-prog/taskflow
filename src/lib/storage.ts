@@ -513,6 +513,47 @@ export function removeSharedList(sharedId: string): void {
   saveSharedLists(all);
 }
 
+/**
+ * 去重：同一個清單（相同 list.name + list.ownerId）可能因 bug 被重複加入多次。
+ * 只保留 createdAt 最早的那一筆記錄，其餘刪除。
+ * 回傳被刪除的數量（供 Debug Log 使用）。
+ */
+export function deduplicateSharedLists(): number {
+  const all = getSharedLists();
+  const entries = Object.entries(all) as [string, SharedListData][];
+
+  // 依 (name, ownerId) 分組，每組保留 createdAt 最早的
+  const seen = new Map<string, { id: string; createdAt: string }>();
+  const toDelete = new Set<string>();
+
+  for (const [id, data] of entries) {
+    const key = `${data.list.name}::${data.list.ownerId}`;
+    const existing = seen.get(key);
+    if (!existing) {
+      seen.set(key, { id, createdAt: data.list.createdAt });
+    } else {
+      // 比 createdAt，保留較早的
+      const a = new Date(existing.createdAt).getTime();
+      const b = new Date(data.list.createdAt).getTime();
+      if (a <= b) {
+        toDelete.add(id); // 新的這個刪掉
+      } else {
+        toDelete.add(existing.id); // 舊的這個刪掉（理論上不該發生）
+        seen.set(key, { id, createdAt: data.list.createdAt });
+      }
+    }
+  }
+
+  if (toDelete.size === 0) return 0;
+
+  // eslint-disable-next-line no-console
+  console.warn(`[SharedSync] 發現 ${toDelete.size} 筆重複共用清單，已自動清理：`, Array.from(toDelete));
+
+  toDelete.forEach((id) => { delete all[id]; });
+  saveSharedLists(all);
+  return toDelete.size;
+}
+
 export function generateShareToken(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
   return Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
