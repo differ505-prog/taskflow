@@ -354,6 +354,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const storedSharedLists = getSharedLists();
     setSharedLists(storedSharedLists);
 
+    // Init 時主動拉 owned/accepted shared list 的角色（防止 reload 後 owner 身份丟失）
+    if (user) {
+      const storedAcceptedIds = storedSharedLists ? Object.keys(storedSharedLists) : [];
+      const allIds = [...new Set([...storedOwnedIds, ...storedAcceptedIds])];
+      if (allIds.length > 0) {
+        void (async () => {
+          const roleEntries: Record<string, MemberRole> = {};
+          for (const sid of allIds) {
+            const r = await getMyRoleInSharedList(sid, user.uid);
+            if (r) roleEntries[sid] = r;
+          }
+          if (Object.keys(roleEntries).length > 0) {
+            setMyRoleByList(roleEntries);
+          }
+        })();
+      }
+    }
+
     if (typeof Notification !== "undefined") {
       setNotificationPermission(Notification.permission);
     }
