@@ -3,9 +3,11 @@
  */
 import { supabase } from "./supabase";
 import { TaskList } from "./types";
+import { logger } from "./logger";
 
 export type Unsubscribe = () => void;
 const TABLE = "personal_lists";
+const log = logger.ns("personalListSync");
 
 export async function loadLists(uid: string): Promise<TaskList[]> {
   if (!supabase) return [];
@@ -23,7 +25,7 @@ export async function batchSaveLists(uid: string, lists: TaskList[]): Promise<vo
     updated_at: new Date().toISOString(),
   }));
   const { error } = await supabase.from(TABLE).upsert(rows);
-  if (error) console.error("[personalListSync] batchSaveLists error:", error);
+  if (error) log.error("batchSaveLists error", { error: String(error) });
 }
 
 export async function deleteList(uid: string, listId: string): Promise<void> {
@@ -75,7 +77,7 @@ export async function subscribeLists(
       "postgres_changes",
       { event: "DELETE", schema: "public", table: TABLE },
       async (payload) => {
-        console.log(`[personalListSync] DELETE callback, payload:`, JSON.stringify(payload));
+        log.info("DELETE callback", { payload: JSON.stringify(payload) });
         // DELETE 時 old 只有 id，無 owner_uid，channel 名稱已綁定 uid。
         const fresh = await loadLists(uid);
         onUpdate(fresh);
@@ -95,14 +97,14 @@ export async function subscribeLists(
     activeChannel.subscribe((status) => {
       if (status === "SUBSCRIBED") {
         reconnectAttempts = 0;
-        console.log("[personalListSync] Realtime channel 已連線");
+        log.info("Realtime channel 已連線");
       } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-        console.warn(`[personalListSync] channel ${status}`);
+        log.warn(`channel ${status}`);
       }
     });
-    console.log("[personalListSync] channel created");
+    log.info("channel created");
   } else {
-    console.warn("[personalListSync] channel 已訂閱，跳過重複 subscribe()");
+    log.warn("channel 已訂閱,跳過重複 subscribe()");
   }
 
   return () => {

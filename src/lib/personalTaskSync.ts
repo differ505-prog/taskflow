@@ -14,10 +14,12 @@
  */
 import { supabase } from "./supabase";
 import { Task } from "./types";
+import { logger } from "./logger";
 
 export type Unsubscribe = () => void;
 
 const TABLE = "personal_tasks";
+const log = logger.ns("personalTaskSync");
 
 export async function loadTasks(uid: string): Promise<Task[]> {
   if (!supabase) return [];
@@ -26,7 +28,7 @@ export async function loadTasks(uid: string): Promise<Task[]> {
     .select("data")
     .eq("owner_uid", uid);
   if (error) {
-    console.error("[personalTaskSync] loadTasks error:", error);
+  if (error) log.error("loadTasks error", { error: String(error) });
     return [];
   }
   return (data ?? []).map((row) => row.data as Task);
@@ -41,7 +43,7 @@ export async function saveTask(uid: string, task: Task): Promise<void> {
     is_archived: task.isArchived,
     updated_at: new Date().toISOString(),
   });
-  if (error) console.error("[personalTaskSync] saveTask error:", error);
+  if (error) log.error("saveTask error", { error: String(error) });
 }
 
 export async function batchSaveTasks(uid: string, tasks: Task[]): Promise<void> {
@@ -54,13 +56,13 @@ export async function batchSaveTasks(uid: string, tasks: Task[]): Promise<void> 
     updated_at: new Date().toISOString(),
   }));
   const { error } = await supabase.from(TABLE).upsert(rows);
-  if (error) console.error("[personalTaskSync] batchSaveTasks error:", error);
+  if (error) log.error("batchSaveTasks error", { error: String(error) });
 }
 
 export async function deleteTask(uid: string, taskId: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from(TABLE).delete().eq("id", taskId).eq("owner_uid", uid);
-  if (error) console.error("[personalTaskSync] deleteTask error:", error);
+  if (error) log.error("deleteTask error", { error: String(error) });
 }
 
 /**
@@ -100,10 +102,10 @@ export async function subscribeTasks(
     fallbackFired = true;
     try {
       const fresh = await loadTasks(uid);
-      console.log(`[personalTaskSync] fallback poll fired（INSERT/UPDATE 廣播逾時 5s），任務數: ${fresh.length}`);
+      log.info("fallback poll fired(INSERT/UPDATE 廣播逾時 5s)", { count: fresh.length });
       onUpdate(filterDeleted(fresh));
     } catch (err) {
-      console.error("[personalTaskSync] fallback poll failed:", err);
+      log.error("fallback poll failed", { error: String(err) });
     }
   }, 5000);
   const cancelFallback = () => {
@@ -120,11 +122,11 @@ export async function subscribeTasks(
     if (Date.now() - lastBroadcastAt < SILENT_WINDOW_MS) return;
     try {
       const fresh = await loadTasks(uid);
-      console.log(`[personalTaskSync] periodic poll fired（靜默 ${Math.floor((Date.now() - lastBroadcastAt) / 1000)}s），任務數: ${fresh.length}`);
+      log.info("periodic poll fired", { silentSec: Math.floor((Date.now() - lastBroadcastAt) / 1000), count: fresh.length });
       onUpdate(filterDeleted(fresh));
       lastBroadcastAt = Date.now(); // 重置視窗，避免持續觸發直到下次 INSERT/UPDATE
     } catch (err) {
-      console.error("[personalTaskSync] periodic poll failed:", err);
+      log.error("periodic poll failed", { error: String(err) });
     }
   }, POLL_INTERVAL_MS);
   const markBroadcast = () => {
@@ -153,21 +155,21 @@ export async function subscribeTasks(
         const tRecv = Date.now();
         // 標記 [REALTIME-RECEIVED]：這是從 realtime channel 收到的 INSERT callback
         // 如果 log 裡完全沒看到這行 → realtime 廣播根本沒送到這個 client
-        console.log(`[personalTaskSync] [REALTIME-RECEIVED] INSERT callback at ${new Date(tRecv).toISOString()}`, payload);
+        log.info("[REALTIME-RECEIVED] INSERT callback", { at: new Date(tRecv).toISOString(), payload });
         const raw = payload as { new?: { owner_uid?: string } };
         if (raw.new && raw.new.owner_uid !== uid) {
-          console.log(`[personalTaskSync] INSERT callback owner_uid 不符 (${raw.new.owner_uid} !== ${uid})，跳過`);
+          log.info("INSERT callback owner_uid 不符,跳過", { got: raw.new.owner_uid, expected: uid });
           return;
         }
         const t0 = Date.now();
         try {
           const fresh = await loadTasks(uid);
-          console.log(`[personalTaskSync] loadTasks 耗時 ${Date.now() - t0}ms，任務數: ${fresh.length}`);
+          log.info("loadTasks 耗時", { ms: Date.now() - t0, count: fresh.length });
           // 傳入此刻 deletedIdsRef 快照，讓 merge 的刪除集合包含所有進行中的刪除
           const pendingDeletions = deletedIdsRef && deletedIdsRef.size > 0 ? Array.from(deletedIdsRef) : [];
           onUpdate(filterDeleted(fresh, pendingDeletions), undefined, pendingDeletions);
         } catch (err) {
-          console.error("[personalTaskSync] loadTasks 失敗:", err);
+          log.error("loadTasks 失敗", { error: String(err) });
         }
       }
     );
@@ -179,21 +181,21 @@ export async function subscribeTasks(
         cancelFallback();
         markBroadcast();
         // 標記 [REALTIME-RECEIVED]：這是從 realtime channel 收到的 UPDATE callback
-        console.log(`[personalTaskSync] [REALTIME-RECEIVED] UPDATE callback`, payload);
+        log.info("[REALTIME-RECEIVED] UPDATE callback", { payload });
         const raw = payload as { new?: { owner_uid?: string } };
         if (raw.new && raw.new.owner_uid !== uid) {
-          console.log(`[personalTaskSync] UPDATE callback owner_uid 不符，跳過`);
+          log.info("UPDATE callback owner_uid 不符,跳過");
           return;
         }
         const t0 = Date.now();
         try {
           const fresh = await loadTasks(uid);
-          console.log(`[personalTaskSync] loadTasks 耗時 ${Date.now() - t0}ms，任務數: ${fresh.length}`);
+          log.info("loadTasks 耗時", { ms: Date.now() - t0, count: fresh.length });
           // 傳入此刻 deletedIdsRef 快照，讓 merge 的刪除集合包含所有進行中的刪除
           const pendingDeletions = deletedIdsRef && deletedIdsRef.size > 0 ? Array.from(deletedIdsRef) : [];
           onUpdate(filterDeleted(fresh, pendingDeletions), undefined, pendingDeletions);
         } catch (err) {
-          console.error("[personalTaskSync] loadTasks 失敗:", err);
+          log.error("loadTasks 失敗", { error: String(err) });
         }
       }
     );
@@ -206,15 +208,15 @@ export async function subscribeTasks(
         const deletedId = raw.old?.id;
         // 同步加入 deletedIdsRef：確保 filterDeleted 能看到
         if (deletedId && deletedIdsRef) deletedIdsRef.add(deletedId);
-        console.log(`[personalTaskSync] DELETE callback, payload:`, JSON.stringify(payload));
+        log.info("DELETE callback", { payload: JSON.stringify(payload) });
         const t0 = Date.now();
         try {
           const fresh = await loadTasks(uid);
-          console.log(`[personalTaskSync] loadTasks 耗時 ${Date.now() - t0}ms，任務數: ${fresh.length}`);
+          log.info("loadTasks 耗時", { ms: Date.now() - t0, count: fresh.length });
           // 直接把 deletedId 傳給 AppContext，讓 localOnly 邏輯也能排除
           onUpdate(filterDeleted(fresh), deletedId);
         } catch (err) {
-          console.error("[personalTaskSync] loadTasks 失敗:", err);
+          log.error("loadTasks 失敗", { error: String(err) });
         } finally {
           if (deletedId && deletedIdsRef) deletedIdsRef.delete(deletedId);
         }
@@ -235,17 +237,17 @@ export async function subscribeTasks(
     subscribed = true;
     activeChannel.subscribe((status) => {
       // 把所有 status 都 log，幫助診斷「到底有沒有訂閱成功」
-      console.log(`[personalTaskSync] subscribe status: ${status}`);
+      log.info("subscribe status", { status });
       if (status === "SUBSCRIBED") {
         reconnectAttempts = 0;
-        console.log(`[personalTaskSync] Realtime channel 已連線，主題=personal_tasks:${uid}`);
+        log.info("Realtime channel 已連線", { topic: `personal_tasks:${uid}` });
       } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-        console.warn(`[personalTaskSync] channel ${status}`);
+        log.warn(`channel ${status}`);
       }
     });
-    console.log("[personalTaskSync] channel created");
+    log.info("channel created");
   } else {
-    console.warn("[personalTaskSync] channel 已訂閱，跳過重複 subscribe()");
+    log.warn("channel 已訂閱,跳過重複 subscribe()");
   }
 
   // ─────────────────────────────────────────────────────────────────
@@ -261,34 +263,34 @@ export async function subscribeTasks(
     try {
       const t0 = Date.now();
       const fresh = await loadTasks(uid);
-      console.log(`[personalTaskSync] [AWAKE-REFRESH] ${reason}，loadTasks 耗時 ${Date.now() - t0}ms，任務數: ${fresh.length}`);
+      log.info("[AWAKE-REFRESH]", { reason, ms: Date.now() - t0, count: fresh.length });
       onUpdate(filterDeleted(fresh));
       markBroadcast(); // 重置 lastBroadcastAt，避免 periodic poll 立刻又跑
     } catch (err) {
-      console.error(`[personalTaskSync] [AWAKE-REFRESH] ${reason} 失敗:`, err);
+      log.error("[AWAKE-REFRESH] 失敗", { reason, error: String(err) });
     }
   };
 
   const onVisibilityChange = () => {
     if (document.visibilityState === "visible") {
-      console.log("[personalTaskSync] [AWAKE] visibilitychange → visible，觸發 refresh");
+      log.info("[AWAKE] visibilitychange → visible,觸發 refresh");
       refreshOnAwake("visibilitychange");
     }
   };
   const onPageShow = (e: PageTransitionEvent) => {
     // e.persisted === true 代表是從 bfcache 恢復（PWA 切走又切回的典型場景）
-    console.log(`[personalTaskSync] [AWAKE] pageshow persisted=${e.persisted}，觸發 refresh`);
+    log.info("[AWAKE] pageshow", { persisted: e.persisted });
     refreshOnAwake(e.persisted ? "pageshow(bfcache)" : "pageshow");
   };
   const onOnline = () => {
-    console.log("[personalTaskSync] [AWAKE] online 事件，觸發 refresh");
+    log.info("[AWAKE] online 事件,觸發 refresh");
     refreshOnAwake("online(網路恢復)");
   };
 
   document.addEventListener("visibilitychange", onVisibilityChange);
   window.addEventListener("pageshow", onPageShow);
   window.addEventListener("online", onOnline);
-  console.log("[personalTaskSync] PWA 喚醒監聽器已掛載 (visibilitychange + pageshow + online)");
+  log.info("PWA 喚醒監聽器已掛載 (visibilitychange + pageshow + online)");
 
   return () => {
     clearTimeout(fallbackTimer);

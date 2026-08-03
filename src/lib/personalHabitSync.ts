@@ -12,10 +12,12 @@
  */
 import { supabase } from "./supabase";
 import { Habit } from "./types";
+import { logger } from "./logger";
 
 export type Unsubscribe = () => void;
 
 const TABLE = "personal_habits";
+const log = logger.ns("personalHabitSync");
 
 export async function loadHabits(uid: string): Promise<Habit[]> {
   if (!supabase) return [];
@@ -24,7 +26,7 @@ export async function loadHabits(uid: string): Promise<Habit[]> {
     .select("data")
     .eq("owner_uid", uid);
   if (error) {
-    console.error("[personalHabitSync] loadHabits error:", error);
+  if (error) log.error("loadHabits error", { error: String(error) });
     return [];
   }
   return (data ?? []).map((row) => row.data as Habit);
@@ -39,7 +41,7 @@ export async function saveHabit(uid: string, habit: Habit): Promise<void> {
     is_archived: !!habit.archivedAt,
     updated_at: new Date().toISOString(),
   });
-  if (error) console.error("[personalHabitSync] saveHabit error:", error);
+  if (error) log.error("saveHabit error", { error: String(error) });
 }
 
 export async function batchSaveHabits(uid: string, habits: Habit[]): Promise<void> {
@@ -52,7 +54,7 @@ export async function batchSaveHabits(uid: string, habits: Habit[]): Promise<voi
     updated_at: new Date().toISOString(),
   }));
   const { error } = await supabase.from(TABLE).upsert(rows);
-  if (error) console.error("[personalHabitSync] batchSaveHabits error:", error);
+  if (error) log.error("batchSaveHabits error", { error: String(error) });
 }
 
 /**
@@ -78,10 +80,10 @@ export async function subscribeHabits(
     fallbackFired = true;
     try {
       const fresh = await loadHabits(uid);
-      console.log(`[personalHabitSync] fallback poll fired（INSERT/UPDATE 廣播逾時 5s），habit 數: ${fresh.length}`);
+      log.info("fallback poll fired(INSERT/UPDATE 廣播逾時 5s)", { count: fresh.length });
       onUpdate(fresh);
     } catch (err) {
-      console.error("[personalHabitSync] fallback poll failed:", err);
+      log.error("fallback poll failed", { error: String(err) });
     }
   }, 5000);
   const cancelFallback = () => {
@@ -96,11 +98,11 @@ export async function subscribeHabits(
     if (Date.now() - lastBroadcastAt < SILENT_WINDOW_MS) return;
     try {
       const fresh = await loadHabits(uid);
-      console.log(`[personalHabitSync] periodic poll fired（靜默 ${Math.floor((Date.now() - lastBroadcastAt) / 1000)}s），habit 數: ${fresh.length}`);
+      log.info("periodic poll fired", { silentSec: Math.floor((Date.now() - lastBroadcastAt) / 1000), count: fresh.length });
       onUpdate(fresh);
       lastBroadcastAt = Date.now();
     } catch (err) {
-      console.error("[personalHabitSync] periodic poll failed:", err);
+      log.error("periodic poll failed", { error: String(err) });
     }
   }, POLL_INTERVAL_MS);
   const markBroadcast = () => {
@@ -120,14 +122,14 @@ export async function subscribeHabits(
         markBroadcast();
         const raw = payload as { new?: { owner_uid?: string } };
         if (raw.new && raw.new.owner_uid !== uid) {
-          console.log(`[personalHabitSync] INSERT owner_uid 不符，跳過`);
+          log.info("INSERT owner_uid 不符,跳過");
           return;
         }
         try {
           const fresh = await loadHabits(uid);
           onUpdate(fresh);
         } catch (err) {
-          console.error("[personalHabitSync] loadHabits 失敗:", err);
+          log.error("loadHabits 失敗", { error: String(err) });
         }
       }
     );
@@ -140,14 +142,14 @@ export async function subscribeHabits(
         markBroadcast();
         const raw = payload as { new?: { owner_uid?: string } };
         if (raw.new && raw.new.owner_uid !== uid) {
-          console.log(`[personalHabitSync] UPDATE owner_uid 不符，跳過`);
+          log.info("UPDATE owner_uid 不符,跳過");
           return;
         }
         try {
           const fresh = await loadHabits(uid);
           onUpdate(fresh);
         } catch (err) {
-          console.error("[personalHabitSync] loadHabits 失敗:", err);
+          log.error("loadHabits 失敗", { error: String(err) });
         }
       }
     );
@@ -161,25 +163,25 @@ export async function subscribeHabits(
 
   let activeChannel = buildChannel();
   activeChannel.subscribe((status) => {
-    console.log(`[personalHabitSync] subscribe status: ${status}`);
+    log.info("subscribe status", { status });
     if (status === "SUBSCRIBED") {
-      console.log(`[personalHabitSync] Realtime channel 已連線，主題=personal_habits:${uid}`);
+      log.info("Realtime channel 已連線", { topic: `personal_habits:${uid}` });
     } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-      console.warn(`[personalHabitSync] channel ${status}`);
+      log.warn(`channel ${status}`);
     }
   });
-  console.log("[personalHabitSync] channel created");
+  log.info("channel created");
 
   // ── PWA / iOS Safari 喚醒同步：背景 → 前景時主動 loadHabits
   const refreshOnAwake = async (reason: string) => {
     if (document.visibilityState !== "visible") return;
     try {
       const fresh = await loadHabits(uid);
-      console.log(`[personalHabitSync] [AWAKE-REFRESH] ${reason}，habit 數: ${fresh.length}`);
+      log.info("[AWAKE-REFRESH]", { reason, count: fresh.length });
       onUpdate(fresh);
       markBroadcast();
     } catch (err) {
-      console.error(`[personalHabitSync] [AWAKE-REFRESH] ${reason} 失敗:`, err);
+      log.error("[AWAKE-REFRESH] 失敗", { reason, error: String(err) });
     }
   };
   const onVisibilityChange = () => {

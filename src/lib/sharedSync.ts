@@ -1,5 +1,8 @@
 import { supabase, isSupabaseConfigured } from "./supabase";
 import type { Task, TaskList } from "./types";
+import { logger } from "./logger";
+
+const log = logger.ns("SharedSync");
 
 /**
  * Shared-list realtime sync layer (Supabase) — v3.
@@ -334,13 +337,11 @@ export async function fetchSharedSnapshot(
     ]);
 
   if (listErr) {
-    // eslint-disable-next-line no-console
-    console.error("[SharedSync] fetchSharedSnapshot list error", listErr);
+    log.error("fetchSharedSnapshot list error", { error: String(listErr) });
     return null;
   }
   if (taskErr) {
-    // eslint-disable-next-line no-console
-    console.error("[SharedSync] fetchSharedSnapshot tasks error", taskErr);
+    log.error("fetchSharedSnapshot tasks error", { error: String(taskErr) });
     return null;
   }
   if (!listRow) return null;
@@ -368,8 +369,7 @@ export function subscribeToSharedList(
   cb: SharedSnapshotCallback
 ): () => void {
   if (!supabase) {
-    // eslint-disable-next-line no-console
-    console.warn("[SharedSync] supabase not configured; realtime disabled");
+    log.warn("supabase not configured; realtime disabled");
     cb(null);
     return () => {};
   }
