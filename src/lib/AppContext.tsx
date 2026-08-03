@@ -1415,10 +1415,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const ownerName = user.displayName || user.email || undefined;
     try {
       const sharedListId = await createSharedList(list, listTasks, user.uid, ownerName, user.email);
-      const updatedList = { ...list, sharedId: sharedListId, ownerId: user.uid };
+      const updatedList = { ...list, sharedId: sharedListId, ownerId: user.uid, updatedAt: new Date().toISOString() };
       const updatedLists = lists.map((l) => l.id === listId ? updatedList : l);
       setLists(updatedLists);
       saveLists(updatedLists);
+      recentlyWrittenListsRef.current.set(listId, Date.now());
+      batchSaveListsFirebase(user.uid, [updatedList]).catch(console.warn);
+      
       setOwnedSharedListIds((prev) =>
         prev.includes(sharedListId) ? prev : [...prev, sharedListId]
       );
@@ -1437,11 +1440,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     try {
       await deleteSharedList(sharedListId);
+      const changedList = lists.find(l => l.sharedId === sharedListId);
       const updatedLists = lists.map((l) =>
-        l.sharedId === sharedListId ? { ...l, sharedId: undefined, ownerId: undefined } : l
+        l.sharedId === sharedListId ? { ...l, sharedId: undefined, ownerId: undefined, updatedAt: new Date().toISOString() } : l
       );
       setLists(updatedLists);
       saveLists(updatedLists);
+      if (changedList) {
+        recentlyWrittenListsRef.current.set(changedList.id, Date.now());
+        batchSaveListsFirebase(user.uid, [{ ...changedList, sharedId: undefined, ownerId: undefined, updatedAt: new Date().toISOString() }]).catch(console.warn);
+      }
+      
       setOwnedSharedListIds((prev) => prev.filter((id) => id !== sharedListId));
       if (sharedListUnsubscribeRefs.current[sharedListId]) {
         sharedListUnsubscribeRefs.current[sharedListId]();
