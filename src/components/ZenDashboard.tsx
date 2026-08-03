@@ -52,20 +52,23 @@ import { OnboardingTask } from "@/components/OnboardingTask";
 /** 禪模式看的任務樣態：嚴格「今日專注清單 (The Today Rule)」
  *  - 排除已封存、已完成、子任務
  *  - dueDate === 今天的本地日期（YYYY-MM-DD）
+ *  - **依 `order` 欄位排序**（reorderTasks 會重編 order,這是 SSOT）
  * 避免 ADHD 用戶一次性看到全部 backlog 觸發「啟動癱瘓」；
  * Command Center 負責「把任務排到今天」，禪模式只專注「今天」。
  */
 function selectZenTasks(tasks: Task[]): Task[] {
   const today = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD（本地時區）
-  return tasks.filter(
-    (t) =>
-      !t.isArchived &&
-      t.status === "todo" &&
-      !t.parentId &&
-      // §A+ 雙保險:startDate 是未來天 → 該任務今天還沒開始,不應作為焦點
-      !(t.startDate && t.startDate > today) &&
-      t.dueDate === today,
-  );
+  return tasks
+    .filter(
+      (t) =>
+        !t.isArchived &&
+        t.status === "todo" &&
+        !t.parentId &&
+        // §A+ 雙保險:startDate 是未來天 → 該任務今天還沒開始,不應作為焦點
+        !(t.startDate && t.startDate > today) &&
+        t.dueDate === today,
+    )
+    .sort((a, b) => a.order - b.order);
 }
 
 export default function ZenDashboard() {
