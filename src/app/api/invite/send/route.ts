@@ -68,24 +68,30 @@ export async function POST(req: NextRequest) {
 
     // ── 2. 驗證發送者身份 ────────────────────────────────────────────────────
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!authHeader || !authHeader.startsWith("Bearer ") || authHeader === "Bearer undefined" || authHeader === "Bearer null") {
+      return NextResponse.json({ error: `Unauthorized (Invalid auth header: ${authHeader})` }, { status: 401 });
     }
 
     let senderUid: string;
     let senderEmail: string;
     try {
-      const admin = getSupabaseAdmin();
-      const { data: { user }, error } = await admin.auth.getUser(
-        authHeader.replace("Bearer ", "")
+      // Use anon client to verify user token, as admin client might have conflicting headers
+      const anonClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { data: { user }, error } = await anonClient.auth.getUser(
+        authHeader.replace("Bearer ", "").trim()
       );
       if (error || !user) {
-        return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+        console.error("getUser error:", error);
+        return NextResponse.json({ error: `Invalid token: ${error?.message || 'unknown'}` }, { status: 401 });
       }
       senderUid = user.id;
       senderEmail = user.email ?? "";
-    } catch {
-      return NextResponse.json({ error: "Auth verification failed" }, { status: 401 });
+    } catch (err: any) {
+      console.error("Auth verification failed:", err);
+      return NextResponse.json({ error: `Auth verification failed: ${err?.message || 'unknown'}` }, { status: 401 });
     }
 
     // ── 3. 確認發送者是清單 owner ────────────────────────────────────────────

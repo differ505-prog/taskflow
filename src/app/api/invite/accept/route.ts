@@ -46,17 +46,22 @@ export async function POST(req: NextRequest) {
     let userUid: string;
     let userEmail: string;
     try {
-      const admin = getSupabaseAdmin();
-      const { data: { user }, error } = await admin.auth.getUser(
-        authHeader.replace("Bearer ", "")
+      const anonClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { data: { user }, error } = await anonClient.auth.getUser(
+        authHeader.replace("Bearer ", "").trim()
       );
       if (error || !user) {
-        return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+        console.error("getUser error in accept:", error);
+        return NextResponse.json({ error: `Invalid token: ${error?.message || 'unknown'}` }, { status: 401 });
       }
       userUid = user.id;
       userEmail = (user.email ?? "").toLowerCase();
-    } catch {
-      return NextResponse.json({ error: "Auth verification failed" }, { status: 401 });
+    } catch (err: any) {
+      console.error("Auth verification failed in accept:", err);
+      return NextResponse.json({ error: `Auth verification failed: ${err?.message || 'unknown'}` }, { status: 401 });
     }
 
     // ── 3. 用 service role 查詢 invite（繞過 RLS）───────────────────────
