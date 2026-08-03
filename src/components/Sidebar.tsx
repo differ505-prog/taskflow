@@ -55,7 +55,7 @@ interface SidebarProps {
 const LIST_ICONS = ["📋", "💼", "🏠", "🏃", "📚", "💡", "🎯", "🌟", "💰", "🏥", "✈️", "🎨", "🍽️", "🛠️", "📱", "💻"];
 
 export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditList, onDeleteList, onOpenFlowTimer, onOpenShareModal, onOpenSharedLists, onOpenSharedList, onLeaveSharedList }: SidebarProps) {
-  const { currentView, currentListId, currentSharedListId, setCurrentView, viewCounts, lists, reorderLists, sharedLists, getListTaskCount, tasks } = useApp();
+  const { currentView, currentListId, currentSharedListId, setCurrentView, viewCounts, lists, reorderLists, sharedLists, getListTaskCount, tasks, user } = useApp();
   const confirm = useConfirm();
   const [listsExpanded, setListsExpanded] = useState(true);
   const [showListMenu, setShowListMenu] = useState<string | null>(null);
@@ -81,7 +81,12 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
   ];
 
   const isActive = (view: AppView, listId?: string) => {
-    if (view === "list") return currentView === "list" && currentListId === listId;
+    if (view === "list") {
+      if (currentView === "list" && currentListId === listId) return true;
+      const list = userLists.find((l) => l.id === listId);
+      if (list?.sharedId && currentView === "shared" && currentSharedListId === list.sharedId) return true;
+      return false;
+    }
     // 月視圖按鈕涵蓋 calendar + command-center(同一個入口)
     if (view === "calendar") return currentView === "calendar" || currentView === "command-center";
     return currentView === view;
@@ -226,7 +231,13 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
                       list={list}
                       isActive={isActive("list", list.id)}
                       showMenu={showListMenu === list.id}
-                      onSelect={() => setCurrentView("list", list.id)}
+                      onSelect={() => {
+                        if (list.sharedId) {
+                          onOpenSharedList?.(list.sharedId);
+                        } else {
+                          setCurrentView("list", list.id);
+                        }
+                      }}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         setShowListMenu(showListMenu === list.id ? null : list.id);
@@ -260,12 +271,14 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
         <div className="h-px mx-2 mt-2" style={{ background: "var(--border)" }} />
 
         {/* Shared lists */}
-        {Object.values(sharedLists).length > 0 && (
+        {Object.values(sharedLists).filter((d) => d.list.ownerId !== user?.uid).length > 0 && (
           <div className="pt-2 space-y-0.5">
             <div className="px-3 py-1 text-[11px] font-medium uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
               共用清單
             </div>
-            {Object.values(sharedLists).map((data) => {
+            {Object.values(sharedLists)
+              .filter((d) => d.list.ownerId !== user?.uid)
+              .map((data) => {
               const key = data.list.sharedId ?? data.list.id;
               const isActiveShared = currentSharedListId === key;
               return (
