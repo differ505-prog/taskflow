@@ -279,11 +279,11 @@ export function ShareListModal({ isOpen, onClose, listToShare: staleListToShare,
     setInviteBusy(true);
     setInviteError(null);
     try {
-      // 取得 access token
-      const sessionRes = await fetch("/api/auth/session");
-      const sessionData = await sessionRes.json();
-      const accessToken = sessionData?.accessToken;
-      if (!accessToken) throw new Error("請先登入");
+      // 從 AuthContext 的 browser Supabase client 取 session token
+      const { supabase: authClient } = await import("@/lib/AuthContext");
+      const { data: { session }, error: sessionError } = await authClient.auth.getSession();
+      const accessToken = session?.access_token;
+      if (sessionError || !accessToken) throw new Error("請先登入");
 
       const res = await fetch("/api/invite/send", {
         method: "POST",
