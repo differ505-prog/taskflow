@@ -37,6 +37,7 @@
 | #014-r5 ❌ | 第 4 輪治標(disable sortable)後症狀變成「滑到底不 ok」;我定位為 iOS PWA 內外層 overscroll 傳遞,加 `overscroll-behavior: contain`。**結果:用戶硬往上拖仍卡死,證明這個診斷是錯的**(overscroll 已 contain 但內層還是收不到向上 pan)。這個 commit 是「假修復」 | `b309908`(PullToRefresh inline style 加 overscroll-behavior: contain;**沒生效**) | 2026-08-02 |
 | #014-r6 ✅ | 真正 root cause(另一位 IDE 一次命中):PullToRefresh L26 `if (window.scrollY <= 0)` 用 window scrollY 判斷頂部,但任務列表是在內層 scroll container 內滾動 → window.scrollY 永遠是 0 → 當用戶在列表底部「想向上滑」(手指物理方向向下)時,PullToRefresh 誤觸發 + 鎖死 touch event,內層 scroll 收不到滾動事件。**真正修法**:touchstart/touchmove 改用 `containerRef.scrollTop === 0` 精準偵測真實頂部 + `touch-action: pan-y` 雙向放手 | (另一位 IDE 推 main,本對話僅登記) | 2026-08-02 |
 | #015 | 禪模式「下一個輪值」按鈕按了沒反應(焦點未切換) | `reorderTasks` 內部用 `tasks.map(...)` 保留 React state 物理位置 + `selectZenTasks` 純 filter 沒 sort by `order` → `order` 已重編但 `visibleTasks[0]` 物理位置不變 → FocusCard `key={focus.id}` 不變 → AnimatePresence 不換 focus | `fix(zen): selectZenTasks sort by order` | 2026-08-03 |
+| #015-r2 | 「下一個輪值」只換 0/1,而非完整循環 | `shiftFocusWithNext` 寫成 swap(0,1) 而非 rotate-left-by-1,卡在 pair swap 循環 | `fix(zen): 下一個輪值改為 rotate-left-by-1(跑馬燈式循環)` | 2026-08-03 |
 
 ---
 
@@ -917,4 +918,30 @@ const handleTouchStart = useCallback((e: React.TouchEvent) => {
 - 建議 `global.mdc` §26 新增 1 個類別:**V**(selector 對 SSOT 欄位無感)
 - `global.mdc` 生效紀錄新增 1 條(2026-08-03)
 - 修憲自評:**9.0**(首輪達標)
+
+---
+
+## #015-r2 —「下一個輪值」只換 0/1 而非完整循環
+
+### 症狀(使用者於 #015 fix 後回饋)
+- commit `50b53ed` 修了「按了沒反應」後,使用者按按鈕開始有反應
+- 但**只有 visibleTasks[0] 跟 [1] 在互調** → 卡在「兩個任務互換」的循環
+- 5 個任務連按 5 次只會看到 A↔B 互換,永遠跳不到 Q3 / Q4
+- 使用者期望的是「跑馬燈式循環」:A → B → C → D → E → A(回到原點)
+
+### Root Cause
+- `shiftFocusWithNext` 第一次寫成「swap 0↔1」,**不是「rotate left by 1」**
+- 雖然叫「下一個輪值」但實作邏輯是 pair swap,只 swap 兩個任務
+
+### 修法
+- `shiftFocusWithNext` 從 `[swap(0,1), ...slice(2)]` 改為 `[...slice(1), slice(0)]`
+- 即「focus 移到清單最尾端,其他往前遞補一格」
+- N=3 範例:`[A,B,C] → [B,C,A] → [C,A,B] → [A,B,C]`(完整循環回到 A)
+- 跟既有的 §26-A 5 秒保護窗、`reorderTasks` 路徑、§26-V `selectZenTasks` sort by order 全部兼容
+
+### 評分(B1: rotate left by 1)
+- B1 改 rotate-left-by-1:**9.5**(完全對齊使用者描述的「跑馬燈式循環」、復用既有路徑、§26-V §26-A 兼容性高)
+- B2 改「跟 last swap」:**7.0**(違反直覺:每次都跟尾巴對調,不是逐步循環)
+- B3 重構成 linked list/cycle 結構:**6.0**(過度工程,單一 use case 不需要)
+- 採 **B1**
 
