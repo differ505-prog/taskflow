@@ -134,7 +134,10 @@ export async function POST(req: NextRequest) {
 
     if (insertError) {
       console.error("[invite/send] Insert failed:", insertError);
-      return NextResponse.json({ error: "Failed to create invite" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to create invite", detail: insertError.message, code: insertError.code },
+        { status: 500 }
+      );
     }
 
     // ── 6. 寄送 email ────────────────────────────────────────────────────────
