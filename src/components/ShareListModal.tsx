@@ -225,7 +225,13 @@ export function ShareListModal({ isOpen, onClose, listToShare: staleListToShare,
     setShareError(null);
     setIsSharing(true);
     try {
-      const id = await shareList(listToShare.id);
+      // 客戶端 10 秒 timeout：若 Supabase 回應慢於 10 秒，主動中斷
+      const id = await Promise.race([
+        shareList(listToShare.id),
+        new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error("請求超時（10 秒）— Supabase 回應太慢，請稍後再試。")), 10_000)
+        ),
+      ]);
       if (id) {
         setShareUrl(`${window.location.origin}?share=${id}`);
         setHasShared(true);
