@@ -666,13 +666,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [user, reloadKey]);
 
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || !user) return;
     const storedSharedLists = getSharedLists();
     const acceptedIds = Object.keys(storedSharedLists).filter(
       (id) => !ownedSharedListIds.includes(id)
     );
     setAcceptedSharedListIds(acceptedIds);
-  }, [isLoaded, reloadKey]);
+
+    // 非同步從 Supabase 探索新的邀請（解決 /invite/[token] 同意後，其他裝置或首頁未及時更新的問題）
+    const discoverNewSharedLists = async () => {
+      try {
+        const { fetchMySharedListIds } = await import("./sharedSync");
+        const allIds = await fetchMySharedListIds(user.uid);
+        
+        const newAcceptedIds = allIds.filter(
+          (id) => !ownedSharedListIds.includes(id) && !acceptedIds.includes(id)
+        );
+        
+        if (newAcceptedIds.length > 0) {
+          console.log("[SharedList] Discovered new shared lists:", newAcceptedIds);
+          setAcceptedSharedListIds(prev => Array.from(new Set([...prev, ...newAcceptedIds])));
+        }
+      } catch (err) {
+        console.warn("[SharedList] Failed to discover new shared lists:", err);
+      }
+    };
+    discoverNewSharedLists();
+  }, [isLoaded, reloadKey, user, ownedSharedListIds]);
 
   // ── Webhook outbound：當 tasks/habits/lists 任一變動,debounce 500ms 發一次 batch payload ──
   useEffect(() => {
