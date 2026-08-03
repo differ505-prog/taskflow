@@ -787,6 +787,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       result = result.filter((t) => !t.listId);
     } else if (currentView === "pinned") {
       result = result.filter((t) => t.isPinned);
+    } else if (currentView === "shared") {
+      // Shared list tasks are handled directly via sharedLists[currentSharedListId].tasks
+      // If we fallthrough here (e.g. during loading), return empty to avoid showing all tasks
+      result = [];
     }
 
     if (searchQuery.trim()) {
