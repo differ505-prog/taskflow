@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { useApp } from "@/lib/AppContext";
 import { useFeatureGate } from "@/lib/useFeatureGate";
 import { useTagRename } from "@/lib/useTagRename";
+import { translateError } from "@/lib/errorMessages";
 import { motion, AnimatePresence } from "framer-motion";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { TagsPageSkeleton } from "@/components/Skeleton";
@@ -83,7 +84,7 @@ export default function TagsPage() {
     });
 
     if (!result.success) {
-      toast.error(result.error || "重新命名失敗");
+      toast.error(translateError(new Error(result.error), "重新命名失敗"));
     } else if (result.updatedCount && result.updatedCount > 0) {
       toast.success(`已更新 ${result.updatedCount} 項任務`);
     }

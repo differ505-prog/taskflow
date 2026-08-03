@@ -205,7 +205,8 @@ export function WarmupFlow({ open, onClose, onComplete }: WarmupFlowProps) {
                   exit={{ opacity: 0 }}
                   className="text-center"
                 >
-                  <p className="text-balance text-slate-500">沒有暖身任務</p>
+                  <p className="text-balance text-slate-500">今天沒有待暖身的習慣</p>
+                  <p className="mt-1 text-balance text-xs text-slate-400">直接進入今天,從最重要的事開始。</p>
                 </motion.div>
               )
             ) : (
@@ -245,7 +246,8 @@ export function WarmupFlow({ open, onClose, onComplete }: WarmupFlowProps) {
                   transition={{ delay: 0.7, duration: 0.6 }}
                   className="text-balance max-w-md text-sm text-slate-500"
                 >
-                  {visible.length} 個暖身任務完成。今天最重要的事在等你。
+                  {visible.length} 個暖身完成。
+                  {visible.length === 1 ? "一顆螺絲已上,主引擎就緒。" : "小螺絲都上緊了,主引擎就緒。"}
                 </motion.p>
                 <motion.button
                   type="button"

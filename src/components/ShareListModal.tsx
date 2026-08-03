@@ -8,6 +8,7 @@ import { TaskList, Task, SharedListSnapshot } from "@/lib/types";
 import { SharedListData, getSharedLists } from "@/lib/storage";
 import { getSharedSnapshot } from "@/lib/firestore";
 import { SharedMember, MemberRole } from "@/lib/sharedSync";
+import { translateShareError } from "@/lib/errorMessages";
 import { X, Link2, Copy, Check, Users, Trash2, Loader2, Mail, Shield, ShieldCheck, UserMinus } from "lucide-react";
 
 interface ShareListModalProps {
@@ -324,7 +325,7 @@ export function ShareListModal({ isOpen, onClose, listToShare: staleListToShare,
       // 刷新成員列表
       await listSharedMembers(sharedListId);
     } catch (err: any) {
-      setInviteError(err?.message || "邀請失敗，請稍後再試");
+      setInviteError(translateShareError(err, "invite"));
     } finally {
       setInviteBusy(false);
     }
@@ -336,7 +337,7 @@ export function ShareListModal({ isOpen, onClose, listToShare: staleListToShare,
     try {
       await kickFromSharedList(sharedListId, email);
     } catch (err: any) {
-      toast.error(err?.message || "移除失敗");
+      toast.error(translateShareError(err, "remove"));
     }
   }, [sharedListId, kickFromSharedList]);
 
@@ -345,7 +346,7 @@ export function ShareListModal({ isOpen, onClose, listToShare: staleListToShare,
     try {
       await changeSharedMemberRole(sharedListId, email, role);
     } catch (err: any) {
-      toast.error(err?.message || "變更角色失敗");
+      toast.error(translateShareError(err, "changeRole"));
     }
   }, [sharedListId, changeSharedMemberRole]);
 

@@ -7,6 +7,7 @@ import { TEMPLATES, applyTemplate } from "@/lib/templates";
 import { useApp } from "@/lib/AppContext";
 import { useAuth } from "@/lib/AuthContext";
 import { toast } from "sonner";
+import { translateError } from "@/lib/errorMessages";
 
 const ONBOARDING_KEY_PREFIX = "taskflow_onboarding_v1_done";
 
@@ -100,7 +101,7 @@ export function Onboarding({ forceShow = false, onClose }: OnboardingProps) {
       markDone();
     } catch (err) {
       console.error("[Onboarding] Apply failed:", err);
-      toast.error("建立範本失敗,請稍後再試");
+      toast.error(translateError(err, "建立範本失敗,請稍後再試"));
     } finally {
       setBusy(false);
     }

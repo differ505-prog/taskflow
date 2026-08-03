@@ -63,3 +63,43 @@ export function translateSupabaseError(e: unknown, fallback = "需要再試一�
   if (msg.includes("not found") || msg.includes("404")) return "資料不存在";
   return fallback;
 }
+
+/**
+ * 通用錯誤翻譯：先用 network → supabase → fallback
+ * 用法：toast.error(translateError(e, "載入清單失敗"))
+ */
+export function translateError(e: unknown, fallback = "需要再試一次"): string {
+  const msg = e instanceof Error ? e.message : String(e);
+  // 網路
+  if (msg.includes("timeout") || msg.includes("Timeout")) return "網路連線逾時,稍後再試";
+  if (msg.includes("NetworkError") || msg.includes("Failed to fetch")) {
+    return "網路不穩,稍後再試";
+  }
+  // Supabase 常見
+  if (msg.includes("duplicate key")) return "資料已存在";
+  if (msg.includes("foreign key")) return "資料被引用,無法刪除";
+  if (msg.includes("permission denied")) return "沒有權限";
+  if (msg.includes("not found") || msg.includes("404")) return "資料不存在";
+  if (msg.includes("rate limit")) return "請求過於頻繁,稍後再試";
+  return fallback;
+}
+
+/** 共用/分享場景（邀請、共享清單） */
+export function translateShareError(e: unknown, action: "invite" | "remove" | "changeRole" | "accept" | "join"): string {
+  const base = translateError(e);
+  if (base !== "需要再試一次") return base;
+  switch (action) {
+    case "invite":
+    case "remove":
+    case "changeRole":
+      return "操作需要再試一次";
+    case "accept":
+    case "join":
+      return "加入失敗,稍後再試";
+  }
+}
+
+/** 外部日曆（ICS）場景 */
+export function translateIcsError(e: unknown, fallback = "匯入失敗,稍後再試"): string {
+  return translateError(e, fallback);
+}

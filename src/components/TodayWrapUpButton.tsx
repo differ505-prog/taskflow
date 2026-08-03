@@ -27,8 +27,8 @@ export function TodayWrapUpButton({ tasks }: Props) {
       // 安撫 toast — 200ms 後,讓卡片動畫先演出一瞬再說話
       window.setTimeout(() => {
         showWindow({
-          title: "辛苦了",
-          message: "剩下的任務已安全送回大廳。去享受現實世界吧！🌙",
+          title: "今天先這樣",
+          message: "剩下的任務已送回大廳。明天又會是新的開始。",
           xpDelta: REST_PP,
           icon: "🌙",
         });

@@ -721,7 +721,7 @@ function EmptyState() {
         <path d="M19 15c-2 0-4 1-4 4" />
       </svg>
       <p className="text-balance text-base font-medium text-slate-600">今日專注已全數完成</p>
-      <p className="text-balance text-sm text-slate-400">戰場很安靜，慢呼吸一下</p>
+      <p className="text-balance text-sm text-slate-400">戰場很安靜。剩下的，會在大廳等你。</p>
       {/* §26 降噪:全數完成狀態下,按鈕不應侵略性 — 從 Primary(bg-slate-800)降為
          Ghost/Secondary(bg-slate-100/80 + text-slate-600),讓中央主視覺(以上 3 行)獨佔焦點 */}
       <Link

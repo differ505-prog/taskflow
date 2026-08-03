@@ -7,6 +7,7 @@ import { Users, Loader2, AlertCircle, CheckCircle2, ShieldCheck, Mail } from "lu
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { translateError, translateShareError } from "@/lib/errorMessages";
 
 type PageState = "loading" | "invalid_token" | "expired" | "wrong_email" | "already_member" | "authenticated" | "joining" | "success";
 
@@ -149,15 +150,15 @@ export default function InvitePage() {
       }
 
       if (!res.ok) {
-        toast.error(data.error ?? "加入失敗");
+        toast.error(translateShareError(new Error(data.error ?? ""), "accept"));
         setPageState("authenticated");
         return;
       }
 
       setPageState("success");
       toast.success(`已加入「${data.listName ?? "共用清單"}」！`);
-    } catch {
-      toast.error("網路錯誤，請稍後再試");
+    } catch (err) {
+      toast.error(translateError(err, "網路錯誤,請稍後再試"));
       setPageState("authenticated");
     }
   };

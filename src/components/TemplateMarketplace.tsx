@@ -6,6 +6,7 @@ import { Sparkles, X, CheckCircle2, Loader2 } from "lucide-react";
 import { useApp } from "@/lib/AppContext";
 import { TEMPLATES, applyTemplate, type Template } from "@/lib/templates";
 import { toast } from "sonner";
+import { translateError } from "@/lib/errorMessages";
 
 interface TemplateMarketplaceProps {
   /** 是否由 SettingsPage 內嵌使用;若 true 會以 section card 形式呈現 */
@@ -36,7 +37,7 @@ export function TemplateMarketplace({ embedded = false }: TemplateMarketplacePro
       console.log("[Templates] Applied", template.id, "listId=", listId, "taskIds=", taskIds);
     } catch (err) {
       console.error("[Templates] Apply failed:", err);
-      toast.error("套用失敗,請稍後再試");
+      toast.error(translateError(err, "套用失敗,請稍後再試"));
     } finally {
       setApplyingId(null);
     }

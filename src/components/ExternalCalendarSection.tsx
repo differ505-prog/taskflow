@@ -20,6 +20,7 @@
 import { ExternalLink, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatFetchedAgo, type ExternalCalendarAPI } from "@/hooks/useExternalCalendar";
+import { translateIcsError } from "@/lib/errorMessages";
 
 export interface ExternalCalendarSectionProps {
   externalCal: ExternalCalendarAPI;
@@ -39,7 +40,7 @@ export function ExternalCalendarSection({
       setNewCalendarUrl("");
       toast.success(`已加入 ${result.eventCount ?? 0} 個事件`);
     } else {
-      toast.error(result.error ?? "加入失敗");
+      toast.error(translateIcsError(new Error(result.error ?? ""), "加入失敗"));
     }
   };
 
