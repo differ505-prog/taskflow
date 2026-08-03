@@ -442,24 +442,16 @@ export function ShareListModal({ isOpen, onClose, listToShare: staleListToShare,
               </div>
             )}
 
-            {hasShared && shareUrl && (
+            {hasShared && (
               <>
-                {/* 分享連結 */}
-                <div className="space-y-2">
-                  <h3 className="text-[12px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
-                    分享連結
-                  </h3>
-                  <ShareLinkButton shareUrl={shareUrl} listName={listToShare.name} />
-                  <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
-                    輸入對方 email 並點「邀請」，系統會自動寄送 email 通知。</p>
-                </div>
-
                 {/* 邀請新成員（owner only） */}
                 {canInvite ? (
                   <div className="space-y-2">
                     <h3 className="text-[12px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
                       邀請新成員
                     </h3>
+                    <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+                      輸入對方 email 並點「邀請」，系統會自動寄送 email 通知。</p>
                     <div className="flex gap-2">
                       <input
                         type="email"
