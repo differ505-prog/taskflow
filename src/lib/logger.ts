@@ -31,9 +31,9 @@ export interface NamespacedLogger {
   error: (message: string, payload?: LogPayload) => void;
 }
 
-const isProd = process.env.NODE_ENV === "production";
-
 function emit(level: LogLevel, namespace: string, message: string, payload?: LogPayload): void {
+  // 每次呼叫時讀 process.env,避免 module-load 時 freeze(別處可中途 mutate)
+  const isProd = process.env.NODE_ENV === "production";
   if (payload && Object.keys(payload).length > 0) {
     const fn = level === "error" ? console.error : level === "warn" ? console.warn : console.log;
     if (isProd) {
