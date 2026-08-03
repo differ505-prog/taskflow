@@ -23,6 +23,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@supabase/ssr";
 import { Resend } from "resend";
 import { renderInviteEmail } from "@/emails";
 
@@ -67,22 +68,26 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 2. 驗證發送者身份 ────────────────────────────────────────────────────
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ") || authHeader === "Bearer undefined" || authHeader === "Bearer null") {
-      return NextResponse.json({ error: `Unauthorized (Invalid auth header: ${authHeader})` }, { status: 401 });
-    }
-
     let senderUid: string;
     let senderEmail: string;
     try {
-      // Use anon client to verify user token, as admin client might have conflicting headers
-      const anonClient = createClient(
+      const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            getAll() {
+              return req.cookies.getAll();
+            },
+            setAll(cookiesToSet) {
+              cookiesToSet.forEach(({ name, value }) => {
+                req.cookies.set(name, value);
+              });
+            },
+          },
+        }
       );
-      const { data: { user }, error } = await anonClient.auth.getUser(
-        authHeader.replace("Bearer ", "").trim()
-      );
+      const { data: { user }, error } = await supabase.auth.getUser();
       if (error || !user) {
         console.error("getUser error:", error);
         return NextResponse.json({ error: `Invalid token: ${error?.message || 'unknown'}` }, { status: 401 });

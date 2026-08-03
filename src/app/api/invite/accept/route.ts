@@ -15,6 +15,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createServerClient } from "@supabase/ssr";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -46,13 +47,23 @@ export async function POST(req: NextRequest) {
     let userUid: string;
     let userEmail: string;
     try {
-      const anonClient = createClient(
+      const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            getAll() {
+              return req.cookies.getAll();
+            },
+            setAll(cookiesToSet) {
+              cookiesToSet.forEach(({ name, value }) => {
+                req.cookies.set(name, value);
+              });
+            },
+          },
+        }
       );
-      const { data: { user }, error } = await anonClient.auth.getUser(
-        authHeader.replace("Bearer ", "").trim()
-      );
+      const { data: { user }, error } = await supabase.auth.getUser();
       if (error || !user) {
         console.error("getUser error in accept:", error);
         return NextResponse.json({ error: `Invalid token: ${error?.message || 'unknown'}` }, { status: 401 });
