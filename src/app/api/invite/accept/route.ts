@@ -123,25 +123,18 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 7. 加入成員（同一 transaction 內）────────────────────────────────
-    // 先刪除舊的 pending invite（如果有的話）
-    await admin
-      .from("shared_list_members")
-      .delete()
-      .eq("shared_list_id", invite.shared_list_id)
-      .eq("member_email", userEmail)
-      .eq("status", "pending");
-
-    // 插入新成員
+    // 使用 upsert，如果該 email 已經存在（無論是 pending 或是不小心綁錯 uid），
+    // 強制更新為當前登入的 userUid 並啟用
     const { error: memberError } = await admin
       .from("shared_list_members")
-      .insert({
+      .upsert({
         shared_list_id: invite.shared_list_id,
         member_email: userEmail,
         member_uid: userUid,
         role: invite.role,
         status: "active",
         accepted_at: new Date().toISOString(),
-      });
+      }, { onConflict: "shared_list_id,member_email" });
 
     if (memberError) {
       console.error("[invite/accept] Insert member failed:", memberError);
