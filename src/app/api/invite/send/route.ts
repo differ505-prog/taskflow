@@ -71,10 +71,20 @@ export async function POST(req: NextRequest) {
     let senderUid: string;
     let senderEmail: string;
     try {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return NextResponse.json({ error: "Unauthorized (missing or invalid Authorization header)" }, { status: 401 });
+      }
+
       const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
+          global: {
+            headers: {
+              Authorization: authHeader,
+            },
+          },
           cookies: {
             getAll() {
               return req.cookies.getAll();
