@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
+import { AUTH_PROVIDERS } from "@/lib/authConfig";
 import {
   Mail, Lock, LogIn, AlertCircle, Loader2, ShieldCheck, CheckCircle2, ArrowLeft,
 } from "lucide-react";
@@ -193,33 +194,37 @@ export function AuthPage({ onGuestMode }: AuthPageProps) {
             )}
 
             {/* Google */}
-            <button
-              onClick={handleGoogle}
-              disabled={submitting}
-              className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl text-[14px] font-medium mb-4 transition-all active:scale-98"
-              style={{ background: "var(--surface-muted)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
-            >
-              <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-                <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
-                <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
-                <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
-                <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
-              </svg>
-              使用 Google 帳號{mode === "signup" ? "註冊" : "登入"}
-            </button>
+            {AUTH_PROVIDERS.google.enabled && (
+              <button
+                onClick={handleGoogle}
+                disabled={submitting}
+                className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl text-[14px] font-medium mb-4 transition-all active:scale-98"
+                style={{ background: "var(--surface-muted)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
+              >
+                <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                  <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
+                  <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+                  <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
+                  <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+                </svg>
+                使用 Google 帳號{mode === "signup" ? "註冊" : "登入"}
+              </button>
+            )}
 
             {/* Apple */}
-            <button
-              onClick={handleApple}
-              disabled={submitting}
-              className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl text-[14px] font-medium mb-4 transition-all active:scale-98"
-              style={{ background: "#000", color: "#fff", border: "1px solid #000" }}
-            >
-              <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-                <path fill="#fff" d="M14.94 13.93c-.28.65-.62 1.25-1.02 1.79-.54.73-1.43 1.55-2.31 1.56-.78.01-1.16-.5-2.16-.5s-1.4.49-2.15.51c-.88.02-1.55-.79-2.1-1.52-1.18-1.57-2.09-4.43-.87-6.36.61-.96 1.69-1.57 2.87-1.58.85-.02 1.66.57 2.18.57s1.53-.7 2.59-.6c.44.02 1.69.18 2.49 1.36-.07.04-1.49.87-1.47 2.6.02 2.07 1.81 2.76 1.83 2.77-.02.05-.29.99-.88 1.7zM12.45 4.79c.46-.55.77-1.32.68-2.08-.66.03-1.46.44-1.93 1-.42.49-.79 1.27-.69 2.01.74.06 1.49-.38 1.94-.93z"/>
-              </svg>
-              使用 Apple 帳號{mode === "signup" ? "註冊" : "登入"}
-            </button>
+            {AUTH_PROVIDERS.apple.enabled && (
+              <button
+                onClick={handleApple}
+                disabled={submitting}
+                className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl text-[14px] font-medium mb-4 transition-all active:scale-98"
+                style={{ background: "#000", color: "#fff", border: "1px solid #000" }}
+              >
+                <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                  <path fill="#fff" d="M14.94 13.93c-.28.65-.62 1.25-1.02 1.79-.54.73-1.43 1.55-2.31 1.56-.78.01-1.16-.5-2.16-.5s-1.4.49-2.15.51c-.88.02-1.55-.79-2.1-1.52-1.18-1.57-2.09-4.43-.87-6.36.61-.96 1.69-1.57 2.87-1.58.85-.02 1.66.57 2.18.57s1.53-.7 2.59-.6c.44.02 1.69.18 2.49 1.36-.07.04-1.49.87-1.47 2.6.02 2.07 1.81 2.76 1.83 2.77-.02.05-.29.99-.88 1.7zM12.45 4.79c.46-.55.77-1.32.68-2.08-.66.03-1.46.44-1.93 1-.42.49-.79 1.27-.69 2.01.74.06 1.49-.38 1.94-.93z"/>
+                </svg>
+                使用 Apple 帳號{mode === "signup" ? "註冊" : "登入"}
+              </button>
+            )}
 
             <div className="relative mb-4">
               <div className="absolute inset-0 flex items-center">
