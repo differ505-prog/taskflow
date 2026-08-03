@@ -35,7 +35,8 @@
 | #014-r3 ✅ | 第 2 輪修完 PullToRefresh touchAction 後症狀變成「向下 ok、向上不 ok」;第 3 輪引用 dnd-kit 官方文件 + Stack Overflow 已知修法定位:真根因是 AppShell L252 `PointerSensor` 在 iOS Safari 已知限制 — touchmove 期間無法可靠 preventDefault,sortable item 抓走所有 touch event,內層 scroll container 收不到向上 pan | `1e39058`(sensors 改為 MouseSensor + TouchSensor(delay: 250, tolerance: 8);SortableTaskItem 加 touchAction: pan-y wrapper) | 2026-08-02 |
 | #014-r4 ✅ | 用戶環境:iOS PWA(主畫 icon),非 Safari tab;第 3 輪修法未涵蓋 PWA freeze → state stale 場景;第 4 輪治標:手機版 (`max-width: 767px`) 直接 disable sortable (`canDrag = !currentSharedListId && !isMobile`) → SortableContext 整個不掛,touch event 不再走 dnd-kit 路由 | `4c3cc41`(AppShell 加 isMobile matchMedia + canDrag 過濾) | 2026-08-02 |
 | #014-r5 ❌ | 第 4 輪治標(disable sortable)後症狀變成「滑到底不 ok」;我定位為 iOS PWA 內外層 overscroll 傳遞,加 `overscroll-behavior: contain`。**結果:用戶硬往上拖仍卡死,證明這個診斷是錯的**(overscroll 已 contain 但內層還是收不到向上 pan)。這個 commit 是「假修復」 | `b309908`(PullToRefresh inline style 加 overscroll-behavior: contain;**沒生效**) | 2026-08-02 |
-| #014-r6 ✅ | **真正 root cause(另一位 IDE 一次命中)**:PullToRefresh L26 `if (window.scrollY <= 0)` 用 window scrollY 判斷頂部,但任務列表是在內層 scroll container 內滾動 → window.scrollY 永遠是 0 → 當用戶在列表底部「想向上滑」(手指物理方向向下)時,PullToRefresh 誤觸發 + 鎖死 touch event,內層 scroll 收不到滾動事件。**真正修法**:touchstart/touchmove 改用 `containerRef.scrollTop === 0` 精準偵測真實頂部 + `touch-action: pan-y` 雙向放手 | (另一位 IDE 推 main,本對話僅登記) | 2026-08-02 |
+| #014-r6 ✅ | 真正 root cause(另一位 IDE 一次命中):PullToRefresh L26 `if (window.scrollY <= 0)` 用 window scrollY 判斷頂部,但任務列表是在內層 scroll container 內滾動 → window.scrollY 永遠是 0 → 當用戶在列表底部「想向上滑」(手指物理方向向下)時,PullToRefresh 誤觸發 + 鎖死 touch event,內層 scroll 收不到滾動事件。**真正修法**:touchstart/touchmove 改用 `containerRef.scrollTop === 0` 精準偵測真實頂部 + `touch-action: pan-y` 雙向放手 | (另一位 IDE 推 main,本對話僅登記) | 2026-08-02 |
+| #015 | 禪模式「下一個輪值」按鈕按了沒反應(焦點未切換) | `reorderTasks` 內部用 `tasks.map(...)` 保留 React state 物理位置 + `selectZenTasks` 純 filter 沒 sort by `order` → `order` 已重編但 `visibleTasks[0]` 物理位置不變 → FocusCard `key={focus.id}` 不變 → AnimatePresence 不換 focus | `fix(zen): selectZenTasks sort by order` | 2026-08-03 |
 
 ---
 
@@ -865,4 +866,55 @@ const handleTouchStart = useCallback((e: React.TouchEvent) => {
   - **同步強化 §27**:bug fix 5 輪全失敗 → 必停下做「**完整元件行為表 + touch event 路由圖**」,禁止「一次猜一個根因」
   - **同步強化 §18 第 2 步**:列可能根因表時,必須包含「**所有方向性 touch 手勢元件的內部邏輯**」(PullToRefresh / SwipeableRow / swipe-to-dismiss 等)
 - 修憲自評:**§26-R: 9.2**(首輪達標)/ **§27 強化: 8.8**(誠實揭露,需用戶確認是否推進)
+
+---
+
+## #015 — 禪模式「下一個輪值」按鈕按了沒反應
+
+### 症狀（用戶描述）
+- 禪模式中央焦點卡片(commit 74d7a7e 新增的「下一個輪值」按鈕)點下去
+- 沒有任務切換、沒有 motion animation、沒有任何視覺變化
+- 預期:下一個 today 任務升為焦點、原焦點退到下一順位
+
+### Root Cause(雙層耦合 bug)
+- **A 層(單一根因)**:`selectZenTasks` 是純 `tasks.filter(...)`,**沒有 sort by `order` 欄位**
+  - `Task` type 有 `order: number` 欄位(`src/lib/types.ts:160`)
+  - `reorderTasks` 內部正確寫入 `order: idx`(`src/lib/AppContext.tsx:1357`)
+  - 但 `selectZenTasks` 從來沒讀過 `order`,直接用 `filter` 後的陣列物理順序
+- **B 層(`reorderTasks` 設計,屬背景)**:`reorderTasks` 內部用 `tasks.map((t) => ids.has(t.id) ? updated.find(...) : t)` 保留原 tasks 陣列物理位置
+  - 也就是說 `reorderTasks` 正確重編 `order` 欄位,但**不會重排 React state tasks 陣列**
+  - 如果沒有人在消費 `order` 欄位,這個 helper 看似寫了但沒生效
+
+### 為什麼 commit 74d7a7e 沒抓到
+- 當時只 grep 了 `reorderTasks` 內部邏輯、用 `arrayMove` 模式手寫 reorder — 但**沒意識到 `reorderTasks` 是「重編 `order` 欄位」而非「重排物理位置」**
+- 同時**沒對齊 `selectZenTasks` 是否讀 `order`** 這個最關鍵的 contract
+- 屬於 §14 違規:動手前只對該檔案 grep,但**沒對齊「誰是這個欄位的真理來源」**—— 假設 `order` 欄位 = 可見順序,沒驗證
+- §30 強化教訓:本次 commit 也沒做「點按 button 後 focus 真的切換」的 sanity check(§18 runtime 預算 0 上限 → 改用戶視覺驗收)
+
+### 為什麼「拖曳也一樣不生效」(先前既有 bug)
+- `handleDragEnd` 跟新按鈕走同一條 `reorderTasks` 路徑
+- 因此禪模式內用 dnd-kit 拖曳 UPCOMING 排序的視覺反應,**也早就失效**了
+- 使用者沒報 → 可能是因為拖曳成功後 reload 才知道順序沒變(禪模式自動 reload 焦點不會重新計算)
+- 這條 bug 跟新按鈕同根因,本 fix 同時也讓拖曳生效
+
+### 修法
+- `selectZenTasks` 在 `.filter(...)` 後加上 `.sort((a, b) => a.order - b.order)`
+- 一行改動,讓 `order` 欄位真正決定可見順序
+- 不動 `reorderTasks` 內部物理位置邏輯(其他 view 如任務大廳是用物理位置,未報 bug 前不動)
+
+### 教訓(轉化成 §26 修憲候選 — 類別 V「Selector 對 SSOT 欄位無感」)
+
+**新增條文** (§26 類別 V,建議補進 `global.mdc`):
+
+> **V** | **Selector 對 SSOT 欄位無感** | `selectXxx` 從某個 array 過濾出來的元素,**未依 SSOT 排序欄位** sort,導致 sorting helper(reorderTasks / reorderLists / sortByField)寫入新 order 後,這個 selector 仍按 array 物理位置回傳,呼叫端拿到舊順序、永遠看不到新的 | (1) **寫 selectXxx / filter tasks 時必先 grep 同檔是否有同源 sort helper,確認欄位是否真的被當作 SSOT 讀** (2) `tasks.filter(...)` 結束後 + `.sort((a,b) => a.order - b.order)` 是大多數 list-style selector 的最小正確合約 (3) **commit 前 `Grep` 該檔所有 `selectXxx` 呼叫端,確認每個呼叫端都期望「排序結果」而不是「物理位置」** — 如果只一個需要 sort,就把 sort 提到 selector 內部;如果都不要 sort,就要明白記載「物理位置 = SSOT」
+
+### 為何這次必須修憲
+- 跟 §26 類別 E(修錯層)同類,但 V 更精準地描述「selector 對 SSOT 欄位無感」這個**特定失敗模式**
+- 未來任何 `selectXxx` (selectZenTasks / selectTodayTasks / selectUpcomingTasks / selectSharedTasks) 都可能踩這坑
+- 不修憲 → 下一個 `selectXxx` 又會用同樣方式 fail
+
+### 修憲同步
+- 建議 `global.mdc` §26 新增 1 個類別:**V**(selector 對 SSOT 欄位無感)
+- `global.mdc` 生效紀錄新增 1 條(2026-08-03)
+- 修憲自評:**9.0**(首輪達標)
 
