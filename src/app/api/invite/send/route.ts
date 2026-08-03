@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
     const resend = getResend();
     if (!resend) {
       console.warn("[invite/send] RESEND_API_KEY not configured, skipping email");
-      return NextResponse.json({ success: true, token }, { status: 200 });
+      return NextResponse.json({ success: true, token, emailSkipped: true }, { status: 200 });
     }
 
     const inviteLink = `${APP_URL}/invite/${token}`;

@@ -309,7 +309,17 @@ export function ShareListModal({ isOpen, onClose, listToShare: staleListToShare,
         throw new Error(data.error || "邀請失敗");
       }
 
-      toast.success(`邀請已發送至 ${email}，對方會收到 email 通知`);
+      if (data.emailSkipped && data.token) {
+        const link = `${window.location.origin}/invite/${data.token}`;
+        try {
+          await navigator.clipboard.writeText(link);
+          toast.success(`邀請已建立！因為沒有設定 Email 服務，已幫你將邀請連結複製到剪貼簿，請手動傳給對方。`);
+        } catch {
+          toast.success(`邀請已建立！因為沒有設定 Email 服務，請手動傳送此連結給對方：`, { description: link });
+        }
+      } else {
+        toast.success(`邀請已發送至 ${email}，對方會收到 email 通知`);
+      }
       setInviteEmail("");
       // 刷新成員列表
       await listSharedMembers(sharedListId);
