@@ -37,10 +37,13 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // 刷新 session（如果快過期）
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // 讀取 session（從 cookie 直接讀，不需要網路 call）
+  // 注意：getSession() 不驗證 token 是否被 server 撤銷，
+  // 所以已登入者在 client 端仍用 getUser() 做定期驗證。
+  // 這裡只管「有 cookie → 放行，無 cookie → 導 login」。
+  const { data: sessionData } = await supabase.auth.getSession();
+
+  const user = sessionData?.session?.user ?? null;
 
   // 未登入且不是 public route，重導到 /login
   const isPublicRoute =
