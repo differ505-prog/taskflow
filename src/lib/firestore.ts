@@ -279,8 +279,8 @@ export async function updateSharedSnapshot(
   if (
     !listRow ||
     listRow.name !== list.name ||
-    listRow.icon !== list.icon ||
-    listRow.color !== list.color
+    (listRow.icon || "📋") !== (list.icon || "📋") ||
+    (listRow.color || "#3B82F6") !== (list.color || "#3B82F6")
   ) {
     await SharedSync.ensureSharedList({
       sharedListId,
