@@ -217,8 +217,8 @@ export async function listMembers(sharedListId: string): Promise<SharedMember[]>
 }
 
 // ── 查詢：查出所有「我參與的」清單 id ──────────────────────────
-export async function fetchMySharedListIds(uid: string): Promise<string[]> {
-  if (!supabase) return [];
+export async function fetchMySharedListIds(uid: string): Promise<{ ownedIds: string[], joinedIds: string[] }> {
+  if (!supabase) return { ownedIds: [], joinedIds: [] };
   const [{ data: owned }, { data: joined }] = await Promise.all([
     supabase.from("shared_lists").select("id").eq("owner_uid", uid),
     supabase
@@ -227,10 +227,11 @@ export async function fetchMySharedListIds(uid: string): Promise<string[]> {
       .eq("member_uid", uid)
       .eq("status", "active"),
   ]);
-  const ids = new Set<string>();
-  (owned || []).forEach((r: any) => ids.add(r.id));
-  (joined || []).forEach((r: any) => ids.add(r.shared_list_id));
-  return Array.from(ids);
+  
+  const ownedIds = (owned || []).map((r: any) => r.id);
+  const joinedIds = (joined || []).map((r: any) => r.shared_list_id);
+  
+  return { ownedIds, joinedIds };
 }
 
 // ── 任務 CRUD：upsert / delete / setPosition ────────────────────

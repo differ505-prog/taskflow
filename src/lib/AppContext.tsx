@@ -678,27 +678,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const discoverNewSharedLists = async () => {
       try {
         const { fetchMySharedListIds } = await import("./sharedSync");
-        const allIds = await fetchMySharedListIds(user.uid);
+        const { ownedIds, joinedIds } = await fetchMySharedListIds(user.uid);
         
-        // 1. 新增我新加入的清單
-        const newAcceptedIds = allIds.filter(
-          (id) => !ownedSharedListIds.includes(id) && !acceptedIds.includes(id)
+        // --- 1. 同步 Owned Lists ---
+        // 找出被錯誤遺留在 localStorage（例如切換帳號遺留）的 owned lists
+        const orphanOwnedIds = ownedSharedListIds.filter(id => !ownedIds.includes(id));
+        if (orphanOwnedIds.length > 0) {
+          console.log("[SharedList] Removing orphan owned lists:", orphanOwnedIds);
+          orphanOwnedIds.forEach(id => removeSharedList(id));
+          setSharedLists(getSharedLists());
+        }
+        
+        // 確保 React state 與 Server 完全一致
+        if (JSON.stringify([...ownedSharedListIds].sort()) !== JSON.stringify([...ownedIds].sort())) {
+          setOwnedSharedListIds(ownedIds);
+          import("./storage").then(({ saveOwnedSharedListIds }) => saveOwnedSharedListIds(ownedIds));
+        }
+
+        // --- 2. 同步 Joined Lists ---
+        const newAcceptedIds = joinedIds.filter(
+          (id) => !ownedIds.includes(id) && !acceptedIds.includes(id)
         );
         
-        // 2. 找出 localStorage 殘留的「幽靈清單」（我已經不是成員，或綁錯 uid 的），將其清除
-        const orphanIds = acceptedIds.filter(id => !allIds.includes(id));
+        const orphanJoinedIds = acceptedIds.filter(id => !joinedIds.includes(id));
         
-        if (newAcceptedIds.length > 0 || orphanIds.length > 0) {
-          console.log("[SharedList] Syncing shared lists. New:", newAcceptedIds, "Orphans to remove:", orphanIds);
+        if (newAcceptedIds.length > 0 || orphanJoinedIds.length > 0) {
+          console.log("[SharedList] Syncing joined lists. New:", newAcceptedIds, "Orphans to remove:", orphanJoinedIds);
           
-          if (orphanIds.length > 0) {
-            orphanIds.forEach(id => removeSharedList(id));
+          if (orphanJoinedIds.length > 0) {
+            orphanJoinedIds.forEach(id => removeSharedList(id));
             setSharedLists(getSharedLists());
           }
 
           setAcceptedSharedListIds(prev => {
             const next = new Set([...prev, ...newAcceptedIds]);
-            orphanIds.forEach(id => next.delete(id));
+            orphanJoinedIds.forEach(id => next.delete(id));
             return Array.from(next);
           });
         }
