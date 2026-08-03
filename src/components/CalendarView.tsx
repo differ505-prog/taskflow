@@ -5,7 +5,7 @@ import { useApp } from "@/lib/AppContext";
 import { Task } from "@/lib/types";
 import { format, isToday, isSameMonth, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus, X, ChevronDown, ChevronRight as ChevronRightSm, Maximize2, Minimize2, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, ChevronDown, ChevronRight as ChevronRightSm, Maximize2, Minimize2, Trash2, ExternalLink } from "lucide-react";
 import { TaskDetailPanel } from "./TaskDetailPanel";
 import { SwipeableTaskCard } from "./SwipeableTaskCard";
 import { TaskForm } from "./TaskForm";
@@ -13,6 +13,7 @@ import { useBottomSheet } from "@/hooks/useBottomSheet";
 import { useRef } from "react";
 import { haptic } from "@/lib/haptics";
 import { useMonthGrid } from "@/hooks/useMonthGrid";
+import { useExternalCalendar } from "@/hooks/useExternalCalendar";
 
 interface CalendarViewProps {
   /** YYYY-MM-DD;null = 不顯示 sheet。由 AppLayout 統一管理(§26 O' ESC 死鎖防護)。 */
@@ -65,6 +66,9 @@ export function CalendarView({
       updateTask(taskId, { startDate, dueDate }),
     enableSwipe: true,
   });
+
+  // 外部日曆衝突指示(§26 邊界 1.1:灰色圓點,不暴露事件名稱/時間)
+  const externalCal = useExternalCalendar();
 
   // 包裝 swipe handlers — 月曆月切換觸發 haptic 提示
   const handleSwipeTouchStart = useCallback(
@@ -172,6 +176,8 @@ export function CalendarView({
         getTasksForDay={getTasksForDay}
         matchedDayHas={matchedDayHas}
         searchQuery={searchQuery}
+        externalDateCountMap={externalCal.dateCountMap}
+        hasExternalCalendars={externalCal.urls.length > 0}
       />
       {/* Desktop 新增任務 TaskForm — 與 mobile layout 共用同一個 isOpen state */}
       <TaskForm
@@ -293,6 +299,7 @@ export function CalendarView({
             const isSearchMatch = matchedDayHas(dayTasks);
             const pendingTasks = dayTasks.filter((t) => t.status !== "done");
             const pendingCount = pendingTasks.length;
+            const externalCount = externalCal.dateCountMap[dateStr] ?? 0;
 
             return (
               <div
@@ -323,6 +330,15 @@ export function CalendarView({
                   >
                     {format(day, "d")}
                   </span>
+                  {/* 外部日曆衝突指示(§26 邊界 1.1)— 右上角灰色小圓點 */}
+                  {externalCount > 0 && (
+                    <span
+                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{ background: "var(--text-tertiary)" }}
+                      aria-label={`該日另有 ${externalCount} 個外部行程`}
+                      title={`那天另有 ${externalCount} 個外部行程(Google/Apple 日曆)`}
+                    />
+                  )}
                 </div>
                 {pendingCount > 0 && (
                   <div className="flex-1 min-h-0 px-1 pb-0.5 flex items-start justify-center">
@@ -389,6 +405,10 @@ interface DesktopCalendarLayoutProps {
   getTasksForDay: (d: Date) => Task[];
   matchedDayHas: (tasks: Task[]) => boolean;
   searchQuery: string;
+  /** 外部日曆衝突 map(YYYY-MM-DD → 事件數) */
+  externalDateCountMap: Record<string, number>;
+  /** 是否至少加入了一個外部日曆(沒有的話不渲染指示器) */
+  hasExternalCalendars: boolean;
 }
 
 function DesktopCalendarLayout({
@@ -407,6 +427,8 @@ function DesktopCalendarLayout({
   resetMonth,
   getTasksForDay,
   matchedDayHas,
+  externalDateCountMap,
+  hasExternalCalendars,
 }: DesktopCalendarLayoutProps) {
 
   const selectedDateTasks = useMemo(() => {
@@ -438,6 +460,10 @@ function DesktopCalendarLayout({
   }, [selectedDate]);
 
   const dateObj = selectedDate ? parseISO(selectedDate) : null;
+  const externalCountForSelected =
+    selectedDate && hasExternalCalendars
+      ? externalDateCountMap[selectedDate] ?? 0
+      : 0;
 
   return (
     <div className="flex flex-row h-full overflow-hidden">
@@ -529,6 +555,9 @@ function DesktopCalendarLayout({
             const isSearchMatch = matchedDayHas(dayTasks);
             const pendingTasks = dayTasks.filter((t) => t.status !== "done");
             const pendingCount = pendingTasks.length;
+            const externalCount = hasExternalCalendars
+              ? externalDateCountMap[dateStr] ?? 0
+              : 0;
 
             return (
               <div
@@ -557,6 +586,15 @@ function DesktopCalendarLayout({
                   >
                     {format(day, "d")}
                   </span>
+                  {/* 外部日曆衝突指示(§26 邊界 1.1)— 右上角灰色小圓點 + tooltip */}
+                  {externalCount > 0 && (
+                    <span
+                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{ background: "var(--text-tertiary)" }}
+                      aria-label={`該日另有 ${externalCount} 個外部行程`}
+                      title={`那天另有 ${externalCount} 個外部行程(Google/Apple 日曆)`}
+                    />
+                  )}
                 </div>
                 {pendingCount > 0 && (
                   <div className="flex-1 min-h-0 px-1 pb-0.5 flex items-start justify-center">
@@ -629,6 +667,32 @@ function DesktopCalendarLayout({
               新增
             </button>
           </form>
+        )}
+
+        {/* 外部日曆衝突 banner(§26 邊界 1.1)— 僅在 selectedDate 有外部行程時顯示 */}
+        {selectedDate && externalCountForSelected > 0 && (
+          <a
+            href={`https://calendar.google.com/calendar/u/0/r/day/${format(dateObj ?? new Date(), "yyyy-MM-dd")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mx-5 mb-3 flex items-center gap-2 px-3 py-2 rounded-xl text-[12px] transition-all hover:opacity-90 active:scale-[0.99] flex-shrink-0"
+            style={{
+              background: "var(--surface-muted)",
+              border: "1px solid var(--border)",
+              color: "var(--text-secondary)",
+            }}
+            aria-label={`該日另有 ${externalCountForSelected} 個外部行程,點擊開啟 Google Calendar`}
+          >
+            <span
+              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+              style={{ background: "var(--text-tertiary)" }}
+              aria-hidden
+            />
+            <span className="flex-1 min-w-0">
+              該日另有 {externalCountForSelected} 個外部行程
+            </span>
+            <ExternalLink className="w-3 h-3 flex-shrink-0" style={{ color: "var(--text-tertiary)" }} aria-hidden />
+          </a>
         )}
 
         {/* Task list */}
