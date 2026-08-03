@@ -26,6 +26,7 @@ import {
  */
 
 const LEGACY_STORAGE_KEY = "vibelist:totalPp";
+const LOCAL_SYNC_EVENT = "vibelist:pp_sync";
 /** 本地最近寫入的時間戳 + 值 — 用於 ignore-stale-cloud-echo */
 const RECENT_WRITE_MS = 5000;
 
@@ -77,10 +78,25 @@ export function useProgressStatus(): UseProgressStatusReturn {
   /** 已 migrate 旗標，避免重複把 legacy localStorage 推上雲 */
   const migratedRef = useRef(false);
 
+  // 同步同一個瀏覽器標籤頁內的所有 hook instance
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleSync = (e: Event) => {
+      const customEvent = e as CustomEvent<number>;
+      setTotalPpState(customEvent.detail);
+      lastLocalWriteRef.current = { at: Date.now(), value: customEvent.detail };
+    };
+    window.addEventListener(LOCAL_SYNC_EVENT, handleSync);
+    return () => window.removeEventListener(LOCAL_SYNC_EVENT, handleSync);
+  }, []);
+
   const setTotalPp = useCallback((value: number) => {
     const safe = Math.max(0, Math.floor(value));
     setTotalPpState(safe);
     lastLocalWriteRef.current = { at: Date.now(), value: safe };
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(LOCAL_SYNC_EVENT, { detail: safe }));
+    }
     if (uid) {
       void saveTotalPp(uid, safe);
     } else {
@@ -110,10 +126,17 @@ export function useProgressStatus(): UseProgressStatusReturn {
         const merged = Math.max(cloudValue, legacyValue);
         setTotalPpState(merged);
         lastLocalWriteRef.current = { at: Date.now(), value: merged };
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent(LOCAL_SYNC_EVENT, { detail: merged }));
+        }
         await saveTotalPp(uid, merged);
         clearLegacyStorage();
       } else {
         setTotalPpState(cloudValue);
+        lastLocalWriteRef.current = { at: Date.now(), value: cloudValue };
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent(LOCAL_SYNC_EVENT, { detail: cloudValue }));
+        }
         hydratedRef.current = true;
       }
 
@@ -125,6 +148,9 @@ export function useProgressStatus(): UseProgressStatusReturn {
           if (next <= recent.value) return;
         }
         setTotalPpState(next);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent(LOCAL_SYNC_EVENT, { detail: next }));
+        }
       });
     })();
 
@@ -141,6 +167,10 @@ export function useProgressStatus(): UseProgressStatusReturn {
       const next = prev + safeDelta;
       setTotalPpState(next);
       lastLocalWriteRef.current = { at: Date.now(), value: next };
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent(LOCAL_SYNC_EVENT, { detail: next }));
+      }
+      
       const leveledUpTo = didLevelUp(prev, next);
 
       // 背景推雲端（fire-and-forget；保留本地同步 UX）
