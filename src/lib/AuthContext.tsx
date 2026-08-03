@@ -163,26 +163,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ── Supabase Auth 監聽 ────────────────────────────────
   useEffect(() => {
     const init = async () => {
-      const { data } = await supabase.auth.getSession();
-      const u = data.session?.user;
-      if (u?.id) {
-        const authUser: AuthUser = {
-          uid: u.id,
-          id: u.id,
-          email: u.email ?? null,
-          displayName: u.user_metadata?.full_name ?? u.email?.split("@")[0] ?? null,
-          photoURL: u.user_metadata?.avatar_url ?? null,
-          metadata: (u.user_metadata as Record<string, unknown>) ?? {},
-        };
-        setUser(authUser);
-        void upsertProfile({
-          uid: u.id,
-          email: u.email ?? "",
-          displayName: authUser.displayName,
-          avatarUrl: authUser.photoURL,
-        });
+      try {
+        const { data } = await supabase.auth.getSession();
+        const u = data.session?.user;
+        if (u?.id) {
+          const authUser: AuthUser = {
+            uid: u.id,
+            id: u.id,
+            email: u.email ?? null,
+            displayName: u.user_metadata?.full_name ?? u.email?.split("@")[0] ?? null,
+            photoURL: u.user_metadata?.avatar_url ?? null,
+            metadata: (u.user_metadata as Record<string, unknown>) ?? {},
+          };
+          setUser(authUser);
+          void upsertProfile({
+            uid: u.id,
+            email: u.email ?? "",
+            displayName: authUser.displayName,
+            avatarUrl: authUser.photoURL,
+          });
+        }
+      } catch (err) {
+        console.error("Auth init error:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     void init();
 

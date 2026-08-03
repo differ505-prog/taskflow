@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
 import {
@@ -20,6 +20,24 @@ export function AuthPage({ onGuestMode }: AuthPageProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const searchParams = new URLSearchParams(window.location.search);
+    let errDesc = searchParams.get("error_description") || searchParams.get("error");
+    
+    if (!errDesc && window.location.hash) {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      errDesc = hashParams.get("error_description") || hashParams.get("error");
+    }
+    
+    if (errDesc) {
+      const msg = decodeURIComponent(errDesc.replace(/\+/g, " "));
+      setError(`第三方登入失敗：${msg}`);
+      // Clean up the URL to prevent showing the error again on reload
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   const handleGoogle = async () => {
     setError(null);
