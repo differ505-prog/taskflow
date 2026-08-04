@@ -119,6 +119,21 @@ export function AppShell({
       return next;
     });
   }, []);
+  // T2「已過期任務」折疊區：預設展開（提醒使用者債務），可折疊,偏好持久化
+  const [overdueExpanded, setOverdueExpanded] = useState(true);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("overdue-collapsed");
+      if (stored === "true") setOverdueExpanded(false);
+    } catch { /* 維持預設 */ }
+  }, []);
+  const toggleOverdueExpanded = useCallback(() => {
+    setOverdueExpanded((prev) => {
+      const next = !prev;
+      try { localStorage.setItem("overdue-collapsed", String(!next)); } catch {}
+      return next;
+    });
+  }, []);
   const [quickAddInput, setQuickAddInput] = useState("");
   const [quickAddHint, setQuickAddHint] = useState(false);
   const [sharedQuickAddInput, setSharedQuickAddInput] = useState("");
@@ -246,6 +261,22 @@ export function AppShell({
   const completedTasks = explicitlyShowingDone
     ? []
     : displayTasks.filter((t) => t.status === "done");
+  // T2「過期」分流：只對 today 視圖有意義（其他 view 的 overdue 已在 getFilteredTasks 規則裡處理）
+  // - today 視圖：dueDate < today & 未完成 → 走 overdue 區
+  // - 其他視圖：退化成 0，避免把 next7days 內的昨日任務誤塞到「已過期」
+  const overdueTasks = (currentView === "today" && !explicitlyShowingDone)
+    ? activeTasks.filter((t) => {
+        if (!t.dueDate) return false;
+        return t.dueDate < getLocalToday();
+      })
+    : [];
+  // T2 today 主區僅顯示「今日 + 未過期」的任務
+  const todayActiveTasks = (currentView === "today" && !explicitlyShowingDone)
+    ? activeTasks.filter((t) => {
+        if (!t.dueDate) return true; // 沒設 dueDate 的任務也照常顯示
+        return t.dueDate >= getLocalToday();
+      })
+    : activeTasks;
 
   const routeUpdateTask = useCallback((taskId: string, updates: Partial<Task>) => {
     const task = [...activeTasks, ...completedTasks].find(t => t.id === taskId);
@@ -869,7 +900,7 @@ const canDrag = !currentSharedListId && !isMobile;
                       </div>
                     </motion.div>
                   </div>
-                ) : activeTasks.length === 0 && completedTasks.length === 0 ? (
+                ) : todayActiveTasks.length === 0 && overdueTasks.length === 0 && completedTasks.length === 0 ? (
                   <EmptyState
                     onAddTask={() => {
                       // 「進行中」空白 → 預設建立 in-progress 任務，其他維持 todo
@@ -898,11 +929,11 @@ const canDrag = !currentSharedListId && !isMobile;
                         onDragEnd={handleDragEnd}
                       >
                         <SortableContext
-                          items={activeTasks.map((t) => t.id)}
+                          items={todayActiveTasks.map((t) => t.id)}
                           strategy={verticalListSortingStrategy}
                         >
                           <AnimatePresence mode="popLayout">
-                            {activeTasks.map((task) => (
+                            {todayActiveTasks.map((task) => (
                               <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
                                 <TaskSwipeWrapper
                                   taskId={task.id}
@@ -954,7 +985,7 @@ const canDrag = !currentSharedListId && !isMobile;
                       </DndContext>
                     ) : (
                       <AnimatePresence mode="popLayout">
-                        {activeTasks.map((task) => (
+                        {todayActiveTasks.map((task) => (
                           <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
                             <TaskSwipeWrapper
                               taskId={task.id}
@@ -986,6 +1017,82 @@ const canDrag = !currentSharedListId && !isMobile;
                           </motion.div>
                         ))}
                       </AnimatePresence>
+                    )}
+
+                    {/* T2「已過期任務」折疊區 — 頂部獨立呈現,預設展開(誠實面對債務),可折疊
+                          琥珀色 icon（不與卡片紅色「已過期 X 小時」chip 雙重堆疊）
+                          過期任務仍可勾選完成 / 刪除 / 拖曳排序 / 進詳情面板
+                          與「已完成」折疊區共用 <details> pattern,折疊偏好 localStorage 持久化 */}
+                    {!explicitlyShowingDone && overdueTasks.length > 0 && (
+                      <details
+                        className="mt-3 group/overdue"
+                        open={overdueExpanded}
+                        onToggle={(e) => {
+                          const isOpen = (e.currentTarget as HTMLDetailsElement).open;
+                          if (isOpen !== overdueExpanded) {
+                            setOverdueExpanded(isOpen);
+                            try { localStorage.setItem("overdue-collapsed", String(!isOpen)); } catch {}
+                          }
+                        }}
+                      >
+                        <summary
+                          className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl cursor-pointer select-none transition-colors duration-150 hover:bg-black/[0.03] active:scale-[0.99] list-none [&::-webkit-details-marker]:hidden"
+                          style={{ color: "var(--status-warning)" }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <ChevronRight className="w-3.5 h-3.5 transition-transform duration-200 group-open/overdue:rotate-90" style={{ color: "var(--status-warning)" }} />
+                            <span className="text-[12px] font-medium">
+                              已過期 {overdueTasks.length} 項
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleOverdueExpanded();
+                            }}
+                            className="text-[11px] px-2 py-1 rounded-md transition-colors duration-150 hover:bg-black/5"
+                            style={{ color: "var(--status-warning)" }}
+                            aria-label={overdueExpanded ? "全部收起" : "全部展開"}
+                          >
+                            {overdueExpanded ? "全部收起" : "全部展開"}
+                          </button>
+                        </summary>
+                        <div className="flex flex-col gap-1 mt-1.5 pl-1">
+                          <AnimatePresence mode="popLayout">
+                            {overdueTasks.map((task) => (
+                              <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
+                                <TaskSwipeWrapper
+                                  taskId={task.id}
+                                  isDone={task.status === "done"}
+                                  onComplete={() => routeCompleteTask(task.id)}
+                                  onDelete={(id) => routeDeleteTask(id)}
+                                >
+                                  <TaskListItem
+                                    task={task}
+                                    isSelected={task.id === selectedTaskId}
+                                    onClick={() => handleSelectTask(task.id)}
+                                    onToggleStatus={routeCompleteTask}
+                                    onToggleSubTask={routeToggleSubTask}
+                                    onUpdatePriority={(id, p) => routeUpdateTask(id, { priority: p })}
+                                    onUpdateTags={(id, tags) => routeUpdateTask(id, { tags })}
+                                    onTogglePin={(id) => routeUpdateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
+                                    onDelete={(id) => routeDeleteTask(id)}
+                                    onHoverEnter={currentSharedListId ? undefined : setHoveredTaskId}
+                                    onHoverLeave={currentSharedListId ? undefined : (id) => setHoveredTaskId((prev) => (prev === id ? null : prev))}
+                                    allTags={Object.keys(getTagCounts())}
+                                    batchMode={batchMode}
+                                    batchSelected={!!batchSelectedIds?.has(task.id)}
+                                    onLongPress={() => onEnterBatchMode?.(task.id)}
+                                    onBatchToggle={() => onToggleBatchSelect?.(task.id)}
+                                  />
+                                </TaskSwipeWrapper>
+                              </motion.div>
+                            ))}
+                          </AnimatePresence>
+                        </div>
+                      </details>
                     )}
 
                     {/* L6.5「已完成任務」折疊區 — 預設 collapse;點 summary 展開 */}
