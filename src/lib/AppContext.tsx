@@ -1687,9 +1687,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // ── 共用：寫入權限 gate ─────────────────────────────────
   const canEditSharedList = useCallback((sharedListId: string): boolean => {
+    if (ownedSharedListIds.includes(sharedListId)) return true;
     const role = myRoleByList[sharedListId];
     return role === "owner" || role === "editor";
-  }, [myRoleByList]);
+  }, [myRoleByList, ownedSharedListIds]);
 
   // ── 共用寫入 helper：包 isWriting / 寫後清旗標 ──────────
   const guardWrite = useCallback((sharedListId: string, fn: () => Promise<void>) => {
@@ -2104,7 +2105,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const getMyRole = useCallback((sharedListId: string): MemberRole | null => {
     return myRoleByList[sharedListId] ?? null;
-  }, [myRoleByList]);
+  }, [myRoleByList, ownedSharedListIds]);
 
   // 進入 shared list → 自動拉成員名單（給 UI 顯示）
   useEffect(() => {
