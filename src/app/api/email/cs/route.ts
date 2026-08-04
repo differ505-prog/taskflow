@@ -64,8 +64,12 @@ function getResend(): Resend | null {
 
 export async function GET(request: NextRequest) {
   // ── 1. 安全認證 ────────────────────────────────────────────
+  // §26 補':對齊 /api/cron/task-reminders (L27-37) 支援 ?secret= query + x-cron-secret header
+  // Vercel Cron 預設注入 Authorization Bearer header,query string 容易被 log 留下
+  // 統一用 header + query 雙通道:header 優先(prod 安全),query 留作 manual trigger
   const providedSecret = request.nextUrl.searchParams.get("secret");
-  if (process.env.NODE_ENV === "production" && providedSecret !== CRON_SECRET) {
+  const headerSecret = request.headers.get("x-cron-secret");
+  if (process.env.NODE_ENV === "production" && providedSecret !== CRON_SECRET && headerSecret !== CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
