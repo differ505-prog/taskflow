@@ -668,7 +668,9 @@ const canDrag = !currentSharedListId && !isMobile;
                 ) : (
                   <div className="flex flex-col gap-2">
                     <AnimatePresence>
-                      {[...sharedFilteredTasks].filter(t => t.status !== "done").sort((a, b) => {
+                      {[...sharedFilteredTasks]
+                        .filter(t => explicitlyShowingDone || t.status !== "done")
+                        .sort((a, b) => {
                         return 0;
                       }).map((task) => (
                         <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
