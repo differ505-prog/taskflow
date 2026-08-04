@@ -139,16 +139,24 @@ export function AppShell({
   const showFocusNow = currentView !== "today" && currentView !== "archived";
   const handleFocusNow = useCallback((taskId: string) => {
     const today = new Date().toLocaleDateString("en-CA");
-    if (currentSharedListId) {
-      updateSharedTask(currentSharedListId, taskId, { dueDate: today, order: -1 });
+    
+    let targetSharedListId: string | undefined;
+    for (const [listId, data] of Object.entries(sharedLists)) {
+      if (data.tasks.some(t => t.id === taskId)) {
+        targetSharedListId = listId;
+        break;
+      }
+    }
+
+    if (targetSharedListId) {
+      updateSharedTask(targetSharedListId, taskId, { dueDate: today, order: -1 });
     } else {
       updateTask(taskId, { dueDate: today, order: -1 });
     }
-    // Q3-A:一鍵入禪前主動關閉「加入今日」toast,避免殘留到 Zen 模式畫面
+    
     dismissAddToTodayToast();
-    // 立刻路由切換 — Optimistic UI 不需 await,Zen 模式中央會自動撈 visibleTasks[0]
     router.push("/");
-  }, [updateTask, updateSharedTask, currentSharedListId, router, dismissAddToTodayToast]);
+  }, [updateTask, updateSharedTask, sharedLists, router, dismissAddToTodayToast]);
 
   // 觀看者模式：Viewer 在 shared list 是唯讀的
   const sharedRole = currentSharedListId ? getMyRole(currentSharedListId) : null;
