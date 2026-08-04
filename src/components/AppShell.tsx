@@ -317,10 +317,14 @@ const canDrag = !currentSharedListId && !isMobile;
   useEffect(() => {
     // 只有 tasks 已載入後才檢查,避免初始空陣列時 selectedTaskId
     // 被誤判為「無效 task」而 toggle off,造成桌面版任務詳情打不開
-    if (selectedTaskId && tasks.length > 0 && !tasks.find((t) => t.id === selectedTaskId)) {
-      onSelectTask(selectedTaskId); // toggle off
+    if (selectedTaskId && tasks.length > 0) {
+      const isPersonalTask = tasks.some((t) => t.id === selectedTaskId);
+      const isSharedTask = Object.values(sharedLists).flatMap(list => list.tasks).some(t => t.id === selectedTaskId);
+      if (!isPersonalTask && !isSharedTask) {
+        onSelectTask(selectedTaskId); // toggle off
+      }
     }
-  }, [tasks, selectedTaskId, onSelectTask]);
+  }, [tasks, sharedLists, selectedTaskId, onSelectTask]);
 
   const handleSelectTask = (taskId: string) => {
     onSelectTask(taskId);
