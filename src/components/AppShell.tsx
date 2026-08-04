@@ -563,18 +563,25 @@ const canDrag = !currentSharedListId && !isMobile;
                       }).map((task) => (
                         <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
                           {isReadOnlyShared ? (
-                            <TaskCard task={task} onToggleStatus={() => {}} onEdit={() => onSelectTask(task.id)} onDelete={() => {}} onArchive={() => {}} onFocusNow={showFocusNow ? handleFocusNow : undefined} />
+                            <TaskListItem
+                              task={task}
+                              isSelected={task.id === selectedTaskId}
+                              onClick={() => handleSelectTask(task.id)}
+                              onToggleStatus={() => {}}
+                              onFocusNow={showFocusNow ? handleFocusNow : undefined}
+                            />
                           ) : (
                             <TaskSwipeWrapper taskId={task.id} isDone={task.status === "done"} onComplete={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })} onDelete={() => deleteSharedTask(currentSharedListId, task.id)} onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })}>
-                              <TaskCard
+                              <TaskListItem
                                 task={task}
+                                isSelected={task.id === selectedTaskId}
+                                onClick={() => handleSelectTask(task.id)}
                                 onToggleStatus={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })}
-                                onEdit={() => onSelectTask(task.id)}
                                 onDelete={() => deleteSharedTask(currentSharedListId, task.id)}
-                                onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })}
                                 onFocusNow={showFocusNow ? handleFocusNow : undefined}
                                 onUpdatePriority={(id, p) => updateSharedTask(currentSharedListId, id, { priority: p })}
                                 onUpdateTags={(id, tags) => updateSharedTask(currentSharedListId, id, { tags })}
+                                allTags={Object.keys(getTagCounts())}
                               />
                             </TaskSwipeWrapper>
                           )}
