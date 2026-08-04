@@ -14,7 +14,7 @@ interface SortableTaskItemProps {
   onUpdateTags?: (id: string, tags: string[]) => void;
   onTogglePin?: (id: string) => void;
   onDelete?: (id: string) => void;
-  onFocusNow?: (taskId: string) => void; // §26 一鍵入禪
+  onAddToToday?: (taskId: string) => void; // T2-b 桌面+手機統一「加入今日」
   allTags?: string[];
   batchMode?: boolean;
   batchSelected?: boolean;

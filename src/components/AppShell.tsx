@@ -146,49 +146,12 @@ export function AppShell({
   const quickAddRef = useRef<HTMLInputElement>(null);
   const brainDumpRef = useRef<HTMLTextAreaElement>(null);
 
-  // §26 「一鍵入禪 (Focus NOW)」:把任務移到 today + order = -1（變成 Zen 焦點第一個）+ router.push /
-  // - 個人任務視圖:inbox / list / pinned / quadrant / next7days 全部啟用
-  // - today 視圖:不需要（任務已經在 today）
-  // - shared list:disabled（A 方案,完整 claim 邏輯留待後續輪）
-  // - today 視圖:不需要（任務已經在 today）
-  // - 已完成任務:不啟用（避免已完成任務被搬到 today）
-  const showFocusNow = currentView !== "today" && currentView !== "archived";
-  const handleFocusNow = useCallback((taskId: string) => {
-    const today = getLocalToday();
-
-    let targetSharedListId: string | undefined;
-    for (const [listId, data] of Object.entries(sharedLists)) {
-      if (data.tasks.some(t => t.id === taskId)) {
-        targetSharedListId = listId;
-        break;
-      }
-    }
-
-    if (targetSharedListId) {
-      // @ts-ignore
-      window.appDebug?.(`updateSharedTask called! sid=${targetSharedListId}`);
-      updateSharedTask(targetSharedListId, taskId, { dueDate: today, order: -1 });
-    } else {
-      // @ts-ignore
-      window.appDebug?.(`updateTask called! No target sid found!`);
-      updateTask(taskId, { dueDate: today, order: -1 });
-    }
-
-    dismissAddToTodayToast();
-    router.push("/");
-  }, [updateTask, updateSharedTask, sharedLists, router, dismissAddToTodayToast]);
-
-  // T2-b「轉今日任務」:overdue 區專用 — 把過期任務 dueDate 拉回今天
-  // - 跟「一鍵入禪」不同:不設 order = -1(不搶當下 Zen 焦點),不 router.push(使用者還在 today 視圖)
-  // - shared list 任務暫不支援(沿用 §26-A claim 邏輯,out-of-scope)
-  const handleRescheduleOverdue = useCallback((taskId: string) => {
-    const today = getLocalToday();
-    const targetSharedListId = Object.entries(sharedLists).find(([, data]) =>
-      data.tasks.some(t => t.id === taskId)
-    )?.[0];
-    if (targetSharedListId) return; // shared list 跳過,UI 也不會掛此按鈕
-    updateTask(taskId, { dueDate: today });
-  }, [sharedLists, updateTask]);
+  // T2-b「加入今日」:桌面版與手機版行為統一
+  // - 已廢除舊「一鍵入禪 (Focus NOW)」機制(設 order = -1 + router.push 會搶 Zen 焦點 + 跳頁,違反多選場景)
+  // - 桌面 hover 按鈕 + 手機左滑 = 呼叫同一個 addToToday hook(只設 dueDate=today)
+  // - today 視圖:不需要(任務已在 today);archived:不啟用(避免已完成任務被拉回)
+  // - shared list:addToToday 內部已處理(updateSharedTask)
+  const showAddToToday = currentView !== "today" && currentView !== "archived";
 
   // 觀看者模式：Viewer 在 shared list 是唯讀的
   const sharedRole = currentSharedListId ? getMyRole(currentSharedListId) : null;
@@ -715,17 +678,17 @@ const canDrag = !currentSharedListId && !isMobile;
                               isSelected={task.id === selectedTaskId}
                               onClick={() => handleSelectTask(task.id)}
                               onToggleStatus={() => {}}
-                              onFocusNow={showFocusNow ? handleFocusNow : undefined}
+                              onAddToToday={showAddToToday ? addToToday : undefined}
                             />
                           ) : (
-                            <TaskSwipeWrapper taskId={task.id} isDone={task.status === "done"} onComplete={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })} onDelete={() => deleteSharedTask(currentSharedListId, task.id)} onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })} onAddToToday={showFocusNow ? addToToday : undefined}>
+                            <TaskSwipeWrapper taskId={task.id} isDone={task.status === "done"} onComplete={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })} onDelete={() => deleteSharedTask(currentSharedListId, task.id)} onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })} onAddToToday={showAddToToday ? addToToday : undefined}>
                               <TaskListItem
                                 task={task}
                                 isSelected={task.id === selectedTaskId}
                                 onClick={() => handleSelectTask(task.id)}
                                 onToggleStatus={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })}
                                 onDelete={() => deleteSharedTask(currentSharedListId, task.id)}
-                                onFocusNow={showFocusNow ? handleFocusNow : undefined}
+                                onAddToToday={showAddToToday ? addToToday : undefined}
                                 onUpdatePriority={(id, p) => updateSharedTask(currentSharedListId, id, { priority: p })}
                                 onUpdateTags={(id, tags) => updateSharedTask(currentSharedListId, id, { tags })}
                                 allTags={Object.keys(getTagCounts())}
@@ -783,17 +746,17 @@ const canDrag = !currentSharedListId && !isMobile;
                                     isSelected={task.id === selectedTaskId}
                                     onClick={() => handleSelectTask(task.id)}
                                     onToggleStatus={() => {}}
-                                    onFocusNow={showFocusNow ? handleFocusNow : undefined}
+                                    onAddToToday={showAddToToday ? addToToday : undefined}
                                   />
                                 ) : (
-                                  <TaskSwipeWrapper taskId={task.id} isDone={task.status === "done"} onComplete={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })} onDelete={() => deleteSharedTask(currentSharedListId, task.id)} onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })} onAddToToday={showFocusNow ? addToToday : undefined}>
+                                  <TaskSwipeWrapper taskId={task.id} isDone={task.status === "done"} onComplete={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })} onDelete={() => deleteSharedTask(currentSharedListId, task.id)} onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })} onAddToToday={showAddToToday ? addToToday : undefined}>
                                     <TaskListItem
                                       task={task}
                                       isSelected={task.id === selectedTaskId}
                                       onClick={() => handleSelectTask(task.id)}
                                       onToggleStatus={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })}
                                       onDelete={() => deleteSharedTask(currentSharedListId, task.id)}
-                                      onFocusNow={showFocusNow ? handleFocusNow : undefined}
+                                      onAddToToday={showAddToToday ? addToToday : undefined}
                                       onUpdatePriority={(id, p) => updateSharedTask(currentSharedListId, id, { priority: p })}
                                       onUpdateTags={(id, tags) => updateSharedTask(currentSharedListId, id, { tags })}
                                       allTags={Object.keys(getTagCounts())}
@@ -952,7 +915,7 @@ const canDrag = !currentSharedListId && !isMobile;
                                   isDone={task.status === "done"}
                                   onComplete={() => routeCompleteTask(task.id)}
                                   onDelete={(id) => routeDeleteTask(id)}
-                                  onAddToToday={showFocusNow ? addToToday : undefined}
+                                  onAddToToday={showAddToToday ? addToToday : undefined}
                                 >
                                   <SortableTaskItem
                                     task={task}
@@ -964,7 +927,7 @@ const canDrag = !currentSharedListId && !isMobile;
                                     onUpdateTags={(id, tags) => routeUpdateTask(id, { tags })}
                                     onTogglePin={(id) => routeUpdateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
                                     onDelete={(id) => routeDeleteTask(id)}
-                                    onFocusNow={showFocusNow ? handleFocusNow : undefined}
+                                    onAddToToday={showAddToToday ? addToToday : undefined}
                                     onHoverEnter={currentSharedListId ? undefined : setHoveredTaskId}
                                     onHoverLeave={currentSharedListId ? undefined : (id) => setHoveredTaskId((prev) => (prev === id ? null : prev))}
                                     allTags={Object.keys(getTagCounts())}
@@ -1004,7 +967,7 @@ const canDrag = !currentSharedListId && !isMobile;
                               isDone={task.status === "done"}
                               onComplete={() => routeCompleteTask(task.id)}
                               onDelete={(id) => routeDeleteTask(id)}
-                              onAddToToday={showFocusNow ? addToToday : undefined}
+                              onAddToToday={showAddToToday ? addToToday : undefined}
                             >
                               <TaskListItem
                                 task={task}
@@ -1016,7 +979,7 @@ const canDrag = !currentSharedListId && !isMobile;
                                 onUpdateTags={(id, tags) => routeUpdateTask(id, { tags })}
                                 onTogglePin={(id) => routeUpdateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
                                 onDelete={(id) => routeDeleteTask(id)}
-                                onFocusNow={showFocusNow ? handleFocusNow : undefined}
+                                onAddToToday={showAddToToday ? addToToday : undefined}
                                 onHoverEnter={currentSharedListId ? undefined : setHoveredTaskId}
                                 onHoverLeave={currentSharedListId ? undefined : (id) => setHoveredTaskId((prev) => (prev === id ? null : prev))}
                                 allTags={Object.keys(getTagCounts())}
@@ -1091,8 +1054,8 @@ const canDrag = !currentSharedListId && !isMobile;
                                     onUpdateTags={(id, tags) => routeUpdateTask(id, { tags })}
                                     onTogglePin={(id) => routeUpdateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
                                     onDelete={(id) => routeDeleteTask(id)}
-                                    onFocusNow={currentSharedListId ? undefined : () => handleRescheduleOverdue(task.id)}
-                                    focusNowLabel="轉今日任務"
+                                    onAddToToday={currentSharedListId ? undefined : addToToday}
+                                    addToTodayLabel="轉今日任務"
                                     onHoverEnter={currentSharedListId ? undefined : setHoveredTaskId}
                                     onHoverLeave={currentSharedListId ? undefined : (id) => setHoveredTaskId((prev) => (prev === id ? null : prev))}
                                     allTags={Object.keys(getTagCounts())}

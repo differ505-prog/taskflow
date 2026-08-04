@@ -8,8 +8,8 @@ import { getLocalToday } from "@/lib/dateUtils";
  * Toast 用 Sonner 固定 id="add-to-today-toast" 機制:連續呼叫會「取代」而非「堆疊」,
  * 符合 VibeList 禪意設計(畫面永遠只有一個安靜的提示)。
  *
- * - 一鍵入禪(由 AppShell handleFocusNow 觸發)前,呼叫 dismissAddToTodayToast()
- *   把 toast 提前清掉,避免「設為今日」殘留到 Zen 模式。
+ * - 桌面 hover(TaskListItem AddToTodayButton)、手機左滑(SwipeableTaskCard 太陽)、
+ *   鍵盤 T 鍵(useTaskHotkeys) - 全部呼叫同一個 addToToday hook(桌面/手機語意統一)
  *
  * 用法:
  *   const { addToToday } = useAddToToday();
@@ -55,7 +55,7 @@ export function useAddToToday() {
   );
 
   /**
-   * 主動關閉 toast(由一鍵入禪的 handleFocusNow 在 router.push 前呼叫)。
+   * 主動關閉 toast(預留 API,目前無 caller — 保留用於未來跨頁清 modal 等場景)。
    * 即使 toast 已自動消失,toast.dismiss 對不存在的 id 是 no-op,無副作用。
    */
   const dismissAddToTodayToast = useCallback(() => {

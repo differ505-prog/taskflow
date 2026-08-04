@@ -32,10 +32,11 @@ interface TaskListItemProps {
   // O-007：拖曳 sortable hook 注入（AppShell 包 SortableContext 時傳入）
   // undefined 表示此 task 不在 sortable 範圍內（例如 viewer 共用清單）
   sortable?: ReturnType<typeof useSortable>;
-  // §26 任務大廳機制:點擊 → 一鍵入禪。undefined = 不顯示此按鈕。
-  onFocusNow?: (taskId: string) => void;
-  // T2-b:overdue 區用「轉今日任務」取代預設「一鍵入禪」文案
-  focusNowLabel?: string;
+  // T2-b「加入今日」:桌面 hover 顯示,點擊只設 dueDate=today(不跳頁/不搶焦點)
+  // 與手機版 SwipeableTaskCard 太陽按鈕共用同一個 addToToday hook
+  onAddToToday?: (taskId: string) => void;
+  // 訂製文案(預設「加入今日」),overdue 區可傳「轉今日任務」之類語意變體
+  addToTodayLabel?: string;
   // §新增「T 鍵加入今日」:hover/focus 任務時設到 AppShell 全域 state
   onHoverEnter?: (id: string) => void;
   onHoverLeave?: (id: string) => void;
@@ -46,7 +47,7 @@ import { useSubTaskCollapse } from "@/utils/useSubTaskCollapse";
 import { fireTaskDoneConfetti, playTaskDoneSound } from "@/lib/confetti";
 import { useAuth } from "@/lib/AuthContext";
 import { ProGhostButton } from "./ProGhostButton";
-import { FocusNowButton } from "./FocusNowButton";
+import { AddToTodayButton } from "./AddToTodayButton";
 
 export function TaskListItem({
   task,
@@ -64,8 +65,8 @@ export function TaskListItem({
   onBatchToggle,
   onDelete,
   sortable,
-  onFocusNow,
-  focusNowLabel,
+  onAddToToday,
+  addToTodayLabel,
   onHoverEnter,
   onHoverLeave,
 }: TaskListItemProps) {
@@ -236,8 +237,8 @@ export function TaskListItem({
           {/* 右上角：刪除 / 一鍵入禪 / 旗子 / 圖釘 / 標籤 / 附件 / 子任務 */}
           <div className="flex-shrink-0 flex items-center gap-0.5">
             {/* §26 「一鍵入禪 (Focus NOW)」:極簡閃電按鈕,hover 才顯示 */}
-            {onFocusNow && !isDone && (
-              <FocusNowButton onFocusNow={() => onFocusNow(task.id)} label={focusNowLabel} />
+            {onAddToToday && !isDone && (
+              <AddToTodayButton onAddToToday={() => onAddToToday(task.id)} label={addToTodayLabel} />
             )}
             {onDelete && (
               <button
