@@ -34,6 +34,8 @@ interface TaskListItemProps {
   sortable?: ReturnType<typeof useSortable>;
   // §26 任務大廳機制:點擊 → 一鍵入禪。undefined = 不顯示此按鈕。
   onFocusNow?: (taskId: string) => void;
+  // T2-b:overdue 區用「轉今日任務」取代預設「一鍵入禪」文案
+  focusNowLabel?: string;
   // §新增「T 鍵加入今日」:hover/focus 任務時設到 AppShell 全域 state
   onHoverEnter?: (id: string) => void;
   onHoverLeave?: (id: string) => void;
@@ -63,6 +65,7 @@ export function TaskListItem({
   onDelete,
   sortable,
   onFocusNow,
+  focusNowLabel,
   onHoverEnter,
   onHoverLeave,
 }: TaskListItemProps) {
@@ -234,7 +237,7 @@ export function TaskListItem({
           <div className="flex-shrink-0 flex items-center gap-0.5">
             {/* §26 「一鍵入禪 (Focus NOW)」:極簡閃電按鈕,hover 才顯示 */}
             {onFocusNow && !isDone && (
-              <FocusNowButton onFocusNow={() => onFocusNow(task.id)} />
+              <FocusNowButton onFocusNow={() => onFocusNow(task.id)} label={focusNowLabel} />
             )}
             {onDelete && (
               <button

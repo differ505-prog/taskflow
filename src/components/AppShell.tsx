@@ -155,7 +155,7 @@ export function AppShell({
   const showFocusNow = currentView !== "today" && currentView !== "archived";
   const handleFocusNow = useCallback((taskId: string) => {
     const today = getLocalToday();
-    
+
     let targetSharedListId: string | undefined;
     for (const [listId, data] of Object.entries(sharedLists)) {
       if (data.tasks.some(t => t.id === taskId)) {
@@ -173,10 +173,22 @@ export function AppShell({
       window.appDebug?.(`updateTask called! No target sid found!`);
       updateTask(taskId, { dueDate: today, order: -1 });
     }
-    
+
     dismissAddToTodayToast();
     router.push("/");
   }, [updateTask, updateSharedTask, sharedLists, router, dismissAddToTodayToast]);
+
+  // T2-b「轉今日任務」:overdue 區專用 — 把過期任務 dueDate 拉回今天
+  // - 跟「一鍵入禪」不同:不設 order = -1(不搶當下 Zen 焦點),不 router.push(使用者還在 today 視圖)
+  // - shared list 任務暫不支援(沿用 §26-A claim 邏輯,out-of-scope)
+  const handleRescheduleOverdue = useCallback((taskId: string) => {
+    const today = getLocalToday();
+    const targetSharedListId = Object.entries(sharedLists).find(([, data]) =>
+      data.tasks.some(t => t.id === taskId)
+    )?.[0];
+    if (targetSharedListId) return; // shared list 跳過,UI 也不會掛此按鈕
+    updateTask(taskId, { dueDate: today });
+  }, [sharedLists, updateTask]);
 
   // 觀看者模式：Viewer 在 shared list 是唯讀的
   const sharedRole = currentSharedListId ? getMyRole(currentSharedListId) : null;
@@ -1079,6 +1091,8 @@ const canDrag = !currentSharedListId && !isMobile;
                                     onUpdateTags={(id, tags) => routeUpdateTask(id, { tags })}
                                     onTogglePin={(id) => routeUpdateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
                                     onDelete={(id) => routeDeleteTask(id)}
+                                    onFocusNow={currentSharedListId ? undefined : () => handleRescheduleOverdue(task.id)}
+                                    focusNowLabel="轉今日任務"
                                     onHoverEnter={currentSharedListId ? undefined : setHoveredTaskId}
                                     onHoverLeave={currentSharedListId ? undefined : (id) => setHoveredTaskId((prev) => (prev === id ? null : prev))}
                                     allTags={Object.keys(getTagCounts())}
