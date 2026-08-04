@@ -705,6 +705,7 @@ const canDrag = !currentSharedListId && !isMobile;
                       tasks={filteredTasks}
                       activeStatus={activeFilter.status}
                       onStatusChange={(status) => setActiveFilter({ ...activeFilter, status })}
+                      className="flex-1"
                     />
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {showWrapUpButton && (
@@ -1103,7 +1104,7 @@ function StatusFilterChips({
 }) {
   return (
     <div
-      className={`flex min-w-0 flex-1 flex-wrap items-center gap-2 pb-1 touch-scroll ${className}`}
+      className={`flex min-w-0 flex-wrap items-center gap-2 pb-1 touch-scroll ${className}`}
       role="group"
       aria-label="依任務狀態篩選"
     >
