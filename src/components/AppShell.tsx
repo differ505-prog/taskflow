@@ -9,7 +9,7 @@ import { useConfirm } from "@/hooks/useConfirm";
 import { useProactiveClosure } from "@/hooks/useProactiveClosure";
 import { useAddToToday } from "@/hooks/useAddToToday";
 import { useTaskHotkeys } from "@/hooks/useTaskHotkeys";
-import { Task, AppView, TaskList } from "@/lib/types";
+import { Task, AppView, TaskList, TaskStatus } from "@/lib/types";
 import { TaskCard } from "./TaskCard";
 import { TaskSwipeWrapper } from "./SwipeableTaskCard";
 import { TaskForm } from "./TaskForm";
@@ -224,6 +224,12 @@ export function AppShell({
   };
 
   const filteredTasks = getFilteredTasks();
+  const sharedListTasks = currentSharedListId
+    ? sharedLists[currentSharedListId]?.tasks ?? []
+    : [];
+  const sharedFilteredTasks = activeFilter.status
+    ? sharedListTasks.filter((task) => task.status === activeFilter.status)
+    : sharedListTasks;
   // 用戶主動點了「已完成」狀態標籤時,只顯示已完成
   const explicitlyShowingDone = activeFilter.status === "done";
   // L6.5:已完成任務一律顯示在底部折疊區,所以 displayTasks 永遠包含全部
@@ -612,7 +618,13 @@ const canDrag = !currentSharedListId && !isMobile;
                     由 {sharedLists[currentSharedListId].ownerName ?? "未知"} 分享
                   </p>
                 </div>
-                {sharedLists[currentSharedListId].tasks.length === 0 ? (
+                <StatusFilterChips
+                  tasks={sharedListTasks}
+                  activeStatus={activeFilter.status}
+                  onStatusChange={(status) => setActiveFilter({ ...activeFilter, status })}
+                  className="mb-4"
+                />
+                {sharedListTasks.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-64 gap-3">
                     <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "var(--surface-muted)" }}>
                       <Zap className="w-8 h-8" style={{ color: "var(--text-tertiary)" }} />
@@ -620,10 +632,27 @@ const canDrag = !currentSharedListId && !isMobile;
                     <p className="text-[14px]" style={{ color: "var(--text-tertiary)" }}>此清單還沒有任務</p>
                     <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>使用上方輸入框新增任務</p>
                   </div>
+                ) : sharedFilteredTasks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-48 gap-3 text-center">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "var(--surface-muted)" }}>
+                      <CheckCheck className="w-6 h-6" style={{ color: "var(--text-tertiary)" }} />
+                    </div>
+                    <p className="text-[14px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                      此狀態目前沒有任務
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setActiveFilter({ ...activeFilter, status: undefined })}
+                      className="rounded-full px-3 py-1.5 text-[12px] font-medium transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98]"
+                      style={{ background: "var(--surface-muted)", color: "var(--text-secondary)" }}
+                    >
+                      顯示全部任務
+                    </button>
+                  </div>
                 ) : (
                   <div className="flex flex-col gap-2">
                     <AnimatePresence>
-                      {[...sharedLists[currentSharedListId].tasks].sort((a, b) => {
+                      {[...sharedFilteredTasks].sort((a, b) => {
                         if (a.status === "done" && b.status !== "done") return 1;
                         if (a.status !== "done" && b.status === "done") return -1;
                         return 0;
@@ -662,20 +691,11 @@ const canDrag = !currentSharedListId && !isMobile;
               <>
                 {/* Toolbar — 永遠渲染（避免「點了進行中 → 該清單沒進行中任務 → 整個區塊走向 EmptyState → chip 消失」的陷阱。EmptyState 與 task list 改為 toolbar 下方的 sibling，而非 ternary 的對立分支。） */}
                 <div className="flex items-center justify-between gap-2 sm:gap-4 mb-4 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 pb-1 touch-scroll min-w-0 flex-1">
-                      {["全部", "待辦", "進行中", "已完成"].map((label, i) => {
-                        const statuses = ["all", "todo", "in-progress", "done"] as const;
-                        const val = statuses[i];
-                        const isActive = activeFilter.status === val || (val === "all" && !activeFilter.status);
-                        const count = val === "all" ? filteredTasks.length : filteredTasks.filter((t) => t.status === val).length;
-                        return (
-                          <button key={val} onClick={() => setActiveFilter({ ...activeFilter, status: val === "all" ? undefined : val as any })} className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 rounded-full text-[12px] font-medium transition-all duration-150"
-                            style={isActive ? { background: "var(--brand)", color: "var(--brand-foreground)" } : { background: "rgba(0,0,0,0.04)", color: "var(--text-secondary)" }}>
-                            {label} <span style={{ opacity: 0.5 }}>{count}</span>
-                          </button>
-                        );
-                      })}
-                      </div>
+                    <StatusFilterChips
+                      tasks={filteredTasks}
+                      activeStatus={activeFilter.status}
+                      onStatusChange={(status) => setActiveFilter({ ...activeFilter, status })}
+                    />
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {showWrapUpButton && (
                         <button
@@ -1049,6 +1069,56 @@ const canDrag = !currentSharedListId && !isMobile;
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+const STATUS_FILTER_OPTIONS: ReadonlyArray<{ label: string; value?: TaskStatus }> = [
+  { label: "全部" },
+  { label: "進行中", value: "in-progress" },
+  { label: "待辦中", value: "todo" },
+  { label: "已完成", value: "done" },
+];
+
+function StatusFilterChips({
+  tasks,
+  activeStatus,
+  onStatusChange,
+  className = "",
+}: {
+  tasks: Task[];
+  activeStatus?: TaskStatus;
+  onStatusChange: (status?: TaskStatus) => void;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`flex min-w-0 flex-1 flex-wrap items-center gap-2 pb-1 touch-scroll ${className}`}
+      role="group"
+      aria-label="依任務狀態篩選"
+    >
+      {STATUS_FILTER_OPTIONS.map(({ label, value }) => {
+        const isActive = activeStatus === value;
+        const count = value
+          ? tasks.filter((task) => task.status === value).length
+          : tasks.length;
+
+        return (
+          <button
+            key={value ?? "all"}
+            type="button"
+            onClick={() => onStatusChange(value)}
+            aria-pressed={isActive}
+            className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-medium transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] sm:px-3.5"
+            style={isActive
+              ? { background: "var(--brand)", color: "var(--brand-foreground)" }
+              : { background: "rgba(0,0,0,0.04)", color: "var(--text-secondary)" }}
+          >
+            <span>{label}</span>
+            <span aria-label={`${count} 項`} style={{ opacity: 0.5 }}>{count}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
