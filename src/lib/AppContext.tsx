@@ -1443,6 +1443,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (user) batchSaveTasksFirebase(user.uid, updated).catch((err) => console.error("[SUP SYNC] reorder 寫入失敗:", err));
   }, [tasks, user]);
 
+  const saveTasksDirectly = useCallback((updatedTasks: Task[]) => {
+    if (updatedTasks.length === 0) return;
+    const ids = new Set(updatedTasks.map((t) => t.id));
+    const merged = tasks.map((t) => ids.has(t.id) ? updatedTasks.find((u) => u.id === t.id)! : t);
+    setTasks(merged);
+    saveTasks(merged);
+    updatedTasks.forEach((t) => recentlyWrittenRef.current.set(t.id, Date.now()));
+    if (user) {
+      batchSaveTasksFirebase(user.uid, updatedTasks).catch(console.error);
+    }
+  }, [tasks, user]);
+
   // ── 習慣 CRUD（§23 sync 層：寫入 supabase + §26-A 5 秒保護窗）──────────
   const addHabit = useCallback((data: Omit<Habit, "id" | "createdAt" | "updatedAt" | "checkins" | "streak" | "longestStreak">) => {
     const newHabit: Habit = {
