@@ -85,6 +85,37 @@ alwaysApply: true
 
 ---
 
+### 5a. 流程鎖定原則 (Flow Lock Principle)
+
+> **精神**:保護使用者的「多選/批次/連續操作」工作流,避免任何一次性動作打斷其專注狀態。
+> 對應 §5「失物招領防線」是「情緒防護」,§5a 是「工作流防護」 — 同源哲學。
+
+**觸發**：任何「單一任務 → 立即改變全域狀態」的一次性動作設計（按鈕 / 滑動手勢 / 熱鍵 / 自動背景動作）。
+
+**絕對禁止**：
+
+| 代號 | 禁止內容 | 原因 |
+|---|---|---|
+| §F1 | 任務動作同時觸發 `router.push` / `setCurrentView` 改變視圖 | 多選場景下,使用者需保留原視圖繼續選其他任務 |
+| §F2 | 任務動作同時觸發「搶 Zen 焦點」(設 `order = -1` 等) | 焦點應由使用者主動挑選,不是捷徑綁架 |
+| §F3 | 任務動作觸發 `modal` / `bottom sheet` / `overlay` 阻擋後續選擇 | 連續按多顆任務時不應被中斷 |
+
+**允許**：
+- 顯示極簡 toast 確認（角落、小、瞬逝、自動消失）— 不算阻擋後續操作
+- 改變該任務本身的屬性（`dueDate` / `status` / `tag` 等）— 任務局部 state
+- 在原視圖內重新排序 / 重新分組（只要使用者還在原視圖）— 視圖鎖定
+
+**哲學**：把「立刻做某件全局大事」的誘惑留給「明確的全域 CTA」（如「清空失物招領」「進入 Zen」按鈕）；任務卡片的單一動作 = 只做最小改動,讓使用者主導節奏。
+
+**例外**（允許打破 §F1/F2/F3）：
+- 使用者明確點擊「下一步」/「完成選擇」/「進入 Zen」等**全域 CTA** → 允許跳頁（這是使用者主動選擇結束）
+- Zen 模式的「下一個輪值」按鈕是使用者主動觸發,允許搶焦點（因為已在 Zen 視圖內）
+- 過期任務由「失物招領」自動管理 → 不算單一任務動作,算 §5 範疇
+
+**歷史教訓**（對應 commit `f76e171`）：原本桌面版「一鍵入禪 ⚡」同時做「設 dueDate + 設 order = -1 + router.push 到 today」,違反 §F1 + §F2。手機版從來就是「加入今日」純行為,所以兩者語意不一致。廢除「一鍵入禪」改為「加入今日」= 對齊 §5a + 對齊手機版 + DRY 達標。
+
+---
+
 ## 【工程與資安原則】
 
 ### 6. DRY 原則與模組化 (Vercel 架構)
@@ -1275,3 +1306,4 @@ alwaysApply: true
 | 2026-08-02 | 新增 §26 類別 U（多層獨立根因鏈條 bug — 對應本對話 push notification 鏈條 10 個 commit 各自命中不同層次的真根因：`a0386d3`→`9351f53`→`49e4663`→`c0d9e30`→`45c5234`→`701aa97`→`0cfbc1e`→`6ac489e`→`2465f5b`→`dce7178`→`e076783`）。每個 commit 修法都正確,但**沒有一開始就看清整條鏈條** — 這跟 #010 / #011「同一個 root cause 修了 3 次才命中」不同,是「**N 個獨立 root cause 各自修一次**」。類別 U 觸發條件:**累計 3 個 commit 修同一症狀群** → 必走 §27「失敗 2 次後評分表必含重構大改」;**累計 5 個 commit** → 必須停下做「整條鏈條的 root cause map」先給用戶對齊。同步新增 bug 案例 #012（commit `b882a76`）+ 對應 push 鏈條 10 個症狀、10 個獨立根因、各階段 § 違規對照表 | **9.2**(首輪達標,免二輪) |
 | 2026-08-02 | **新增 §26 類別 R(Scroll Lock Hijack by Touch Gesture with Wrong Container Reference)** + 對應 bug 案例 #014-r6。對應本對話 **AI 累計 5 輪(r2-r6 我自己版本)全部猜錯 root cause**,另一位 IDE 一次命中真根因:`PullToRefresh.handleTouchStart` 用 `window.scrollY <= 0` 判頂部,但任務列表在內層 scroll container 內滾動 → window.scrollY 永遠 = 0 → 用戶在內層底部「想向上滑」(手指物理向下) → PullToRefresh 誤觸發並 setPulling(true) + 攔 touch event + translateY(整個畫面),內層 scroll 收不到滾動事件。**AI 5 輪都沒命中的根因** = 從沒把「PullToRefresh L26 判斷條件 + 內層 scroll container scrollTop + 用戶在底部想向上滑的物理動作」這三件事串起來看。類別 R 強制:**(1) 方向性 touch 手勢元件必須用內部 ref 的 `scrollTop === 0` 判頂部,不是 `window.scrollY` (2) `touchAction: "pan-y"` 雙向放手 (3) `overscroll-behavior: contain` 獨立生效 (4) 首次接觸方向性 touch 手勢元件必先 grep 觸發條件 (5) bug fix 5 輪全失敗 → 必停下畫 touch event 路由圖**。同步新增 bug 案例 #014-r6 + 自我審計 5 個根因(沒抓內外層 scroll 分離 + 把 PullToRefresh 當副作用元件 + 「修法有效 = 根因正確」假設 + 沒 runtime 證據就 commit + 沒列根因表就動手) | **9.2**(首輪達標,免二輪) |
 | 2026-08-03 | **新增 §26 類別 V(Selector 對 SSOT 欄位無感)** + 對應 bug 案例 #015。對應本對話「下一個輪值」按鈕按了沒反應:commit 74d7a7e 加按鈕 + 呼叫既有 `reorderTasks`(+5 秒保護窗)時,**沒先驗證 `selectZenTasks` 是否真的讀 `order` 欄位**。真根因:`selectZenTasks` 是純 `tasks.filter(...)` 沒 sort by `order`,而 `reorderTasks` 內部用 `tasks.map(...)` 保留 React state 物理位置 → `order` 正確重編但 `visibleTasks[0]` 物理位置不變 → `FocusCard` `key={focus.id}` 不變 → `AnimatePresence` 不換 focus → 點按沒反應(但 build 乾淨、console 沒錯、state 確實更新、純 UI 沒用)。**同根因 bug 還影響 `handleDragEnd`(禪模式內拖曳 UPCOMING 排序)**:拖曳成功但 `selectZenTasks` 不 sort → 視覺上看不到新順序,使用者沒報是因為他可能 reload 後才發現。**類別 V 強制**:**(1) 寫 selectXxx 時必先 grep 同檔是否有同源 sort helper,確認排序欄位是否真的被當作 SSOT 讀 (2) `tasks.filter(...)` 結束後 + `.sort((a,b) => a.order - b.order)` 是 list-style selector 最小正確合約 (3) commit 前 Grep 該檔所有 selector 呼叫端,確認每個呼叫端都期望「排序結果」而不是「物理位置」(4) 新寫 sorting helper 也要 grep `selectXxx` 確認欄位有誰讀,避免「欄位有寫沒讀」的 silent failure**。修法:一行 `.sort((a,b) => a.order - b.order)` 加在 `selectZenTasks` filter 後,`reorderTasks` 內部物理位置邏輯不動(其他 view 用物理位置,未報 bug 前不動) | **9.0**(首輪達標,免二輪) |
+| 2026-08-05 | 新增 §5a「流程鎖定原則 (Flow Lock Principle)」— 保護多選/批次工作流,禁止單一任務動作同時觸發視圖跳離(§F1)/搶焦點(§F2)/阻擋後續選擇 modal(§F3)。對應本對話 commit `f76e171` — 原本桌面版「一鍵入禪 ⚡」同時做「設 dueDate + 設 order = -1 + router.push 到 today」,違反 §F1 + §F2。手機版從來就是「加入今日」純行為,兩者語意不一致。廢除「一鍵入禪」改為「加入今日」= 對齊 §5a + 對齊手機版 + DRY 達標。§5a 哲學:把「立刻做某件全局大事」的誘惑留給「明確的全域 CTA」,任務卡片的單一動作 = 只做最小改動,讓使用者主導節奏 | **9.4**(首輪達標,免二輪) |
