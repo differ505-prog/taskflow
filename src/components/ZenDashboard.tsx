@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -56,24 +56,94 @@ import { OnboardingTask } from "@/components/OnboardingTask";
  * 避免 ADHD 用戶一次性看到全部 backlog 觸發「啟動癱瘓」；
  * Command Center 負責「把任務排到今天」，禪模式只專注「今天」。
  */
-function selectZenTasks(tasks: Task[]): Task[] {
+function selectZenTasks(tasks: Task[], sharedLists: Record<string, import("@/lib/storage").SharedListData>): Task[] {
   const today = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD（本地時區）
-  return tasks
-    .filter(
-      (t) =>
-        !t.isArchived &&
-        t.status === "todo" &&
-        !t.parentId &&
-        // §A+ 雙保險:startDate 是未來天 → 該任務今天還沒開始,不應作為焦點
-        !(t.startDate && t.startDate > today) &&
-        t.dueDate === today,
-    )
-    .sort((a, b) => a.order - b.order);
+  const isTargetTask = (t: Task) => (
+      !t.isArchived &&
+      t.status === "todo" &&
+      !t.parentId &&
+      // §A+ 雙保險:startDate 是未來天 → 該任務今天還沒開始,不應作為焦點
+      !(t.startDate && t.startDate > today) &&
+      t.dueDate === today
+  );
+  const personalTasks = tasks.filter(isTargetTask);
+  const sharedTasks = Object.values(sharedLists || {}).flatMap(listData => listData.tasks).filter(isTargetTask);
+  return [...personalTasks, ...sharedTasks].sort((a, b) => (a.order || 0) - (b.order || 0));
 }
 
 export default function ZenDashboard() {
-  const { tasks, toggleTaskStatus, completeTask, reorderTasks, updateTask, escapeTask } = useApp();
-  const visibleTasks = useMemo(() => selectZenTasks(tasks), [tasks]);
+  const { tasks, toggleTaskStatus, completeTask, reorderTasks, updateTask, escapeTask, sharedLists, updateSharedTask } = useApp();
+  const visibleTasks = useMemo(() => selectZenTasks(tasks, sharedLists), [tasks, sharedLists]);
+
+  // Helper wrappers to route task actions correctly
+  const handleToggleTaskStatus = useCallback((taskId: string) => {
+    const task = visibleTasks.find(t => t.id === taskId);
+    if (!task) return;
+    const isShared = task.listId && sharedLists[task.listId];
+    if (isShared) {
+      updateSharedTask(task.listId!, taskId, { status: task.status === "done" ? "todo" : "done" });
+    } else {
+      toggleTaskStatus(taskId);
+    }
+  }, [visibleTasks, sharedLists, updateSharedTask, toggleTaskStatus]);
+
+  const handleCompleteTask = useCallback((taskId: string) => {
+    const task = visibleTasks.find(t => t.id === taskId);
+    if (!task) return;
+    const isShared = task.listId && sharedLists[task.listId];
+    if (isShared) {
+      updateSharedTask(task.listId!, taskId, { status: "done", completedAt: new Date().toISOString() });
+    } else {
+      completeTask(taskId);
+    }
+  }, [visibleTasks, sharedLists, updateSharedTask, completeTask]);
+
+  const handleUpdateTask = useCallback((taskId: string, updates: Partial<Task>) => {
+    const task = visibleTasks.find(t => t.id === taskId);
+    if (!task) return;
+    const isShared = task.listId && sharedLists[task.listId];
+    if (isShared) {
+      updateSharedTask(task.listId!, taskId, updates);
+    } else {
+      updateTask(taskId, updates);
+    }
+  }, [visibleTasks, sharedLists, updateSharedTask, updateTask]);
+
+  const handleEscapeTask = useCallback((taskId: string) => {
+    const task = visibleTasks.find(t => t.id === taskId);
+    if (!task) return;
+    const isShared = task.listId && sharedLists[task.listId];
+    if (isShared) {
+      // Escape for shared tasks: just remove the dueDate so it leaves Zen Mode
+      updateSharedTask(task.listId!, taskId, { dueDate: undefined });
+    } else {
+      escapeTask(taskId);
+    }
+  }, [visibleTasks, sharedLists, updateSharedTask, escapeTask]);
+
+  const applyNewVisibleQueue = useCallback((newQueue: Task[]) => {
+    // 重新指派連續的 order
+    newQueue.forEach((t, i) => { t.order = i; });
+
+    // 分離個人任務與共用任務，分別持久化 order
+    const personalQueue = newQueue.filter((t) => !t.listId || !sharedLists[t.listId]);
+    const todayPersonalIds = new Set(personalQueue.map((t) => t.id));
+    const otherPersonalTasks = tasks.filter((t) => !todayPersonalIds.has(t.id));
+    reorderTasks([...personalQueue, ...otherPersonalTasks]);
+
+    // 更新共用任務的 order
+    const sharedGroups: Record<string, Task[]> = {};
+    newQueue.forEach((t) => {
+      if (t.listId && sharedLists[t.listId]) {
+        if (!sharedGroups[t.listId]) sharedGroups[t.listId] = [];
+        sharedGroups[t.listId].push(t);
+      }
+    });
+    
+    Object.entries(sharedGroups).forEach(([listId, sTasks]) => {
+      sTasks.forEach(t => updateSharedTask(listId, t.id, { order: t.order }));
+    });
+  }, [sharedLists, tasks, reorderTasks, updateSharedTask]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
   // 專注/崩解狀態
@@ -126,19 +196,12 @@ export default function ZenDashboard() {
     setActiveId(null);
     if (!over || active.id === over.id) return;
 
-    // 禪模式拖曳需持久化（不然下次進禪模式焦點又跳回原 order）。
-    // reorderTasks 只對傳入陣列重編 order,其餘任務的 order 保留,
-    // 所以必須把「todayTasks 新順序 + 其他任務」串成全域陣列再傳,
-    // 才能讓 today 範圍內的順序變更反映到主清單,同時不打亂其他任務。
-    const queueIds = queue.map((t) => t.id);
-    const oldIndex = queueIds.indexOf(active.id as string);
-    const newIndex = queueIds.indexOf(over.id as string);
+    const oldIndex = visibleTasks.findIndex((t) => t.id === active.id);
+    const newIndex = visibleTasks.findIndex((t) => t.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
 
-    const newQueue = arrayMove(queue, oldIndex, newIndex);
-    const todayIds = new Set(visibleTasks.map((t) => t.id));
-    const otherTasks = tasks.filter((t) => !todayIds.has(t.id));
-    reorderTasks([...newQueue, ...otherTasks]);
+    const newQueue = arrayMove(visibleTasks, oldIndex, newIndex);
+    applyNewVisibleQueue(newQueue);
   };
 
   // §A1:輕量「下一個輪值」入口 — 把 visibleTasks[0] 移到清單最尾端,
@@ -154,7 +217,6 @@ export default function ZenDashboard() {
       ...visibleTasks.slice(1).map((t) => t.id),
       visibleTasks[0].id,
     ];
-    const todayIds = new Set(visibleTasks.map((t) => t.id));
     const todayById = new Map<string, Task>();
     visibleTasks.forEach((t) => todayById.set(t.id, t));
     const reorderedToday = newOrderIds
@@ -176,7 +238,7 @@ export default function ZenDashboard() {
       setIsSlashing(false);
       setIsCrashing(true);
       // 真實狀態切換 — 同步層會處理 supabase realtime echo 與保護窗(§26-A)
-      completeTask(taskId);
+      handleCompleteTask(taskId);
     }, 300);
 
     // 0.5s — 狀態窗降臨 + 累計 PP
@@ -339,10 +401,10 @@ export default function ZenDashboard() {
                 isSlashing={isSlashing}
                 isCrashing={isCrashing}
                 onComplete={() => handleComplete(focus.id)}
-                onSkip={() => escapeTask(focus.id)}
+                onSkip={() => handleEscapeTask(focus.id)}
                 onShiftNext={shiftFocusWithNext}
                 canShiftNext={visibleTasks.length >= 2}
-                onUpdateTitle={(id, title) => updateTask(id, { title })}
+                onUpdateTitle={(id, title) => handleUpdateTask(id, { title })}
                 ghostButton={
                   <GhostButton
                     onClick={timebarGhost.handleClick}

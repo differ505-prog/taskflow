@@ -93,9 +93,27 @@ interface TaskDetailPanelProps {
 const SELECT_ARROW = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23999' strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E";
 
 export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
-  const { updateTask, deleteTask, lists, getTagCounts, markEditingActivity, clearEditingActivity, reorderSubTasks } = useApp();
+  const { updateTask, deleteTask, updateSharedTask, deleteSharedTask, sharedLists, lists, getTagCounts, markEditingActivity, clearEditingActivity, reorderSubTasks } = useApp();
   const { user } = useAuth();
   const confirm = useConfirm();
+
+  // Helper wrappers for shared lists
+  const sharedListId = task.listId && sharedLists[task.listId] ? task.listId : null;
+  const handleUpdateTask = useCallback((taskId: string, updates: Partial<Task>) => {
+    if (sharedListId) {
+      updateSharedTask(sharedListId, taskId, updates);
+    } else {
+      updateTask(taskId, updates);
+    }
+  }, [sharedListId, updateSharedTask, updateTask]);
+
+  const handleDeleteTask = useCallback((taskId: string) => {
+    if (sharedListId) {
+      deleteSharedTask(sharedListId, taskId);
+    } else {
+      deleteTask(taskId);
+    }
+  }, [sharedListId, deleteSharedTask, deleteTask]);
   const keyboard = useKeyboardOffset();
   const collapseScope = user?.uid ?? "anon";
   const { isCollapsed: isDoneCollapsed, toggle: toggleDoneCollapse } = useSubTaskCollapse(task.id, task.subTasks || [], collapseScope);
@@ -231,7 +249,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
       };
     }
     const finalDueDate = dueDate || startDate || undefined;
-    updateTask(task.id, {
+    handleUpdateTask(task.id, {
       title: title.trim(),
       description: description.trim() || undefined,
       priority,
@@ -253,7 +271,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   // - 同步清 local state,避免 hasChanges 殘留誤觸發未儲存提示
   // - 不影響 dueTime / status / listId / priority(只清日期)
   const handleClearDate = useCallback(() => {
-    updateTask(task.id, { startDate: undefined, dueDate: undefined });
+    handleUpdateTask(task.id, { startDate: undefined, dueDate: undefined });
     setStartDate("");
     setDueDate("");
     setHasChanges(false);
@@ -348,7 +366,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
           }
           : undefined;
       const finalDueDate = snap.dueDate || snap.startDate || undefined;
-      updateTask(task.id, {
+      handleUpdateTask(task.id, {
         title: snap.title.trim(),
         description: snap.description.trim() || undefined,
         priority: snap.priority,
@@ -388,7 +406,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
       tone: "danger",
     });
     if (ok) {
-      deleteTask(task.id);
+      handleDeleteTask(task.id);
       onClose?.();
     }
   };
@@ -411,7 +429,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     };
     const updated: SubTask[] = [...subTasks, newSub];
     setSubTasks(updated);
-    updateTask(task.id, { subTasks: updated });
+    handleUpdateTask(task.id, { subTasks: updated });
     setSubtaskInputValue("");
     subtaskInputRef.current?.focus();
   };
@@ -422,14 +440,14 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     );
     setSubTasks(updated);
     // 自動儲存勾選狀態變更
-    updateTask(task.id, { subTasks: updated });
+    handleUpdateTask(task.id, { subTasks: updated });
   };
 
   const deleteSubTask = (subId: string) => {
     const updated: SubTask[] = subTasks.filter((s) => s.id !== subId);
     setSubTasks(updated);
     // 自動儲存刪除變更
-    updateTask(task.id, { subTasks: updated });
+    handleUpdateTask(task.id, { subTasks: updated });
   };
 
   const commitEditSubTask = (subId: string, rawTitle: string) => {
@@ -442,7 +460,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     }
     const updated: SubTask[] = subTasks.map((s) => (s.id === subId ? { ...s, title } : s));
     setSubTasks(updated);
-    updateTask(task.id, { subTasks: updated });
+    handleUpdateTask(task.id, { subTasks: updated });
     setEditingSubId(null);
   };
 
@@ -560,7 +578,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             <button
               onClick={() => {
                 setStatus("done");
-                updateTask(task.id, { status: "done" });
+                handleUpdateTask(task.id, { status: "done" });
                 onClose?.();
               }}
               className="p-2 rounded-xl hover:bg-green-50 transition-colors"
@@ -575,7 +593,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               )}
             </button>
             <button
-              onClick={() => updateTask(task.id, { isPinned: !task.isPinned })}
+              onClick={() => handleUpdateTask(task.id, { isPinned: !task.isPinned })}
               className="p-2 rounded-xl hover:bg-black/5 transition-colors"
               style={{ color: task.isPinned ? "var(--brand)" : "var(--text-tertiary)" }}
               title={task.isPinned ? "取消置頂" : "置頂此任務"}

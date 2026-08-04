@@ -35,7 +35,7 @@ import { Calendar, Clock, Eye, Flame } from "lucide-react";
 
 // ─── Inner app (has access to useApp) ───────────────────────
 function AppLayoutInner() {
-  const { currentView, currentListId, currentSharedListId, addList, updateList, deleteList, setCurrentView, setCurrentSharedList, removeAcceptedSharedList, viewCounts, tasks, checkIncomingShareLink, lists, toggleTaskStatus, completeTask, deleteTask, forceReload } = useApp();
+  const { currentView, currentListId, currentSharedListId, addList, updateList, deleteList, setCurrentView, setCurrentSharedList, removeAcceptedSharedList, viewCounts, tasks, checkIncomingShareLink, lists, toggleTaskStatus, completeTask, deleteTask, forceReload, sharedLists } = useApp();
   const { user } = useAuth();
   const confirm = useConfirm();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -204,7 +204,11 @@ function AppLayoutInner() {
     setCurrentView(view);
   };
 
-  const selectedTask = selectedTaskId ? tasks.find((t) => t.id === selectedTaskId) ?? null : null;
+  const selectedTask = selectedTaskId ? (
+    tasks.find((t) => t.id === selectedTaskId) ||
+    Object.values(sharedLists).flatMap(listData => listData.tasks).find((t) => t.id === selectedTaskId) ||
+    null
+  ) : null;
   const calendarTask = currentView === 'calendar' ? calendarSelectedTask : null;
   const detailTask = calendarTask || selectedTask;
 

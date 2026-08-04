@@ -134,16 +134,21 @@ export function AppShell({
   // - 個人任務視圖:inbox / list / pinned / quadrant / next7days 全部啟用
   // - today 視圖:不需要（任務已經在 today）
   // - shared list:disabled（A 方案,完整 claim 邏輯留待後續輪）
+  // - today 視圖:不需要（任務已經在 today）
   // - 已完成任務:不啟用（避免已完成任務被搬到 today）
-  const showFocusNow = !currentSharedListId && currentView !== "today" && currentView !== "archived";
+  const showFocusNow = currentView !== "today" && currentView !== "archived";
   const handleFocusNow = useCallback((taskId: string) => {
     const today = new Date().toLocaleDateString("en-CA");
-    updateTask(taskId, { dueDate: today, order: -1 });
+    if (currentSharedListId) {
+      updateSharedTask(currentSharedListId, taskId, { dueDate: today, order: -1 });
+    } else {
+      updateTask(taskId, { dueDate: today, order: -1 });
+    }
     // Q3-A:一鍵入禪前主動關閉「加入今日」toast,避免殘留到 Zen 模式畫面
     dismissAddToTodayToast();
     // 立刻路由切換 — Optimistic UI 不需 await,Zen 模式中央會自動撈 visibleTasks[0]
     router.push("/");
-  }, [updateTask, router, dismissAddToTodayToast]);
+  }, [updateTask, updateSharedTask, currentSharedListId, router, dismissAddToTodayToast]);
 
   // 觀看者模式：Viewer 在 shared list 是唯讀的
   const sharedRole = currentSharedListId ? getMyRole(currentSharedListId) : null;
@@ -558,15 +563,16 @@ const canDrag = !currentSharedListId && !isMobile;
                       }).map((task) => (
                         <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
                           {isReadOnlyShared ? (
-                            <TaskCard task={task} onToggleStatus={() => {}} onEdit={() => {}} onDelete={() => {}} onArchive={() => {}} />
+                            <TaskCard task={task} onToggleStatus={() => {}} onEdit={() => onSelectTask(task.id)} onDelete={() => {}} onArchive={() => {}} onFocusNow={showFocusNow ? handleFocusNow : undefined} />
                           ) : (
                             <TaskSwipeWrapper taskId={task.id} isDone={task.status === "done"} onComplete={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })} onDelete={() => deleteSharedTask(currentSharedListId, task.id)} onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })}>
                               <TaskCard
                                 task={task}
                                 onToggleStatus={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })}
-                                onEdit={() => {}}
+                                onEdit={() => onSelectTask(task.id)}
                                 onDelete={() => deleteSharedTask(currentSharedListId, task.id)}
                                 onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })}
+                                onFocusNow={showFocusNow ? handleFocusNow : undefined}
                                 onUpdatePriority={(id, p) => updateSharedTask(currentSharedListId, id, { priority: p })}
                                 onUpdateTags={(id, tags) => updateSharedTask(currentSharedListId, id, { tags })}
                               />
