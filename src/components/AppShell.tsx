@@ -150,8 +150,12 @@ export function AppShell({
     }
 
     if (targetSharedListId) {
+      // @ts-ignore
+      window.appDebug?.(`updateSharedTask called! sid=${targetSharedListId}`);
       updateSharedTask(targetSharedListId, taskId, { dueDate: today, order: -1 });
     } else {
+      // @ts-ignore
+      window.appDebug?.(`updateTask called! No target sid found!`);
       updateTask(taskId, { dueDate: today, order: -1 });
     }
     

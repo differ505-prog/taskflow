@@ -1954,6 +1954,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     const updatedTasks = [task, ...data.tasks];
+    // @ts-ignore
+    window.appDebug?.(`updateSharedTask inside: found data, updated ${updatedTasks.length} tasks`);
     const updatedData: SharedListData = { ...data, tasks: updatedTasks };
     saveSharedList(sharedListId, updatedData);
     setSharedLists(getSharedLists());
@@ -1983,6 +1985,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const updateSharedTask = useCallback((sharedListId: string, taskId: string, updates: Partial<Task>) => {
     if (!canEditSharedList(sharedListId)) {
+      // @ts-ignore
+      window.appDebug?.(`canEditSharedList returned FALSE for ${sharedListId}`);
       console.warn("[Shared] Viewer cannot edit tasks");
       return;
     }
