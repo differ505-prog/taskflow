@@ -67,7 +67,7 @@ function selectZenTasks(tasks: Task[], sharedLists: Record<string, import("@/lib
       !(t.startDate && t.startDate > today) &&
       t.dueDate === today
   );
-  const personalTasks = tasks.filter(isTargetTask);
+  const personalTasks = tasks.filter(t => isTargetTask(t) && (!t.listId || !sharedLists[t.listId]));
   const sharedTasks = Object.values(sharedLists || {}).flatMap(listData => listData.tasks).filter(isTargetTask);
   return [...personalTasks, ...sharedTasks].sort((a, b) => (a.order || 0) - (b.order || 0));
 }

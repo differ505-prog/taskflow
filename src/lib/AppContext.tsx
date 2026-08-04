@@ -801,7 +801,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       queueMicrotask(() => saveTasks(migratedTasks));
     }
 
-    const active = migratedTasks.filter((t) => !t.isArchived);
+    const active = migratedTasks.filter((t) => !t.isArchived && (!t.listId || !sharedLists[t.listId]));
     const activeShared = Object.values(sharedLists).flatMap(l => l.tasks).filter(t => !t.isArchived);
     let result = [...active, ...activeShared];
 
@@ -1749,20 +1749,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           remoteSharedTasksRef.current[sharedId] = remoteTasks;
           snapshotTasksRef.current[sharedId] = snapshot.tasks;
 
-          setTasks((prev) => {
-            const prevMap = new Map(prev.map((t) => [t.id, t]));
-            const merged = [...prev];
-            let changed = false;
-            for (const st of snapshot.tasks) {
-              const existing = prevMap.get(st.id);
-              if (!existing) { merged.push(st); changed = true; }
-              else if (st.updatedAt > existing.updatedAt) {
-                const idx = merged.findIndex((t) => t.id === st.id);
-                if (idx >= 0) { merged[idx] = st; changed = true; }
-              }
-            }
-            return changed ? merged : prev;
-          });
+
 
           void isFirstSnapshot; // suppress unused
         },
@@ -1824,20 +1811,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           }
           snapshotReadyRef.current[sharedListId] = true;
           setSharedLists((prev) => ({ ...prev, [sharedListId]: updatedData }));
-          setTasks((prev) => {
-            const prevMap = new Map(prev.map((t) => [t.id, t]));
-            const merged = [...prev];
-            let changed = false;
-            for (const st of snapshot.tasks) {
-              const existing = prevMap.get(st.id);
-              if (!existing) { merged.push(st); changed = true; }
-              else if (st.updatedAt > existing.updatedAt) {
-                const idx = merged.findIndex((t) => t.id === st.id);
-                if (idx >= 0) { merged[idx] = st; changed = true; }
-              }
-            }
-            return changed ? merged : prev;
-          });
+
           setSharedLists(getSharedLists());
         },
         () => {
