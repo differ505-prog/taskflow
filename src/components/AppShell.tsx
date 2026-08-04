@@ -613,17 +613,17 @@ const canDrag = !currentSharedListId && !isMobile;
               <ArchivedTasksView />
             ) : currentSharedListId && sharedLists[currentSharedListId] ? (
               <>
-                <div className="mb-4">
-                  <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>
-                    由 {sharedLists[currentSharedListId].ownerName ?? "未知"} 分享
-                  </p>
-                </div>
                 <StatusFilterChips
                   tasks={sharedListTasks}
                   activeStatus={activeFilter.status}
                   onStatusChange={(status) => setActiveFilter({ ...activeFilter, status })}
                   className="mb-4"
                 />
+                <div className="mb-4">
+                  <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+                    由 {sharedLists[currentSharedListId].ownerName ?? "未知"} 分享
+                  </p>
+                </div>
                 {sharedListTasks.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-64 gap-3">
                     <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "var(--surface-muted)" }}>
