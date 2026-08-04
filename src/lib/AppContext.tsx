@@ -2154,7 +2154,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addTask, addTaskLocalOnly, batchAddTasks, updateTask, deleteTask, toggleTaskStatus, archiveTask, unarchiveTask, escapeTask,
     addSubTask, toggleSubTask, deleteSubTask, reorderSubTasks,
     completeRecurringAndClone, completeTask,
-    addList, updateList, deleteList, reorderLists, reorderTasks,
+    addList, updateList, deleteList, reorderLists, reorderTasks, saveTasksDirectly,
     addHabit, updateHabit, archiveHabit, unarchiveHabit, checkinHabit: checkinHabitFn,
     uncheckHabit: uncheckHabitFn,
     quickAdd,
