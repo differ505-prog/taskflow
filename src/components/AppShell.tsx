@@ -594,6 +594,21 @@ const canDrag = !currentSharedListId && !isMobile;
             {/* 失物招領 — 只在 Inbox(任務大廳)頂端顯示
                 死守「Today = 神聖專注區」:失物招領永遠不出現在「今天/禪模式」等專注視圖
                 避免 ADHD 用戶進入「今天」時被昨天的過期任務焦慮擊垮 */}
+            {/* Shared list filter chips — page-level top
+                治本修法:當 currentView === "inbox"(預設)時,LostAndFound 會渲染在 shared list fragment 上方,
+                把 fragment 內的 chips 擠到畫面中段。把 chips 提到 LostAndFound 之上,
+                確保 shared list 篩選器永遠在 page 頂端可見。
+                條件守門:`currentView !== "archived"`(archived 不顯示 chips);
+                personal list 完全不受影響(個人清單 chips 仍在 toolbar line 693)。 */}
+            {currentSharedListId && sharedLists[currentSharedListId] && currentView !== "archived" && (
+              <StatusFilterChips
+                tasks={sharedListTasks}
+                activeStatus={activeFilter.status}
+                onStatusChange={(status) => setActiveFilter({ ...activeFilter, status })}
+                className="mb-4"
+              />
+            )}
+
             {currentView === "inbox" && <LostAndFound />}
 
             {/* Viewer 唯讀提示 */}
@@ -613,12 +628,7 @@ const canDrag = !currentSharedListId && !isMobile;
               <ArchivedTasksView />
             ) : currentSharedListId && sharedLists[currentSharedListId] ? (
               <>
-                <StatusFilterChips
-                  tasks={sharedListTasks}
-                  activeStatus={activeFilter.status}
-                  onStatusChange={(status) => setActiveFilter({ ...activeFilter, status })}
-                  className="mb-4"
-                />
+                {/* chips 已上移到 page top(見上方條件渲染) */}
                 <div className="mb-4">
                   <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>
                     由 {sharedLists[currentSharedListId].ownerName ?? "未知"} 分享
