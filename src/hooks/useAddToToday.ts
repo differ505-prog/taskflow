@@ -51,7 +51,7 @@ export function useAddToToday() {
         ...SUCCESS_VARIANT,
       });
     },
-    [updateTask],
+    [updateTask, updateSharedTask, sharedLists],
   );
 
   /**

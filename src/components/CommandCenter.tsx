@@ -105,8 +105,8 @@ export function CommandCenter({ onClose }: { onClose: () => void }) {
     return [...tasks, ...sharedTasks];
   }, [tasks, sharedLists]);
 
-  const backlog = useMemo(() => selectBacklog(tasks), [tasks]);
-  const scheduled = useMemo(() => selectScheduledMap(tasks), [tasks]);
+  const backlog = useMemo(() => selectBacklog(allTasks), [allTasks]);
+  const scheduled = useMemo(() => selectScheduledMap(allTasks), [allTasks]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [monthOffset, setMonthOffset] = useState(0);
