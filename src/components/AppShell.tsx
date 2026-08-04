@@ -804,7 +804,7 @@ const canDrag = !currentSharedListId && !isMobile;
                                   isDone={task.status === "done"}
                                   onComplete={() => routeCompleteTask(task.id)}
                                   onDelete={(id) => routeDeleteTask(id)}
-                                  onAddToToday={currentSharedListId ? undefined : addToToday}
+                                  onAddToToday={showFocusNow ? addToToday : undefined}
                                 >
                                   <SortableTaskItem
                                     task={task}
@@ -856,7 +856,7 @@ const canDrag = !currentSharedListId && !isMobile;
                               isDone={task.status === "done"}
                               onComplete={() => routeCompleteTask(task.id)}
                               onDelete={(id) => routeDeleteTask(id)}
-                              onAddToToday={currentSharedListId ? undefined : addToToday}
+                              onAddToToday={showFocusNow ? addToToday : undefined}
                             >
                               <TaskListItem
                                 task={task}
