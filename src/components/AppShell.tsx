@@ -590,7 +590,7 @@ const canDrag = !currentSharedListId && !isMobile;
             style={{ WebkitOverflowScrolling: "touch" }}
             className={`flex-1 min-h-0 overflow-y-auto overscroll-contain h-full md:pb-5 ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}
           >
-          <div className="px-6 py-5 pb-[calc(72px+env(safe-area-inset-bottom,0px)+16px)] min-w-0 flex flex-col flex-1">
+          <div className="px-6 py-5 min-w-0 flex flex-col flex-1">
             {/* 失物招領 — 只在 Inbox(任務大廳)頂端顯示
                 死守「Today = 神聖專注區」:失物招領永遠不出現在「今天/禪模式」等專注視圖
                 避免 ADHD 用戶進入「今天」時被昨天的過期任務焦慮擊垮 */}
@@ -662,9 +662,7 @@ const canDrag = !currentSharedListId && !isMobile;
                 ) : (
                   <div className="flex flex-col gap-2">
                     <AnimatePresence>
-                      {[...sharedFilteredTasks].sort((a, b) => {
-                        if (a.status === "done" && b.status !== "done") return 1;
-                        if (a.status !== "done" && b.status === "done") return -1;
+                      {[...sharedFilteredTasks].filter(t => t.status !== "done").sort((a, b) => {
                         return 0;
                       }).map((task) => (
                         <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
@@ -694,6 +692,77 @@ const canDrag = !currentSharedListId && !isMobile;
                         </motion.div>
                       ))}
                     </AnimatePresence>
+
+                    {/* Shared List 已完成任務折疊區 */}
+                    {!explicitlyShowingDone && sharedFilteredTasks.filter(t => t.status === "done").length > 0 && (
+                      <details
+                        className="mt-3 group/completed flex-shrink-0"
+                        open={completedExpanded}
+                        onToggle={(e) => {
+                          const isOpen = (e.currentTarget as HTMLDetailsElement).open;
+                          if (isOpen !== completedExpanded) {
+                            setCompletedExpanded(isOpen);
+                            try { localStorage.setItem("completed-collapsed", String(!isOpen)); } catch {}
+                          }
+                        }}
+                      >
+                        <summary
+                          className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl cursor-pointer select-none transition-colors duration-150 hover:bg-black/[0.03] active:scale-[0.99] list-none [&::-webkit-details-marker]:hidden"
+                          style={{ color: "var(--text-tertiary)" }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <ChevronRight className="w-3.5 h-3.5 transition-transform duration-200 group-open/completed:rotate-90" style={{ color: "var(--text-tertiary)" }} />
+                            <span className="text-[12px] font-medium">
+                              已完成 {sharedFilteredTasks.filter(t => t.status === "done").length} 項
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleCompletedExpanded();
+                            }}
+                            className="text-[11px] px-2 py-1 rounded-md transition-colors duration-150 hover:bg-black/5"
+                            style={{ color: "var(--text-tertiary)" }}
+                            aria-label={completedExpanded ? "全部收起" : "全部展開"}
+                          >
+                            {completedExpanded ? "全部收起" : "全部展開"}
+                          </button>
+                        </summary>
+                        <div className="flex flex-col gap-1 mt-1.5 pl-1">
+                          <AnimatePresence mode="popLayout">
+                            {sharedFilteredTasks.filter(t => t.status === "done").map((task) => (
+                              <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
+                                {isReadOnlyShared ? (
+                                  <TaskListItem
+                                    task={task}
+                                    isSelected={task.id === selectedTaskId}
+                                    onClick={() => handleSelectTask(task.id)}
+                                    onToggleStatus={() => {}}
+                                    onFocusNow={showFocusNow ? handleFocusNow : undefined}
+                                  />
+                                ) : (
+                                  <TaskSwipeWrapper taskId={task.id} isDone={task.status === "done"} onComplete={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })} onDelete={() => deleteSharedTask(currentSharedListId, task.id)} onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })} onAddToToday={showFocusNow ? addToToday : undefined}>
+                                    <TaskListItem
+                                      task={task}
+                                      isSelected={task.id === selectedTaskId}
+                                      onClick={() => handleSelectTask(task.id)}
+                                      onToggleStatus={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })}
+                                      onDelete={() => deleteSharedTask(currentSharedListId, task.id)}
+                                      onFocusNow={showFocusNow ? handleFocusNow : undefined}
+                                      onUpdatePriority={(id, p) => updateSharedTask(currentSharedListId, id, { priority: p })}
+                                      onUpdateTags={(id, tags) => updateSharedTask(currentSharedListId, id, { tags })}
+                                      allTags={Object.keys(getTagCounts())}
+                                    />
+                                  </TaskSwipeWrapper>
+                                )}
+                              </motion.div>
+                            ))}
+                          </AnimatePresence>
+                        </div>
+                      </details>
+                    )}
                   </div>
                 )}
               </>
@@ -993,6 +1062,8 @@ const canDrag = !currentSharedListId && !isMobile;
                 )}
               </>
             )}
+            {/* 解決 flex scroll 容器 padding-bottom 被忽略的 bug：用 spacer 取代 pb */}
+            <div className="h-[calc(72px+env(safe-area-inset-bottom,0px)+16px)] flex-shrink-0" />
           </div>
           </div>
           </div>{/* end scroll wrapper */}
