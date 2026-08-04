@@ -273,9 +273,6 @@ export default function ZenDashboard() {
 
   return (
     <>
-      <div className="fixed top-0 left-0 w-full bg-black text-green-400 z-[9999] p-2 text-xs font-mono">
-        ZenDebug: {JSON.stringify(typeof window !== "undefined" ? (window as any).zenDebug : {})}
-      </div>
     <main className="relative min-h-screen bg-slate-50 px-4 pb-32 pt-10 sm:px-8 sm:pb-28">
       {/* §M §26 命中類別新:P 全域 floating CTA 與 fullscreen 內容區避讓策略
           ZenDashboard 是 full-screen 禪模式,FAB 的 fixed bottom-4 在小視窗會
