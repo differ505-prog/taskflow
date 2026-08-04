@@ -43,7 +43,11 @@ export function CalendarView({
   isMobile,
   onOpenMobileSidebar,
 }: CalendarViewProps) {
-  const { tasks, updateTask, toggleTaskStatus, completeTask, addTask, deleteTask, searchQuery } = useApp();
+  const { tasks, sharedLists, updateTask, updateSharedTask, toggleTaskStatus, completeTask, addTask, deleteTask, searchQuery } = useApp();
+  const allTasks = useMemo(() => {
+    const sharedTasks = Object.values(sharedLists || {}).flatMap((listData) => listData.tasks);
+    return [...tasks, ...sharedTasks];
+  }, [tasks, sharedLists]);
   const [mounted, setMounted] = useState(false);
 
   // ─── 月視圖邏輯抽出 useMonthGrid(§A1 整合:共用元件+hook)───
@@ -60,10 +64,22 @@ export function CalendarView({
     draggingTaskId,
     swipeTouchHandlers,
   } = useMonthGrid({
-    tasks,
+    tasks: allTasks,
     searchQuery,
-    onUpdateTaskDates: (taskId, startDate, dueDate) =>
-      updateTask(taskId, { startDate, dueDate }),
+    onUpdateTaskDates: (taskId, startDate, dueDate) => {
+      let targetSharedListId: string | undefined;
+      for (const [listId, data] of Object.entries(sharedLists)) {
+        if (data.tasks.some(t => t.id === taskId)) {
+          targetSharedListId = listId;
+          break;
+        }
+      }
+      if (targetSharedListId) {
+        updateSharedTask(targetSharedListId, taskId, { startDate, dueDate });
+      } else {
+        updateTask(taskId, { startDate, dueDate });
+      }
+    },
     enableSwipe: true,
   });
 
@@ -147,7 +163,20 @@ export function CalendarView({
     const task = tasks.find((t) => t.id === draggingTaskId);
     if (!task) {
       // 保留原本行為:直接設 dueDate(即使 task 找不到也視為「放下到某天」)
-      updateTask(draggingTaskId, { startDate: dateStr, dueDate: dateStr });
+      
+      // try to find if it's shared
+      let targetSharedListId: string | undefined;
+      for (const [listId, data] of Object.entries(sharedLists)) {
+        if (data.tasks.some(t => t.id === draggingTaskId)) {
+          targetSharedListId = listId;
+          break;
+        }
+      }
+      if (targetSharedListId) {
+        updateSharedTask(targetSharedListId, draggingTaskId, { startDate: dateStr, dueDate: dateStr });
+      } else {
+        updateTask(draggingTaskId, { startDate: dateStr, dueDate: dateStr });
+      }
       return;
     }
     // 否則用 hook 統一規則(保留 lengthDays)
@@ -162,7 +191,7 @@ export function CalendarView({
         days={days}
         currentMonth={currentMonth}
         selectedDate={selectedDate}
-        tasks={tasks}
+        tasks={allTasks}
         selectedTask={selectedTask}
         onSelectDate={onSelectDate}
         onSelectTask={onSelectTask}

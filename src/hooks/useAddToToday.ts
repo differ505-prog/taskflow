@@ -25,13 +25,25 @@ const SUCCESS_VARIANT = {
 } as const;
 
 export function useAddToToday() {
-  const { updateTask } = useApp();
+  const { updateTask, updateSharedTask, sharedLists } = useApp();
 
   const addToToday = useCallback(
     (taskId: string) => {
       // §23 同步層:統一走 AppContext.updateTask,享有 markRecentlyWritten 保護
       const today = getLocalToday();
-      updateTask(taskId, { dueDate: today });
+      let targetSharedListId: string | undefined;
+      for (const [listId, data] of Object.entries(sharedLists)) {
+        if (data.tasks.some(t => t.id === taskId)) {
+          targetSharedListId = listId;
+          break;
+        }
+      }
+
+      if (targetSharedListId) {
+        updateSharedTask(targetSharedListId, taskId, { dueDate: today });
+      } else {
+        updateTask(taskId, { dueDate: today });
+      }
       // Sonner 固定 id → 連續按 T 鍵自動取代前一顆,只留最新
       toast.success("☀ 已排定為今日", {
         id: ADD_TO_TODAY_TOAST_ID,

@@ -99,7 +99,11 @@ function buildMonthCells(anchor: Date): DateCell[] {
 const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
 
 export function CommandCenter({ onClose }: { onClose: () => void }) {
-  const { tasks, updateTask, toggleTaskStatus } = useApp();
+  const { tasks, sharedLists, updateTask, updateSharedTask, toggleTaskStatus } = useApp();
+  const allTasks = useMemo(() => {
+    const sharedTasks = Object.values(sharedLists || {}).flatMap((listData) => listData.tasks);
+    return [...tasks, ...sharedTasks];
+  }, [tasks, sharedLists]);
 
   const backlog = useMemo(() => selectBacklog(tasks), [tasks]);
   const scheduled = useMemo(() => selectScheduledMap(tasks), [tasks]);

@@ -145,7 +145,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   const [dueDate, setDueDate] = useState(task.dueDate || "");
   const [dueTime, setDueTime] = useState(task.dueTime || "");
   const [listId, setListId] = useState<string | undefined>(task.listId);
-  const [tags, setTags] = useState<string[]>(task.tags);
+  const [tags, setTags] = useState<string[]>(task.tags || []);
   const [tagInput, setTagInput] = useState("");
   const [tagColors, setTagColors] = useState<Record<string, string>>({});
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -182,7 +182,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     setDueDate(task.dueDate || "");
     setDueTime(task.dueTime || "");
     setListId(task.listId);
-    setTags(task.tags);
+    setTags(task.tags || []);
     setRecurrenceType(task.recurrence?.pattern || "none");
     setRecurrenceInterval(task.recurrence?.interval || 1);
     setRecurrenceDaysOfWeek(task.recurrence?.daysOfWeek || []);
@@ -223,7 +223,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     if (!trimmed) { setSuggestions([]); setShowSuggestions(false); return; }
     const query = trimmed.startsWith("#") ? trimmed.slice(1).toLowerCase() : trimmed.toLowerCase();
     const allTags = Object.keys(counts).filter((tag) => {
-      if (tags.includes(tag)) return false;
+      if ((tags || []).includes(tag)) return false;
       const normalized = tag.startsWith("#") ? tag.slice(1) : tag;
       return normalized.toLowerCase().includes(query);
     }).sort((a, b) => (counts[b] || 0) - (counts[a] || 0));
@@ -232,7 +232,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   }, [tags, counts]);
 
   const selectSuggestion = useCallback((tag: string) => {
-    if (!tags.includes(tag)) { setTags([...tags, tag]); }
+    if (!(tags || []).includes(tag)) { setTags([...tags, tag]); }
     setTagInput(""); setSuggestions([]); setShowSuggestions(false);
   }, [tags]);
 
@@ -413,7 +413,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
 
   const addTag = () => {
     const t = tagInput.trim();
-    if (t && !tags.includes(t)) { setTags([...tags, t]); setTagInput(""); }
+    if (t && !(tags || []).includes(t)) { setTags([...tags, t]); setTagInput(""); }
   };
 
   const addSubTask = () => {
@@ -818,13 +818,13 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
                 type="button"
                 onClick={() => setShowTagPanel(!showTagPanel)}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-colors w-full"
-                style={{ background: "var(--surface)", borderColor: "var(--border)", color: tags.length > 0 ? "var(--brand)" : "var(--text-tertiary)" }}
+                style={{ background: "var(--surface)", borderColor: "var(--border)", color: (tags || []).length > 0 ? "var(--brand)" : "var(--text-tertiary)" }}
                 aria-label="管理標籤"
                 aria-expanded={showTagPanel}
               >
                 <TagIcon className="w-4 h-4" />
                 <span className="text-[13px] flex-1 text-left">
-                  {tags.length > 0 ? `${tags.length} 個標籤` : "新增標籤"}
+                  {(tags || []).length > 0 ? `${tags.length} 個標籤` : "新增標籤"}
                 </span>
               </button>
               {/* 標籤輸入面板 */}
@@ -856,9 +856,9 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
                       ))}
                     </div>
                   )}
-                  {tags.length > 0 && (
+                  {(tags || []).length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
-                      {tags.map((tag) => (
+                      {(tags || []).map((tag) => (
                         <span
                           key={tag}
                           className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px]"
