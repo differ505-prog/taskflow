@@ -77,7 +77,7 @@ export default function ZenDashboard() {
   const visibleTasks = useMemo(() => {
     const res = selectZenTasks(tasks, sharedLists);
     // @ts-ignore
-    window.zenDebug = { sharedMatched: Object.values(sharedLists).flatMap(l => l.tasks).filter(t => t.dueDate === getLocalToday()).map(t => t.title), allSharedTitles: Object.values(sharedLists).flatMap(l => l.tasks).map(t => t.title) };
+    window.zenDebug = { taskObj: Object.values(sharedLists).flatMap(l => l.tasks).find(t => t.title === "買輕鋼架9片") };
     return res;
   }, [tasks, sharedLists]);
 
