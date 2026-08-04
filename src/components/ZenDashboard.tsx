@@ -222,8 +222,7 @@ export default function ZenDashboard() {
     const reorderedToday = newOrderIds
       .map((id) => todayById.get(id))
       .filter((t): t is Task => Boolean(t));
-    const otherTasks = tasks.filter((t) => !todayIds.has(t.id));
-    reorderTasks([...reorderedToday, ...otherTasks]);
+    applyNewVisibleQueue(reorderedToday);
   };
 
   const handleComplete = async (taskId: string) => {
