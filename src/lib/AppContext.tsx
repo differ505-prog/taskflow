@@ -853,7 +853,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (po !== 0) return po;
       return a.order - b.order;
     });
-  }, [tasks, currentView, currentListId, searchQuery, activeFilter]);
+  }, [tasks, currentView, currentListId, searchQuery, activeFilter, sharedLists]);
 
   const viewCounts = useMemo(() => {
     const active = tasks.filter((t) => !t.isArchived);
@@ -1866,7 +1866,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const quickAdd = useCallback((input: string, currentView?: string): string | null => {
     if (!input.trim()) return null;
     const parsed = parseNaturalLanguage(input);
-    const dueDate = parsed.dueDate ?? (currentView === "today" ? new Date().toLocaleDateString("en-CA") : undefined);
+    const dueDate = parsed.dueDate ?? (currentView === "today" ? getLocalToday() : undefined);
     return addTask({
       title: parsed.title,
       description: parsed.description,

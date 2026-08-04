@@ -1,4 +1,5 @@
 "use client";
+import { getLocalToday } from "@/lib/dateUtils";
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
@@ -138,7 +139,7 @@ export function AppShell({
   // - 已完成任務:不啟用（避免已完成任務被搬到 today）
   const showFocusNow = currentView !== "today" && currentView !== "archived";
   const handleFocusNow = useCallback((taskId: string) => {
-    const today = new Date().toLocaleDateString("en-CA");
+    const today = getLocalToday();
     
     let targetSharedListId: string | undefined;
     for (const [listId, data] of Object.entries(sharedLists)) {
@@ -633,7 +634,7 @@ const canDrag = !currentSharedListId && !isMobile;
                               onFocusNow={showFocusNow ? handleFocusNow : undefined}
                             />
                           ) : (
-                            <TaskSwipeWrapper taskId={task.id} isDone={task.status === "done"} onComplete={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })} onDelete={() => deleteSharedTask(currentSharedListId, task.id)} onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })}>
+                            <TaskSwipeWrapper taskId={task.id} isDone={task.status === "done"} onComplete={() => updateSharedTask(currentSharedListId, task.id, { status: task.status === "done" ? "todo" : "done" })} onDelete={() => deleteSharedTask(currentSharedListId, task.id)} onArchive={() => updateSharedTask(currentSharedListId, task.id, { isArchived: true })} onAddToToday={showFocusNow ? addToToday : undefined}>
                               <TaskListItem
                                 task={task}
                                 isSelected={task.id === selectedTaskId}

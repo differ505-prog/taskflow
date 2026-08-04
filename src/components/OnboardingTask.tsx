@@ -35,7 +35,7 @@ const ONBOARDING_TASK_TITLES = [
 ];
 
 function getLocalToday(): string {
-  return new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD(本地時區)
+  return getLocalToday(); // YYYY-MM-DD(本地時區)
 }
 
 export function OnboardingTask() {

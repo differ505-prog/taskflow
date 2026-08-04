@@ -1,3 +1,4 @@
+import { getLocalToday } from "@/lib/dateUtils";
 /**
  * 加入今日 (Add to Today) — 共用動作 hook
  *
@@ -29,7 +30,7 @@ export function useAddToToday() {
   const addToToday = useCallback(
     (taskId: string) => {
       // §23 同步層:統一走 AppContext.updateTask,享有 markRecentlyWritten 保護
-      const today = new Date().toLocaleDateString("en-CA");
+      const today = getLocalToday();
       updateTask(taskId, { dueDate: today });
       // Sonner 固定 id → 連續按 T 鍵自動取代前一顆,只留最新
       toast.success("☀ 已排定為今日", {

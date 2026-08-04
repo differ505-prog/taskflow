@@ -1,4 +1,5 @@
 "use client";
+import { getLocalToday } from "@/lib/dateUtils";
 
 import { useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -36,7 +37,7 @@ export default function LostAndFound() {
    * - !parentId (不是子任務)
    */
   const lostTasks = useMemo(() => {
-    const today = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD（本地時區）
+    const today = getLocalToday(); // YYYY-MM-DD（本地時區）
     return tasks.filter(
       (t) =>
         !t.isArchived &&
@@ -56,7 +57,7 @@ export default function LostAndFound() {
    * 注意:不動 isArchived — 任務本來就沒被封存
    */
   const handleResurrect = (task: Task) => {
-    const today = new Date().toLocaleDateString("en-CA");
+    const today = getLocalToday();
     updateTask(task.id, { dueDate: today });
   };
 

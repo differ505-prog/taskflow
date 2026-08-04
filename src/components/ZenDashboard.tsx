@@ -1,4 +1,5 @@
 "use client";
+import { getLocalToday } from "@/lib/dateUtils";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import Link from "next/link";
@@ -57,7 +58,7 @@ import { OnboardingTask } from "@/components/OnboardingTask";
  * Command Center 負責「把任務排到今天」，禪模式只專注「今天」。
  */
 function selectZenTasks(tasks: Task[], sharedLists: Record<string, import("@/lib/storage").SharedListData>): Task[] {
-  const today = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD（本地時區）
+  const today = getLocalToday(); // YYYY-MM-DD（本地時區）
   const isTargetTask = (t: Task) => (
       !t.isArchived &&
       t.status === "todo" &&
