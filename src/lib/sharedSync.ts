@@ -184,27 +184,15 @@ export async function getMyRole(args: {
 }): Promise<MemberRole | null> {
   if (!supabase) return null;
 
-  // 先查 members table
-  const { data: memberData } = await supabase
-    .from("shared_list_members")
-    .select("role")
-    .eq("shared_list_id", args.sharedListId)
-    .eq("member_uid", args.callerUid)
-    .eq("status", "active")
-    .maybeSingle();
+  const { data, error } = await supabase.rpc("get_my_role_v2", {
+    p_sid: args.sharedListId,
+  });
 
-  if (memberData) return memberData.role as MemberRole;
-
-  // Fallback：用 owner_uid 直接判斷（繞過 member_uid 時序問題）
-  const { data: listData } = await supabase
-    .from("shared_lists")
-    .select("owner_uid")
-    .eq("id", args.sharedListId)
-    .maybeSingle();
-
-  if (listData?.owner_uid === args.callerUid) return "owner";
-
-  return null;
+  if (error) {
+    console.error("[getMyRole] error:", error);
+    return null;
+  }
+  return data as MemberRole | null;
 }
 
 // ── 查詢：取得成員名單 ─────────────────────────────────────────
