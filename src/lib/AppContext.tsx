@@ -1990,7 +1990,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       console.warn("[Shared] Viewer cannot edit tasks");
       return;
     }
-    const data = sharedLists[sharedListId];
+    const currentSharedLists = getSharedLists();
+    const data = currentSharedLists[sharedListId] || sharedLists[sharedListId];
     if (!data) return;
     const updatedTasks = data.tasks.map((t) =>
       t.id === taskId ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
