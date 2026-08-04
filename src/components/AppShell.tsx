@@ -228,6 +228,56 @@ export function AppShell({
     ? []
     : displayTasks.filter((t) => t.status === "done");
 
+  const routeUpdateTask = useCallback((taskId: string, updates: Partial<Task>) => {
+    const task = [...activeTasks, ...completedTasks].find(t => t.id === taskId);
+    if (!task) return;
+    const isShared = task.listId && sharedLists[task.listId];
+    if (isShared) {
+      updateSharedTask(task.listId!, taskId, updates);
+    } else {
+      updateTask(taskId, updates);
+    }
+  }, [activeTasks, completedTasks, sharedLists, updateSharedTask, updateTask]);
+
+  const routeCompleteTask = useCallback((taskId: string) => {
+    const task = [...activeTasks, ...completedTasks].find(t => t.id === taskId);
+    if (!task) return;
+    const isShared = task.listId && sharedLists[task.listId];
+    if (isShared) {
+      updateSharedTask(task.listId!, taskId, { status: task.status === "done" ? "todo" : "done" });
+      if (task.status === "todo") {
+        import("@/lib/confetti").then(m => { m.fireTaskDoneConfetti(null); m.playTaskDoneSound(); });
+      }
+    } else {
+      completeTask(taskId);
+    }
+  }, [activeTasks, completedTasks, sharedLists, updateSharedTask, completeTask]);
+
+  const routeDeleteTask = useCallback((taskId: string) => {
+    const task = [...activeTasks, ...completedTasks].find(t => t.id === taskId);
+    if (!task) return;
+    const isShared = task.listId && sharedLists[task.listId];
+    if (isShared) {
+      deleteSharedTask(task.listId!, taskId);
+    } else {
+      deleteTask(taskId);
+    }
+  }, [activeTasks, completedTasks, sharedLists, deleteSharedTask, deleteTask]);
+
+  const routeToggleSubTask = useCallback((taskId: string, subId: string) => {
+    const task = [...activeTasks, ...completedTasks].find(t => t.id === taskId);
+    if (!task) return;
+    const isShared = task.listId && sharedLists[task.listId];
+    if (isShared) {
+      const sub = task.subTasks?.find(s => s.id === subId);
+      if (!sub) return;
+      const updatedSubtasks = task.subTasks!.map(s => s.id === subId ? { ...s, status: s.status === "done" ? "todo" : "done" as "todo" | "done" } : s);
+      updateSharedTask(task.listId!, taskId, { subTasks: updatedSubtasks });
+    } else {
+      toggleSubTask(taskId, subId);
+    }
+  }, [activeTasks, completedTasks, sharedLists, updateSharedTask, toggleSubTask]);
+
   const stats = {
     total: tasks.filter((t) => !t.isArchived).length,
     today: tasks.filter((t) => {
@@ -744,20 +794,20 @@ const canDrag = !currentSharedListId && !isMobile;
                                 <TaskSwipeWrapper
                                   taskId={task.id}
                                   isDone={task.status === "done"}
-                                  onComplete={() => updateTask(task.id, { status: task.status === "done" ? "todo" : "done" })}
-                                  onDelete={(id) => deleteTask(id)}
+                                  onComplete={() => routeCompleteTask(task.id)}
+                                  onDelete={(id) => routeDeleteTask(id)}
                                   onAddToToday={currentSharedListId ? undefined : addToToday}
                                 >
                                   <SortableTaskItem
                                     task={task}
                                     isSelected={task.id === selectedTaskId}
                                     onClick={() => handleSelectTask(task.id)}
-                                    onToggleStatus={completeTask}
-                                    onToggleSubTask={toggleSubTask}
-                                    onUpdatePriority={(id, p) => updateTask(id, { priority: p })}
-                                    onUpdateTags={(id, tags) => updateTask(id, { tags })}
-                                    onTogglePin={(id) => updateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
-                                    onDelete={(id) => deleteTask(id)}
+                                    onToggleStatus={routeCompleteTask}
+                                    onToggleSubTask={routeToggleSubTask}
+                                    onUpdatePriority={(id, p) => routeUpdateTask(id, { priority: p })}
+                                    onUpdateTags={(id, tags) => routeUpdateTask(id, { tags })}
+                                    onTogglePin={(id) => routeUpdateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
+                                    onDelete={(id) => routeDeleteTask(id)}
                                     onFocusNow={showFocusNow ? handleFocusNow : undefined}
                                     onHoverEnter={currentSharedListId ? undefined : setHoveredTaskId}
                                     onHoverLeave={currentSharedListId ? undefined : (id) => setHoveredTaskId((prev) => (prev === id ? null : prev))}
@@ -796,20 +846,20 @@ const canDrag = !currentSharedListId && !isMobile;
                             <TaskSwipeWrapper
                               taskId={task.id}
                               isDone={task.status === "done"}
-                              onComplete={() => updateTask(task.id, { status: task.status === "done" ? "todo" : "done" })}
-                              onDelete={(id) => deleteTask(id)}
+                              onComplete={() => routeCompleteTask(task.id)}
+                              onDelete={(id) => routeDeleteTask(id)}
                               onAddToToday={currentSharedListId ? undefined : addToToday}
                             >
                               <TaskListItem
                                 task={task}
                                 isSelected={task.id === selectedTaskId}
                                 onClick={() => handleSelectTask(task.id)}
-                                onToggleStatus={completeTask}
-                                onToggleSubTask={toggleSubTask}
-                                onUpdatePriority={(id, p) => updateTask(id, { priority: p })}
-                                onUpdateTags={(id, tags) => updateTask(id, { tags })}
-                                onTogglePin={(id) => updateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
-                                onDelete={(id) => deleteTask(id)}
+                                onToggleStatus={routeCompleteTask}
+                                onToggleSubTask={routeToggleSubTask}
+                                onUpdatePriority={(id, p) => routeUpdateTask(id, { priority: p })}
+                                onUpdateTags={(id, tags) => routeUpdateTask(id, { tags })}
+                                onTogglePin={(id) => routeUpdateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
+                                onDelete={(id) => routeDeleteTask(id)}
                                 onFocusNow={showFocusNow ? handleFocusNow : undefined}
                                 onHoverEnter={currentSharedListId ? undefined : setHoveredTaskId}
                                 onHoverLeave={currentSharedListId ? undefined : (id) => setHoveredTaskId((prev) => (prev === id ? null : prev))}
@@ -869,19 +919,19 @@ const canDrag = !currentSharedListId && !isMobile;
                                 <TaskSwipeWrapper
                                   taskId={task.id}
                                   isDone={task.status === "done"}
-                                  onComplete={() => updateTask(task.id, { status: task.status === "done" ? "todo" : "done" })}
-                                  onDelete={(id) => deleteTask(id)}
+                                  onComplete={() => routeCompleteTask(task.id)}
+                                  onDelete={(id) => routeDeleteTask(id)}
                                 >
                                   <TaskListItem
                                     task={task}
                                     isSelected={task.id === selectedTaskId}
                                     onClick={() => handleSelectTask(task.id)}
-                                    onToggleStatus={completeTask}
-                                    onToggleSubTask={toggleSubTask}
-                                    onUpdatePriority={(id, p) => updateTask(id, { priority: p })}
-                                    onUpdateTags={(id, tags) => updateTask(id, { tags })}
-                                    onTogglePin={(id) => updateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
-                                    onDelete={(id) => deleteTask(id)}
+                                    onToggleStatus={routeCompleteTask}
+                                    onToggleSubTask={routeToggleSubTask}
+                                    onUpdatePriority={(id, p) => routeUpdateTask(id, { priority: p })}
+                                    onUpdateTags={(id, tags) => routeUpdateTask(id, { tags })}
+                                    onTogglePin={(id) => routeUpdateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
+                                    onDelete={(id) => routeDeleteTask(id)}
                                     allTags={Object.keys(getTagCounts())}
                                     batchMode={batchMode}
                                     batchSelected={!!batchSelectedIds?.has(task.id)}
