@@ -73,7 +73,7 @@ function selectZenTasks(tasks: Task[], sharedLists: Record<string, import("@/lib
 }
 
 export default function ZenDashboard() {
-  const { tasks, toggleTaskStatus, completeTask, reorderTasks, updateTask, escapeTask, sharedLists, updateSharedTask } = useApp();
+  const { tasks, toggleTaskStatus, completeTask, reorderTasks, saveTasksDirectly, updateTask, escapeTask, sharedLists, updateSharedTask } = useApp();
   const visibleTasks = useMemo(() => {
     const res = selectZenTasks(tasks, sharedLists);
     // @ts-ignore
@@ -134,8 +134,15 @@ export default function ZenDashboard() {
     // 分離個人任務與共用任務，分別持久化 order
     const personalQueue = newQueue.filter((t) => !t.listId || !sharedLists[t.listId]);
     const todayPersonalIds = new Set(personalQueue.map((t) => t.id));
-    const otherPersonalTasks = tasks.filter((t) => !todayPersonalIds.has(t.id));
-    reorderTasks([...personalQueue, ...otherPersonalTasks]);
+    
+    // 確保未顯示的個人任務也有唯一的 order，避免和 today 的任務碰撞
+    let nextOrder = newQueue.length;
+    const otherPersonalTasks = tasks
+      .filter((t) => !todayPersonalIds.has(t.id))
+      .map(t => ({ ...t, order: nextOrder++ }));
+      
+    // 使用 saveTasksDirectly 直接儲存已經帶有正確 order 的陣列 (避免 reorderTasks 強制洗牌)
+    saveTasksDirectly([...personalQueue, ...otherPersonalTasks]);
 
     // 更新共用任務的 order
     const sharedGroups: Record<string, Task[]> = {};
@@ -149,7 +156,7 @@ export default function ZenDashboard() {
     Object.entries(sharedGroups).forEach(([listId, sTasks]) => {
       sTasks.forEach(t => updateSharedTask(listId, t.id, { order: t.order }));
     });
-  }, [sharedLists, tasks, reorderTasks, updateSharedTask]);
+  }, [sharedLists, tasks, saveTasksDirectly, updateSharedTask]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
   // 專注/崩解狀態

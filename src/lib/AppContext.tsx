@@ -165,6 +165,7 @@ interface AppContextValue {
    */
   reorderLists: (newListOrder: TaskList[]) => void;
   reorderTasks: (reorderedTasks: Task[]) => void;
+  saveTasksDirectly: (updatedTasks: Task[]) => void;
 
   // ── 習慣 CRUD ─────────────────────────────────────────
   addHabit: (data: Omit<Habit, "id" | "createdAt" | "updatedAt" | "checkins" | "streak" | "longestStreak">) => void;
