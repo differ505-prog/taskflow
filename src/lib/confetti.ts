@@ -16,9 +16,12 @@
  * - 主任務從非 done 切換到 done 時
  * - 子任務不觸發（避免過度刺激）
  * - 共享任務由他人完成時不觸發（避免協作混亂）
+ *
+ * 階段 5 性能優化：canvas-confetti 動態 import，
+ * 主 bundle 瘦身 ~12kB（canvas-confetti gzip 後大小），僅完成任務時載入。
  */
 
-import confetti from "canvas-confetti";
+import type { Options } from "canvas-confetti";
 
 const STORAGE_KEY = "taskflow_confetti_enabled";
 const SOUND_STORAGE_KEY = "taskflow_confetti_sound_enabled";
@@ -108,11 +111,14 @@ export function getConfettiSoundEnabled(): boolean {
  * 從指定 DOM 元素位置向外發射組合式慶祝動畫
  * @param originEl 觸發按鈕的 DOM 元素（用於計算發射座標）
  */
-export function fireTaskDoneConfetti(originEl: HTMLElement | null) {
+export async function fireTaskDoneConfetti(originEl: HTMLElement | null) {
   // 三道防護：SSR / 設定關閉 / reduced-motion
   if (typeof window === "undefined") return;
   if (!getEnabled()) return;
   if (prefersReducedMotion()) return;
+
+  // 動態載入 canvas-confetti（首入主 bundle 不帶，完成任務才下載）
+  const confetti = (await import("canvas-confetti")).default;
 
   // 計算發射原點（以視窗座標為準）
   let originX = 0.5;
@@ -127,7 +133,7 @@ export function fireTaskDoneConfetti(originEl: HTMLElement | null) {
     zIndex: 9999,
     disableForReducedMotion: true,
     colors: COLORS,
-  };
+  } satisfies Options;
 
   // ── 波 1（同時）：雙側 side cannons（左右各 30 顆）─────
   confetti({
@@ -227,6 +233,18 @@ export function previewConfetti(): void {
   if (typeof window === "undefined") return;
   if (prefersReducedMotion()) return;
 
+  // 動態載入 canvas-confetti
+  void import("canvas-confetti").then(({ default: confetti }) => {
+    runPreviewConfetti(confetti);
+  });
+}
+
+function runPreviewConfetti(confetti: (opts?: Options) => unknown): void {
+  // canvas-confetti 實際 export 包含 confetti() 主函式 + shapeFromText / create 等輔助函式
+  // 但因為 .d.ts 缺失,TypeScript 只認得主函式型別,執行時 cast 即可
+  const full = confetti as ((opts?: Options) => unknown) & {
+    shapeFromText: (opts: { text: string; scalar?: number }) => unknown;
+  };
   const baseOpts = {
     zIndex: 9999,
     disableForReducedMotion: true,
@@ -263,7 +281,7 @@ export function previewConfetti(): void {
 
   // 星星收尾
   setTimeout(() => {
-    const starShape = confetti.shapeFromText({ text: "✨", scalar: 2.5 });
+    const starShape = full.shapeFromText({ text: "✨", scalar: 2.5 }) as Options["shapes"] extends Array<infer S> ? S : never;
     confetti({
       ...baseOpts,
       particleCount: 8,
