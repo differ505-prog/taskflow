@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Briefcase, ShoppingBag, Code2, GraduationCap, Github, Sparkles, ArrowRight, SkipForward } from "lucide-react";
 import { TEMPLATES, applyTemplate } from "@/lib/templates";
