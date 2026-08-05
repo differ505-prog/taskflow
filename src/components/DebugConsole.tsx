@@ -12,6 +12,7 @@ export function DebugConsole() {
   const [mounted, setMounted] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [touchLog, setTouchLog] = useState<string[]>([]);
+  const [elementAtPoint, setElementAtPoint] = useState<string>("-");
   const [activeTab, setActiveTab] = useState<DebugTab>("C0");
   const touchLogRef = useRef<string[]>([]);
 
@@ -36,10 +37,33 @@ export function DebugConsole() {
       setTouchLog([...touchLogRef.current]);
     };
 
+    // §Safari-test: elementFromPoint 探測器 — 找出 touch 座標下真正的 DOM 元素
+    const handleTouchStart = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (!touch) return;
+      
+      // 用 document.elementFromPoint 找出 touch 座標下的實際元素
+      const realTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+      const tag = realTarget?.tagName?.toLowerCase() || "?";
+      const id = realTarget?.id || "";
+      const cls = Array.from(realTarget?.classList || []).slice(0, 5).join(".");
+      const text = (realTarget?.textContent || "").slice(0, 30).trim();
+      const href = (realTarget as HTMLAnchorElement)?.href || "";
+      
+      const info = `${tag}${id ? `#${id}` : ""}.${cls} "${text}" ${href ? `[→${href.slice(0, 40)}]` : ""}`;
+      setElementAtPoint(info);
+      
+      console.log("[Debug] 座標:", touch.clientX, touch.clientY);
+      console.log("[Debug] 實際命中元素:", realTarget);
+      console.log("[Debug] 元素 Tag/ID/Class:", tag, id, cls);
+    };
+
     document.addEventListener("touchstart", logTouch("touchstart"), { capture: true, passive: true });
     document.addEventListener("touchend", logTouch("touchend"), { capture: true, passive: true });
     document.addEventListener("click", logTouch("click"), { capture: true, passive: true });
     document.addEventListener("pointerdown", logTouch("pointerdown"), { capture: true, passive: true });
+    // §Safari-test: elementFromPoint 探測器
+    document.addEventListener("touchstart", handleTouchStart, { capture: true });
 
     window.addEventListener("error", handleError);
     window.addEventListener("unhandledrejection", handleRejection);
@@ -51,6 +75,8 @@ export function DebugConsole() {
       document.removeEventListener("touchend", logTouch("touchend"), { capture: true } as EventListenerOptions);
       document.removeEventListener("click", logTouch("click"), { capture: true } as EventListenerOptions);
       document.removeEventListener("pointerdown", logTouch("pointerdown"), { capture: true } as EventListenerOptions);
+      // §Safari-test: elementFromPoint 探測器 cleanup
+      document.removeEventListener("touchstart", handleTouchStart, { capture: true });
     };
   }, []);
 
@@ -63,6 +89,10 @@ export function DebugConsole() {
           <>
             <div className="text-yellow-300 font-bold mt-1">🔴 C0: Touch Event Status</div>
             <div className="text-red-400 text-[9px] mb-1">login x:0 y:0 t:touch</div>
+            {/* §Safari-test: elementFromPoint 探測結果 */}
+            <div className="bg-red-900/50 text-white p-1 mb-1 rounded text-[9px]">
+              <span className="font-bold">命中元素:</span> {elementAtPoint}
+            </div>
             {touchLog.length === 0 && <div className="text-slate-400">（還沒偵測到任何觸控事件）</div>}
             {touchLog.map((entry, i) => (
               <div key={i} className={i === 0 ? "text-cyan-300" : "text-green-600"}>{entry}</div>
@@ -90,7 +120,7 @@ export function DebugConsole() {
   return (
     <div className="fixed top-0 left-0 right-0 z-[9999] bg-black/90 text-green-400 font-mono text-[10px] p-2 pointer-events-none backdrop-blur-sm shadow-lg max-h-[45vh] overflow-y-auto">
       <div className="font-bold text-white mb-1 flex justify-between items-center">
-        <span>Debug (v12-touch)</span>
+        <span>Debug (v13-elementFromPoint)</span>
         <span>{new Date().toLocaleTimeString()}</span>
       </div>
       
