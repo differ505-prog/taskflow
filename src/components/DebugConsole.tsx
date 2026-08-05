@@ -33,29 +33,34 @@ export function DebugConsole() {
   const isBoardOpen = searchParams.get("board") === "1";
   const shouldRenderBoardFullscreen = isHydrated && defaultView === "board";
 
+  const [topElement, setTopElement] = useState<string>("loading...");
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const el = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
+      if (el) {
+        setTopElement(`<${el.tagName.toLowerCase()}>#${el.id}.${Array.from(el.classList).join('.')}`);
+      } else {
+        setTopElement("null");
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
-    <div className="fixed top-0 left-0 right-0 z-[9999] bg-black/80 text-green-400 font-mono text-xs p-2 pointer-events-none backdrop-blur-sm shadow-lg max-h-[40vh] overflow-y-auto">
-      <div className="font-bold text-white mb-1 flex justify-between">
-        <span>Safari Debug Console (v6)</span>
-        <span>{new Date().toLocaleTimeString()}</span>
+    <>
+      <div id="debug-console-container" className="fixed top-0 left-0 right-0 z-[9999] bg-black/80 text-green-400 font-mono text-xs p-2 pointer-events-none backdrop-blur-sm shadow-lg max-h-[40vh] overflow-y-auto">
+        <div className="font-bold text-white mb-1 flex justify-between">
+          <span>Safari Debug Console (v8)</span>
+          <span>{new Date().toLocaleTimeString()}</span>
+        </div>
+        {globalError && <div className="text-red-400 font-bold mb-1">{globalError}</div>}
+        <div>URL: {typeof window !== 'undefined' ? window.location.href : ''}</div>
+        <div>board Param: {searchParams.get("board") || "none"}</div>
+        <div>isHydrated: {isHydrated ? "true" : "false"}</div>
+        <div>Top Element @ Center: {topElement}</div>
+        <div>body inline ptr-events: {typeof window !== 'undefined' ? document.body.style.pointerEvents || "empty" : ''}</div>
       </div>
-      {globalError && <div className="text-red-400 font-bold mb-1">{globalError}</div>}
-      <div>URL: {typeof window !== 'undefined' ? window.location.href : ''}</div>
-      <div>board Param: {searchParams.get("board") || "none"}</div>
-      <div>isHydrated: {isHydrated ? "true" : "false"}</div>
-      <div>defaultView: {defaultView}</div>
-      <div>isBoardOpen: {isBoardOpen ? "true" : "false"}</div>
-      <div>shouldRenderBoardFullscreen: {shouldRenderBoardFullscreen ? "true" : "false"}</div>
-      <div>body.style.pointerEvents: {typeof window !== 'undefined' ? document.body.style.pointerEvents || "none (default)" : ''}</div>
-      <button 
-        onClick={() => {
-          document.body.style.pointerEvents = 'auto';
-          alert('Tried to force pointer-events: auto on body');
-        }}
-        className="mt-2 bg-red-500 text-white px-2 py-1 rounded text-[10px] pointer-events-auto"
-      >
-        Force Pointer Events Auto
-      </button>
-    </div>
+    </>
   );
 }
