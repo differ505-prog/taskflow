@@ -93,30 +93,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="VibeList" />
         <meta name="application-name" content="VibeList" />
         <meta name="msapplication-TileColor" content="#4F6AF5" />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.addEventListener('error', function(event) {
-                var errDiv = document.createElement('div');
-                errDiv.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(255,0,0,0.9);color:white;z-index:9999999;padding:20px;overflow:auto;word-wrap:break-word;font-size:16px;font-family:monospace;';
-                errDiv.innerHTML = '<h3>💥 致命錯誤捕捉 (V15)</h3>' + 
-                                   '<p><b>訊息:</b> ' + event.message + '</p>' +
-                                   '<p><b>檔案:</b> ' + event.filename + ':' + event.lineno + '</p>';
-                document.body.appendChild(errDiv);
-              });
-            
-              window.addEventListener('unhandledrejection', function(event) {
-                var errDiv = document.createElement('div');
-                errDiv.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(200,0,50,0.9);color:white;z-index:9999999;padding:20px;overflow:auto;word-wrap:break-word;font-size:16px;font-family:monospace;';
-                errDiv.innerHTML = '<h3>💥 Promise 拒絕捕捉 (V15)</h3>' + 
-                                   '<p><b>原因:</b> ' + (event.reason ? (event.reason.message || event.reason) : '未知') + '</p>';
-                document.body.appendChild(errDiv);
-              });
-            `
-          }}
-        />
-        {/* V14 原生監聽：繞過 React 直接偵測瀏覽器底層 touch 事件 */}
-        <script src="/vanilla-touch-debug.js" />
+
       </head>
       <body className="min-h-screen antialiased bg-[var(--surface-muted)]">
         <BfcacheHandler />
