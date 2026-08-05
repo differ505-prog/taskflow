@@ -2183,11 +2183,13 @@ function computeHabitStreak(habit: Habit, checkins: Habit["checkins"]): number {
   if (doneDates.length === 0) return 0;
   if (doneDates[0] !== localToday && doneDates[0] !== yesterday) return 0;
   let streak = 0;
+  let iterations = 0;
   const dateSet = new Set(doneDates);
   const d = new Date(doneDates[0]);
-  while (dateSet.has(toLocalDateString(d))) {
+  while (dateSet.has(toLocalDateString(d)) && iterations < 1000) {
     streak++;
     d.setDate(d.getDate() - 1);
+    iterations++;
   }
   return streak;
 }
@@ -2208,8 +2210,11 @@ function getNextRecurrenceDate(from: string, recurrence: Recurrence, startFrom?:
     case "weekly":
       if (recurrence.daysOfWeek && recurrence.daysOfWeek.length > 0) {
         d.setDate(d.getDate() + 1);
-        while (!recurrence.daysOfWeek.includes(d.getDay())) {
+        let iterations = 0;
+        const validDays = recurrence.daysOfWeek.map(Number);
+        while (!validDays.includes(d.getDay()) && iterations < 7) {
           d.setDate(d.getDate() + 1);
+          iterations++;
         }
       } else {
         d.setDate(d.getDate() + 7 * recurrence.interval);
