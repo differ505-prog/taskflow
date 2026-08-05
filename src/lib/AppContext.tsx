@@ -215,6 +215,7 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  console.log(`[Breadcrumb] 100. AppProvider 渲染開始 - ${Date.now()}`);
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [lists, setLists] = useState<TaskList[]>([]);
@@ -673,6 +674,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [user, reloadKey]);
 
   useEffect(() => {
+    console.log(`[Breadcrumb] 101. AppProvider useEffect (user=${user?.uid}) - ${Date.now()}`);
     if (!isLoaded || !user) return;
     const storedSharedLists = getSharedLists();
     const acceptedIds = Object.keys(storedSharedLists).filter(
