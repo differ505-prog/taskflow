@@ -59,21 +59,30 @@ interface OnboardingProps {
 
 export function Onboarding({ forceShow = false, onClose }: OnboardingProps) {
   const { addTaskLocalOnly, addList } = useApp();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showSkipConfirm, setShowSkipConfirm] = useState(false);
 
-  // §修法 A:per-user sentinel,跨裝置/瀏覽器/隱私視窗獨立追蹤
-  const onboardingKey = user?.uid ? `${ONBOARDING_KEY_PREFIX}_${user.uid}` : null;
+  // §修法 A:per-user sentinel, 若為訪客模式則使用預設 prefix
+  const onboardingKey = user?.uid ? `${ONBOARDING_KEY_PREFIX}_${user.uid}` : ONBOARDING_KEY_PREFIX;
 
-  // 若已完成 onboarding 且非強制顯示,直接返回 null
-  if (!forceShow && typeof window !== "undefined" && onboardingKey && localStorage.getItem(onboardingKey) === "1") {
-    return null;
-  }
+  const [isVisible, setIsVisible] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!forceShow && typeof window !== "undefined") {
+      if (localStorage.getItem(onboardingKey) === "1") {
+        setIsVisible(false);
+      }
+    }
+    setIsInitialized(true);
+  }, [loading, onboardingKey, forceShow]);
 
   const markDone = () => {
-    if (onboardingKey) localStorage.setItem(onboardingKey, "1");
+    localStorage.setItem(onboardingKey, "1");
+    setIsVisible(false);
     onClose?.();
   };
 
@@ -111,26 +120,31 @@ export function Onboarding({ forceShow = false, onClose }: OnboardingProps) {
     markDone();
   };
 
+  // 在 auth 狀態確認前不渲染，避免閃爍
+  if (loading || !isInitialized) return null;
+
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-        style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="onboarding-title"
-      >
+      {isVisible && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.96, y: 12 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: 12 }}
-          transition={{ duration: 0.18, ease: "easeOut" }}
-          className="card w-full max-w-2xl p-6 sm:p-8 shadow-2xl"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] overflow-y-auto"
+          style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="onboarding-title"
         >
-          {/* Header */}
+          <div className="flex min-h-full items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="card w-full max-w-2xl p-6 sm:p-8 shadow-2xl relative bg-white dark:bg-zinc-900"
+            >
+              {/* Header */}
           <div className="text-center mb-6">
             <div
               className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-3"
@@ -267,7 +281,9 @@ export function Onboarding({ forceShow = false, onClose }: OnboardingProps) {
             )}
           </div>
         </motion.div>
-      </motion.div>
+          </div>
+        </motion.div>
+      )}
     </AnimatePresence>
   );
 }
