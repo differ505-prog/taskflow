@@ -160,7 +160,7 @@ export function FlowTimer() {
               style={{ colorScheme: "light" }}
               allow="autoplay"
               scrolling="no"
-              src="https://omnisonic.vibelist.work/?zen=1"
+              src="https://music-focus-environment.vercel.app/?zen=1"
             />
             {/* §計時器未啟動時，使用透明遮罩攔截點擊，防止提早播放音樂 */}
             {!isRunning && (
