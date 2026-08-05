@@ -36,7 +36,7 @@ const ONBOARDING_TASK_TITLES = [
 ];
 
 export function OnboardingTask() {
-  const { tasks, addTaskLocalOnly, isAppReady } = useApp();
+  const { tasks, addTaskLocalOnly, isAppReady, tasksInitialized } = useApp();
   const { user } = useAuth();
   const injectedRef = useRef(false);
 
@@ -47,8 +47,8 @@ export function OnboardingTask() {
 
     // 守衛 1:元件已注入過(StrictMode 雙 mount 或重新 mount)
     if (injectedRef.current) return;
-    // 守衛 2:資料還沒載入完成
-    if (!isAppReady) return;
+    // 守衛 2:資料還沒載入完成（對於登入用戶，必須等待雲端初次同步 tasksInitialized 完成）
+    if (!isAppReady || (user && !tasksInitialized)) return;
     // 守衛 3:per-user sentinel 已存在 → 此使用者已看過/刪除過,絕不再重生
     if (typeof window !== "undefined" && localStorage.getItem(sentinelKey) === "1") return;
     // 守衛 4:任務清單不是空(已有任務 → 不算首次使用者)
@@ -78,7 +78,7 @@ export function OnboardingTask() {
     } catch {
       // localStorage 寫入失敗(隱私模式/Quota)不阻塞,雲端已有任務就夠
     }
-  }, [isAppReady, tasks.length, addTaskLocalOnly, user?.uid]);
+  }, [isAppReady, tasksInitialized, tasks.length, addTaskLocalOnly, user?.uid, user]);
 
   return null;
 }

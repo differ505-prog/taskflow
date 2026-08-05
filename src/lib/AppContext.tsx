@@ -92,6 +92,7 @@ interface AppContextValue {
   habits: Habit[];
   todayFocusMinutes: number;
   isAppReady: boolean; // 首次資料載入完成（用於骨架屏判定）
+  tasksInitialized: boolean; // 首次任務雲端同步完成
 
   forceReload: () => void;
 
@@ -236,6 +237,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [activeFilter, setActiveFilter] = useState<TaskFilter>({});
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "default">("default");
   const [isLoaded, setIsLoaded] = useState(false);
+  const [tasksInitialized, setTasksInitialized] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const lastActiveWriteAtRef = useRef<Record<string, number>>({});
   const deletedTaskIdsRef = useRef<Set<string>>(new Set()); // 追蹤本地刪除，待 Firebase 確認後清除
@@ -475,6 +477,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         });
       }, deletedTaskIdsRef.current).then((unsub) => {
         fbUnsubRef.current = unsub;
+        setTasksInitialized(true);
         if (fbSyncDebug) console.log("[SUP SYNC] 已訂閱 tasks uid:", user.uid);
       }).catch((err) => {
         console.warn("[SUP SYNC] 訂閱任務失敗:", err);
@@ -579,6 +582,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       // 首次登入：把本地 localStorage 任務上傳到 Supabase（只上傳不在雲端的）
       void migrateLocalToSupabase(user.uid);
+    } else {
+      setTasks(getTasks());
+      setTasksInitialized(true);
+      setIsLoaded(true);
+      return;
     }
 
     // ── 一次性遷移：把 localStorage 既有資料上傳到 Supabase ──
@@ -2160,6 +2168,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     getFilteredTasks, viewCounts, getListTaskCount, getTagCounts,
     forceReload: () => setReloadKey((k) => k + 1),
     isAppReady: isLoaded,
+    tasksInitialized,
     markEditingActivity,
     clearEditingActivity,
   };
