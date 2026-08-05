@@ -457,10 +457,12 @@ function FeedbackSection() {
       if (!res.ok) throw new Error("送出失敗");
       toast.success("已收到你的反饋，謝謝");
       setMessage("");
-    } catch {
-      toast.error("送出失敗，請稍後再試");
-    } finally {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "送出失敗，請稍後再試";
+      toast.error(msg);
       setSending(false);
+    } finally {
+      if (sending) setSending(false);
     }
   };
 
