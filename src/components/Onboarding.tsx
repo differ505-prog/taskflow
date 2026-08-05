@@ -84,13 +84,17 @@ export function Onboarding({ forceShow = false, onClose }: OnboardingProps) {
   useEffect(() => {
     if (!isVisible || !isAppReady || forceShow) return;
     if (tasks.length > 0) {
-      localStorage.setItem(onboardingKey, "1");
+      try {
+        localStorage.setItem(onboardingKey, "1");
+      } catch {}
       setIsVisible(false);
     }
   }, [isVisible, isAppReady, tasks.length, forceShow, onboardingKey]);
 
   const markDone = () => {
-    localStorage.setItem(onboardingKey, "1");
+    try {
+      localStorage.setItem(onboardingKey, "1");
+    } catch {}
     setIsVisible(false);
     onClose?.();
   };

@@ -53,7 +53,9 @@ export function saveTasks(tasks: Task[]): void {
 
 /** §26-J:寫入任務時同步更新 LAST_USER_UID_KEY;由 AppContext 外部在 uid 已知時主動 call updateLastUserUid */
 export function updateLastUserUid(uid: string): void {
-  localStorage.setItem(LAST_USER_UID_KEY, uid);
+  try {
+    localStorage.setItem(LAST_USER_UID_KEY, uid);
+  } catch {}
 }
 
 /**
@@ -62,9 +64,16 @@ export function updateLastUserUid(uid: string): void {
  * AppContext 初始化 user 確定後 call 此函式,確保 load 回來的是乾淨的當前用戶任務。
  */
 export function clearTasksIfUserChanged(currentUid: string): number {
-  const lastUid = localStorage.getItem(LAST_USER_UID_KEY);
+  if (typeof window === "undefined") return 0;
+  let lastUid: string | null = null;
+  try {
+    lastUid = localStorage.getItem(LAST_USER_UID_KEY);
+  } catch {}
+  
   if (!lastUid || lastUid === currentUid) {
-    if (!lastUid) localStorage.setItem(LAST_USER_UID_KEY, currentUid);
+    if (!lastUid) {
+      try { localStorage.setItem(LAST_USER_UID_KEY, currentUid); } catch {}
+    }
     return 0;
   }
   const old = read<Task[]>(TASKS_KEY, []);
@@ -79,7 +88,7 @@ export function clearTasksIfUserChanged(currentUid: string): number {
     write(TASKS_KEY, kept);
     console.log(`[storage] §26-J 切換帳號:清除 ${cleared} 筆舊 uid=${lastUid} 任務`);
   }
-  localStorage.setItem(LAST_USER_UID_KEY, currentUid);
+  try { localStorage.setItem(LAST_USER_UID_KEY, currentUid); } catch {}
   return cleared;
 }
 
