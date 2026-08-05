@@ -291,6 +291,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearAllData();
     setUser(null);
     setDbRole(null);
+    // §修法:強制整頁重整，徹底清除 AppContext 記憶體殘留，避免登出後訪客模式看到舊任務
+    window.location.href = "/login";
   };
 
   return (

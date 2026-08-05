@@ -20,7 +20,20 @@ export function UserMenu() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <button
+        onClick={() => {
+          localStorage.removeItem("taskflow_guest_mode");
+          window.location.href = "/login";
+        }}
+        className="flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all bg-black hover:bg-black/80 dark:bg-white dark:hover:bg-white/90 text-white dark:text-black font-medium text-[13px]"
+      >
+        <User className="w-4 h-4" />
+        登入帳號
+      </button>
+    );
+  }
 
   const initials = user.displayName
     ? user.displayName.slice(0, 2)
