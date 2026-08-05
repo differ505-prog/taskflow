@@ -805,6 +805,7 @@ function EmptyState() {
          Ghost/Secondary(bg-slate-100/80 + text-slate-600),讓中央主視覺(以上 3 行)獨佔焦點 */}
       <Link
         href="/?board=1"
+        scroll={false}
         className="mt-2 inline-flex items-center gap-2 rounded-full bg-slate-100/80 px-6 py-3 text-sm font-medium text-slate-600 ring-1 ring-inset ring-slate-200/60 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-slate-200/60 hover:text-slate-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
       >
         <span aria-hidden>📥</span>

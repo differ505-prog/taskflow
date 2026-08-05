@@ -33,7 +33,7 @@ const nextConfig = {
       // connect-src: Supabase REST + Realtime (wss) + PostHog + Vercel Analytics + Sentry (預留)
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://us.i.posthog.com https://*.vercel-scripts.com https://*.sentry.io",
       // frame-src: 允許 OmniSonic 音樂播放器的 iframe
-      "frame-src 'self' https://music-focus-environment.vercel.app",
+      "frame-src 'self' https://music-focus-environment.vercel.app https://omnisonic.vibelist.work",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
