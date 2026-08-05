@@ -3,7 +3,7 @@
 // 例如 Vercel 部署後：https://music-focus-environment.vercel.app
 // 部署前本機開發可設為 http://localhost:3000
 const OMNISONIC_BASE_URL =
-  (process.env.NEXT_PUBLIC_OMNISONIC_URL as string | undefined) ?? "";
+  (process.env.NEXT_PUBLIC_OMNISONIC_URL as string | undefined) || "https://music-focus-environment.vercel.app";
 
 // ── OmniSonic new Auto DJ endpoint types ──────────────────────────
 

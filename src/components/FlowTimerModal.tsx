@@ -254,7 +254,7 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
                 style={{ borderColor: "rgba(192,38,211,0.3)", boxShadow: "0 0 24px rgba(192,38,211,0.25)" }}
               >
                 <iframe
-                  src={`${process.env.NEXT_PUBLIC_OMNISONIC_URL ?? ""}/embed/button`}
+                  src={`${process.env.NEXT_PUBLIC_OMNISONIC_URL || "https://music-focus-environment.vercel.app"}/embed/button`}
                   title="OmniSonic Deep Focus Button"
                   className="w-full h-full border-0"
                   allow="autoplay"

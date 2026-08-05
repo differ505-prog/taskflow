@@ -10,7 +10,7 @@ import { ToastProvider } from "@/components/ToastProvider";
 import { DueDateReminderWatcher } from "@/components/DueDateReminderWatcher";
 import { useAuth } from "@/lib/AuthContext";
 
-const OMNISONIC_URL = process.env.NEXT_PUBLIC_OMNISONIC_URL ?? "";
+const OMNISONIC_URL = process.env.NEXT_PUBLIC_OMNISONIC_URL || "https://music-focus-environment.vercel.app";
 
 /**
  * 全域 Provider 鏈 — Auth → AuthGate → App → ZenFlow → Firebase。

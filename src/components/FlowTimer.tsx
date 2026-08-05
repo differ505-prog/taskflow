@@ -42,7 +42,7 @@ export function FlowTimer() {
   // 避免 SSR 階段 React 將 iframe 標記為 hydration mismatch 而跳過 element
   useEffect(() => {
     if (!omnisonicIframeRef.current) return;
-    omnisonicIframeRef.current.src = `${process.env.NEXT_PUBLIC_OMNISONIC_URL ?? ""}/embed/button`;
+    omnisonicIframeRef.current.src = `${process.env.NEXT_PUBLIC_OMNISONIC_URL || "https://music-focus-environment.vercel.app"}/embed/button`;
   }, []);
 
   const handlePlayPause = useCallback(() => {
