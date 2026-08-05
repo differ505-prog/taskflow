@@ -75,14 +75,16 @@ export default function ZenHomeShell() {
   return (
     <ErrorBoundary>
       {shouldRenderBoardFullscreen ? (
-        <AppLayout />
+        // <AppLayout />
+        <div className="p-10 text-xl font-bold text-slate-800">V19 掏空測試 (Fullscreen)：如果這行字順利顯示且沒死機，代表兇手是 AppLayout 內部！</div>
       ) : (
         <>
           <ZenDashboard />
           <BoardDrawer
             isOpen={isBoardOpen}
             onClose={closeBoard}
-            content={<AppLayout />}
+            // content={<AppLayout />}
+            content={<div className="p-10 text-xl font-bold text-slate-800">V19 掏空測試 (Drawer)：如果這行字順利滑進來且沒死機，代表兇手就是被註解掉的 AppLayout！</div>}
           />
         </>
       )}
