@@ -1,40 +1,48 @@
 "use client";
 
-/**
- * DebugConsole — 在 PWA / mobile 環境注入 vConsole
- *
- * 觸發條件(任一):
- * - window.location.hostname 是 localhost / 127.0.0.1
- * - URL 帶 ?debug=1 query
- *
- * 為什麼需要:
- * - iOS PWA 從主畫 icon 啟動時,**Mac Safari Web Inspector 看不到** (§24.1)
- * - chrome://inspect 也看不到 PWA
- * - vConsole 注入後,PWA 內會出現浮動按鈕,點開是完整 web console
- *
- * vConsole 動態 import — 避免 SSR error(沒有 window)。
- */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 export function DebugConsole() {
+  const searchParams = useSearchParams();
+  const { defaultView, isHydrated } = useUserPreferences();
+  const [mounted, setMounted] = useState(false);
+  const [globalError, setGlobalError] = useState<string | null>(null);
+
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const host = window.location.hostname;
-    const params = new URLSearchParams(window.location.search);
-    const isLocal = host === "localhost" || host === "127.0.0.1";
-    const isDebugQuery = params.get("debug") === "1";
-    if (!isLocal && !isDebugQuery) return;
+    setMounted(true);
 
-    let cancelled = false;
-    import("vconsole").then(({ default: VConsole }) => {
-      if (cancelled) return;
-      new VConsole({ theme: "light" });
-    });
+    const handleError = (e: ErrorEvent) => {
+      setGlobalError(`Error: ${e.message} at ${e.filename}:${e.lineno}`);
+    };
+    const handleRejection = (e: PromiseRejectionEvent) => {
+      setGlobalError(`Unhandled Promise: ${String(e.reason)}`);
+    };
 
+    window.addEventListener("error", handleError);
+    window.addEventListener("unhandledrejection", handleRejection);
     return () => {
-      cancelled = true;
+      window.removeEventListener("error", handleError);
+      window.removeEventListener("unhandledrejection", handleRejection);
     };
   }, []);
 
-  return null;
+  if (!mounted) return null;
+
+  return (
+    <div className="fixed top-0 left-0 right-0 z-[9999] bg-black/80 text-green-400 font-mono text-xs p-2 pointer-events-none backdrop-blur-sm shadow-lg max-h-[40vh] overflow-y-auto">
+      <div className="font-bold text-white mb-1 flex justify-between">
+        <span>Safari Debug Console</span>
+        <span>{new Date().toLocaleTimeString()}</span>
+      </div>
+      {globalError && <div className="text-red-400 font-bold mb-1">{globalError}</div>}
+      <div>URL: {typeof window !== 'undefined' ? window.location.href : ''}</div>
+      <div>board Param: {searchParams.get("board") || 'none'}</div>
+      <div>isHydrated: {isHydrated ? "true" : "false"}</div>
+      <div>defaultView: {defaultView}</div>
+      <div>isBoardOpen: {searchParams.get("board") === "1" ? "true" : "false"}</div>
+      <div>shouldRenderBoardFullscreen: {isHydrated && defaultView === "board" ? "true" : "false"}</div>
+    </div>
+  );
 }

@@ -1,58 +1,44 @@
 "use client";
 
-import React, { Component, type ErrorInfo, type ReactNode } from "react";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import React, { Component, ErrorInfo, ReactNode } from "react";
 
 interface Props {
-  children: ReactNode;
-  fallback?: ReactNode;
+  children?: ReactNode;
 }
 
 interface State {
   hasError: boolean;
   error: Error | null;
+  errorInfo: ErrorInfo | null;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("[ErrorBoundary]", error, errorInfo);
-  }
-
-  handleReset = () => {
-    this.setState({ hasError: false, error: null });
+  public state: State = {
+    hasError: false,
+    error: null,
+    errorInfo: null,
   };
 
-  render() {
+  public static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, error, errorInfo: null };
+  }
+
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("Uncaught error:", error, errorInfo);
+    this.setState({ errorInfo });
+  }
+
+  public render() {
     if (this.state.hasError) {
-      if (this.props.fallback) return this.props.fallback;
       return (
-        <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center bg-[var(--surface-muted)]">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6" style={{ background: "rgba(255,59,48,0.08)" }}>
-            <AlertTriangle className="w-8 h-8" style={{ color: "var(--status-danger)" }} aria-hidden="true" />
-          </div>
-          <h1 className="text-[20px] font-semibold text-[var(--text-primary)] mb-2">
-            頁面錯誤
-          </h1>
-          <p className="text-[14px] text-[var(--text-secondary)] max-w-xs leading-relaxed mb-8">
-            發生非預期錯誤，請重新整理
+        <div className="fixed inset-0 z-[9999] bg-red-50 p-4 overflow-y-auto">
+          <h1 className="text-xl font-bold text-red-600 mb-4">Something went wrong.</h1>
+          <p className="text-sm font-mono text-red-800 bg-red-100 p-2 rounded whitespace-pre-wrap">
+            {this.state.error?.toString()}
           </p>
-          <button
-            onClick={this.handleReset}
-            className="btn-primary"
-            aria-label="重新整理"
-          >
-            <RefreshCw className="w-4 h-4" aria-hidden="true" />
-            重新整理
-          </button>
+          <pre className="mt-4 text-xs font-mono text-red-600 bg-red-50 p-2 border border-red-200 overflow-x-auto whitespace-pre-wrap">
+            {this.state.errorInfo?.componentStack}
+          </pre>
         </div>
       );
     }

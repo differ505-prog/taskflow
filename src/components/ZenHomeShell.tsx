@@ -7,6 +7,9 @@ import { AppLayout } from "@/components/AppLayout";
 import ZenDashboard from "@/components/ZenDashboard";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { DebugConsole } from "@/components/DebugConsole";
+
 /**
  * 禪模式家頁 / 抽屜殼
  * - URL `?board=1` 開啟任務大廳抽屜(內含 AppLayout)
@@ -72,7 +75,8 @@ export default function ZenHomeShell() {
   }, [isBoardOpen]);
 
   return (
-    <>
+    <ErrorBoundary>
+      <DebugConsole />
       {shouldRenderBoardFullscreen ? (
         <AppLayout />
       ) : (
@@ -85,7 +89,7 @@ export default function ZenHomeShell() {
           />
         </>
       )}
-    </>
+    </ErrorBoundary>
   );
 }
 
