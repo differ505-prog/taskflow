@@ -58,7 +58,7 @@ interface OnboardingProps {
 }
 
 export function Onboarding({ forceShow = false, onClose }: OnboardingProps) {
-  const { addTaskLocalOnly, addList } = useApp();
+  const { addTaskLocalOnly, addList, tasks, isAppReady } = useApp();
   const { user, loading } = useAuth();
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -79,6 +79,15 @@ export function Onboarding({ forceShow = false, onClose }: OnboardingProps) {
     }
     setIsInitialized(true);
   }, [loading, onboardingKey, forceShow]);
+
+  // §自動隱藏：若為老用戶跨裝置登入，系統載入完成後發現已有任務，則自動視為已完成 Onboarding
+  useEffect(() => {
+    if (!isVisible || !isAppReady || forceShow) return;
+    if (tasks.length > 0) {
+      localStorage.setItem(onboardingKey, "1");
+      setIsVisible(false);
+    }
+  }, [isVisible, isAppReady, tasks.length, forceShow, onboardingKey]);
 
   const markDone = () => {
     localStorage.setItem(onboardingKey, "1");
