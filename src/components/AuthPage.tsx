@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
 import { AUTH_PROVIDERS } from "@/lib/authConfig";
 import { translateAuthError } from "@/lib/errorMessages";
+import { toast } from "sonner";
 import {
   Mail, Lock, LogIn, AlertCircle, Loader2, ShieldCheck, CheckCircle2, ArrowLeft,
 } from "lucide-react";
@@ -396,6 +397,17 @@ export function AuthPage({ onGuestMode }: AuthPageProps) {
           </button>
         </motion.div>
 
+        {/* Feedback for guests */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="mt-6 pt-5 border-t"
+          style={{ borderColor: "var(--border)" }}
+        >
+          <FeedbackSection />
+        </motion.div>
+
         {/* Privacy */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -414,6 +426,79 @@ export function AuthPage({ onGuestMode }: AuthPageProps) {
           {" "}和{" "}
           <a href="/privacy" className="underline" style={{ color: "var(--brand)" }}>隱私權政策</a>
         </p>
+      </div>
+    </div>
+  );
+}
+
+function FeedbackSection() {
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const handleSend = async () => {
+    if (!message.trim() || sending) return;
+    setSending(true);
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message,
+          userEmail: null,
+          userRole: "guest",
+          context: {
+            route: "/login",
+            viewport: typeof window !== "undefined" ? `${window.innerWidth}x${window.innerHeight}` : null,
+            online: typeof navigator !== "undefined" ? navigator.onLine : true,
+            collectedAt: new Date().toISOString(),
+          },
+        }),
+      });
+      if (!res.ok) throw new Error("送出失敗");
+      toast.success("已收到你的反饋，謝謝");
+      setMessage("");
+    } catch {
+      toast.error("送出失敗，請稍後再試");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="text-center">
+      <p className="text-[12px] mb-2" style={{ color: "var(--text-tertiary)" }}>
+        遇到問題？無法登入？
+      </p>
+      <div className="flex gap-2">
+        <textarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="簡述問題或建議…"
+          rows={2}
+          maxLength={500}
+          className="flex-1 px-3 py-2 rounded-xl text-[12px] resize-none focus-visible:ring-2 focus-visible:outline-none transition-colors"
+          style={{
+            background: "var(--surface-muted)",
+            color: "var(--text-primary)",
+            border: "1px solid var(--border)",
+          }}
+        />
+        <button
+          type="button"
+          onClick={handleSend}
+          disabled={!message.trim() || sending}
+          className="px-3 py-2 rounded-xl text-[12px] font-medium transition-all duration-200 hover:opacity-90 active:scale-95 disabled:opacity-50 self-end"
+          style={{
+            background: "var(--brand)",
+            color: "var(--brand-foreground, white)",
+          }}
+        >
+          {sending ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            "送出"
+          )}
+        </button>
       </div>
     </div>
   );
