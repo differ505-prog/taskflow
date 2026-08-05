@@ -39,23 +39,9 @@ export function ServiceWorkerRegister() {
     const onOnline = () => triggerUpdate();
     window.addEventListener("online", onOnline);
 
-    // 5) 自動更新機制：當新的 Service Worker 接管時，自動重新載入網頁以套用新版
-    let refreshing = false;
-    const onControllerChange = () => {
-      if (!refreshing) {
-        refreshing = true;
-        // 如果網頁在背景，不強制干擾，等用戶切回前景時自然會看到新版
-        if (document.visibilityState === "visible") {
-          window.location.reload();
-        }
-      }
-    };
-    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
-
     return () => {
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("online", onOnline);
-      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
     };
   }, []);
 
