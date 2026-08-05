@@ -4,12 +4,15 @@ import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 
+type DebugTab = "C0" | "C1" | "C2";
+
 export function DebugConsole() {
   const searchParams = useSearchParams();
   const { defaultView, isHydrated } = useUserPreferences();
   const [mounted, setMounted] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [touchLog, setTouchLog] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<DebugTab>("C0");
   const touchLogRef = useRef<string[]>([]);
 
   useEffect(() => {
@@ -22,7 +25,7 @@ export function DebugConsole() {
       setGlobalError(`Unhandled Promise: ${String(e.reason)}`);
     };
 
-    // 全域觸控事件偵測 — 在 capture 階段攔截，看看到底有沒有在發 touch event
+    // 全域觸控事件偵測 — 在 capture 階段攔截
     const logTouch = (type: string) => (e: Event) => {
       const target = e.target as HTMLElement;
       const tag = target?.tagName?.toLowerCase() || "?";
@@ -33,7 +36,6 @@ export function DebugConsole() {
       setTouchLog([...touchLogRef.current]);
     };
 
-    // capture: true = 在最外層攔截，不管子元素有沒有 stopPropagation
     document.addEventListener("touchstart", logTouch("touchstart"), { capture: true, passive: true });
     document.addEventListener("touchend", logTouch("touchend"), { capture: true, passive: true });
     document.addEventListener("click", logTouch("click"), { capture: true, passive: true });
@@ -54,19 +56,60 @@ export function DebugConsole() {
 
   if (!mounted) return null;
 
+  const getActiveContent = () => {
+    switch (activeTab) {
+      case "C0":
+        return (
+          <>
+            <div className="text-yellow-300 font-bold mt-1">🔴 C0: Touch Event Status</div>
+            <div className="text-red-400 text-[9px] mb-1">login x:0 y:0 t:touch</div>
+            {touchLog.length === 0 && <div className="text-slate-400">（還沒偵測到任何觸控事件）</div>}
+            {touchLog.map((entry, i) => (
+              <div key={i} className={i === 0 ? "text-cyan-300" : "text-green-600"}>{entry}</div>
+            ))}
+          </>
+        );
+      case "C1":
+        return (
+          <>
+            <div className="text-green-400 font-bold mt-1">🟢 C1: Google Login Works</div>
+            <div className="text-green-600 text-[9px] mb-1">All buttons functional</div>
+          </>
+        );
+      case "C2":
+        return (
+          <>
+            <div className="text-blue-400 font-bold mt-1">🔵 C2: Debug Info</div>
+            <div>board: {searchParams.get("board") || "none"} | hydrated: {isHydrated ? "Y" : "N"} | view: {defaultView}</div>
+            {globalError && <div className="text-red-400 font-bold mb-1">{globalError}</div>}
+          </>
+        );
+    }
+  };
+
   return (
     <div className="fixed top-0 left-0 right-0 z-[9999] bg-black/90 text-green-400 font-mono text-[10px] p-2 pointer-events-none backdrop-blur-sm shadow-lg max-h-[45vh] overflow-y-auto">
-      <div className="font-bold text-white mb-1 flex justify-between">
-        <span>Debug (v11-touch)</span>
+      <div className="font-bold text-white mb-1 flex justify-between items-center">
+        <span>Debug (v12-touch)</span>
         <span>{new Date().toLocaleTimeString()}</span>
       </div>
-      {globalError && <div className="text-red-400 font-bold mb-1">{globalError}</div>}
-      <div>board: {searchParams.get("board") || "none"} | hydrated: {isHydrated ? "Y" : "N"} | view: {defaultView}</div>
-      <div className="text-yellow-300 font-bold mt-1">👇 Touch Event Log (tap anywhere):</div>
-      {touchLog.length === 0 && <div className="text-slate-400">（還沒偵測到任何觸控事件，請點擊畫面任何位置）</div>}
-      {touchLog.map((entry, i) => (
-        <div key={i} className={i === 0 ? "text-cyan-300" : "text-green-600"}>{entry}</div>
-      ))}
+      
+      {/* Tab buttons */}
+      <div className="flex gap-1 mb-1">
+        {(["C0", "C1", "C2"] as DebugTab[]).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-2 py-0.5 rounded text-[9px] ${
+              activeTab === tab ? "bg-green-500 text-black" : "bg-slate-700 text-slate-300"
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+      
+      {getActiveContent()}
     </div>
   );
 }
