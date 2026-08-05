@@ -58,36 +58,44 @@ export async function saveTotalPp(uid: string, totalPp: number): Promise<void> {
   }
 }
 
-/**
- * 即時訂閱 total_pp 變更 — 跨裝置推送
- * 任何裝置寫入都會觸發 onUpdate 回呼
- */
+// ─── Realtime Singleton Manager ───
+let activeChannel: ReturnType<typeof supabase.channel> | null = null;
+const subscribers = new Set<(totalPp: number) => void>();
+
 export async function subscribeTotalPp(
   uid: string,
   onUpdate: (totalPp: number) => void,
 ): Promise<Unsubscribe> {
   if (!supabase) return () => {};
 
-  const channel = supabase
-    .channel(`progress_rank:${uid}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "UPDATE",
-        schema: "public",
-        table: TABLE,
-        filter: `owner_uid=eq.${uid}`,
-      },
-      (payload) => {
-        const next = (payload.new as { total_pp?: unknown })?.total_pp;
-        if (typeof next === "number" && Number.isFinite(next) && next >= 0) {
-          onUpdate(next);
-        }
-      },
-    )
-    .subscribe();
+  subscribers.add(onUpdate);
+
+  if (!activeChannel) {
+    activeChannel = supabase
+      .channel(`progress_rank:${uid}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: TABLE,
+          filter: `owner_uid=eq.${uid}`,
+        },
+        (payload) => {
+          const next = (payload.new as { total_pp?: unknown })?.total_pp;
+          if (typeof next === "number" && Number.isFinite(next) && next >= 0) {
+            subscribers.forEach(cb => cb(next));
+          }
+        },
+      )
+      .subscribe();
+  }
 
   return () => {
-    void supabase.removeChannel(channel);
+    subscribers.delete(onUpdate);
+    if (subscribers.size === 0 && activeChannel) {
+      void supabase.removeChannel(activeChannel);
+      activeChannel = null;
+    }
   };
 }
