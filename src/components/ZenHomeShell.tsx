@@ -111,7 +111,7 @@ function BoardDrawer({
             transition={{ duration: 0.25, ease: "easeOut" }}
             onClick={onClose}
             aria-hidden
-            className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm"
+            className="fixed inset-0 z-40 bg-slate-900/40"
           />
           <motion.div
             key="drawer"

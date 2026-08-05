@@ -422,7 +422,7 @@ function AppLayoutInner() {
       {isMobileSidebarOpen && (
         <>
           <div
-            className="md:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+            className="md:hidden fixed inset-0 z-40 bg-black/50"
             onClick={() => setIsMobileSidebarOpen(false)}
             aria-hidden="true"
           />
