@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -100,7 +101,9 @@ export default function RootLayout({
         </ConfirmProvider>
         <ServiceWorkerRegister />
         <Analytics />
-        <DebugConsole />
+        <Suspense fallback={null}>
+          <DebugConsole />
+        </Suspense>
       </body>
     </html>
   );

@@ -6,9 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AppLayout } from "@/components/AppLayout";
 import ZenDashboard from "@/components/ZenDashboard";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { DebugConsole } from "@/components/DebugConsole";
 
 /**
  * 禪模式家頁 / 抽屜殼
@@ -76,7 +74,6 @@ export default function ZenHomeShell() {
 
   return (
     <ErrorBoundary>
-      <DebugConsole />
       {shouldRenderBoardFullscreen ? (
         <AppLayout />
       ) : (
