@@ -12,9 +12,10 @@ export function DebugConsole() {
   const [mounted, setMounted] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [touchLog, setTouchLog] = useState<string[]>([]);
-  const [elementAtPoint, setElementAtPoint] = useState<string>("-");
+  const [elementAtPoint, setElementAtPoint] = useState<string>("等待觸控...");
   const [activeTab, setActiveTab] = useState<DebugTab>("C0");
   const touchLogRef = useRef<string[]>([]);
+  const debugOverlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -37,25 +38,31 @@ export function DebugConsole() {
       setTouchLog([...touchLogRef.current]);
     };
 
-    // §Safari-test: elementFromPoint 探測器 — 找出 touch 座標下真正的 DOM 元素
+    // §Safari-test v14: elementFromPoint 探測器 + 防呆
     const handleTouchStart = (e: TouchEvent) => {
-      const touch = e.touches[0];
-      if (!touch) return;
+      console.log("[Capture] 偵測到 touchstart 事件！");
       
-      // 用 document.elementFromPoint 找出 touch 座標下的實際元素
+      // 防呆：檢查 e.touches 是否異常
+      if (!e.touches || e.touches.length === 0) {
+        console.log("[Capture] 警告：e.touches 為空！可能是 iOS x:0 Bug");
+        setElementAtPoint("⚠️ touches 為空！");
+        return;
+      }
+
+      const touch = e.touches[0];
+      console.log(`[Capture] 座標: x=${touch.clientX}, y=${touch.clientY}`);
+      
+      // 如果座標是 0,0，elementFromPoint 會抓到左上角
       const realTarget = document.elementFromPoint(touch.clientX, touch.clientY);
-      const tag = realTarget?.tagName?.toLowerCase() || "?";
+      const tag = realTarget?.tagName?.toLowerCase() || "無";
       const id = realTarget?.id || "";
       const cls = Array.from(realTarget?.classList || []).slice(0, 5).join(".");
       const text = (realTarget?.textContent || "").slice(0, 30).trim();
       const href = (realTarget as HTMLAnchorElement)?.href || "";
       
       const info = `${tag}${id ? `#${id}` : ""}.${cls} "${text}" ${href ? `[→${href.slice(0, 40)}]` : ""}`;
+      console.log("[Capture] 命中元素:", info);
       setElementAtPoint(info);
-      
-      console.log("[Debug] 座標:", touch.clientX, touch.clientY);
-      console.log("[Debug] 實際命中元素:", realTarget);
-      console.log("[Debug] 元素 Tag/ID/Class:", tag, id, cls);
     };
 
     document.addEventListener("touchstart", logTouch("touchstart"), { capture: true, passive: true });
@@ -120,7 +127,7 @@ export function DebugConsole() {
   return (
     <div className="fixed top-0 left-0 right-0 z-[9999] bg-black/90 text-green-400 font-mono text-[10px] p-2 pointer-events-none backdrop-blur-sm shadow-lg max-h-[45vh] overflow-y-auto">
       <div className="font-bold text-white mb-1 flex justify-between items-center">
-        <span>Debug (v13-elementFromPoint)</span>
+        <span>Debug (v14-capture)</span>
         <span>{new Date().toLocaleTimeString()}</span>
       </div>
       
