@@ -127,7 +127,7 @@ export function DebugConsole() {
   return (
     <div className="fixed top-0 left-0 right-0 z-[9999] bg-black/90 text-green-400 font-mono text-[10px] p-2 pointer-events-none backdrop-blur-sm shadow-lg max-h-[45vh] overflow-y-auto">
       <div className="font-bold text-white mb-1 flex justify-between items-center">
-        <span>Debug (v14-capture)</span>
+        <span>Debug (v15-capture)</span>
         <span>{new Date().toLocaleTimeString()}</span>
       </div>
       
