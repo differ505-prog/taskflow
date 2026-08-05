@@ -366,7 +366,7 @@ export default function ZenDashboard() {
           </GhostButton>
           <button
         type="button"
-        onClick={() => { alert("Safari 點擊測試成功！準備跳轉..."); window.location.href = "/?board=1"; }}
+        onClick={(e) => { e.preventDefault(); window.location.assign("/?board=1"); }} onTouchEnd={(e) => { e.preventDefault(); window.location.assign("/?board=1"); }} onPointerDown={(e) => { window.location.assign("/?board=1"); }}
             className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-2 text-sm font-medium text-slate-500 backdrop-blur transition-all duration-200 ease-out md:hover:-translate-y-0.5 md:hover:text-slate-700 md:hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 sm:px-4"
             aria-label="進入任務大廳(收件箱) — 整理任務或快速 Brain Dump"
           >
@@ -805,8 +805,8 @@ function EmptyState() {
          Ghost/Secondary(bg-slate-100/80 + text-slate-600),讓中央主視覺(以上 3 行)獨佔焦點 */}
       <button
         type="button"
-        onClick={() => { alert("Safari 點擊測試成功！準備跳轉..."); window.location.href = "/?board=1"; }}
-        className="mt-2 inline-flex items-center gap-2 rounded-full bg-slate-100/80 px-6 py-3 text-sm font-medium text-slate-600 ring-1 ring-inset ring-slate-200/60 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-slate-200/60 hover:text-slate-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
+        onClick={(e) => { e.preventDefault(); window.location.assign("/?board=1"); }} onTouchEnd={(e) => { e.preventDefault(); window.location.assign("/?board=1"); }} onPointerDown={(e) => { window.location.assign("/?board=1"); }}
+        className="mt-2 touch-manipulation inline-flex items-center gap-2 rounded-full bg-slate-100/80 px-6 py-3 text-sm font-medium text-slate-600 ring-1 ring-inset ring-slate-200/60 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-slate-200/60 hover:text-slate-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
       >
         <span aria-hidden>📥</span>
         <span>開啟任務大廳</span>

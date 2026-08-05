@@ -33,7 +33,7 @@ export function DebugConsole() {
   return (
     <div className="fixed top-0 left-0 right-0 z-[9999] bg-black/80 text-green-400 font-mono text-xs p-2 pointer-events-none backdrop-blur-sm shadow-lg max-h-[40vh] overflow-y-auto">
       <div className="font-bold text-white mb-1 flex justify-between">
-        <span>Safari Debug Console (v3)</span>
+        <span>Safari Debug Console (v4)</span>
         <span>{new Date().toLocaleTimeString()}</span>
       </div>
       {globalError && <div className="text-red-400 font-bold mb-1">{globalError}</div>}
