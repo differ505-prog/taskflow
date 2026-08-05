@@ -151,7 +151,7 @@ export function Onboarding({ forceShow = false, onClose }: OnboardingProps) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 12 }}
               transition={{ duration: 0.18, ease: "easeOut" }}
-              className="card w-full max-w-2xl p-6 sm:p-8 shadow-2xl relative bg-white dark:bg-zinc-900"
+              className="card w-full max-w-2xl p-6 sm:p-8 shadow-2xl relative bg-white dark:bg-zinc-900 max-h-[90dvh] overflow-y-auto overscroll-contain"
             >
               {/* Header */}
           <div className="text-center mb-6">

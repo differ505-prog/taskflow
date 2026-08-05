@@ -21,13 +21,30 @@
  * - App Shell 架構：HTML + CSS + JS 全部離線
  * - API 請求不做離線寫入（任務資料以 Supabase Realtime 為準）
  */
-const CACHE_NAME = "taskflow-S2vxQz3nLPSd"; // ← build/dev 時由 scripts/patch-sw.js 自動替換為 taskflow-{hash}
+const CACHE_NAME = "taskflow-AcZhXFynwvrZ"; // ← build/dev 時由 scripts/patch-sw.js 自動替換為 taskflow-{hash}
 // STATIC_ASSETS 不再放 HTML("/") ，否則 cache-first 永遠命中舊 HTML 導致 SW 更新也吃不到新內容
 const STATIC_ASSETS = [
+  "/",
   "/manifest.json",
   "/icon-192.png",
   "/icon-512.png",
 ];
+
+// ─── Utils ────────────────────────────────────────────────────────
+const fetchWithTimeout = (request, timeout = 8000) => {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("Timeout")), timeout);
+    fetch(request)
+      .then((res) => {
+        clearTimeout(timer);
+        resolve(res);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+};
 
 // ─── Install ──────────────────────────────────────────────────────
 self.addEventListener("install", (event) => {
@@ -36,7 +53,6 @@ self.addEventListener("install", (event) => {
       return cache.addAll(STATIC_ASSETS);
     })
   );
-  // 立即啟用新 SW，跳過等待
   self.skipWaiting();
 });
 
@@ -51,8 +67,7 @@ self.addEventListener("activate", (event) => {
       );
     })
   );
-  // 接管所有客戶端
-  self.clients.claim();
+  // 移除 self.clients.claim(); 以避免 Safari 在 OAuth 重新導向時網路請求卡死（Safari 知名 Bug）
 });
 
 // ─── Fetch ───────────────────────────────────────────────────────
@@ -97,7 +112,7 @@ self.addEventListener("fetch", (event) => {
 
   if (isNavigation) {
     event.respondWith(
-      fetch(request)
+      fetchWithTimeout(request)
         .then((response) => {
           if (response.ok) {
             const clone = response.clone();
@@ -115,7 +130,7 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
-      return fetch(request).then((response) => {
+      return fetchWithTimeout(request).then((response) => {
         if (!response.ok) return response;
         const clone = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
