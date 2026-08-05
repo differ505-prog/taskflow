@@ -75,16 +75,14 @@ export default function ZenHomeShell() {
   return (
     <ErrorBoundary>
       {shouldRenderBoardFullscreen ? (
-        // <AppLayout />
-        <div className="p-10 text-xl font-bold text-slate-800">V19 掏空測試 (Fullscreen)：如果這行字順利顯示且沒死機，代表兇手是 AppLayout 內部！</div>
+        <AppLayout />
       ) : (
         <>
           <ZenDashboard />
           <BoardDrawer
             isOpen={isBoardOpen}
             onClose={closeBoard}
-            // content={<AppLayout />}
-            content={<div className="p-10 text-xl font-bold text-slate-800">V19 掏空測試 (Drawer)：如果這行字順利滑進來且沒死機，代表兇手就是被註解掉的 AppLayout！</div>}
+            content={<AppLayout />}
           />
         </>
       )}
@@ -101,47 +99,59 @@ function BoardDrawer({
   onClose: () => void;
   content: React.ReactNode;
 }) {
-  if (!isOpen) return null;
-
   return (
-    <>
-      <div
-        onClick={onClose}
-        aria-hidden="true"
-        className="fixed inset-0 z-40 bg-slate-900/40"
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="任務大廳"
-        className="fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-[var(--surface-muted)] shadow-2xl md:max-w-[1280px] lg:max-w-[1440px]"
-      >
-        <div className="flex items-center justify-end px-4 py-3 sm:px-6">
-          <button
-            type="button"
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          <motion.div
+            key="backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
             onClick={onClose}
-            aria-label="關閉任務大廳,返回禪模式"
-            className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-slate-500 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:text-slate-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+            aria-hidden
+            className="fixed inset-0 z-40 bg-slate-900/40"
+          />
+          <motion.div
+            key="drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="任務大廳"
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-[var(--surface-muted)] shadow-2xl md:max-w-[1280px] lg:max-w-[1440px]"
           >
-            <svg
-              aria-hidden
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-            <span>關閉</span>
-          </button>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto">{content}</div>
-      </div>
-    </>
+            <div className="flex items-center justify-end px-4 py-3 sm:px-6">
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="關閉任務大廳,返回禪模式"
+                className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-slate-500 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:text-slate-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+              >
+                <svg
+                  aria-hidden
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+                <span>關閉</span>
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">{content}</div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 }

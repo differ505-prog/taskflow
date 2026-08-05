@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useApp } from "@/lib/AppContext";
 import { useAuth } from "@/lib/AuthContext";
 import { DEFAULT_LIST_IDS } from "@/lib/types";
+import { getLocalToday } from "@/lib/dateUtils";
 
 /**
  * 首次載入偵測：當使用者任務清單為空時,連續注入 3 筆 PWA 安裝教學任務。
@@ -33,10 +34,6 @@ const ONBOARDING_TASK_TITLES = [
   "🤖 Android 安裝:點右上角 [⋮] ➔ 選擇 [加到主畫面]",
   "⚡️ 裝好後,用 App 打開,把這三個任務全部斬斷吧!",
 ];
-
-function getLocalToday(): string {
-  return getLocalToday(); // YYYY-MM-DD(本地時區)
-}
 
 export function OnboardingTask() {
   const { tasks, addTaskLocalOnly, isAppReady } = useApp();
