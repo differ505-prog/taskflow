@@ -6,6 +6,18 @@ export function ServiceWorkerRegister() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
 
+    // 0) 緊急逃生開關：如果 URL 帶有 ?killsw=1，則強制註銷所有 SW 並重整
+    const qs = new URLSearchParams(window.location.search);
+    if (qs.get("killsw") === "1") {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        for (let reg of registrations) {
+          reg.unregister();
+        }
+        window.location.href = "/";
+      });
+      return;
+    }
+
     const triggerUpdate = () => {
       navigator.serviceWorker
         .getRegistration()
@@ -19,15 +31,14 @@ export function ServiceWorkerRegister() {
     navigator.serviceWorker
       .register("/sw.js")
       .then((reg) => {
-        // 2) 主動抓新版（不等 setInterval 第一次 1 小時）
+        // 2) 主動抓新版
         reg.update();
       })
       .catch(() => {
-        // SW registration failed — app still works
+        // SW registration failed
       });
 
-    // 3) 切前景時主動檢查更新（§24.1 + §26 K）
-    // iOS PWA 進背景會凍結 setInterval、Wed；bulb by visibilitychange 來取代週期輪詢
+    // 3) 切前景時主動檢查更新
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         triggerUpdate();
