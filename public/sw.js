@@ -71,73 +71,12 @@ self.addEventListener("activate", (event) => {
 });
 
 // ─── Fetch ───────────────────────────────────────────────────────
+// [⚠️ 緊急修復] 為了避免 Safari Service Worker 攔截 Next.js 15 App Router 的 RSC 請求導致死鎖或導航失效，
+// 我們全面棄用 SW 端的 fetch 攔截。App Router 本身就有很強的 client-side router cache，不需要 SW 來 cache。
 self.addEventListener("fetch", (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-
-  // 僅處理同源請求
-  if (url.origin !== self.location.origin) return;
-
-  // API 路由：network-first（保持即時性）
-  if (url.pathname.startsWith("/api/")) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // 只對 GET 請求做快取（避免污染寫入）
-          if (request.method === "GET") {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          }
-          return response;
-        })
-        .catch(() => {
-          // 網路失敗時回退快取
-          return caches.match(request).then((cached) => {
-            if (cached) return cached;
-            return new Response(JSON.stringify({ error: "offline" }), {
-              status: 503,
-              headers: { "Content-Type": "application/json" },
-            });
-          });
-        })
-    );
-    return;
-  }
-
-  // 靜態資源（含 JS/CSS/圖片/_next/*）：cache-first（速度優先）
-  // 例外：HTML / 導航請求（request.mode === 'navigate'）改走 network-first
-  // 確保 SW 更新後，用戶重新整理能立刻拿到新版 HTML，不會被舊 cache 卡住
-  const isNavigation = request.mode === "navigate" ||
-    (request.method === "GET" && request.headers.get("accept")?.includes("text/html"));
-
-  if (isNavigation) {
-    event.respondWith(
-      fetchWithTimeout(request)
-        .then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          }
-          return response;
-        })
-        .catch(() =>
-          caches.match(request).then((cached) => cached || caches.match("/"))
-        )
-    );
-    return;
-  }
-
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetchWithTimeout(request).then((response) => {
-        if (!response.ok) return response;
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-        return response;
-      });
-    })
-  );
+  // 什麼都不做，讓瀏覽器原生接管所有的網路連線。
+  // 這樣能 100% 解決 Safari 卡死和點擊 Link 沒反應的問題！
+  return;
 });
 
 // ─── Background Sync ──────────────────────────────────────────────
