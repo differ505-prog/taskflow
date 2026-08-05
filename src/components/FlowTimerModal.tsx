@@ -25,7 +25,7 @@ type TimerType = FlowTimerType;
 
 export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
   const { tasks, todayFocusMinutes } = useApp();
-  const { state: zenState, play: zenPlay, pause: zenPause } = useZenFlowContext();
+
   const flowTimer = useFlowTimerContext();
   const {
     snapshot,
@@ -38,24 +38,30 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
     setBoundTask,
   } = flowTimer;
 
-  // §音樂鑰匙守衛:計時器不在 running → 拒絕播放(與 FlowTimer 共用同樣規則,DRY §6)
-  const handleZenToggle = useCallback(() => {
-    if (zenState.isPlaying) {
-      zenPause();
-      return;
-    }
-    if (snapshot.phase !== "running") {
-      toast("請先開啟心流計時器 🎯", { id: "flow-timer-guard-modal", duration: 2200 });
-      return;
-    }
-    zenPlay();
-  }, [zenState.isPlaying, zenPause, zenPlay, snapshot.phase]);
 
   const [taskSearch, setTaskSearch] = useState("");
   const [mounted, setMounted] = useState(false);
   const taskSearchRef = useRef<HTMLInputElement>(null);
+  const omnisonicIframeRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
+
+  // §計時器結束或暫停時，強制重新載入 iframe 以停止音樂播放
+  const prevPhaseRef = useRef(snapshot.phase);
+  useEffect(() => {
+    if (prevPhaseRef.current === "running" && snapshot.phase !== "running") {
+      if (omnisonicIframeRef.current) {
+        const currentSrc = omnisonicIframeRef.current.src;
+        omnisonicIframeRef.current.src = "";
+        setTimeout(() => {
+          if (omnisonicIframeRef.current) {
+            omnisonicIframeRef.current.src = currentSrc;
+          }
+        }, 50);
+      }
+    }
+    prevPhaseRef.current = snapshot.phase;
+  }, [snapshot.phase]);
 
   const totalSeconds = Math.floor(snapshot.totalMs / 1000);
   const minutes = Math.floor(secondsLeft / 60);
@@ -254,29 +260,24 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
                 style={{ borderColor: "rgba(192,38,211,0.3)", boxShadow: "0 0 24px rgba(192,38,211,0.25)" }}
               >
                 <iframe
+                  ref={omnisonicIframeRef}
                   src={`${process.env.NEXT_PUBLIC_OMNISONIC_URL || "https://music-focus-environment.vercel.app"}/embed/button`}
                   title="OmniSonic Deep Focus Button"
                   className="w-full h-full border-0"
                   allow="autoplay"
                 />
-                {/* §音樂控制 overlay:與 FlowTimer 小紫圓對稱(8dcadb1),modal 內同樣給停音樂入口。
-                    - 桌機 hover 完全顯示 / 預設低透明度(不搶主視覺焦點)
-                    - 手機始終可見 */}
-                <button
-                  type="button"
-                  onClick={handleZenToggle}
-                  disabled={snapshot.phase !== "running" && !zenState.isPlaying}
-                  aria-label={zenState.isPlaying ? "暫停心流音樂" : "播放心流音樂"}
-                  aria-pressed={zenState.isPlaying}
-                  aria-disabled={snapshot.phase !== "running" && !zenState.isPlaying}
-                  className="absolute bottom-1 right-1 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-purple-600 shadow-md ring-1 ring-purple-200/60 backdrop-blur transition-all duration-200 ease-out hover:scale-110 hover:bg-white hover:shadow-lg active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 opacity-90 group-hover/omnibox-modal:opacity-100 sm:opacity-0 sm:group-hover/omnibox-modal:opacity-100 focus-visible:opacity-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
-                >
-                  {zenState.isPlaying ? (
-                    <Pause className="h-3.5 w-3.5" fill="currentColor" strokeWidth={0} />
-                  ) : (
-                    <Play className="h-3.5 w-3.5 ml-px" fill="currentColor" strokeWidth={0} />
-                  )}
-                </button>
+                {/* §計時器未啟動時，使用透明遮罩攔截點擊，防止提早播放音樂 */}
+                {snapshot.phase !== "running" && (
+                  <div 
+                    className="absolute inset-0 z-20 cursor-not-allowed bg-transparent"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toast("請先開啟心流計時器 🎯", { id: "flow-timer-guard-modal", duration: 2200 });
+                    }}
+                    title="請先開啟心流計時器"
+                  />
+                )}
               </div>
               <p className="text-[10px] tracking-widest uppercase" style={{ color: "var(--text-tertiary)" }}>
                 OmniSonic · Deep Focus · Free 25 分鐘

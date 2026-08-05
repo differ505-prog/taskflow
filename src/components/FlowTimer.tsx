@@ -27,7 +27,7 @@ function formatTime(seconds: number): string {
  */
 export function FlowTimer() {
   const omnisonicIframeRef = useRef<HTMLIFrameElement | null>(null);
-  const { state: zenState, play: zenPlay, pause: zenPause } = useZenFlowContext();
+
   const {
     snapshot,
     secondsLeft,
@@ -45,6 +45,23 @@ export function FlowTimer() {
     omnisonicIframeRef.current.src = `${process.env.NEXT_PUBLIC_OMNISONIC_URL || "https://music-focus-environment.vercel.app"}/embed/button`;
   }, []);
 
+  // §計時器結束或暫停時，強制重新載入 iframe 以停止音樂播放
+  const prevPhaseRef = useRef(snapshot.phase);
+  useEffect(() => {
+    if (prevPhaseRef.current === "running" && snapshot.phase !== "running") {
+      if (omnisonicIframeRef.current) {
+        const currentSrc = omnisonicIframeRef.current.src;
+        omnisonicIframeRef.current.src = "";
+        setTimeout(() => {
+          if (omnisonicIframeRef.current) {
+            omnisonicIframeRef.current.src = currentSrc;
+          }
+        }, 50);
+      }
+    }
+    prevPhaseRef.current = snapshot.phase;
+  }, [snapshot.phase]);
+
   const handlePlayPause = useCallback(() => {
     if (snapshot.phase === "running") {
       pauseFlowTimer();
@@ -55,18 +72,6 @@ export function FlowTimer() {
     }
   }, [snapshot.phase, pauseFlowTimer, resume, start]);
 
-  // §音樂鑰匙守衛:計時器不在 running → 拒絕播放(計時停止時計時器已觸發 zenPause 橋接)
-  const handleZenToggle = useCallback(() => {
-    if (zenState.isPlaying) {
-      zenPause();
-      return;
-    }
-    if (snapshot.phase !== "running") {
-      toast("請先開啟心流計時器 🎯", { id: "flow-timer-guard", duration: 2200 });
-      return;
-    }
-    zenPlay();
-  }, [zenState.isPlaying, zenPause, zenPlay, snapshot.phase]);
 
   // §Free Tier:用戶點「無限心流」→ 統一走 ProWaitlistModal 假門 pattern
   const infiniteFlowGhost = useGhostButton({ buttonId: "infinite_focus" });
@@ -156,24 +161,19 @@ export function FlowTimer() {
               allow="autoplay"
               scrolling="no"
             />
-          </div>
-
-          {/* §音樂控制 overlay */}
-          <button
-            type="button"
-            onClick={handleZenToggle}
-            disabled={!isRunning && !zenState.isPlaying}
-            aria-label={zenState.isPlaying ? "暫停心流音樂" : "播放心流音樂"}
-            aria-pressed={zenState.isPlaying}
-            aria-disabled={!isRunning && !zenState.isPlaying}
-            className="absolute -bottom-1 -right-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-white/95 text-purple-600 shadow-md ring-1 ring-purple-200/60 transition-all duration-200 ease-out hover:scale-110 hover:bg-white active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 sm:opacity-0 sm:group-hover/omnibox:opacity-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
-          >
-            {zenState.isPlaying ? (
-              <Pause className="h-2 w-2" fill="currentColor" strokeWidth={0} />
-            ) : (
-              <Play className="h-2 w-2 ml-px" fill="currentColor" strokeWidth={0} />
+            {/* §計時器未啟動時，使用透明遮罩攔截點擊，防止提早播放音樂 */}
+            {!isRunning && (
+              <div 
+                className="absolute inset-0 z-20 cursor-not-allowed"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toast("請先開啟心流計時器 🎯", { id: "flow-timer-guard", duration: 2200 });
+                }}
+                title="請先開啟心流計時器"
+              />
             )}
-          </button>
+          </div>
         </div>
       </div>
 
