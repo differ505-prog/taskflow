@@ -59,7 +59,6 @@ import { OnboardingTask } from "@/components/OnboardingTask";
  */
 function selectZenTasks(tasks: Task[], sharedLists: Record<string, import("@/lib/storage").SharedListData>): Task[] {
   const today = getLocalToday(); // YYYY-MM-DD（本地時區）
-  console.log(`[Breadcrumb] 2. ZenDashboard 開始準備過濾任務 - ${Date.now()}`);
   const isTargetTask = (t: Task) => (
       !t.isArchived &&
       t.status === "todo" &&
@@ -74,12 +73,9 @@ function selectZenTasks(tasks: Task[], sharedLists: Record<string, import("@/lib
 }
 
 export default function ZenDashboard() {
-  console.log(`[Breadcrumb] 1. ZenDashboard 渲染開始 - ${Date.now()}`);
   const { tasks, toggleTaskStatus, completeTask, reorderTasks, saveTasksDirectly, updateTask, escapeTask, sharedLists, updateSharedTask } = useApp();
   const visibleTasks = useMemo(() => {
     const res = selectZenTasks(tasks, sharedLists);
-    // @ts-ignore
-    console.log(`[Breadcrumb] 3. ZenDashboard 過濾與狀態準備完成 (Queue長度:${res.length}) - ${Date.now()}`);
     return res;
   }, [tasks, sharedLists]);
 
@@ -279,8 +275,6 @@ export default function ZenDashboard() {
   };
 
   const activeTask = activeId ? visibleTasks.find((t) => t.id === activeId) : null;
-  
-  console.log(`[Breadcrumb] 5. ZenDashboard 準備 Return JSX - ${Date.now()}`);
 
   return (
     <>
@@ -437,7 +431,7 @@ export default function ZenDashboard() {
                 }
               />
             ) : (
-              <EmptyState />
+              <EmptyState key="empty" />
             )}
           </AnimatePresence>
         </section>
