@@ -3,6 +3,7 @@ import { getLocalToday } from "@/lib/dateUtils";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   DndContext,
@@ -73,6 +74,7 @@ function selectZenTasks(tasks: Task[], sharedLists: Record<string, import("@/lib
 }
 
 export default function ZenDashboard() {
+  const router = useRouter();
   const { tasks, toggleTaskStatus, completeTask, reorderTasks, saveTasksDirectly, updateTask, escapeTask, sharedLists, updateSharedTask } = useApp();
   const visibleTasks = useMemo(() => {
     const res = selectZenTasks(tasks, sharedLists);
@@ -362,9 +364,9 @@ export default function ZenDashboard() {
           >
             無聲營地
           </GhostButton>
-          <Link
-            href="/?board=1"
-            className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-2 text-sm font-medium text-slate-500 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:text-slate-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 sm:px-4"
+          <button
+            onClick={() => router.push("/?board=1")}
+            className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-2 text-sm font-medium text-slate-500 backdrop-blur transition-all duration-200 ease-out md:hover:-translate-y-0.5 md:hover:text-slate-700 md:hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 sm:px-4"
             aria-label="進入任務大廳(收件箱) — 整理任務或快速 Brain Dump"
           >
             <svg
@@ -384,7 +386,7 @@ export default function ZenDashboard() {
               <rect x="14" y="14" width="7" height="7" rx="1" />
             </svg>
             <span className="hidden sm:inline">任務大廳</span>
-          </Link>
+          </button>
         </div>
       </div>
 
