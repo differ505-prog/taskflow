@@ -28,13 +28,10 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       <AuthGate onGuestEnter={() => setGuestModeEntered(true)}>
       <AppProvider>
         <ZenFlowProvider omnisonicBaseUrl={OMNISONIC_URL}>
-          <FirebaseDataProvider>
-            <SyncWriterGate />
             <ToastProvider />
             {/* B1: 到期提醒 watcher — 掃描 tasks,在 3 個時點觸發 toast */}
             <DueDateReminderWatcher />
             {children}
-          </FirebaseDataProvider>
         </ZenFlowProvider>
       </AppProvider>
       </AuthGate>

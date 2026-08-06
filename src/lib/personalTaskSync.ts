@@ -28,8 +28,8 @@ export async function loadTasks(uid: string): Promise<Task[]> {
     .select("data")
     .eq("owner_uid", uid);
   if (error) {
-  if (error) log.error("loadTasks error", { error: String(error) });
-    return [];
+    log.error("loadTasks error", { error: String(error) });
+    throw error;
   }
   return (data ?? []).map((row) => row.data as Task);
 }

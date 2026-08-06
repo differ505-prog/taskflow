@@ -241,6 +241,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [reloadKey, setReloadKey] = useState(0);
   const lastActiveWriteAtRef = useRef<Record<string, number>>({});
   const deletedTaskIdsRef = useRef<Set<string>>(new Set()); // 追蹤本地刪除，待 Firebase 確認後清除
+  const syncedTaskIdsRef = useRef<Set<string>>(new Set()); // 追蹤已經從雲端同步過的任務 ID
+  const syncedHabitIdsRef = useRef<Set<string>>(new Set()); // 追蹤已經從雲端同步過的習慣 ID
   const previousTasksRef = useRef<Task[]>([]); // 儲存最近刪除前的快照，用於 Undo
   const recentlyWrittenRef = useRef<Map<string, number>>(new Map()); // 追蹤本地剛寫入的 task，5 秒內不被 realtime 推送覆蓋
   const RECENT_WRITE_WINDOW_MS = 5_000;
@@ -413,11 +415,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       console.log(`[APP INIT] subscribing to uid=${user.uid}`);
       if (fbUnsubRef.current) fbUnsubRef.current();
       subscribeTasks(user.uid, (fbTasks, deletedId, pendingDeletions) => {
-        console.log(`[SUBSCRIBE TASKS] callback uid=${user.uid} fbTasks=${fbTasks.length} firstLoadDone=${firstTasksLoadDone.current}`);
-        if (!firstTasksLoadDone.current) {
-          firstTasksLoadDone.current = true;
-          return;
-        }
         if (fbSyncDebug) console.log("[SUP SYNC] tasks 推送:", fbTasks.length);
         // Merge 而非覆蓋：本地剛寫入（Firestore 還沒同步抵達）時，本地版本優先
         // 避免樂觀更新被雲端舊快照蓋回去（子任務 toggle / 任務狀態切換 第一次 tap 看似跳回）
@@ -435,6 +432,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const fbIds = new Set<string>();
           const merged = fbTasks.map((fbT) => {
             fbIds.add(fbT.id);
+            syncedTaskIdsRef.current.add(fbT.id);
             const local = localById.get(fbT.id);
             if (local) {
               // 本地剛寫入（5 秒內）→ 一律保留本地，避免 supabase commit 前即時的回音 / 跨分頁 echo 覆蓋樂觀更新
@@ -458,14 +456,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const localOnly = prevWithoutDeleted.filter(
             (t) => !fbIds.has(t.id) && (!t.listId || !getSharedLists()[t.listId])
           );
-          const result = [...merged, ...localOnly];
-          console.log(`[SUP SYNC] setTasks result: merged=${merged.length} localOnly=${localOnly.length} deleted=${deleted.size} result=${result.length}`);
+          // 過濾掉曾經從雲端同步過，但現在已經不在雲端上的任務（代表被其他裝置刪除了）
+          const trueLocalOnly = localOnly.filter((t) => !syncedTaskIdsRef.current.has(t.id));
+          const result = [...merged, ...trueLocalOnly];
+          console.log(`[SUP SYNC] setTasks result: merged=${merged.length} trueLocalOnly=${trueLocalOnly.length} deleted=${deleted.size} result=${result.length}`);
           saveTasks(result);
           // 孤兒補推：若 localOnly 任務不在「最近寫入保護窗」內，視為從未成功上雲，
           // 自動 batchSave 推上去（修補「同步失敗期間本地新增」的殭屍任務）。
           // §26 類別 A 補強：避免該批任務永遠卡在 localOnly、跨裝置看不到。
-          if (localOnly.length > 0 && user) {
-            const orphans = localOnly.filter((t) => !isWithinRecentWriteWindow(t.id));
+          if (trueLocalOnly.length > 0 && user) {
+            const orphans = trueLocalOnly.filter((t) => !isWithinRecentWriteWindow(t.id));
             if (orphans.length > 0) {
               console.log(`[SUP SYNC] 自動補推 ${orphans.length} 個孤兒任務上雲`);
               batchSaveTasksFirebase(user.uid, orphans).catch((err) =>
@@ -539,6 +539,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const fbIds = new Set<string>();
           const merged = fbHabits.map((fbH) => {
             fbIds.add(fbH.id);
+            syncedHabitIdsRef.current.add(fbH.id);
             const local = localById.get(fbH.id);
             if (local) {
               if (isWithinRecentWriteWindowHabit(fbH.id)) return local;
@@ -549,11 +550,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const localOnly = prev.filter(
             (h) => !fbIds.has(h.id)
           );
-          const result = [...merged, ...localOnly];
+          const trueLocalOnly = localOnly.filter((h) => !syncedHabitIdsRef.current.has(h.id));
+          const result = [...merged, ...trueLocalOnly];
           saveHabits(result);
           // §26-J:孤兒補推
-          if (localOnly.length > 0 && user) {
-            const orphans = localOnly.filter((h) => !isWithinRecentWriteWindowHabit(h.id));
+          if (trueLocalOnly.length > 0 && user) {
+            const orphans = trueLocalOnly.filter((h) => !isWithinRecentWriteWindowHabit(h.id));
             if (orphans.length > 0) {
               console.log(`[SUP SYNC] 自動補推 ${orphans.length} 個孤兒 habit 上雲`);
               batchSaveHabits(user.uid, orphans).catch((err) =>
@@ -1094,6 +1096,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const updated = [task, ...tasks];
     setTasks(updated);
     saveTasks(updated);
+    syncedTaskIdsRef.current.delete(taskId);
     if (user) batchSaveTasksFirebase(user.uid, [task]).catch((err) => console.error("[SUP SYNC] undo 寫入失敗:", err));
     toast.success(`已恢復「${task.title}」`);
   }, [tasks, user]);
@@ -1137,24 +1140,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       { duration: UNDO_WINDOW_MS + 500, id }
     );
 
-    // 5 秒後真正刪除（若未 Undo）
-    setTimeout(() => {
-      if (deletedTaskIdsRef.current.has(id)) {
-        if (user) {
-          deleteTaskFirebase(user.uid, id)
-            .then(() => {
-              // 等刪除成功後才從 ref 移除，確保 DELETE realtime callback 到達時
-              // deletedTaskIdsRef 仍有該 id，merge 時 localOnly 會正確過濾
-              deletedTaskIdsRef.current.delete(id);
-            })
-            .catch((err) => {
-              console.warn("[SUP SYNC] 延後刪除失敗:", err);
-              // 刪除失敗時也要移除，否則 ref 永遠留著
-              deletedTaskIdsRef.current.delete(id);
-            });
-        }
-      }
-    }, UNDO_WINDOW_MS);
+    if (user) {
+      deleteTaskFirebase(user.uid, id)
+        .then(() => {
+          // 等刪除成功後才從 ref 移除，確保 DELETE realtime callback 到達時
+          // deletedTaskIdsRef 仍有該 id，merge 時 localOnly 會正確過濾
+          deletedTaskIdsRef.current.delete(id);
+        })
+        .catch((err) => {
+          console.warn("[SUP SYNC] 刪除失敗:", err);
+          // 刪除失敗時也要移除，否則 ref 永遠留著
+          deletedTaskIdsRef.current.delete(id);
+        });
+    } else {
+      deletedTaskIdsRef.current.delete(id);
+    }
   }, [tasks, user, undoDelete]);
 
   const toggleTaskStatus = useCallback((id: string) => {
