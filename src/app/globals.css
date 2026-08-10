@@ -63,6 +63,8 @@
   --accent-warm-end: #818CF8;     /* 靛藍 */
   --accent-warm-start-rgb: 167, 139, 250;
   --accent-warm-end-rgb: 129, 140, 248;
+  --accent-warm-pink: #EC4899;
+  --accent-warm-pink-rgb: 236, 72, 153;
   --accent-warm-tint: rgba(79 106 245 / 0.10);
   --accent-warm-glow: rgba(79 106 245 / 0.25);
 
@@ -106,11 +108,63 @@
   --status-warning: #FFB347;
   --status-danger: #FF6B6B;
 
+  /* 暖色強調 — 禪模式品牌基因，回流到主體關鍵觸點 */
+  --accent-warm-start: #A78BFA;  /* 紫羅蘭 */
+  --accent-warm-end: #818CF8;     /* 靛藍 */
+  --accent-warm-start-rgb: 167, 139, 250;
+  --accent-warm-end-rgb: 129, 140, 248;
+  --accent-warm-pink: #EC4899;
+  --accent-warm-pink-rgb: 236, 72, 153;
+  --accent-warm-tint: rgba(79 106 245 / 0.10);
+  --accent-warm-glow: rgba(79 106 245 / 0.25);
+
+  /* hover 背景 — 自動適配 light/dark mode */
+  --hover-bg: rgba(0, 0, 0, 0.05);
+}
+
+/* ── 深色模式 ────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --hover-bg: rgba(255, 255, 255, 0.08);
+  --brand: #6B8AFF;
+  --brand-hover: #8BA3FF;
+  --brand-foreground: #ffffff;
+  --brand-tint: rgba(107, 138, 255, 0.12);
+
+  --surface: #1C1C1E;
+  --surface-muted: #141416;
+  --surface-hover: #2C2C2E;
+  --surface-elevated: #2C2C2E;
+  --surface-sidebar: #1A1A1C;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.20);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.30);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.40);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.50);
+  --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.60);
+
+  --text-primary: #F5F5F7;
+  --text-secondary: #AEAEB2;
+  --text-tertiary: #636366;
+  --text-placeholder: #48484A;
+
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.16);
+
+  --priority-do-now: #FF4D4D;
+  --priority-schedule: #FF9244;
+  --priority-delegate: #FFD93D;
+  --priority-none: #9CA3AF;
+  --status-success: #86EFAC;
+  --status-warning: #FDBA74;
+  --status-danger: #FCA5A5;
+
   /* 暖色強調 — 深色模式加亮 */
   --accent-warm-start: #C4B5FD;
   --accent-warm-end: #A5B4FC;
   --accent-warm-start-rgb: 196, 181, 253;
   --accent-warm-end-rgb: 165, 180, 252;
+  --accent-warm-pink: #F0ABFC;
+  --accent-warm-pink-rgb: 240, 171, 252;
   --accent-warm-tint: rgba(196 181 253 / 0.10);
   --accent-warm-glow: rgba(165 180 252 / 0.20);
 }

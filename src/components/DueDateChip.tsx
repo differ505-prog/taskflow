@@ -104,7 +104,7 @@ export function DueDateChip({ dueDate, startDate, dueTime, isDone }: DueDateChip
           : dueInfo.isToday
           ? { background: "var(--brand-tint)", color: "var(--brand)" }
           : isUrgentSoon
-          ? { background: "rgba(245,158,11,0.10)", color: "#d97706" }
+          ? { background: "color-mix(in srgb, var(--status-warning) 10%, transparent)", color: "var(--status-warning)" }
           : {}
       }
     >

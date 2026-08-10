@@ -1218,7 +1218,7 @@ const canDrag = !currentSharedListId && !isMobile;
                 onClick={onBatchComplete}
                 disabled={!batchSelectedIds || batchSelectedIds.size === 0}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12.5px] font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-95"
-                style={{ background: "rgba(34, 197, 94, 0.12)", color: "#16A34A" }}
+                style={{ background: "color-mix(in srgb, var(--status-success) 12%, transparent)", color: "var(--status-success)" }}
                 aria-label="批次標記完成"
               >
                 <CheckCheck className="w-4 h-4" aria-hidden="true" />
@@ -1228,7 +1228,7 @@ const canDrag = !currentSharedListId && !isMobile;
                 onClick={onBatchDelete}
                 disabled={!batchSelectedIds || batchSelectedIds.size === 0}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12.5px] font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-95"
-                style={{ background: "rgba(220, 38, 38, 0.12)", color: "#DC2626" }}
+                style={{ background: "color-mix(in srgb, var(--status-danger) 12%, transparent)", color: "var(--status-danger)" }}
                 aria-label="批次刪除"
               >
                 <Trash2 className="w-4 h-4" aria-hidden="true" />

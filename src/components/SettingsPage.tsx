@@ -1237,8 +1237,8 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                 style={{ background: "var(--surface-muted)", border: "1px solid var(--border)" }}
               >
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(52,199,89,0.1)" }}>
-                    <CalendarDays className="w-5 h-5" style={{ color: "#34C759" }} />
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "color-mix(in srgb, var(--status-success) 10%, transparent)" }}>
+                    <CalendarDays className="w-5 h-5" style={{ color: "var(--status-success)" }} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>
@@ -1280,7 +1280,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                   <button
                     onClick={handleOpenWebcalGoogle}
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-medium transition-all active:scale-97"
-                    style={{ background: "rgba(52,199,89,0.1)", color: "#34C759" }}
+                    style={{ background: "color-mix(in srgb, var(--status-success) 10%, transparent)", color: "var(--status-success)" }}
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                       <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-2-8v-4l3 3-3 3v-2H7v-4h3z" fill="currentColor"/>

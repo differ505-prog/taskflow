@@ -44,7 +44,7 @@ export function StatusWindow() {
               className="absolute -inset-3 rounded-3xl"
               style={{
                 background:
-                  "linear-gradient(135deg, rgba(99,102,241,0.45), rgba(168,85,247,0.45), rgba(236,72,153,0.35))",
+                  "linear-gradient(135deg, rgba(var(--accent-warm-end-rgb),0.45), rgba(var(--accent-warm-pink-rgb),0.45), rgba(var(--accent-warm-pink-rgb),0.35))",
                 filter: "blur(24px)",
                 opacity: 0.55,
               }}
@@ -59,7 +59,7 @@ export function StatusWindow() {
                 WebkitBackdropFilter: "blur(20px)",
                 border: "1px solid transparent",
                 backgroundImage:
-                  "linear-gradient(rgba(10,10,15,0.85), rgba(10,10,15,0.85)), linear-gradient(135deg, #6366f1, #a855f7, #ec4899)",
+                  "linear-gradient(rgba(10,10,15,0.85), rgba(10,10,15,0.85)), linear-gradient(135deg, var(--accent-warm-start), var(--accent-warm-pink), var(--brand))",
                 backgroundOrigin: "border-box",
                 backgroundClip: "padding-box, border-box",
               }}
@@ -68,12 +68,12 @@ export function StatusWindow() {
               <div
                 aria-hidden
                 className="absolute left-3 top-3 h-3 w-3 border-l-2 border-t-2"
-                style={{ borderColor: "rgba(168,85,247,0.6)" }}
+                style={{ borderColor: "rgba(var(--accent-warm-pink-rgb),0.6)" }}
               />
               <div
                 aria-hidden
                 className="absolute right-3 bottom-3 h-3 w-3 border-r-2 border-b-2"
-                style={{ borderColor: "rgba(168,85,247,0.6)" }}
+                style={{ borderColor: "rgba(var(--accent-warm-pink-rgb),0.6)" }}
               />
 
               <div className="flex items-center gap-4">
@@ -82,8 +82,8 @@ export function StatusWindow() {
                     className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl text-2xl"
                     style={{
                       background:
-                        "linear-gradient(135deg, rgba(99,102,241,0.25), rgba(168,85,247,0.25))",
-                      boxShadow: "inset 0 0 0 1px rgba(168,85,247,0.4)",
+                        "linear-gradient(135deg, rgba(var(--accent-warm-end-rgb),0.25), rgba(var(--accent-warm-pink-rgb),0.25))",
+                      boxShadow: "inset 0 0 0 1px rgba(var(--accent-warm-pink-rgb),0.4)",
                     }}
                   >
                     {payload.icon}
@@ -108,9 +108,9 @@ export function StatusWindow() {
                       <span
                         className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums"
                         style={{
-                          background: "linear-gradient(135deg, rgba(99,102,241,0.3), rgba(168,85,247,0.3))",
-                          color: "#c4b5fd",
-                          boxShadow: "inset 0 0 0 1px rgba(168,85,247,0.5)",
+                          background: "linear-gradient(135deg, rgba(var(--accent-warm-end-rgb),0.3), rgba(var(--accent-warm-pink-rgb),0.3))",
+                          color: "var(--accent-warm-start)",
+                          boxShadow: "inset 0 0 0 1px rgba(var(--accent-warm-pink-rgb),0.5)",
                         }}
                       >
                         <span aria-hidden>✦</span>
@@ -121,8 +121,8 @@ export function StatusWindow() {
                       <span
                         className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold"
                         style={{
-                          background: "linear-gradient(135deg, rgba(236,72,153,0.3), rgba(168,85,247,0.3))",
-                          color: "#fbcfe8",
+                          background: "linear-gradient(135deg, rgba(var(--accent-warm-pink-rgb),0.3), rgba(var(--accent-warm-pink-rgb),0.3))",
+                          color: "var(--accent-warm-pink)",
                           boxShadow: "inset 0 0 0 1px rgba(236,72,153,0.5)",
                         }}
                       >

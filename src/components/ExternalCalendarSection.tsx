@@ -52,9 +52,9 @@ export function ExternalCalendarSection({
       <div className="flex items-start gap-3">
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: "rgba(52,199,89,0.1)" }}
+          style={{ background: "color-mix(in srgb, var(--status-success) 10%, transparent)" }}
         >
-          <ExternalLink className="w-5 h-5" style={{ color: "#34C759" }} />
+          <ExternalLink className="w-5 h-5" style={{ color: "var(--status-success)" }} />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>
