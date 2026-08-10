@@ -594,7 +594,7 @@ const canDrag = !currentSharedListId && !isMobile;
           {/* Left: Task list — scroll container */}
           <div
             style={{ WebkitOverflowScrolling: "touch" }}
-            className={`flex-1 min-h-0 overflow-y-auto overscroll-contain h-full md:pb-5 ${selectedTaskId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}
+            className={`flex-1 min-h-0 overflow-y-auto overscroll-contain h-full pb-[calc(60px+env(safe-area-inset-bottom,0px)+12px)] ${selectedTaskId ? "hidden md:flex md:flex-col md:pb-5" : "flex flex-col"}`}
           >
           <div className="px-6 py-5 min-w-0 flex flex-col flex-1">
             {/* 失物招領 — 只在 Inbox(任務大廳)頂端顯示
