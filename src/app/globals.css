@@ -797,6 +797,66 @@
   50% { transform: rotate(-3deg); }
 }
 
+/* ========================
+   FOCUS CARD MICRO-INTERACTIONS
+   ======================== */
+
+/* 呼吸光暈 — 卡片邊緣柔和光暈，表示「活著」 */
+.focus-card-breathe {
+  animation: focus-breathe 4s ease-in-out infinite;
+}
+
+@keyframes focus-breathe {
+  0%, 100% {
+    box-shadow:
+      0 2px 8px rgba(148, 163, 184, 0.12),
+      0 8px 24px rgba(148, 163, 184, 0.08),
+      0 0 0 1px rgba(148, 163, 184, 0.08);
+  }
+  50% {
+    box-shadow:
+      0 4px 16px rgba(148, 163, 184, 0.18),
+      0 16px 40px rgba(148, 163, 184, 0.12),
+      0 0 0 1px rgba(148, 163, 184, 0.12),
+      0 0 32px rgba(99, 130, 233, 0.06);
+  }
+}
+
+/* Hover 聚焦 — 滑鼠懸停時輕微上浮 + 光暈增強 */
+.focus-card-hover {
+  transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 300ms ease-out !important;
+}
+.focus-card-hover:hover {
+  transform: translateY(-3px) scale(1.01);
+  box-shadow:
+    0 8px 32px rgba(148, 163, 184, 0.2),
+    0 24px 64px rgba(148, 163, 184, 0.14),
+    0 0 0 1px rgba(148, 163, 184, 0.15),
+    0 0 48px rgba(99, 130, 233, 0.1) !important;
+}
+
+/* 完成波紋 — 點完成時泛開一圈漣漪 */
+.focus-complete-ripple {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+}
+.focus-complete-ripple::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  animation: complete-ripple 700ms ease-out forwards;
+  background: radial-gradient(circle at center, rgba(99, 130, 233, 0.15) 0%, transparent 70%);
+}
+@keyframes complete-ripple {
+  0% { opacity: 0; transform: scale(0.85); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.08); }
+}
+
 /* ============================================================
    THIRD-PARTY WIDGET OVERRIDES (e.g., Tally Feedback)
    ============================================================ */

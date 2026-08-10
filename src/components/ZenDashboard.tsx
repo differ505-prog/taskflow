@@ -626,21 +626,26 @@ function FocusCard({
   return (
     <motion.article
       layout
-      initial={{ opacity: 0, y: 8, scale: 0.96 }}
+      initial={{ opacity: 0, y: 16, scale: 0.94 }}
       animate={{
         opacity: isCrashing ? 0 : 1,
         y: 0,
         scale: isCrashing ? 0.92 : 1,
         transition: {
-          opacity: { duration: 0.3, ease: "easeOut" },
-          scale: { duration: 0.3, ease: "easeOut" },
+          opacity: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
+          scale: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
+          y: { duration: 0.5, ease: [0.34, 1.56, 0.64, 1] },
         },
       }}
-      exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.3 } }}
-      className="group relative w-full rounded-3xl bg-white px-6 pt-16 pb-8 text-center shadow-sm ring-1 ring-slate-200/60 sm:px-12 sm:pt-20 sm:pb-10"
+      exit={{ opacity: 0, scale: 0.92, y: -8, transition: { duration: 0.3 } }}
+      className="focus-card-breathe focus-card-hover group relative w-full rounded-3xl bg-white px-6 pt-16 pb-8 text-center shadow-sm ring-1 ring-slate-200/60 sm:px-12 sm:pt-20 sm:pb-10"
       aria-label={`當前焦點任務: ${task.title}`}
     >
       <SlashOverlay active={isSlashing} />
+
+      {/* 完成波紋 */}
+      <div className="focus-complete-ripple" aria-hidden />
+
 
       {/* 幽靈按鈕 — 絕對定位於卡片右上,§假門測試用 */}
       {ghostButton && !isEditing && (
@@ -714,9 +719,12 @@ function FocusCard({
           type="button"
           onClick={onComplete}
           disabled={isSlashing || isCrashing || isEditing}
-          className="inline-flex items-center gap-2 rounded-full bg-slate-800 px-6 py-3 text-sm font-medium text-slate-50 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-slate-900 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+          className="group/btn inline-flex items-center gap-2 rounded-full bg-slate-800 px-6 py-3 text-sm font-medium text-slate-50 shadow-sm transition-all duration-200 ease-out hover:scale-[1.03] hover:bg-slate-900 hover:shadow-md active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
         >
-          <span aria-hidden>✓ 完成</span>
+          <span aria-hidden className="transition-transform duration-200 group-hover/btn:scale-110">
+            ✓
+          </span>
+          <span aria-hidden>完成</span>
           <span className="sr-only">完成任務</span>
         </button>
         <button
