@@ -148,7 +148,7 @@ export function EmptyState({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.2, ease: [0.4, 0, 0.2, 1] }}
         >
-          <button onClick={handleClick} className="btn-primary">
+          <button onClick={handleClick} className="btn-primary" aria-label="建立任務">
             <Plus className="w-4 h-4" aria-hidden="true" />
             {copy.cta}
           </button>

@@ -842,7 +842,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                       <div className="w-2 h-2 rounded-sm" style={{ background: "var(--text-tertiary)" }} />
                     </div>
                     <span className="flex-1 text-[13px]" style={{ color: "var(--text-primary)" }}>{st}</span>
-                    <button type="button" onClick={() => setSubTaskInputs(subTaskInputs.filter((_, j) => j !== i))} className="p-1 rounded hover:bg-black/5" style={{ color: "var(--text-tertiary)" }}>
+                    <button type="button" onClick={() => setSubTaskInputs(subTaskInputs.filter((_, j) => j !== i))} className="p-1 rounded hover:bg-[var(--hover-bg)]" style={{ color: "var(--text-tertiary)" }} aria-label="刪除此子任務">
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>

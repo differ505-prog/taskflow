@@ -1135,8 +1135,8 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
               {/* Export */}
               <div>
                 <p className="text-[12px] font-medium mb-2" style={{ color: "var(--text-secondary)" }}>匯出資料</p>
-                <button onClick={handleExportJSON} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-medium transition-all active:scale-95" style={{ background: "var(--brand)", color: "white" }}>
-                  <Download className="w-4 h-4" /> JSON 備份
+                <button onClick={handleExportJSON} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-medium transition-all active:scale-95" style={{ background: "var(--brand)", color: "white" }} aria-label="匯出 JSON 備份">
+                  <Download className="w-4 h-4" aria-hidden="true" /> JSON 備份
                 </button>
               </div>
 

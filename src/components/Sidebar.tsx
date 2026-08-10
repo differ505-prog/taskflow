@@ -512,7 +512,7 @@ export function ListForm({ isOpen, onClose, onSubmit, initialData, onDelete }: L
           <h2 className="text-[17px] font-semibold" style={{ color: "var(--text-primary)" }}>
             {isEditing ? "編輯清單" : "新增清單"}
           </h2>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors" style={{ color: "var(--text-tertiary)" }}>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors" style={{ color: "var(--text-tertiary)" }} aria-label="關閉">
             <X className="w-5 h-5" />
           </button>
         </div>

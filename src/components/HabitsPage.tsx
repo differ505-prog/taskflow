@@ -214,7 +214,7 @@ export function HabitsPage() {
               {showArchived ? "← 返回" : `查看封存 (${archivedHabits.length})`}
             </button>
           )}
-          <button onClick={() => setShowForm(true)} className="btn-primary">
+          <button onClick={() => setShowForm(true)} className="btn-primary" aria-label="新增習慣">
             <Plus className="w-4 h-4" />
             新增習慣
           </button>
@@ -232,7 +232,7 @@ export function HabitsPage() {
           >
             <div className="flex items-center justify-between">
               <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>新增習慣</h2>
-              <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg hover:bg-[var(--hover-bg)]" style={{ color: "var(--text-tertiary)" }}>
+                <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg hover:bg-[var(--hover-bg)]" style={{ color: "var(--text-tertiary)" }} aria-label="關閉">
                 <X className="w-4 h-4" />
               </button>
             </div>
