@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/lib/AppContext";
+import { parseNaturalLanguage } from "@/lib/nlp";
+import { getLocalToday } from "@/lib/dateUtils";
 
 /**
  * QuickCaptureModal — Spotlight 風格的「發射後不理」大腦傾倒輸入框
@@ -138,6 +140,28 @@ export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps
     return () => window.removeEventListener("keydown", onKey);
   }, [open, close]);
 
+  // NLP 即時預覽 — 打字時顯示解析結果（日期晶片 + 優先級）
+  const nlpPreview = useMemo(() => {
+    if (!value.trim()) return null;
+    return parseNaturalLanguage(value);
+  }, [value]);
+
+  // 將 YYYY-MM-DD 轉為「今天/明天/週三」等友善格式
+  const formatDueDate = (dateStr: string) => {
+    const today = getLocalToday();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const t = tomorrow.toISOString().split("T")[0];
+    if (dateStr === today) return "今天";
+    if (dateStr === t) return "明天";
+    const d = new Date(dateStr + "T12:00:00");
+    const weekdays = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
+    return `${d.getMonth() + 1}/${d.getDate()} ${weekdays[d.getDay()]}`;
+  };
+
+  const previewDueDate = nlpPreview?.dueDate;
+  const previewPriority = nlpPreview?.priority;
+
   if (!mounted) return null;
 
   return createPortal(
@@ -194,8 +218,39 @@ export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps
                 aria-label="大腦傾倒輸入框 — Enter 送出到收件箱，Shift+Enter 加入今日任務"
                 className="flex-1 min-w-0 bg-transparent text-[16px] sm:text-[17px] text-slate-800 placeholder:text-slate-400 focus:outline-none"
               />
+              {/* Desktop NLP 預覽晶片 */}
+              <AnimatePresence>
+                {(previewDueDate || previewPriority) && (
+                  <motion.div
+                    key="desktop-preview"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex flex-shrink-0 items-center gap-1.5"
+                    aria-live="polite"
+                    aria-label="NLP 預覽：系統將如此解析"
+                  >
+                    {previewDueDate && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600 ring-1 ring-violet-200/60">
+                        📅 {formatDueDate(previewDueDate)}
+                      </span>
+                    )}
+                    {previewPriority && (
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ${
+                        previewPriority === "do-now" ? "bg-rose-50 text-rose-600 ring-rose-200/60" :
+                        previewPriority === "schedule" ? "bg-amber-50 text-amber-600 ring-amber-200/60" :
+                        "bg-slate-100 text-slate-500 ring-slate-200/60"
+                      }`}>
+                        {previewPriority === "do-now" ? "🔴 速辦" :
+                         previewPriority === "schedule" ? "🟡 排程" : "⬜ 一般"}
+                      </span>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
               {/* Desktop 快捷鍵提示 */}
-              {value.trim() && (
+              {value.trim() && !previewDueDate && (
                 <span className="flex-shrink-0 text-[10px] text-slate-400 tabular-nums" aria-hidden>
                   ↵ Enter 收集箱 · ⇧ Enter 今日
                 </span>
@@ -273,6 +328,39 @@ export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps
                   已投遞
                 </span>
               </div>
+
+              {/* Mobile NLP 預覽晶片 */}
+              <AnimatePresence>
+                {(previewDueDate || previewPriority) && (
+                  <motion.div
+                    key="mobile-preview"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="mt-2 flex flex-wrap items-center gap-1.5 overflow-hidden"
+                    aria-live="polite"
+                    aria-label="NLP 預覽：系統將如此解析"
+                  >
+                    {previewDueDate && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-[11px] font-medium text-violet-600 ring-1 ring-violet-200/60">
+                        📅 {formatDueDate(previewDueDate)}
+                      </span>
+                    )}
+                    {previewPriority && (
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${
+                        previewPriority === "do-now" ? "bg-rose-50 text-rose-600 ring-rose-200/60" :
+                        previewPriority === "schedule" ? "bg-amber-50 text-amber-600 ring-amber-200/60" :
+                        "bg-slate-100 text-slate-500 ring-slate-200/60"
+                      }`}>
+                        {previewPriority === "do-now" ? "🔴 速辦" :
+                         previewPriority === "schedule" ? "🟡 排程" : "⬜ 一般"}
+                      </span>
+                    )}
+                    <span className="text-[10px] text-slate-400">預覽</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Mobile 雙按鈕區 */}
               <div className="mt-4 flex gap-3">
