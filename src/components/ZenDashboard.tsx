@@ -714,7 +714,7 @@ function FocusCard({
           disabled={!canShiftNext || isSlashing || isCrashing || isEditing}
           aria-label="輪值下一個任務為新焦點(今日順序微調,不會跳過或封存)"
           title="下一個輪值上來"
-          className="inline-flex items-center gap-1.5 rounded-full bg-slate-100/80 px-4 py-2 text-xs font-medium uppercase tracking-widest text-slate-500 ring-1 ring-inset ring-slate-200/60 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-slate-200/60 hover:text-slate-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 sm:focus-visible:opacity-100"
+          className="inline-flex items-center gap-1.5 rounded-full bg-slate-100/80 px-4 py-2 text-xs font-medium uppercase tracking-widest ring-1 ring-inset ring-slate-200/60 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-[color-mix(in_srgb,var(--accent-warm-start)_12%,transparent)] hover:text-[var(--accent-warm-start)] hover:ring-[color-mix(in_srgb,var(--accent-warm-start)_30%,transparent)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-warm-start)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 sm:focus-visible:opacity-100"
         >
           <ChevronRightIcon />
           <span>下一個輪值</span>
@@ -723,7 +723,10 @@ function FocusCard({
           type="button"
           onClick={onComplete}
           disabled={isSlashing || isCrashing || isEditing}
-          className="group/btn inline-flex items-center gap-2 rounded-full bg-slate-800 px-6 py-3 text-sm font-medium text-slate-50 shadow-sm transition-all duration-200 ease-out hover:scale-[1.03] hover:bg-slate-900 hover:shadow-md active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+          className="group/btn inline-flex items-center gap-2 rounded-full bg-gradient-to-br px-6 py-3 text-sm font-medium text-white shadow-sm transition-all duration-200 ease-out hover:scale-[1.03] hover:shadow-md active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-warm-start)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+          style={{
+            backgroundImage: "linear-gradient(135deg, var(--accent-warm-start), var(--accent-warm-end))",
+          }}
         >
           <span aria-hidden className="transition-transform duration-200 group-hover/btn:scale-110">
             ✓
@@ -735,7 +738,7 @@ function FocusCard({
           type="button"
           onClick={onSkip}
           disabled={isSlashing || isCrashing || isEditing}
-          className="text-sm text-slate-400 transition-colors hover:text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+          className="text-sm transition-colors hover:text-[var(--accent-warm-end)] disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="跳過此任務 — 區間任務推遲一天、單日任務退回收集箱"
         >
           跳過

@@ -172,7 +172,8 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
                 type="button"
                 onClick={handleCreateAndComplete}
                 disabled={!newHabitTitle.trim()}
-                className="flex-1 rounded-lg bg-rose-400 px-3 py-1.5 text-xs font-medium text-white transition-opacity disabled:opacity-40"
+                className="flex-1 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition-opacity disabled:opacity-40"
+                style={{ backgroundImage: "linear-gradient(135deg, var(--accent-warm-start), var(--accent-warm-end))" }}
               >
                 完成暖身
               </button>
@@ -291,7 +292,8 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
                             setConfirmingHabitId(null);
                           }
                         }}
-                        className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-400 text-white transition-colors hover:bg-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                        className="flex h-6 w-6 items-center justify-center rounded-full text-white transition-colors hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-warm-start)]"
+                        style={{ background: "var(--accent-warm-end)" }}
                         aria-label={`完成暖身：${habit.title}`}
                       >
                         <Check className="h-3.5 w-3.5" aria-hidden />
@@ -316,7 +318,8 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
           transition={{ duration: 0.35, ease: "easeOut", delay: 0.5 }}
           onClick={onEnterFlow}
           aria-label="開始暖身儀式"
-          className="fixed bottom-6 left-1/2 z-20 hidden -translate-x-1/2 items-center gap-2 rounded-full bg-rose-400 px-4 py-2 text-xs font-medium uppercase leading-none tracking-widest text-white shadow-md transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-rose-500 hover:shadow-lg active:scale-95 sm:flex"
+          className="fixed bottom-6 left-1/2 z-20 hidden -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2 text-xs font-medium uppercase leading-none tracking-widest text-white shadow-md transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lg active:scale-95 sm:flex"
+          style={{ backgroundImage: "linear-gradient(135deg, var(--accent-warm-start), var(--accent-warm-end))" }}
           whileTap={{ scale: 0.92 }}
         >
           <Flame className="h-3.5 w-3.5" aria-hidden />
@@ -384,7 +387,8 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
                     }
                   }
                 }}
-                className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-400 text-white transition-colors hover:bg-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                className="flex h-6 w-6 items-center justify-center rounded-full text-white transition-colors hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-warm-start)]"
+                style={{ background: "var(--accent-warm-end)" }}
                 aria-label={`完成暖身：${pendingHabits[0].title}`}
               >
                 <Check className="h-3.5 w-3.5" aria-hidden />

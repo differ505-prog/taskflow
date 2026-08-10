@@ -42,8 +42,11 @@ export function QuickCaptureTrigger({ variant, onClick }: QuickCaptureTriggerPro
       type="button"
       onClick={onClick}
       aria-label="捕捉靈感到收件箱"
-      className="fixed left-1/2 z-30 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-slate-800 px-5 py-3 text-sm font-medium text-slate-50 shadow-lg ring-1 ring-slate-900/10 backdrop-blur-md transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-slate-700 hover:shadow-xl active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 md:hidden"
-      style={{ bottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))" }}
+      className="fixed left-1/2 z-30 inline-flex -translate-x-1/2 items-center gap-2 rounded-full px-5 py-3 text-sm font-medium text-white shadow-lg ring-1 ring-white/10 backdrop-blur-md transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-warm-end)] md:hidden"
+      style={{
+        bottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))",
+        backgroundImage: "linear-gradient(135deg, var(--accent-warm-start), var(--accent-warm-end))",
+      }}
     >
       <Plus className="h-4 w-4" aria-hidden />
       <span>捕捉靈感</span>
