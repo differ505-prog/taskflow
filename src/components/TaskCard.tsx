@@ -347,10 +347,9 @@ export function TaskCard({
                   <span
                     className="pill-muted text-[11px] py-0.5"
                     style={
-                      // B1 §L1 防護:過期不再用紅色(status-danger),改用中性灰藍 text-tertiary
-                      // 「逾期」字眼改為「風鈴提示」中性詞,避免責備感
+                      // 有 deadlineStatus 時走上面分支；沒有的話：過期用 priority 色文字（不加背景，符合 §L1 不觸發焦慮）
                       dueInfo.isOverdue && !isDone
-                        ? { background: "var(--surface-muted)", color: "var(--text-tertiary)" }
+                        ? { background: "var(--surface-muted)", color: "var(--priority-do-now)" }
                         : dueInfo.isToday
                         ? { background: "var(--brand-tint)", color: "var(--brand)" }
                         : isUrgentSoon
