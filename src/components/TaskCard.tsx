@@ -2,8 +2,8 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Task, SubTask, Priority } from "@/lib/types";
-import { TaskCommentsInline } from "./TaskCommentsInline";
-import { TaskCommentsDrawer } from "./TaskCommentsDrawer";
+import TaskCommentsInline from "./TaskCommentsInline";
+import TaskCommentsDrawer from "./TaskCommentsDrawer";
 import { getEisenhowerVisual } from "@/lib/eisenhower";
 import { getTagColors } from "@/lib/storage";
 import { haptic } from "@/lib/haptics";
@@ -195,8 +195,8 @@ export function TaskCard({
                 onDelete={handleDelete}
                 onEdit={handleEdit}
                 onArchive={onArchive ? handleArchive : undefined}
-                onUpdatePriority={onUpdatePriority}
-                onUpdateTags={onUpdateTags}
+                onUpdatePriority={onUpdatePriority ? (p) => onUpdatePriority(task.id, p) : undefined}
+                onUpdateTags={onUpdateTags ? (tags) => onUpdateTags(task.id, tags) : undefined}
                 onFocusNow={onFocusNow}
                 allTags={allTags}
               />
