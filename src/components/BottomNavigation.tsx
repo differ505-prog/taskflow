@@ -25,8 +25,8 @@ const NAV_ITEMS: BottomNavItem[] = [
   { view: "all", label: "全部", icon: <Layers className="w-[22px] h-[22px]" /> },
 ];
 
+// 「未來 7 天」已合併至「今天」badge — 減少 nav 選項，降低 ADHD 啟動障礙
 const MORE_ITEMS: BottomNavItem[] = [
-  { view: "next7days", label: "七日", icon: <CalendarRange className="w-[22px] h-[22px]" /> },
   { view: "habits", label: "習慣", icon: <BarChart3 className="w-[22px] h-[22px]" /> },
   { view: "tags", label: "標籤", icon: <Tag className="w-[22px] h-[22px]" /> },
   { view: "stats", label: "統計", icon: <Layers className="w-[22px] h-[22px]" /> },

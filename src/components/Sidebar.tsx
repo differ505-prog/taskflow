@@ -63,8 +63,8 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
 
   const mainNavItems: NavItem[] = [
     { view: "inbox", label: "收集箱", icon: <Inbox className="w-[18px] h-[18px]" />, badge: "GTD" },
-    { view: "today", label: "今天", icon: <Sun className="w-[18px] h-[18px]" />, count: viewCounts.today, badge: viewCounts.today > 0 ? String(viewCounts.today) : undefined },
-    { view: "next7days", label: "未來 7 天", icon: <CalendarDays className="w-[18px] h-[18px]" />, count: viewCounts.next7days },
+    { view: "today", label: "今天", icon: <Sun className="w-[18px] h-[18px]" />, count: viewCounts.today + viewCounts.next7days, badge: (viewCounts.today + viewCounts.next7days) > 0 ? String(viewCounts.today + viewCounts.next7days) : undefined },
+    { view: "next7days", label: "未來 7 天", icon: <CalendarDays className="w-[18px] h-[18px]" />, count: viewCounts.next7days }, // 仍保留但從 Nav 移除 — 內部資料計算用
     { view: "quadrant", label: "緩急圖", icon: <Gauge className="w-[18px] h-[18px]" />, count: viewCounts.q1, badge: "Q1" },
     { view: "all", label: "全部任務", icon: <Layers className="w-[18px] h-[18px]" /> },
   ];

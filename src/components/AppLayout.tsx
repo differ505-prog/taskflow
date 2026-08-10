@@ -414,7 +414,7 @@ function AppLayoutInner() {
           onEditList={handleEditList}
           onDeleteList={deleteList}
           onOpenShareModal={(list, listTasks) => setShareModalList({ list, tasks: listTasks })}
-          todayCount={viewCounts.today}
+          todayCount={viewCounts.today + viewCounts.next7days}
         />
       </div>
 
