@@ -786,33 +786,46 @@ function QueueItemCard({ task, isDragging = false }: { task: Task; isDragging?: 
 function EmptyState() {
   return (
     <div className="flex flex-col items-center gap-4 rounded-3xl bg-white px-12 py-16 text-center shadow-sm ring-1 ring-slate-200/60">
-      <svg
-        aria-hidden
-        width="48"
-        height="48"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="text-slate-300"
-      >
-        <path d="M12 2v20" />
-        <path d="M5 9c2 0 4-1 4-4" />
-        <path d="M19 9c-2 0-4-1-4-4" />
-        <path d="M5 15c2 0 4 1 4 4" />
-        <path d="M19 15c-2 0-4 1-4 4" />
-      </svg>
+      {/* 暖色光暈裝飾 */}
+      <div className="relative">
+        <div className="absolute inset-0 blur-2xl" style={{ background: "radial-gradient(circle, rgba(167,139,250,0.2) 0%, transparent 70%)" }} />
+        <svg
+          aria-hidden
+          width="48"
+          height="48"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="relative text-violet-400"
+        >
+          <path d="M12 2v20" />
+          <path d="M5 9c2 0 4-1 4-4" />
+          <path d="M19 9c-2 0-4-1-4-4" />
+          <path d="M5 15c2 0 4 1 4 4" />
+          <path d="M19 15c-2 0-4 1-4 4" />
+        </svg>
+      </div>
       <p className="text-balance text-base font-medium text-slate-600">今日專注已全數完成</p>
       <p className="text-balance text-sm text-slate-400">戰場很安靜。剩下的，會在大廳等你。</p>
-      {/* §26 降噪:全數完成狀態下,按鈕不應侵略性 — 從 Primary(bg-slate-800)降為
-         Ghost/Secondary(bg-slate-100/80 + text-slate-600),讓中央主視覺(以上 3 行)獨佔焦點 */}
-      {/* §Safari-test: 移除 touch-manipulation + active:scale, 改用 touch-action:auto + user-select:auto 測試 hit-testing */}
       <a
         href="/?board=1"
-        className="mt-2 inline-flex items-center gap-2 rounded-full bg-slate-100/80 px-6 py-3 text-sm font-medium text-slate-600 ring-1 ring-inset ring-slate-200/60 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-slate-200/80 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
-        style={{ touchAction: "auto", userSelect: "auto" }}
+        className="mt-2 inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium transition-all duration-200 ease-out"
+        style={{
+          background: "rgba(167, 139, 250, 0.10)",
+          color: "#7c3aed",
+          boxShadow: "0 0 0 1px rgba(167, 139, 250, 0.20)",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "rgba(167, 139, 250, 0.18)";
+          e.currentTarget.style.transform = "scale(1.02)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "rgba(167, 139, 250, 0.10)";
+          e.currentTarget.style.transform = "scale(1)";
+        }}
       >
         <span aria-hidden>📥</span>
         <span>開啟任務大廳</span>

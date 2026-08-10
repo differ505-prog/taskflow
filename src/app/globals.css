@@ -55,6 +55,12 @@
   --radius-xl: 20px;
   --radius-full: 9999px;
 
+  /* 暖色強調 — 禪模式品牌基因，回流到主體關鍵觸點 */
+  --accent-warm-start: #A78BFA;  /* 紫羅蘭 */
+  --accent-warm-end: #818CF8;     /* 靛藍 */
+  --accent-warm-tint: rgba(167, 139, 250, 0.12);
+  --accent-warm-glow: rgba(129, 140, 248, 0.25);
+
   /* hover 背景 — 自動適配 light/dark mode */
   --hover-bg: rgba(0, 0, 0, 0.05);
 }
@@ -94,6 +100,12 @@
   --status-success: #6BCB77;
   --status-warning: #FFB347;
   --status-danger: #FF6B6B;
+
+  /* 暖色強調 — 深色模式加亮 */
+  --accent-warm-start: #C4B5FD;
+  --accent-warm-end: #A5B4FC;
+  --accent-warm-tint: rgba(196, 181, 253, 0.12);
+  --accent-warm-glow: rgba(165, 180, 252, 0.20);
 }
 
 /* ============================================================
@@ -801,7 +813,7 @@
    FOCUS CARD MICRO-INTERACTIONS
    ======================== */
 
-/* 呼吸光暈 — 卡片邊緣柔和光暈，表示「活著」 */
+/* 暖色呼吸光暈 — 使用禪模式品牌基因 */
 .focus-card-breathe {
   animation: focus-breathe 4s ease-in-out infinite;
 }
@@ -809,16 +821,16 @@
 @keyframes focus-breathe {
   0%, 100% {
     box-shadow:
-      0 2px 8px rgba(148, 163, 184, 0.12),
-      0 8px 24px rgba(148, 163, 184, 0.08),
-      0 0 0 1px rgba(148, 163, 184, 0.08);
+      0 2px 8px rgba(167, 139, 250, 0.10),
+      0 8px 24px rgba(167, 139, 250, 0.06),
+      0 0 0 1px rgba(167, 139, 250, 0.08);
   }
   50% {
     box-shadow:
-      0 4px 16px rgba(148, 163, 184, 0.18),
-      0 16px 40px rgba(148, 163, 184, 0.12),
-      0 0 0 1px rgba(148, 163, 184, 0.12),
-      0 0 32px rgba(99, 130, 233, 0.06);
+      0 4px 16px rgba(167, 139, 250, 0.16),
+      0 16px 40px rgba(129, 140, 248, 0.10),
+      0 0 0 1px rgba(167, 139, 250, 0.12),
+      0 0 32px rgba(129, 140, 248, 0.08);
   }
 }
 
@@ -829,10 +841,10 @@
 .focus-card-hover:hover {
   transform: translateY(-3px) scale(1.01);
   box-shadow:
-    0 8px 32px rgba(148, 163, 184, 0.2),
-    0 24px 64px rgba(148, 163, 184, 0.14),
-    0 0 0 1px rgba(148, 163, 184, 0.15),
-    0 0 48px rgba(99, 130, 233, 0.1) !important;
+    0 8px 32px rgba(167, 139, 250, 0.18),
+    0 24px 64px rgba(129, 140, 248, 0.12),
+    0 0 0 1px rgba(167, 139, 250, 0.14),
+    0 0 48px rgba(129, 140, 248, 0.12) !important;
 }
 
 /* 完成波紋 — 點完成時泛開一圈漣漪 */
@@ -849,7 +861,7 @@
   inset: 0;
   border-radius: inherit;
   animation: complete-ripple 700ms ease-out forwards;
-  background: radial-gradient(circle at center, rgba(99, 130, 233, 0.15) 0%, transparent 70%);
+  background: radial-gradient(circle at center, rgba(167, 139, 250, 0.20) 0%, transparent 70%);
 }
 @keyframes complete-ripple {
   0% { opacity: 0; transform: scale(0.85); }
