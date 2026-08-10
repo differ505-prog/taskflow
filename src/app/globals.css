@@ -56,10 +56,15 @@
   --radius-full: 9999px;
 
   /* 暖色強調 — 禪模式品牌基因，回流到主體關鍵觸點 */
+  /* --accent-warm-start/end: Hex for reference only
+   * --accent-warm-start-rgb/end-rgb: RGB values (comma-separated) for CSS color interpolation in keyframes
+   */
   --accent-warm-start: #A78BFA;  /* 紫羅蘭 */
   --accent-warm-end: #818CF8;     /* 靛藍 */
-  --accent-warm-tint: rgba(167, 139, 250, 0.12);
-  --accent-warm-glow: rgba(129, 140, 248, 0.25);
+  --accent-warm-start-rgb: 167, 139, 250;
+  --accent-warm-end-rgb: 129, 140, 248;
+  --accent-warm-tint: rgba(79 106 245 / 0.10);
+  --accent-warm-glow: rgba(79 106 245 / 0.25);
 
   /* hover 背景 — 自動適配 light/dark mode */
   --hover-bg: rgba(0, 0, 0, 0.05);
@@ -104,8 +109,10 @@
   /* 暖色強調 — 深色模式加亮 */
   --accent-warm-start: #C4B5FD;
   --accent-warm-end: #A5B4FC;
-  --accent-warm-tint: rgba(196, 181, 253, 0.12);
-  --accent-warm-glow: rgba(165, 180, 252, 0.20);
+  --accent-warm-start-rgb: 196, 181, 253;
+  --accent-warm-end-rgb: 165, 180, 252;
+  --accent-warm-tint: rgba(196 181 253 / 0.10);
+  --accent-warm-glow: rgba(165 180 252 / 0.20);
 }
 
 /* ============================================================
@@ -821,16 +828,16 @@
 @keyframes focus-breathe {
   0%, 100% {
     box-shadow:
-      0 2px 8px rgba(167, 139, 250, 0.10),
-      0 8px 24px rgba(167, 139, 250, 0.06),
-      0 0 0 1px rgba(167, 139, 250, 0.08);
+      0 2px 8px rgba(var(--accent-warm-start-rgb, 167 139 250) / 0.10),
+      0 8px 24px rgba(var(--accent-warm-end-rgb, 129 140 248) / 0.06),
+      0 0 0 1px rgba(var(--accent-warm-start-rgb, 167 139 250) / 0.08);
   }
   50% {
     box-shadow:
-      0 4px 16px rgba(167, 139, 250, 0.16),
-      0 16px 40px rgba(129, 140, 248, 0.10),
-      0 0 0 1px rgba(167, 139, 250, 0.12),
-      0 0 32px rgba(129, 140, 248, 0.08);
+      0 4px 16px rgba(var(--accent-warm-start-rgb, 167 139 250) / 0.16),
+      0 16px 40px rgba(var(--accent-warm-end-rgb, 129 140 248) / 0.10),
+      0 0 0 1px rgba(var(--accent-warm-start-rgb, 167 139 250) / 0.12),
+      0 0 32px rgba(var(--accent-warm-end-rgb, 129 140 248) / 0.08);
   }
 }
 
@@ -841,10 +848,10 @@
 .focus-card-hover:hover {
   transform: translateY(-3px) scale(1.01);
   box-shadow:
-    0 8px 32px rgba(167, 139, 250, 0.18),
-    0 24px 64px rgba(129, 140, 248, 0.12),
-    0 0 0 1px rgba(167, 139, 250, 0.14),
-    0 0 48px rgba(129, 140, 248, 0.12) !important;
+    0 8px 32px rgba(var(--accent-warm-start-rgb, 167 139 250) / 0.18),
+    0 24px 64px rgba(var(--accent-warm-end-rgb, 129 140 248) / 0.12),
+    0 0 0 1px rgba(var(--accent-warm-start-rgb, 167 139 250) / 0.14),
+    0 0 48px rgba(var(--accent-warm-end-rgb, 129 140 248) / 0.12) !important;
 }
 
 /* 完成波紋 — 點完成時泛開一圈漣漪 */
@@ -861,7 +868,7 @@
   inset: 0;
   border-radius: inherit;
   animation: complete-ripple 700ms ease-out forwards;
-  background: radial-gradient(circle at center, rgba(167, 139, 250, 0.20) 0%, transparent 70%);
+  background: radial-gradient(circle at center, rgba(var(--accent-warm-start-rgb, 167 139 250) / 0.20) 0%, transparent 70%);
 }
 @keyframes complete-ripple {
   0% { opacity: 0; transform: scale(0.85); }

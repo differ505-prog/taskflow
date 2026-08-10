@@ -788,7 +788,10 @@ function EmptyState() {
     <div className="flex flex-col items-center gap-4 rounded-3xl bg-white px-12 py-16 text-center shadow-sm ring-1 ring-slate-200/60">
       {/* 暖色光暈裝飾 */}
       <div className="relative">
-        <div className="absolute inset-0 blur-2xl" style={{ background: "radial-gradient(circle, rgba(167,139,250,0.2) 0%, transparent 70%)" }} />
+        <div
+          className="absolute inset-0 blur-2xl"
+          style={{ background: `radial-gradient(circle, rgba(var(--accent-warm-start-rgb, 167 139 250) / 0.20) 0%, transparent 70%)` }}
+        />
         <svg
           aria-hidden
           width="48"
