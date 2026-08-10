@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { translateError } from "@/lib/errorMessages";
 
 const ONBOARDING_KEY_PREFIX = "taskflow_onboarding_v1_done";
+const ONBOARDING_COMPLETE_KEY = "taskflow_onboarding_complete_timestamp";
 
 interface RoleCard {
   id: string;
@@ -94,6 +95,10 @@ export function Onboarding({ forceShow = false, onClose }: OnboardingProps) {
   const markDone = () => {
     try {
       localStorage.setItem(onboardingKey, "1");
+      // 記錄完成時間戳，供回訪觸發鉤子使用
+      if (user?.uid) {
+        localStorage.setItem(`${ONBOARDING_COMPLETE_KEY}_${user.uid}`, String(Date.now()));
+      }
     } catch {}
     setIsVisible(false);
     onClose?.();

@@ -7,6 +7,7 @@ import { AppLayout } from "@/components/AppLayout";
 import ZenDashboard from "@/components/ZenDashboard";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ReturnHook } from "@/components/ReturnHook";
 
 /**
  * 禪模式家頁 / 抽屜殼
@@ -78,6 +79,7 @@ export default function ZenHomeShell() {
         <AppLayout />
       ) : (
         <>
+          <ReturnHook />
           <ZenDashboard />
           <BoardDrawer
             isOpen={isBoardOpen}
