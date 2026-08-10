@@ -4,12 +4,13 @@ import { useState, useCallback } from "react";
 import Link from "next/link";
 import {
   Inbox, Sun, CalendarDays, Layers, Tag, BarChart3, CalendarRange,
-  Settings, List as ListIcon, Timer, Sparkles, Flame, LogOut, MoreVertical
+  Settings, List as LucideList, Timer, Sparkles, Flame, LogOut, MoreVertical
 } from "lucide-react";
 import { AppView, TaskList, Task } from "@/lib/types";
 import { haptic } from "@/lib/haptics";
 import { supabase } from "@/lib/supabase";
 import { ListActionMenu } from "@/components/ListActionMenu";
+import { ListIcon as ListIconComponent } from "@/components/ListIcon";
 
 interface BottomNavItem {
   view: AppView;
@@ -265,7 +266,7 @@ function MorePopover({
                       onClick={() => { onSelectList(list.id); onClose(); }}
                       role="menuitem"
                     >
-                      <span className="text-base">{list.icon}</span>
+                      <span className="flex-shrink-0"><ListIconComponent icon={list.icon} className="w-4 h-4" /></span>
                       <span className="truncate">{list.name}</span>
                     </button>
                     {listHasHandlers && (

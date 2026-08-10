@@ -5,6 +5,7 @@ import { Search, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/lib/AppContext";
 import type { Task } from "@/lib/types";
+import { ListIcon } from "@/components/ListIcon";
 
 interface GlobalSearchBarProps {
   className?: string;
@@ -172,7 +173,7 @@ export function GlobalSearchBar({ className = "", onSelectTask, onNavigateToTask
                         aria-selected="false"
                       >
                         {list?.icon && (
-                          <span className="text-base flex-shrink-0">{list.icon}</span>
+                          <span className="flex-shrink-0"><ListIcon icon={list.icon} className="w-4 h-4" /></span>
                         )}
                         <div className="flex-1 min-w-0">
                           <div

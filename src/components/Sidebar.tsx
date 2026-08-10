@@ -30,6 +30,7 @@ import {
   X, Users,
   Pin, Gauge, Flame,
 } from "lucide-react";
+import { ListIcon, LIST_ICON_NAMES } from "./ListIcon";
 import { ListActionMenu } from "@/components/ListActionMenu";
 
 interface NavItem {
@@ -52,8 +53,6 @@ interface SidebarProps {
   onOpenSharedList?: (sharedId: string) => void;
   onLeaveSharedList?: (sharedId: string) => void;
 }
-
-const LIST_ICONS = ["📋", "💼", "🏠", "🏃", "📚", "💡", "🎯", "🌟", "💰", "🏥", "✈️", "🎨", "🍽️", "🛠️", "📱", "💻"];
 
 export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditList, onDeleteList, onOpenFlowTimer, onOpenShareModal, onOpenSharedLists, onOpenSharedList, onLeaveSharedList }: SidebarProps) {
   const { currentView, currentListId, currentSharedListId, setCurrentView, viewCounts, lists, reorderLists, sharedLists, getListTaskCount, tasks, acceptedSharedListIds } = useApp();
@@ -294,7 +293,7 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
                         : { color: "var(--text-secondary)" }
                     }
                   >
-                    <span className="text-base flex-shrink-0">{data.list.icon}</span>
+                    <span className="flex-shrink-0"><ListIcon icon={data.list.icon} className="w-5 h-5" /></span>
                     <span className="flex-1 text-left truncate">{data.list.name}</span>
                     <span className="text-[11px]" style={{ opacity: 0.6 }}>{data.tasks.filter((t) => t.status !== "done").length}</span>
                   </button>
@@ -438,7 +437,7 @@ function SortableListItem({
           onContextMenu={onContextMenu}
           className="flex-1 flex items-center gap-3 text-left min-w-0"
         >
-          <span className="flex-shrink-0 text-base leading-none">{list.icon}</span>
+          <span className="flex-shrink-0"><ListIcon icon={list.icon} className="w-5 h-5" /></span>
           <span className="flex-1 truncate">{list.name}</span>
           {list.sharedId && (
             <span
@@ -535,18 +534,18 @@ export function ListForm({ isOpen, onClose, onSubmit, initialData, onDelete }: L
         <div>
           <label className="block mb-2 text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>圖示</label>
           <div className="flex flex-wrap gap-2">
-            {LIST_ICONS.map((ic) => (
+            {LIST_ICON_NAMES.map((iconName) => (
               <button
-                key={ic}
-                onClick={() => setIcon(ic)}
-                className="w-9 h-9 rounded-xl text-xl flex items-center justify-center transition-all duration-150"
+                key={iconName}
+                onClick={() => setIcon(iconName)}
+                className="w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-150"
                 style={
-                  icon === ic
+                  icon === iconName
                     ? { background: "var(--brand-tint)", border: "2px solid var(--brand)" }
                     : { background: "var(--surface-hover)", border: "2px solid transparent" }
                 }
               >
-                {ic}
+                <ListIcon icon={iconName} className="w-5 h-5" />
               </button>
             ))}
           </div>

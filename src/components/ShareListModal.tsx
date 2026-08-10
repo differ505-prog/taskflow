@@ -10,6 +10,7 @@ import { getSharedSnapshot } from "@/lib/firestore";
 import { SharedMember, MemberRole } from "@/lib/sharedSync";
 import { translateShareError } from "@/lib/errorMessages";
 import { X, Link2, Copy, Check, Users, Trash2, Loader2, Mail, Shield, ShieldCheck, UserMinus } from "lucide-react";
+import { ListIcon } from "./ListIcon";
 
 interface ShareListModalProps {
   isOpen: boolean;
@@ -394,7 +395,7 @@ export function ShareListModal({ isOpen, onClose, listToShare: staleListToShare,
             {incomingShare.snapshot ? (
               <>
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">{incomingShare.snapshot.list.icon}</span>
+                  <span className="flex-shrink-0"><ListIcon icon={incomingShare.snapshot.list.icon} className="w-6 h-6" /></span>
                   <div>
                     <p className="text-[13px] font-medium" style={{ color: "var(--text-primary)" }}>
                       {incomingShare.snapshot.list.name}
@@ -557,7 +558,7 @@ export function ShareListModal({ isOpen, onClose, listToShare: staleListToShare,
                     className="flex items-center gap-3 p-3 rounded-xl"
                     style={{ background: "var(--surface-muted)", border: "1px solid var(--border)" }}
                   >
-                    <span className="text-xl flex-shrink-0">{data.list.icon}</span>
+                    <span className="flex-shrink-0"><ListIcon icon={data.list.icon} className="w-6 h-6" /></span>
                     <div className="flex-1 min-w-0">
                       <p className="text-[14px] font-medium truncate" style={{ color: "var(--text-primary)" }}>
                         {data.list.name}

@@ -34,6 +34,7 @@ import {
 } from "@dnd-kit/sortable";
 import { SortableTaskItem } from "./SortableTaskItem";
 import LostAndFound from "@/components/LostAndFound";
+import { ListIcon } from "./ListIcon";
 
 const VIEW_LABELS: Record<AppView, string> = {
   inbox: "收集箱",
@@ -427,10 +428,10 @@ const canDrag = !currentSharedListId && !isMobile;
                 </button>
               )}
               {currentSharedListId && sharedLists[currentSharedListId] && (
-                <span className="text-2xl">{sharedLists[currentSharedListId].list.icon}</span>
+                <span className="flex-shrink-0"><ListIcon icon={sharedLists[currentSharedListId].list.icon} className="w-7 h-7" /></span>
               )}
               {currentListId && !currentSharedListId && lists.find((l) => l.id === currentListId) && (
-                <span className="text-2xl">{lists.find((l) => l.id === currentListId)!.icon}</span>
+                <span className="flex-shrink-0"><ListIcon icon={lists.find((l) => l.id === currentListId)!.icon} className="w-7 h-7" /></span>
               )}
               <div className="flex items-center gap-2">
                 <h1 className="text-[17px] md:text-[18px] font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
