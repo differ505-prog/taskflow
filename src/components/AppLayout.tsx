@@ -25,6 +25,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useFeatureGate } from "@/lib/useFeatureGate";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { Onboarding } from "@/components/Onboarding";
+import { Day1Guide } from "@/components/Day1Guide";
 import { IOSInstallPrompt, AndroidInstallPrompt, AhaMoment } from "@/components/PwaPrompts";
 import { QuickVoiceFAB } from "@/components/QuickVoiceFAB";
 import { StatusWindow } from "@/components/StatusWindow";
@@ -322,6 +323,7 @@ function AppLayoutInner() {
   return (
     <>
       <Onboarding />
+      <Day1Guide />
       <IOSInstallPrompt />
       <AndroidInstallPrompt />
       <AhaMoment />
