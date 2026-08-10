@@ -793,16 +793,27 @@ function QueueItemCard({ task, isDragging = false }: { task: Task; isDragging?: 
 function EmptyState() {
   return (
     <div className="flex flex-col items-center gap-4 rounded-3xl bg-white px-12 py-16 text-center shadow-sm ring-1 ring-slate-200/60">
-      {/* 暖色光暈裝飾 */}
-      <div className="relative">
+      <div className="relative flex h-20 w-20 items-center justify-center">
         <div
-          className="absolute inset-0 blur-2xl"
-          style={{ background: `radial-gradient(circle, rgba(var(--accent-warm-start-rgb, 167 139 250) / 0.20) 0%, transparent 70%)` }}
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: "radial-gradient(circle, rgba(var(--accent-warm-start-rgb, 167 139 250) / 0.25) 0%, transparent 70%)",
+            animation: "zen-glow 3s ease-in-out infinite",
+          }}
+          aria-hidden
+        />
+        <div
+          className="absolute inset-4 rounded-full"
+          style={{
+            background: "radial-gradient(circle, rgba(var(--accent-warm-end-rgb, 250 204 21) / 0.15) 0%, transparent 70%)",
+            animation: "zen-glow 3s ease-in-out infinite 0.5s",
+          }}
+          aria-hidden
         />
         <svg
           aria-hidden
-          width="48"
-          height="48"
+          width="32"
+          height="32"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -818,26 +829,24 @@ function EmptyState() {
           <path d="M19 15c-2 0-4 1-4 4" />
         </svg>
       </div>
-      <p className="text-balance text-base font-medium text-slate-600">今日專注已全數完成</p>
-      <p className="text-balance text-sm text-slate-400">戰場很安靜。剩下的，會在大廳等你。</p>
+
+      <div className="flex flex-col items-center gap-2 text-center">
+        <p className="text-balance text-[15px] font-medium text-slate-600">
+          今日專注已全數完成
+        </p>
+        <p className="text-balance text-[13px] leading-relaxed text-slate-400">
+          戰場很安靜。剩下的，會在大廳等你。
+        </p>
+      </div>
+
       <a
         href="/?board=1"
-        className="mt-2 inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium transition-all duration-200 ease-out"
+        className="mt-1 inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-[13px] font-medium text-white shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]"
         style={{
-          background: "rgba(167, 139, 250, 0.10)",
-          color: "#7c3aed",
-          boxShadow: "0 0 0 1px rgba(167, 139, 250, 0.20)",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = "rgba(167, 139, 250, 0.18)";
-          e.currentTarget.style.transform = "scale(1.02)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = "rgba(167, 139, 250, 0.10)";
-          e.currentTarget.style.transform = "scale(1)";
+          backgroundImage: "linear-gradient(135deg, var(--accent-warm-start), var(--accent-warm-end))",
         }}
       >
-        <span aria-hidden>📥</span>
+        <span aria-hidden>⚡</span>
         <span>開啟任務大廳</span>
       </a>
     </div>
