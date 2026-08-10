@@ -49,6 +49,7 @@ import { useApp } from "@/lib/AppContext";
 import type { Task } from "@/lib/types";
 import { WarmupFlow } from "@/components/WarmupFlow";
 import { OnboardingTask } from "@/components/OnboardingTask";
+import { ZenFirstVisitGuide } from "@/components/ZenFirstVisitGuide";
 
 /** 禪模式看的任務樣態：嚴格「今日專注清單 (The Today Rule)」
  *  - 排除已封存、已完成、子任務
@@ -431,7 +432,10 @@ export default function ZenDashboard() {
                 }
               />
             ) : (
-              <EmptyState key="empty" />
+              <>
+                <ZenFirstVisitGuide />
+                <EmptyState key="empty" />
+              </>
             )}
           </AnimatePresence>
         </section>
