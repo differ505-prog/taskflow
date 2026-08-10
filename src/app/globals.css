@@ -54,10 +54,14 @@
   --radius-lg: 16px;
   --radius-xl: 20px;
   --radius-full: 9999px;
+
+  /* hover 背景 — 自動適配 light/dark mode */
+  --hover-bg: rgba(0, 0, 0, 0.05);
 }
 
 /* ── 深色模式 ────────────────────────────────────────────── */
 [data-theme="dark"] {
+  --hover-bg: rgba(255, 255, 255, 0.08);
   --brand: #6B8AFF;
   --brand-hover: #8BA3FF;
   --brand-foreground: #ffffff;

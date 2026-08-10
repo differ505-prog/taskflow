@@ -80,7 +80,7 @@ function HabitRow({ habit, onCheckin, onDelete, onUpdate, onRestore }: {
             <div className="flex gap-1">
               <button
                 onClick={() => setShowHeatmap(!showHeatmap)}
-                className="p-1.5 rounded-lg hover:bg-black/5 transition-colors"
+                className="p-1.5 rounded-lg hover:bg-[var(--hover-bg)] transition-colors"
                 style={{ color: "var(--text-tertiary)" }}
                 aria-label="顯示熱力圖"
               >
@@ -208,7 +208,7 @@ export function HabitsPage() {
           {archivedHabits.length > 0 && (
             <button
               onClick={() => setShowArchived((v) => !v)}
-              className="px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+              className="px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors hover:bg-[var(--hover-bg)]"
               style={{ color: "var(--text-secondary)" }}
             >
               {showArchived ? "← 返回" : `查看封存 (${archivedHabits.length})`}
@@ -232,7 +232,7 @@ export function HabitsPage() {
           >
             <div className="flex items-center justify-between">
               <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>新增習慣</h2>
-              <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg hover:bg-black/5" style={{ color: "var(--text-tertiary)" }}>
+              <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg hover:bg-[var(--hover-bg)]" style={{ color: "var(--text-tertiary)" }}>
                 <X className="w-4 h-4" />
               </button>
             </div>

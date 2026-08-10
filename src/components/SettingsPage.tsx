@@ -550,7 +550,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-5" style={{ background: "var(--surface-elevated)", borderBottom: "1px solid var(--border)" }}>
           <h2 id="settings-title" className="text-[17px] font-semibold" style={{ color: "var(--text-primary)" }}>設定</h2>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-black/5 transition-colors" style={{ color: "var(--text-tertiary)" }} aria-label="關閉設定">
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-[var(--hover-bg)] transition-colors" style={{ color: "var(--text-tertiary)" }} aria-label="關閉設定">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -1162,7 +1162,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                 />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full flex items-center justify-between p-4 rounded-xl transition-colors hover:bg-black/5"
+                  className="w-full flex items-center justify-between p-4 rounded-xl transition-colors hover:bg-[var(--hover-bg)]"
                   style={{ background: "var(--surface-muted)" }}
                 >
                   <div className="flex items-center gap-3">
@@ -1264,7 +1264,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                   </span>
                   <button
                     onClick={handleCopyWebcalUrl}
-                    className="p-1.5 rounded-lg hover:bg-black/5 transition-colors flex-shrink-0"
+                    className="p-1.5 rounded-lg hover:bg-[var(--hover-bg)] transition-colors flex-shrink-0"
                     title="複製連結"
                   >
                     {webcalUrlCopied ? (

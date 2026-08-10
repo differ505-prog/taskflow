@@ -267,7 +267,7 @@ export function CalendarView({
           <div className="flex items-center gap-2">
             <button
               onClick={prevMonth}
-              className="p-2 rounded-xl hover:bg-black/5 transition-colors"
+              className="p-2 rounded-xl hover:bg-[var(--hover-bg)] transition-colors"
               style={{ color: "var(--text-secondary)" }}
               aria-label="上個月"
             >
@@ -275,14 +275,14 @@ export function CalendarView({
             </button>
             <button
               onClick={resetMonth}
-              className="px-3 py-1.5 rounded-xl text-[13px] font-medium hover:bg-black/5 transition-colors"
+              className="px-3 py-1.5 rounded-xl text-[13px] font-medium hover:bg-[var(--hover-bg)] transition-colors"
               style={{ color: "var(--text-secondary)" }}
             >
               今天
             </button>
             <button
               onClick={nextMonth}
-              className="p-2 rounded-xl hover:bg-black/5 transition-colors"
+              className="p-2 rounded-xl hover:bg-[var(--hover-bg)] transition-colors"
               style={{ color: "var(--text-secondary)" }}
               aria-label="下個月"
             >
@@ -292,7 +292,7 @@ export function CalendarView({
             <button
               type="button"
               onClick={openTaskForm}
-              className="p-2 rounded-xl hover:bg-black/5 transition-colors"
+              className="p-2 rounded-xl hover:bg-[var(--hover-bg)] transition-colors"
               style={{ color: "var(--brand)" }}
               aria-label="新增任務"
               title="新增任務"
@@ -523,7 +523,7 @@ function DesktopCalendarLayout({
           <div className="flex items-center gap-2">
             <button
               onClick={prevMonth}
-              className="p-2 rounded-xl hover:bg-black/5 transition-colors"
+              className="p-2 rounded-xl hover:bg-[var(--hover-bg)] transition-colors"
               style={{ color: "var(--text-secondary)" }}
               aria-label="上個月"
             >
@@ -531,14 +531,14 @@ function DesktopCalendarLayout({
             </button>
             <button
               onClick={resetMonth}
-              className="px-3 py-1.5 rounded-xl text-[13px] font-medium hover:bg-black/5 transition-colors"
+              className="px-3 py-1.5 rounded-xl text-[13px] font-medium hover:bg-[var(--hover-bg)] transition-colors"
               style={{ color: "var(--text-secondary)" }}
             >
               今天
             </button>
             <button
               onClick={nextMonth}
-              className="p-2 rounded-xl hover:bg-black/5 transition-colors"
+              className="p-2 rounded-xl hover:bg-[var(--hover-bg)] transition-colors"
               style={{ color: "var(--text-secondary)" }}
               aria-label="下個月"
             >
@@ -548,7 +548,7 @@ function DesktopCalendarLayout({
             <button
               type="button"
               onClick={onOpenTaskForm}
-              className="p-2 rounded-xl hover:bg-black/5 transition-colors"
+              className="p-2 rounded-xl hover:bg-[var(--hover-bg)] transition-colors"
               style={{ color: "var(--brand)" }}
               aria-label="新增任務"
               title="新增任務"
@@ -669,7 +669,7 @@ function DesktopCalendarLayout({
           {selectedDate && (
             <button
               onClick={() => onSelectDate(null)}
-              className="p-1.5 rounded-lg hover:bg-black/5 transition-colors"
+              className="p-1.5 rounded-lg hover:bg-[var(--hover-bg)] transition-colors"
               style={{ color: "var(--text-tertiary)" }}
               aria-label="關閉任務列"
             >
@@ -932,13 +932,13 @@ function CalendarTaskSheetMobile({
             <button
               type="button"
               onClick={toggleExpand}
-              className="p-1.5 rounded-lg hover:bg-black/5 transition-colors"
+              className="p-1.5 rounded-lg hover:bg-[var(--hover-bg)] transition-colors"
               style={{ color: "var(--text-tertiary)" }}
               aria-label={level === "expanded" ? "收起" : "全螢幕展開"}
             >
               {level === "expanded" ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
-            <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-black/5 transition-colors" style={{ color: "var(--text-tertiary)" }} aria-label="關閉">
+            <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--hover-bg)] transition-colors" style={{ color: "var(--text-tertiary)" }} aria-label="關閉">
               <X className="w-4 h-4" />
             </button>
           </div>

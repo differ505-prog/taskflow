@@ -562,7 +562,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             {onClose && (
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-xl hover:bg-black/5 transition-colors"
+                className="p-1.5 rounded-xl hover:bg-[var(--hover-bg)] transition-colors"
                 style={{ color: "var(--text-tertiary)" }}
                 aria-label="返回"
               >
@@ -594,7 +594,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             </button>
             <button
               onClick={() => handleUpdateTask(task.id, { isPinned: !task.isPinned })}
-              className="p-2 rounded-xl hover:bg-black/5 transition-colors"
+              className="p-2 rounded-xl hover:bg-[var(--hover-bg)] transition-colors"
               style={{ color: task.isPinned ? "var(--brand)" : "var(--text-tertiary)" }}
               title={task.isPinned ? "取消置頂" : "置頂此任務"}
               aria-label={task.isPinned ? "取消置頂" : "置頂"}
@@ -1082,7 +1082,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
           <button
             type="button"
             onClick={() => setCommentsDrawerOpen(true)}
-            className="absolute right-0 top-0 z-10 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] transition-all duration-200 hover:bg-black/5 active:scale-95"
+            className="absolute right-0 top-0 z-10 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] transition-all duration-200 hover:bg-[var(--hover-bg)] active:scale-95"
             style={{ color: "var(--text-tertiary)" }}
             aria-label="開啟留言面板"
             title="於留言面板開啟"

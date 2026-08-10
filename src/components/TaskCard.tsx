@@ -532,7 +532,7 @@ export function TaskCard({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); setCommentsDrawerOpen(true); }}
-              className="absolute right-0 top-0 z-10 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] transition-all duration-200 hover:bg-black/5 active:scale-95"
+              className="absolute right-0 top-0 z-10 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] transition-all duration-200 hover:bg-[var(--hover-bg)] active:scale-95"
               style={{ color: "var(--text-tertiary)" }}
               aria-label="開啟留言面板"
               title="於留言面板開啟"
@@ -557,7 +557,7 @@ export function TaskCard({
           >
             <button
               onClick={handleEdit}
-              className="p-1.5 rounded-lg hover:bg-black/5 transition-all duration-150 active:scale-90"
+              className="p-1.5 rounded-lg hover:bg-[var(--hover-bg)] transition-all duration-150 active:scale-90"
               style={{ color: "var(--text-tertiary)" }}
               aria-label="編輯任務"
             >
@@ -566,7 +566,7 @@ export function TaskCard({
             {onArchive && (
               <button
                 onClick={handleArchive}
-                className="p-1.5 rounded-lg hover:bg-black/5 transition-all duration-150 active:scale-90"
+                className="p-1.5 rounded-lg hover:bg-[var(--hover-bg)] transition-all duration-150 active:scale-90"
                 style={{ color: "var(--text-tertiary)" }}
                 aria-label="封存任務"
                 title="封存"

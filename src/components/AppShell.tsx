@@ -442,7 +442,7 @@ const canDrag = !currentSharedListId && !isMobile;
                       const list = lists.find(l => l.id === currentListId)!;
                       onOpenShareModal(list, listTasks);
                     }}
-                    className="p-1.5 rounded-lg hover:bg-black/5 transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-[var(--hover-bg)] transition-colors"
                     style={{ color: "var(--text-tertiary)" }}
                     title="分享此清單"
                   >
@@ -522,7 +522,7 @@ const canDrag = !currentSharedListId && !isMobile;
                     e.preventDefault();
                     handleQuickAdd();
                   }}
-                  className="absolute right-2 p-2.5 rounded-lg hover:bg-black/5 active:scale-95 transition-all duration-150 cursor-pointer"
+                  className="absolute right-2 p-2.5 rounded-lg hover:bg-[var(--hover-bg)] active:scale-95 transition-all duration-150 cursor-pointer"
                   style={{ color: "var(--brand)", touchAction: "manipulation" }}
                   aria-label="送出快速新增"
                 >
@@ -731,7 +731,7 @@ const canDrag = !currentSharedListId && !isMobile;
                               e.stopPropagation();
                               toggleCompletedExpanded();
                             }}
-                            className="text-[11px] px-2 py-1 rounded-md transition-colors duration-150 hover:bg-black/5"
+                            className="text-[11px] px-2 py-1 rounded-md transition-colors duration-150 hover:bg-[var(--hover-bg)]"
                             style={{ color: "var(--text-tertiary)" }}
                             aria-label={completedExpanded ? "全部收起" : "全部展開"}
                           >
@@ -1029,7 +1029,7 @@ const canDrag = !currentSharedListId && !isMobile;
                               e.stopPropagation();
                               toggleOverdueExpanded();
                             }}
-                            className="text-[11px] px-2 py-1 rounded-md transition-colors duration-150 hover:bg-black/5"
+                            className="text-[11px] px-2 py-1 rounded-md transition-colors duration-150 hover:bg-[var(--hover-bg)]"
                             style={{ color: "var(--status-warning)" }}
                             aria-label={overdueExpanded ? "全部收起" : "全部展開"}
                           >
@@ -1104,7 +1104,7 @@ const canDrag = !currentSharedListId && !isMobile;
                               e.stopPropagation();
                               toggleCompletedExpanded();
                             }}
-                            className="text-[11px] px-2 py-1 rounded-md transition-colors duration-150 hover:bg-black/5"
+                            className="text-[11px] px-2 py-1 rounded-md transition-colors duration-150 hover:bg-[var(--hover-bg)]"
                             style={{ color: "var(--text-tertiary)" }}
                             aria-label={completedExpanded ? "全部收起" : "全部展開"}
                           >
@@ -1201,7 +1201,7 @@ const canDrag = !currentSharedListId && !isMobile;
             >
               <button
                 onClick={onExitBatchMode}
-                className="p-2 rounded-xl hover:bg-black/5 transition-colors"
+                className="p-2 rounded-xl hover:bg-[var(--hover-bg)] transition-colors"
                 style={{ color: "var(--text-tertiary)" }}
                 aria-label="退出批次模式"
               >
