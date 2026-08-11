@@ -1,4 +1,5 @@
 import { getLocalToday } from "@/lib/dateUtils";
+import { SharedListData } from "@/lib/storage";
 /**
  * 加入今日 (Add to Today) — 共用動作 hook
  *
@@ -32,7 +33,7 @@ export function useAddToToday() {
       // §23 同步層:統一走 AppContext.updateTask,享有 markRecentlyWritten 保護
       const today = getLocalToday();
       let targetSharedListId: string | undefined;
-      for (const [listId, data] of Object.entries(sharedLists)) {
+      for (const [listId, data] of Object.entries(sharedLists) as [string, SharedListData][]) {
         if (data.tasks.some(t => t.id === taskId)) {
           targetSharedListId = listId;
           break;

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useApp } from "@/lib/AppContext";
 import { useAuth } from "@/lib/AuthContext";
 import { AppView, TaskList } from "@/lib/types";
+import { SharedListData } from "@/lib/storage";
 import {
   DndContext,
   closestCenter,
@@ -262,7 +263,7 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
         <div className="h-px mx-2 mt-2" style={{ background: "var(--border)" }} />
 
         {/* Shared lists */}
-        {Object.values(sharedLists).filter((d) => {
+        {Object.values(sharedLists as Record<string, SharedListData>).filter((d) => {
           const key = d.list.sharedId ?? d.list.id;
           return d.list.ownerId !== user?.uid && acceptedSharedListIds.includes(key);
         }).length > 0 && (
@@ -270,7 +271,7 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
             <div className="px-3 py-1 text-[11px] font-medium uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
               共用清單
             </div>
-            {Object.values(sharedLists)
+            {Object.values(sharedLists as Record<string, SharedListData>)
               .filter((d) => {
                 const key = d.list.sharedId ?? d.list.id;
                 return d.list.ownerId !== user?.uid && acceptedSharedListIds.includes(key);
@@ -310,7 +311,7 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
                 </div>
               );
             })}
-          </div>
+            </div>
         )}
         {onOpenSharedLists && (
           <div className="pt-1">

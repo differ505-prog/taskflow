@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { useApp } from "@/lib/AppContext";
+import { SharedListData } from "@/lib/storage";
 import { Sidebar, ListForm } from "@/components/Sidebar";
 import { AppShell } from "@/components/AppShell";
 import { TaskDetailPanel } from "@/components/TaskDetailPanel";
@@ -207,7 +208,7 @@ function AppLayoutInner() {
 
   const selectedTask = selectedTaskId ? (
     tasks.find((t) => t.id === selectedTaskId) ||
-    Object.values(sharedLists).flatMap(listData => listData.tasks).find((t) => t.id === selectedTaskId) ||
+    Object.values(sharedLists as Record<string, SharedListData>).flatMap(listData => listData.tasks).find((t) => t.id === selectedTaskId) ||
     null
   ) : null;
   const calendarTask = currentView === 'calendar' ? calendarSelectedTask : null;

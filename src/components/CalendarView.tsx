@@ -68,8 +68,8 @@ export function CalendarView({
     searchQuery,
     onUpdateTaskDates: (taskId, startDate, dueDate) => {
       let targetSharedListId: string | undefined;
-      for (const [listId, data] of Object.entries(sharedLists)) {
-        if (data.tasks.some(t => t.id === taskId)) {
+      for (const [listId, data] of Object.entries(sharedLists) as [string, import("@/lib/storage").SharedListData][]) {
+        if (data.tasks.some((t: Task) => t.id === taskId)) {
           targetSharedListId = listId;
           break;
         }
@@ -166,7 +166,7 @@ export function CalendarView({
       
       // try to find if it's shared
       let targetSharedListId: string | undefined;
-      for (const [listId, data] of Object.entries(sharedLists)) {
+      for (const [listId, data] of Object.entries(sharedLists) as [string, import("@/lib/storage").SharedListData][]) {
         if (data.tasks.some(t => t.id === draggingTaskId)) {
           targetSharedListId = listId;
           break;

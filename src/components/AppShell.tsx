@@ -10,6 +10,7 @@ import { useProactiveClosure } from "@/hooks/useProactiveClosure";
 import { useAddToToday } from "@/hooks/useAddToToday";
 import { useTaskHotkeys } from "@/hooks/useTaskHotkeys";
 import { Task, AppView, TaskList, TaskStatus } from "@/lib/types";
+import { SharedListData } from "@/lib/storage";
 import { TaskCard } from "./TaskCard";
 import { TaskSwipeWrapper } from "./SwipeableTaskCard";
 import { TaskForm } from "./TaskForm";
@@ -215,7 +216,7 @@ export function AppShell({
   };
 
   const filteredTasks = getFilteredTasks();
-  const sharedListTasks = currentSharedListId
+  const sharedListTasks: Task[] = currentSharedListId
     ? sharedLists[currentSharedListId]?.tasks ?? []
     : [];
   const sharedFilteredTasks = activeFilter.status
@@ -395,7 +396,7 @@ const canDrag = !currentSharedListId && !isMobile;
     // 被誤判為「無效 task」而 toggle off,造成桌面版任務詳情打不開
     if (selectedTaskId && tasks.length > 0) {
       const isPersonalTask = tasks.some((t) => t.id === selectedTaskId);
-      const isSharedTask = Object.values(sharedLists).flatMap(list => list.tasks).some(t => t.id === selectedTaskId);
+      const isSharedTask = Object.values(sharedLists as Record<string, SharedListData>).flatMap(list => list.tasks).some(t => t.id === selectedTaskId);
       if (!isPersonalTask && !isSharedTask) {
         onSelectTask(selectedTaskId); // toggle off
       }
