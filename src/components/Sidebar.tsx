@@ -253,6 +253,24 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
                       allTasks={tasks}
                     />
                   ))}
+                  {/* UX-5: 零清單 Empty State */}
+                  {userLists.length === 0 && (
+                    <div className="flex flex-col items-center gap-2 py-4 px-3">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "var(--surface-muted)" }}>
+                        <Plus className="w-4 h-4" style={{ color: "var(--text-tertiary)" }} />
+                      </div>
+                      <p className="text-[12px] text-center leading-snug" style={{ color: "var(--text-tertiary)" }}>
+                        建立第一個清單<br />整理你的任務
+                      </p>
+                      <button
+                        onClick={onOpenListForm}
+                        className="mt-1 px-3 py-1.5 rounded-xl text-[12px] font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
+                        style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+                      >
+                        + 新增清單
+                      </button>
+                    </div>
+                  )}
                 </div>
               </SortableContext>
             </DndContext>

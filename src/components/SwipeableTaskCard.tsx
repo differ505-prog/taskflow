@@ -189,8 +189,11 @@ export function SwipeableTaskCard({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onClick={(e) => {
-          if (isOpen) {
-            e.stopPropagation(); // 防止冒泡到卡片点击
+          // 讓按鈕/input 的點擊正常穿透；只攔截卡片空白區點擊（關閉 strip）
+          const target = e.target as HTMLElement;
+          const isInteractive = target.closest("button, input, [role='button'], a");
+          if (isOpen && !isInteractive) {
+            e.stopPropagation();
             close();
           }
         }}

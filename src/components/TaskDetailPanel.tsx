@@ -378,6 +378,12 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
         tags: snap.tags,
         recurrence,
       });
+      // UX-1: 寫入完成後閃一下「已儲存」
+      setShowSaved(true);
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+      savedTimerRef.current = setTimeout(() => {
+        setShowSaved(false);
+      }, 1500);
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }); // 故意不寫 dependency：每次 render 都跑，內部 ref 自管理
@@ -464,7 +470,9 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     setEditingSubId(null);
   };
 
-  // ─── O-008 子任務拖曳排序 ───────────────────────────
+  // ─── UX-1: auto-save 視覺回饋 ─────────────────────────────
+  const [showSaved, setShowSaved] = useState(false);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 只拖「未完成」區;已完成區維持摺疊不動
   const subTaskSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
@@ -610,6 +618,22 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             >
               <Trash2 className="w-4 h-4" />
             </button>
+            {/* UX-1: auto-save 視覺回饋 */}
+            <AnimatePresence>
+              {showSaved && (
+                <motion.div
+                  key="saved"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex items-center gap-1 pl-1"
+                >
+                  <CheckCircle2 className="w-4 h-4" style={{ color: "var(--status-success)" }} />
+                  <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>已儲存</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
