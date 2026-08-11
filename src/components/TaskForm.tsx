@@ -378,7 +378,8 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
       recurrence,
       attachments,
     });
-    onClose();
+    toast.success("任務已建立", { duration: 2000 });
+    setTimeout(() => onClose(), 400);
   };
 
   const selectStyle = {

@@ -121,6 +121,26 @@ export function BottomNavigation({ currentView, currentListId, lists, tasks, onN
           );
         })}
 
+        {/* 心流計時 — 手機直接入口（與桌面側邊欄對齊） */}
+        <button
+          className="bottom-nav-item"
+          onClick={handleFlowTimer}
+          aria-label="心流計時"
+        >
+          <Timer className="w-[22px] h-[22px]" />
+          <span className="text-[11px]">心流</span>
+        </button>
+
+        {/* 禪模式 — 手機直接入口 */}
+        <button
+          className="bottom-nav-item"
+          onClick={() => { haptic("selection"); window.location.href = "/"; }}
+          aria-label="禪模式"
+        >
+          <Sparkles className="w-[22px] h-[22px]" />
+          <span className="text-[11px]">禪</span>
+        </button>
+
         {/* More */}
         <button
           className={`bottom-nav-item relative ${moreActive ? "active" : ""}`}

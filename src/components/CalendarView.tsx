@@ -14,6 +14,7 @@ import { useRef } from "react";
 import { haptic } from "@/lib/haptics";
 import { useMonthGrid } from "@/hooks/useMonthGrid";
 import { useExternalCalendar } from "@/hooks/useExternalCalendar";
+import { TodayIllustration } from "@/illustrations/EmptyStateIllustrations";
 
 interface CalendarViewProps {
   /** YYYY-MM-DD;null = 不顯示 sheet。由 AppLayout 統一管理(§26 O' ESC 死鎖防護)。 */
@@ -961,12 +962,8 @@ function CalendarTaskSheetMobile({
         </form>
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-8">
           {selectedDateTasks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 gap-2">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "var(--surface-muted)" }}>
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: "var(--text-tertiary)" }}>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-              </div>
+            <div className="flex flex-col items-center justify-center py-8 gap-3">
+              <TodayIllustration className="w-20 h-20 opacity-60" />
               <p className="text-[13px]" style={{ color: "var(--text-tertiary)" }}>這天沒有任務</p>
             </div>
           ) : (
