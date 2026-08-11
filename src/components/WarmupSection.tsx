@@ -313,7 +313,8 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
       </motion.div>
 
       {/* §26 B 評分表 9.1:「開始暖身」入口 — 點擊進入全螢幕抽卡流程
-          只在 ≥2 個 pending 時出現,避免與「快速完成」競爭點擊目標 */}
+          只在 ≥2 個 pending 時出現,避免與「快速完成」競爭點擊目標
+          雙平台都顯示:手機使用者可選擇「快速完成 #1」或「進 flow 自由選擇」 */}
       {pendingHabits.length >= 2 && onEnterFlow && (
         <motion.button
           type="button"
@@ -323,7 +324,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
           transition={{ duration: 0.35, ease: "easeOut", delay: 0.5 }}
           onClick={onEnterFlow}
           aria-label="開始暖身儀式"
-          className="fixed bottom-6 left-1/2 z-20 hidden -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2 text-xs font-medium uppercase leading-none tracking-widest text-white shadow-md transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lg active:scale-95 sm:flex"
+          className="fixed bottom-6 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2 text-xs font-medium uppercase leading-none tracking-widest text-white shadow-md transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lg active:scale-95"
           style={{ backgroundImage: "linear-gradient(135deg, var(--accent-warm-start), var(--accent-warm-end))" }}
           whileTap={{ scale: 0.92 }}
         >
