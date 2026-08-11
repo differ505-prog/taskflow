@@ -22,11 +22,6 @@ const config: Config = {
         border: {
           subtle: "var(--border-subtle)",
         },
-        priority: {
-          high: "var(--priority-high)",
-          medium: "var(--priority-medium)",
-          low: "var(--priority-low)",
-        },
         status: {
           success: "var(--status-success)",
           warning: "var(--status-warning)",
