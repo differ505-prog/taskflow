@@ -444,7 +444,7 @@ const canDrag = !currentSharedListId && !isMobile;
                       const list = lists.find(l => l.id === currentListId)!;
                       onOpenShareModal(list, listTasks);
                     }}
-                    className="p-1.5 rounded-lg hover:bg-[var(--hover-bg)] transition-colors"
+                    className="p-1.5 rounded-lg transition-colors duration-200 hover:bg-[var(--hover-bg)]"
                     style={{ color: "var(--text-tertiary)" }}
                     title="分享此清單"
                   >
@@ -1203,7 +1203,7 @@ const canDrag = !currentSharedListId && !isMobile;
             >
               <button
                 onClick={onExitBatchMode}
-                className="p-2 rounded-xl hover:bg-[var(--hover-bg)] transition-colors"
+                className="p-2 rounded-xl transition-colors duration-200 hover:bg-[var(--hover-bg)]"
                 style={{ color: "var(--text-tertiary)" }}
                 aria-label="退出批次模式"
               >

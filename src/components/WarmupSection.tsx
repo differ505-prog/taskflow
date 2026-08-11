@@ -185,7 +185,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
               <button
                 type="button"
                 onClick={() => { setIsCreating(false); setNewHabitTitle(""); }}
-                className="flex-1 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-200"
+                className="flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors duration-200 hover:opacity-80"
               >
                 取消
               </button>
@@ -297,7 +297,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
                             setConfirmingHabitId(null);
                           }
                         }}
-                        className="flex h-6 w-6 items-center justify-center rounded-full text-white transition-colors hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-warm-start)]"
+                        className="flex h-6 w-6 items-center justify-center rounded-full text-white transition-colors duration-200 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-warm-start)]"
                         style={{ background: "var(--accent-warm-end)" }}
                         aria-label={`完成暖身：${habit.title}`}
                       >
@@ -392,7 +392,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
                     }
                   }
                 }}
-                className="flex h-6 w-6 items-center justify-center rounded-full text-white transition-colors hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-warm-start)]"
+                className="flex h-6 w-6 items-center justify-center rounded-full text-white transition-colors duration-200 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-warm-start)]"
                 style={{ background: "var(--accent-warm-end)" }}
                 aria-label={`完成暖身：${pendingHabits[0].title}`}
               >

@@ -324,7 +324,8 @@ function BacklogItem({ task }: { task: Task }) {
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="text-slate-300 transition-colors group-hover:text-slate-500"
+        className="transition-colors duration-200 group-hover:text-slate-500"
+          style={{ color: "var(--text-tertiary)" }}
       >
         <circle cx="9" cy="6" r="1" fill="currentColor" />
         <circle cx="9" cy="12" r="1" fill="currentColor" />

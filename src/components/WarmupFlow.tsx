@@ -126,7 +126,8 @@ export function WarmupFlow({ open, onClose, onComplete }: WarmupFlowProps) {
             type="button"
             onClick={onClose}
             aria-label="關閉暖身"
-            className="rounded-full p-2 text-slate-400 transition-colors hover:bg-white/60 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+            className="rounded-full p-2 transition-colors duration-200 hover:bg-white/60 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+              style={{ color: "var(--text-tertiary)" }}
           >
             <X className="h-5 w-5" aria-hidden />
           </button>

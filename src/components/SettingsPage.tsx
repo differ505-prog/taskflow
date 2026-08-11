@@ -550,7 +550,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-5" style={{ background: "var(--surface-elevated)", borderBottom: "1px solid var(--border)" }}>
           <h2 id="settings-title" className="text-[17px] font-semibold" style={{ color: "var(--text-primary)" }}>設定</h2>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-[var(--hover-bg)] transition-colors" style={{ color: "var(--text-tertiary)" }} aria-label="關閉設定">
+          <button onClick={onClose} className="p-2 rounded-xl transition-colors duration-200 hover:bg-[var(--hover-bg)]" style={{ color: "var(--text-tertiary)" }} aria-label="關閉設定">
             <X className="w-5 h-5" />
           </button>
         </div>
