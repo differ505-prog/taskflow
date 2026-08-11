@@ -447,6 +447,7 @@ const canDrag = !currentSharedListId && !isMobile;
                     className="p-1.5 rounded-lg transition-colors duration-200 hover:bg-[var(--hover-bg)]"
                     style={{ color: "var(--text-tertiary)" }}
                     title="分享此清單"
+                    aria-label="分享此清單"
                   >
                     <Share2 className="w-4 h-4" />
                   </button>
@@ -1368,6 +1369,7 @@ function ArchivedTasksView() {
                 className="p-2 rounded-xl transition-all duration-150 hover:scale-105 active:scale-95"
                 style={{ color: "var(--brand)", background: "var(--brand-tint)" }}
                 title="還原任務"
+                aria-label="還原任務"
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
