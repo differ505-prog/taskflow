@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { Button } from "@/components/ui/Button";
 import { useApp } from "@/lib/AppContext";
 import { Task } from "@/lib/types";
 import { format, isToday, isSameMonth, parseISO } from "date-fns";
@@ -692,10 +693,7 @@ function DesktopCalendarLayout({
               style={{ fontSize: 16, padding: "10px 14px" }}
               aria-label="新增任務"
             />
-            <button type="submit" className="btn-primary py-2.5 px-4 flex items-center gap-1.5 flex-shrink-0" aria-label="新增">
-              <Plus className="w-4 h-4" />
-              新增
-            </button>
+            <Button type="submit" size="icon-sm" aria-label="新增" icon={<Plus className="w-4 h-4" />} />
           </form>
         )}
 
@@ -955,10 +953,7 @@ function CalendarTaskSheetMobile({
             style={{ fontSize: 16, padding: "10px 14px" }}
             aria-label="新增任務"
           />
-          <button type="submit" className="btn-primary py-2.5 px-4 flex items-center gap-1.5 flex-shrink-0" aria-label="新增">
-            <Plus className="w-4 h-4" />
-            新增
-          </button>
+          <Button type="submit" size="icon-sm" aria-label="新增" icon={<Plus className="w-4 h-4" />} />
         </form>
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-8">
           {selectedDateTasks.length === 0 ? (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/Button";
 import { Task, Priority } from "@/lib/types";
 import { getEisenhowerVisual } from "@/lib/eisenhower";
 import { IconPopover } from "./IconPopover";
@@ -362,17 +363,17 @@ function TagPopoverContent({
               style={{ padding: "6px 8px" }}
               maxLength={30}
             />
-            <button
+            <Button
               onClick={() => {
                 onAdd(input.trim());
                 setInput("");
               }}
               disabled={!input.trim()}
-              className="btn-primary px-2 disabled:opacity-40"
+              className="disabled:opacity-40"
+              size="icon-sm"
               aria-label="新增"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
+              icon={<Plus className="w-3.5 h-3.5" />}
+            />
           </div>
 
           {suggestions.length > 0 && (

@@ -9,7 +9,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X, Plus, Repeat, Calendar, Mic, MicOff, Hash, AlertCircle, Sparkles, Loader2 } from "lucide-react";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
-import { ProGhostButton } from "./ProGhostButton";
+import { Button } from "@/components/ui/Button";
 import { useAIShredder } from "@/hooks/useAIShredder";
 import { useGhostButton } from "@/hooks/useGhostButton";
 import { GhostButton } from "./GhostButton";
@@ -761,9 +761,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                         onFocus={() => { if (tagInput.trim()) updateTagSuggestions(tagInput); }}
                         placeholder="輸入或選擇標籤" className="input flex-1 pl-9" maxLength={50} />
                     </div>
-                    <button type="button" onClick={addTag} className="btn-ghost flex-shrink-0 px-3" aria-label="新增標籤">
-                      <Plus className="w-4 h-4" />
-                    </button>
+                    <Button type="button" variant="ghost" size="icon-sm" onClick={addTag} aria-label="新增標籤" className="flex-shrink-0"><Plus className="w-4 h-4" /></Button>
                   </div>
 
                   {/* Auto-complete dropdown */}
@@ -854,9 +852,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                     onChange={(e) => setSubtaskInputValue(e.target.value)}
                     onKeyDown={(e) => { if (!isComposingKey(e) && e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
                     placeholder="新增子任務..." className="input flex-1" style={{ fontSize: 16, padding: "8px 12px" }} />
-                  <button type="button" onClick={addSubTask} className="btn-ghost px-3" aria-label="新增子任務">
-                    <Plus className="w-4 h-4" />
-                  </button>
+                  <Button type="button" variant="ghost" size="icon-sm" onClick={addSubTask} aria-label="新增子任務"><Plus className="w-4 h-4" /></Button>
                 </div>
               </div>
 
@@ -872,8 +868,8 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
 
               {/* Actions */}
               <div className="flex justify-end gap-3 pt-3 pb-[calc(60px+env(safe-area-inset-bottom,0px)+12px)]" style={{ borderTop: "1px solid var(--border)" }}>
-                <button type="button" onClick={onClose} className="btn-ghost">取消</button>
-                <button type="submit" className="btn-primary">{initialData ? "儲存變更" : "建立任務"}</button>
+                <Button type="button" variant="ghost" onClick={onClose}>取消</Button>
+                <Button type="submit">{initialData ? "儲存變更" : "建立任務"}</Button>
               </div>
             </form>
           </motion.div>

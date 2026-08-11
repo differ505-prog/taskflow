@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Button } from "@/components/ui/Button";
 import { useApp } from "@/lib/AppContext";
 import { useAuth } from "@/lib/AuthContext";
 import {
@@ -813,13 +814,14 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
                       style={{ padding: "10px 12px" }}
                       disabled={betaBusy}
                     />
-                    <button
+                    <Button
                       onClick={handleAddBetaUser}
-                      className="btn-primary px-4 flex-shrink-0 disabled:opacity-50"
+                      className="flex-shrink-0 disabled:opacity-50"
                       disabled={betaBusy}
+                      loading={betaBusy}
                     >
                       {betaBusy ? "處理中…" : "添加"}
-                    </button>
+                    </Button>
                   </div>
 
                   {/* Beta Users List */}

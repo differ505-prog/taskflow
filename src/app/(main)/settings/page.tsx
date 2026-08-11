@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/Button";
 import { Settings as SettingsIcon, Trash2, Download, Moon, Bell, Shield, Info, CalendarDays, Copy, Check, ExternalLink, RefreshCw, Plus, type LucideIcon } from "lucide-react";
 import { getTasks } from "@/lib/storage";
 import { downloadICal } from "@/lib/ical";
@@ -489,13 +490,15 @@ export default function SettingsPage() {
                       </p>
                     </div>
                     {pushState === "subscribed" ? (
-                      <button
+                      <Button
+                        variant="ghost"
                         onClick={handleDisablePush}
                         disabled={pushBusy}
-                        className="btn-ghost text-[12px] disabled:opacity-50"
+                        className="disabled:opacity-50"
+                        loading={pushBusy}
                       >
                         關閉
-                      </button>
+                      </Button>
                     ) : (
                       <button
                         onClick={handleEnablePush}
@@ -643,19 +646,8 @@ export default function SettingsPage() {
               資料刪除後將無法復原。匯出功能可先行保留副本。
             </p>
             <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="btn-ghost"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleClearAllData}
-                className="px-5 py-2.5 rounded-xl text-[14px] font-medium text-white transition-all duration-200"
-                style={{ background: "var(--status-danger)" }}
-              >
-                清除
-              </button>
+              <Button variant="ghost" onClick={() => setShowConfirm(false)}>取消</Button>
+              <Button variant="danger" onClick={handleClearAllData}>清除</Button>
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { Button } from "@/components/ui/Button";
 import { Task, SubTask, Priority } from "@/lib/types";
 import TaskCommentsInline from "./TaskCommentsInline";
 import TaskCommentsDrawer from "./TaskCommentsDrawer";
@@ -216,6 +217,7 @@ export function TaskCard({
                 return (
                   <span
                     key={tag}
+                    aria-label={`標籤: ${tag}`}
                     className="text-[11px] py-0.5"
                     style={{
                       background: `${color}15`,
@@ -461,14 +463,8 @@ function SubTasksSection({
                   if (e.key === "Escape") { setShowSubTaskInput(false); setNewSubTaskTitle(""); }
                 }}
               />
-              <button type="submit" className="btn-primary py-1.5 px-3 text-[12px]">新增</button>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); setShowSubTaskInput(false); setNewSubTaskTitle(""); }}
-                className="btn-ghost py-1.5 px-3 text-[12px]"
-              >
-                取消
-              </button>
+              <Button type="submit" size="sm">新增</Button>
+              <Button type="button" variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setShowSubTaskInput(false); setNewSubTaskTitle(""); }}>取消</Button>
             </form>
           ) : (
             <button

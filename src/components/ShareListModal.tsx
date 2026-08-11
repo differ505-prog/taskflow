@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { Button } from "@/components/ui/Button";
 import { toast } from "sonner";
 import { useApp } from "@/lib/AppContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -406,8 +407,8 @@ export function ShareListModal({ isOpen, onClose, listToShare: staleListToShare,
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={handleDeclineIncoming} className="btn-ghost flex-1 text-[13px]">略過</button>
-                  <button onClick={handleAcceptIncoming} className="btn-primary flex-1 text-[13px]">接受並加入</button>
+                  <Button variant="ghost" onClick={handleDeclineIncoming} className="flex-1">略過</Button>
+                  <Button onClick={handleAcceptIncoming} className="flex-1">接受並加入</Button>
                 </div>
               </>
             ) : (
@@ -433,17 +434,15 @@ export function ShareListModal({ isOpen, onClose, listToShare: staleListToShare,
                     <p className="text-[13px] mb-3" style={{ color: "var(--text-secondary)" }}>
                       建立「{listToShare.name}」的共享空間，邀請 Gmail 帳號加入協作。
                     </p>
-                    <button
+                    <Button
                       onClick={handleShareList}
                       disabled={isSharing}
-                      className="w-full btn-primary flex items-center justify-center gap-2"
+                      className="w-full flex items-center justify-center gap-2"
+                      icon={isSharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
+                      loading={isSharing}
                     >
-                      {isSharing ? (
-                        <><Loader2 className="w-4 h-4 animate-spin" /> 建立中...</>
-                      ) : (
-                        <><Users className="w-4 h-4" /> 建立共享清單</>
-                      )}
-                    </button>
+                      {isSharing ? "建立中..." : "建立共享清單"}
+                    </Button>
                     {shareError && (
                       <p className="text-[12px] text-center mt-2" style={{ color: "var(--status-danger)" }}>
                         {shareError}
@@ -490,13 +489,14 @@ export function ShareListModal({ isOpen, onClose, listToShare: staleListToShare,
                         <option value="editor">Editor</option>
                         <option value="viewer">Viewer</option>
                       </select>
-                      <button
+                      <Button
                         onClick={handleSendInvite}
                         disabled={inviteBusy || !inviteEmail.trim()}
-                        className="btn-primary px-3 text-[13px] disabled:opacity-50"
+                        className="disabled:opacity-50"
+                        loading={inviteBusy}
                       >
-                        {inviteBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : "邀請"}
-                      </button>
+                        {inviteBusy ? "處理中..." : "邀請"}
+                      </Button>
                     </div>
                     {inviteError && (
                       <p className="text-[11px]" style={{ color: "var(--status-danger)" }}>
@@ -530,9 +530,7 @@ export function ShareListModal({ isOpen, onClose, listToShare: staleListToShare,
                 </div>
 
                 <div className="pt-2 flex gap-2">
-                  <button onClick={handleUnshare} className="btn-ghost flex-1 text-[13px]" style={{ color: "var(--status-danger)" }}>
-                    取消整份分享
-                  </button>
+                  <Button variant="danger" onClick={handleUnshare} className="flex-1">取消整份分享</Button>
                 </div>
               </>
             )}
@@ -585,7 +583,7 @@ export function ShareListModal({ isOpen, onClose, listToShare: staleListToShare,
         )}
 
         <div className="pt-1">
-          <button onClick={onClose} className="btn-ghost w-full">關閉</button>
+          <Button variant="ghost" onClick={onClose} className="w-full">關閉</Button>
         </div>
       </div>
     </div>

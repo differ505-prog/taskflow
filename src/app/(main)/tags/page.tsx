@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
+import { Button } from "@/components/ui/Button";
 import { Tags as TagsIcon, Trash2, Edit3, Plus, X, Check, Lock, RefreshCw } from "lucide-react";
 import { Task } from "@/lib/types";
 import { TAG_COLORS } from "@/lib/types";
@@ -266,15 +267,8 @@ export default function TagsPage() {
 
                 {/* 操作 */}
                 <div className="flex justify-end gap-3">
-                  <button onClick={() => setShowCreateModal(false)} className="btn-ghost">取消</button>
-                  <button
-                    onClick={handleCreateTag}
-                    disabled={!newTagName.trim()}
-                    className="btn-primary disabled:opacity-40"
-                  >
-                    <Check className="w-4 h-4 mr-1" aria-hidden="true" />
-                    建立
-                  </button>
+                  <Button variant="ghost" onClick={() => setShowCreateModal(false)}>取消</Button>
+                  <Button onClick={handleCreateTag} disabled={!newTagName.trim()} className="disabled:opacity-40" icon={<Check className="w-4 h-4" aria-hidden="true" />}>建立</Button>
                 </div>
               </motion.div>
             </motion.div>

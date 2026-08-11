@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Button } from "@/components/ui/Button";
 import { Task, Priority, TaskStatus, Recurrence, SubTask, Attachment } from "@/lib/types";
 import { PRIORITY_CONFIG } from "@/lib/types";
 import { useApp } from "@/lib/AppContext";
@@ -732,18 +733,19 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               onChange={(e) => setSubtaskInputValue(e.target.value)}
               onKeyDown={(e) => { if (!isComposingKey(e) && e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
               placeholder="新增子任務..." className="input flex-1" style={{ fontSize: 16, padding: "8px 12px" }} />
-            <button
+            <Button
               type="button"
               onClick={(e) => {
                 e.preventDefault();
                 if (subtaskInputValue.trim()) addSubTask();
               }}
               onMouseDown={(e) => e.preventDefault()}
-              className="btn-ghost px-3 min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+              variant="ghost"
+              size="icon-sm"
+              icon={<Check className="w-4 h-4" />}
               aria-label="新增子任務（送出）"
-            >
-              <Check className="w-4 h-4" />
-            </button>
+              className="cursor-pointer active:scale-95 transition-transform"
+            />
           </form>
           {(() => {
             const sorted = sortSubTasks(subTasks);

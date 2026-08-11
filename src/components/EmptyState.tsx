@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Plus, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import {
   InboxIllustration,
   TodayIllustration,
@@ -158,14 +159,14 @@ export function EmptyState({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.18, ease: [0.16, 1, 0.3, 1] }}
         >
-          <button
+          <Button
             onClick={handleClick}
-            className="btn-primary group"
             aria-label={copy.cta}
+            className="group"
+            icon={<Plus className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" aria-hidden="true" />}
           >
-            <Plus className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" aria-hidden="true" />
             {copy.cta}
-          </button>
+          </Button>
           {copy.hint && (
             <span
               className="flex items-center gap-1.5 text-[11px]"

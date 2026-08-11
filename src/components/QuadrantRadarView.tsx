@@ -23,6 +23,7 @@ import { useApp } from "@/lib/AppContext";
 import { Task, Priority } from "@/lib/types";
 import { getEisenhowerVisual, EISENHOWER_URGENT_HOURS } from "@/lib/eisenhower";
 import { Info } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import { TextWithLinks } from "./TextWithLinks";
 import { CheckCircle2, Circle, Plus, Trash2 } from "lucide-react";
 import { fireTaskDoneConfetti, playTaskDoneSound } from "@/lib/confetti";
@@ -274,15 +275,14 @@ export function QuadrantRadarView({ onTaskSelect }: QuadrantRadarViewProps) {
               </p>
             </div>
             {/* 新增任務 CTA（無象限預設,priority = none）— 4 象限 header 各有專屬入口,這個是 fallback */}
-            <button
+            <Button
               type="button"
               onClick={() => handleOpenForm()}
-              className="btn-primary"
               aria-label="新增任務"
+              icon={<Plus className="w-4 h-4" />}
             >
-              <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">新增</span>
-            </button>
+            </Button>
           </div>
         </div>
       </header>

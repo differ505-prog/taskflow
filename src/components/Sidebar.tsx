@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/Button";
 import Image from "next/image";
 import { useApp } from "@/lib/AppContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -601,17 +602,17 @@ export function ListForm({ isOpen, onClose, onSubmit, initialData, onDelete }: L
               刪除
             </button>
           )}
-          <button onClick={onClose} className="btn-ghost flex-1">取消</button>
-          <button
-            onClick={() => {
-              if (!name.trim()) return;
-              onSubmit({ name: name.trim(), icon, color });
-              onClose();
-            }}
-            className="btn-primary flex-1"
-          >
-            {isEditing ? "儲存" : "建立"}
-          </button>
+                <Button onClick={onClose} variant="ghost" className="flex-1">取消</Button>
+                <Button
+                  onClick={() => {
+                    if (!name.trim()) return;
+                    onSubmit({ name: name.trim(), icon, color });
+                    onClose();
+                  }}
+                  className="flex-1"
+                >
+                  {isEditing ? "儲存" : "建立"}
+                </Button>
         </div>
       </div>
     </div>

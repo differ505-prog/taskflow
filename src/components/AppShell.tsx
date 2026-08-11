@@ -2,6 +2,7 @@
 import { getLocalToday } from "@/lib/dateUtils";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/AppContext";
@@ -483,14 +484,13 @@ const canDrag = !currentSharedListId && !isMobile;
                 <span title="心流計時器">心流計時器</span>
               </button>
               {!currentSharedListId && (
-              <button
+              <Button
                 onClick={() => { setFormInitialStatus("todo"); setIsFormOpen(true); }}
-                className="btn-primary"
                 aria-label="新增任務"
+                icon={<Plus className="w-4 h-4" />}
               >
-                <Plus className="w-4 h-4" />
-                <span>新增</span>
-              </button>
+                新增任務
+              </Button>
               )}
             </div>
           </div>

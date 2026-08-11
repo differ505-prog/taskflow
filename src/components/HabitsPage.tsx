@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
 import { useApp } from "@/lib/AppContext";
 import { Habit } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
@@ -214,10 +215,7 @@ export function HabitsPage() {
               {showArchived ? "← 返回" : `查看封存 (${archivedHabits.length})`}
             </button>
           )}
-          <button onClick={() => setShowForm(true)} className="btn-primary" aria-label="新增習慣">
-            <Plus className="w-4 h-4" />
-            新增習慣
-          </button>
+          <Button onClick={() => setShowForm(true)} aria-label="新增習慣" className="flex items-center gap-1.5" icon={<Plus className="w-4 h-4" />}>新增習慣</Button>
         </div>
       </div>
 
@@ -311,10 +309,10 @@ export function HabitsPage() {
             </div>
 
             <div className="flex gap-3">
-              <button onClick={() => setShowForm(false)} className="btn-ghost flex-1">取消</button>
-              <button onClick={handleSubmit} className="btn-primary flex-1" disabled={!form.title.trim()}>
+              <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>取消</Button>
+              <Button type="button" onClick={handleSubmit} disabled={!form.title.trim()}>
                 建立習慣
-              </button>
+              </Button>
             </div>
           </motion.div>
         )}

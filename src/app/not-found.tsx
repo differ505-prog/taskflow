@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Home, ArchiveRestore } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 
 /**
  * 404 — 頁面飄走了
