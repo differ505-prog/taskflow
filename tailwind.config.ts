@@ -47,6 +47,13 @@ const config: Config = {
         DEFAULT: "cubic-bezier(0.4, 0, 0.2, 1)",
       },
       textBalance: {},
+      borderRadius: {
+        DEFAULT: "8px",
+        sm: "8px",
+        md: "12px",
+        lg: "16px",
+        xl: "20px",
+      },
     },
   },
   plugins: [],
