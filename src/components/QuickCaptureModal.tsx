@@ -232,16 +232,21 @@ export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps
                     aria-label="NLP 預覽：系統將如此解析"
                   >
                     {previewDueDate && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-600 ring-1 ring-violet-200/60">
+                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ring-1" style={{ background: "var(--chip-accent-bg)", color: "var(--chip-accent-text)", boxShadow: "0 0 0 1px var(--chip-accent-ring)" }}>
                         📅 {formatDueDate(previewDueDate)}
                       </span>
                     )}
                     {previewPriority && (
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ${
-                        previewPriority === "do-now" ? "bg-rose-50 text-rose-600 ring-rose-200/60" :
-                        previewPriority === "schedule" ? "bg-amber-50 text-amber-600 ring-amber-200/60" :
-                        "bg-slate-100 text-slate-500 ring-slate-200/60"
-                      }`}>
+                      <span
+                        className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ring-1"
+                        style={
+                          previewPriority === "do-now"
+                            ? { background: "var(--priority-high-bg)", color: "var(--priority-high-text)", boxShadow: "0 0 0 1px var(--priority-high-ring)" }
+                            : previewPriority === "schedule"
+                            ? { background: "var(--priority-medium-bg)", color: "var(--priority-medium-text)", boxShadow: "0 0 0 1px var(--priority-medium-ring)" }
+                            : { background: "var(--surface-muted)", color: "var(--text-tertiary)", boxShadow: "0 0 0 1px var(--border)" }
+                        }
+                      >
                         {previewPriority === "do-now" ? "🔴 速辦" :
                          previewPriority === "schedule" ? "🟡 排程" : "⬜ 一般"}
                       </span>
@@ -343,16 +348,21 @@ export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps
                     aria-label="NLP 預覽：系統將如此解析"
                   >
                     {previewDueDate && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-[11px] font-medium text-violet-600 ring-1 ring-violet-200/60">
+                      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1" style={{ background: "var(--chip-accent-bg)", color: "var(--chip-accent-text)", boxShadow: "0 0 0 1px var(--chip-accent-ring)" }}>
                         📅 {formatDueDate(previewDueDate)}
                       </span>
                     )}
                     {previewPriority && (
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${
-                        previewPriority === "do-now" ? "bg-rose-50 text-rose-600 ring-rose-200/60" :
-                        previewPriority === "schedule" ? "bg-amber-50 text-amber-600 ring-amber-200/60" :
-                        "bg-slate-100 text-slate-500 ring-slate-200/60"
-                      }`}>
+                      <span
+                        className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium ring-1"
+                        style={
+                          previewPriority === "do-now"
+                            ? { background: "var(--priority-high-bg)", color: "var(--priority-high-text)", boxShadow: "0 0 0 1px var(--priority-high-ring)" }
+                            : previewPriority === "schedule"
+                            ? { background: "var(--priority-medium-bg)", color: "var(--priority-medium-text)", boxShadow: "0 0 0 1px var(--priority-medium-ring)" }
+                            : { background: "var(--surface-muted)", color: "var(--text-tertiary)", boxShadow: "0 0 0 1px var(--border)" }
+                        }
+                      >
                         {previewPriority === "do-now" ? "🔴 速辦" :
                          previewPriority === "schedule" ? "🟡 排程" : "⬜ 一般"}
                       </span>

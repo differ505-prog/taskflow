@@ -581,7 +581,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
                 handleUpdateTask(task.id, { status: "done" });
                 onClose?.();
               }}
-              className="p-2 rounded-xl hover:bg-green-50 transition-colors"
+              className="p-2 rounded-xl hover:bg-[var(--hover-success)] transition-colors"
               style={{ color: status === "done" ? "var(--status-success)" : "var(--text-tertiary)" }}
               title={status === "done" ? "已完成" : "標記完成"}
               aria-label={status === "done" ? "已完成" : "標記完成"}
@@ -604,7 +604,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             </button>
             <button
               onClick={handleDelete}
-              className="p-2 rounded-xl hover:bg-red-50 transition-colors"
+              className="p-2 rounded-xl hover:bg-[var(--hover-danger)] transition-colors"
               style={{ color: "var(--status-danger)" }}
               aria-label="刪除任務"
             >
@@ -850,7 +850,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
                           onClick={() => selectSuggestion(tag)}
                           className="w-full flex items-center gap-2 px-2 py-1.5 text-left rounded-lg transition-colors hover:bg-[var(--surface-hover)]"
                         >
-                          <div className="w-2 h-2 rounded-full" style={{ background: tagColors[tag] || "#3B82F6" }} />
+                          <div className="w-2 h-2 rounded-full" style={{ background: tagColors[tag] || "var(--tag-default)" }} />
                           <span className="text-[12px]" style={{ color: "var(--text-primary)" }}>{tag}</span>
                         </button>
                       ))}
@@ -862,7 +862,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
                         <span
                           key={tag}
                           className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px]"
-                          style={{ background: `${tagColors[tag] || "#3B82F6"}20`, color: tagColors[tag] || "#3B82F6" }}
+                          style={{ background: tagColors[tag] ? `${tagColors[tag]}20` : "var(--tag-default-tint)", color: tagColors[tag] || "var(--tag-default)" }}
                         >
                           {tag}
                           <button type="button" onClick={() => setTags(tags.filter((t) => t !== tag))} className="hover:text-red-500" aria-label={`移除標籤 ${tag}`}>
@@ -985,7 +985,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
                 onClick={handleClearDate}
                 aria-label="清除任務日期"
                 title="清除日期"
-                className="ml-1 flex h-6 w-6 items-center justify-center rounded-full text-slate-300 transition-all duration-200 ease-out hover:bg-rose-50 hover:text-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+                className="ml-1 flex h-6 w-6 items-center justify-center rounded-full text-slate-300 transition-all duration-200 ease-out hover:bg-[var(--hover-danger)] hover:text-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
               >
                 <X className="h-3 w-3" aria-hidden />
               </button>

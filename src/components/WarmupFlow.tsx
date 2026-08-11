@@ -255,7 +255,7 @@ export function WarmupFlow({ open, onClose, onComplete }: WarmupFlowProps) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.9, duration: 0.5 }}
                   onClick={handleLaunch}
-                  className="mt-4 flex items-center gap-2 rounded-full bg-rose-400 px-8 py-3 text-sm font-medium uppercase tracking-widest text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-rose-500 hover:shadow-lg active:scale-95"
+                  className="mt-4 flex items-center gap-2 rounded-full bg-rose-400 px-8 py-3 text-sm font-medium uppercase tracking-widest text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-rose-500 hover:shadow-lg active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2"
                 >
                   進入今天
                   <ChevronRight className="h-4 w-4" aria-hidden />

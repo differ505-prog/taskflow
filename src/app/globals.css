@@ -16,6 +16,11 @@
   /* 品牌色調 — 輕量級背景，用於 Pill / Badge / 微弱提示 */
   --brand-tint: rgba(79, 106, 245, 0.10);
 
+  /* 標籤預設色 */
+  --tag-default: #4F6AF5;
+  --tag-default-rgb: 79 106 245;
+  --tag-default-tint: rgba(79 106 245 / 0.12);
+
   /* 表面色 — 溫暖米灰色系統，降低白度 */
   --surface: #FFFFFF;
   --surface-muted: #F3F2EE;
@@ -69,24 +74,63 @@
   --accent-warm-tint: rgba(79 106 245 / 0.10);
   --accent-warm-glow: rgba(79 106 245 / 0.25);
 
+  /* Chip 用 accent 色（日期預覽 chip） */
+  --chip-accent-bg: rgba(167 139 250 / 0.12);
+  --chip-accent-text: #A78BFA;
+  --chip-accent-ring: rgba(167 139 250 / 0.30);
+
+  /* 優先級 chip */
+  --priority-high-bg: rgba(239, 68, 68, 0.08);
+  --priority-high-text: #F87171;
+  --priority-high-ring: rgba(239, 68, 68, 0.25);
+  --priority-medium-bg: rgba(245, 158, 11, 0.08);
+  --priority-medium-text: #F59E0B;
+  --priority-medium-ring: rgba(245, 158, 11, 0.25);
+
   /* hover 背景 — 自動適配 light/dark mode */
   --hover-bg: rgba(0, 0, 0, 0.05);
+  --hover-success: rgba(34, 197, 94, 0.08);
+  --hover-danger: rgba(239, 68, 68, 0.08);
 }
 
 /* ── 深色模式 ────────────────────────────────────────────── */
 [data-theme="dark"] {
   --hover-bg: rgba(255, 255, 255, 0.08);
+  --hover-success: rgba(34, 197, 94, 0.12);
+  --hover-danger: rgba(239, 68, 68, 0.12);
   --brand: #6B8AFF;
   --brand-rgb: 107 138 255;
   --brand-hover: #8BA3FF;
   --brand-foreground: #ffffff;
   --brand-tint: rgba(107, 138, 255, 0.12);
 
+  --tag-default: #6B8AFF;
+  --tag-default-rgb: 107 138 255;
+  --tag-default-tint: rgba(107 138 255 / 0.15);
+
+  --chip-accent-bg: rgba(167 139 250 / 0.15);
+  --chip-accent-text: #A78BFA;
+  --chip-accent-ring: rgba(167 139 250 / 0.35);
+
+  --priority-high-bg: rgba(248, 113, 113, 0.15);
+  --priority-high-text: #F87171;
+  --priority-high-ring: rgba(248, 113, 113, 0.30);
+  --priority-medium-bg: rgba(251, 191, 36, 0.15);
+  --priority-medium-text: #FBBF24;
+  --priority-medium-ring: rgba(251, 191, 36, 0.30);
+
+  /* 心流紫色光暈 */
+  --flow-glow-color: 192, 38, 211;
+  --flow-glow: rgba(192, 38, 211, 0.25);
+
   --surface: #1C1C1E;
   --surface-muted: #141416;
   --surface-hover: #2C2C2E;
   --surface-elevated: #2C2C2E;
   --surface-sidebar: #1A1A1C;
+
+  --flow-glow-color: 192, 38, 211;
+  --flow-glow: rgba(192, 38, 211, 0.35);
 
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.20);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.30);

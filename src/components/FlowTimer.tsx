@@ -148,7 +148,7 @@ export function FlowTimer() {
 
         {/* §OmniSonic 迷你播放圈圈 */}
         <div
-          className="group/omnibox relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-purple-500/30 bg-purple-50/50 shadow-[0_0_12px_rgba(192,38,211,0.25)] transition-all hover:scale-105 active:scale-95"
+          className="group/omnibox relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-purple-500/30 bg-purple-50/50 shadow-[0_0_12px_rgba(var(--flow-glow-color,192,38,211),0.25)] transition-all hover:scale-105 active:scale-95"
           aria-label={isRunning ? "心流音樂播放中 🎵 點擊調整" : "點這裡播放心流音樂 🎵"}
         >
           {/* 獨立一層 overflow-hidden 處理 iframe 裁切，不再影響 overlay 按鈕 */}
