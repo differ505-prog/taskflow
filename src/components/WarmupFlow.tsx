@@ -16,8 +16,6 @@ interface WarmupFlowProps {
   onComplete: () => void;
 }
 
-const DEFAULT_DAILY_CAP = 3;
-
 /**
  * §26 B 評分表 9.1 暖身全螢幕抽卡模式
  *
@@ -42,12 +40,8 @@ export function WarmupFlow({ open, onClose, onComplete }: WarmupFlowProps) {
     );
   }, [habits, today]);
 
-  // 最多顯示 DEFAULT_DAILY_CAP 個habit，保持穩定順序（由 list order 決定）
-  const cap = Math.min(allPending.length, DEFAULT_DAILY_CAP);
-  const visibleHabits = useMemo(
-    () => allPending.slice(0, cap),
-    [allPending, cap]
-  );
+  // 每日暖身：所有未完成習慣，按 list order 排列，無上限
+  const visibleHabits = allPending;
 
   // 已完成 / 已跳過的 id 集合
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
