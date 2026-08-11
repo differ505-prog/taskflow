@@ -9,6 +9,7 @@
 :root {
   /* 品牌色 — 僅用於 CTA 按鈕、focus ring、hover 高亮 */
   --brand: #4F6AF5;
+  --brand-rgb: 79 106 245;
   --brand-hover: #3D56E0;
   --brand-foreground: #ffffff;
 
@@ -76,6 +77,7 @@
 [data-theme="dark"] {
   --hover-bg: rgba(255, 255, 255, 0.08);
   --brand: #6B8AFF;
+  --brand-rgb: 107 138 255;
   --brand-hover: #8BA3FF;
   --brand-foreground: #ffffff;
   --brand-tint: rgba(107, 138, 255, 0.12);

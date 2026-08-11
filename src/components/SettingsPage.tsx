@@ -559,7 +559,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
 
           {/* Theme */}
           <section>
-            <h3 className="text-[12px] font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-tertiary)" }}>外觀</h3>
+            <h3 className="text-[12px] font-semibold tracking-tight mb-3" style={{ color: "var(--text-tertiary)" }}>外觀</h3>
             <div className="flex gap-2">
               {([
                 { value: "light" as const, label: "淺色", icon: <Sun className="w-4 h-4" /> },
@@ -586,7 +586,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
 
           {/* PRO 功能（幽靈按鈕埋點） */}
           <section>
-            <h3 className="text-[12px] font-semibold uppercase tracking-widest mb-3 flex items-center gap-2" style={{ color: "var(--text-tertiary)" }}>
+            <h3 className="text-[12px] font-semibold tracking-tight mb-3 flex items-center gap-2" style={{ color: "var(--text-tertiary)" }}>
               <Crown className="w-3.5 h-3.5" aria-hidden="true" />
               PRO 功能搶先看
             </h3>
@@ -664,7 +664,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
 
           {/* User Role */}
           <section>
-            <h3 className="text-[12px] font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-tertiary)" }}>
+            <h3 className="text-[12px] font-semibold tracking-tight mb-3" style={{ color: "var(--text-tertiary)" }}>
               帳戶權限
             </h3>
 
@@ -878,7 +878,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
 
           {/* Notifications */}
           <section>
-            <h3 className="text-[12px] font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-tertiary)" }}>提醒通知</h3>
+            <h3 className="text-[12px] font-semibold tracking-tight mb-3" style={{ color: "var(--text-tertiary)" }}>提醒通知</h3>
             <div className="card p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -997,7 +997,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
 
           {/* Interaction / 互動體驗 */}
           <section>
-            <h3 className="text-[12px] font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-tertiary)" }}>
+            <h3 className="text-[12px] font-semibold tracking-tight mb-3" style={{ color: "var(--text-tertiary)" }}>
               互動體驗
             </h3>
             <div className="card p-4 space-y-3">
@@ -1042,7 +1042,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
 
           {/* Keyboard Shortcuts */}
           <section>
-            <h3 className="text-[12px] font-semibold uppercase tracking-widest mb-3 flex items-center gap-2" style={{ color: "var(--text-tertiary)" }}>
+            <h3 className="text-[12px] font-semibold tracking-tight mb-3 flex items-center gap-2" style={{ color: "var(--text-tertiary)" }}>
               <Keyboard className="w-3.5 h-3.5" aria-hidden="true" />
               鍵盤快捷鍵
             </h3>
@@ -1100,7 +1100,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
 
           {/* Data */}
           <section>
-            <h3 className="text-[12px] font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-tertiary)" }}>資料管理</h3>
+            <h3 className="text-[12px] font-semibold tracking-tight mb-3" style={{ color: "var(--text-tertiary)" }}>資料管理</h3>
 
             {/* L3 自動化備份提醒 */}
             {(() => {
@@ -1210,7 +1210,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
 
           {/* Stats */}
           <section>
-            <h3 className="text-[12px] font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-tertiary)" }}>統計資訊</h3>
+            <h3 className="text-[12px] font-semibold tracking-tight mb-3" style={{ color: "var(--text-tertiary)" }}>統計資訊</h3>
             <div className="grid grid-cols-3 gap-3">
               {[
                 { label: "總任務", value: totalTasks },
@@ -1227,7 +1227,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
 
           {/* Calendar Sync */}
           <section>
-            <h3 className="text-[12px] font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-tertiary)" }}>
+            <h3 className="text-[12px] font-semibold tracking-tight mb-3" style={{ color: "var(--text-tertiary)" }}>
               日曆同步
             </h3>
             <div className="space-y-3">
@@ -1392,7 +1392,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
 
           {/* 自動化整合 — Outbound Webhook（Zapier / Make / n8n） */}
           <section>
-            <h3 className="text-[12px] font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-tertiary)" }}>
+            <h3 className="text-[12px] font-semibold tracking-tight mb-3" style={{ color: "var(--text-tertiary)" }}>
               自動化整合
             </h3>
             <div className="space-y-3">
@@ -1508,7 +1508,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
 
           {/* 理論基礎 */}
           <section>
-            <h3 className="text-[12px] font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-tertiary)" }}>
+            <h3 className="text-[12px] font-semibold tracking-tight mb-3" style={{ color: "var(--text-tertiary)" }}>
               理論基礎
             </h3>
             <div className="space-y-3">

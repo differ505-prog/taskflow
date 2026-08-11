@@ -123,7 +123,7 @@ export function EmptyState({
         <div
           className="absolute inset-0 rounded-full animate-pulse"
           style={{
-            background: "radial-gradient(circle, rgba(59,130,246,0.10) 0%, transparent 70%)",
+            background: "radial-gradient(circle, rgba(var(--brand-rgb, 79 106 245), 0.10) 0%, transparent 70%)",
             transform: "scale(1.8)",
             filter: "blur(14px)",
           }}

@@ -298,7 +298,7 @@ export function TaskListItem({
                     <ProGhostButton
                       feature="domino-tasks"
                       variant="inline"
-                      className="ml-1 px-1.5 py-0.5 rounded-md text-[10px]"
+                      className="ml-1 px-1.5 py-0.5 rounded-md text-[11px]"
                       title="Domino Tasks · 完成前置後漸進解鎖（PRO 專屬）"
                     >
                       <span>Domino</span>
