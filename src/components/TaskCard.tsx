@@ -127,7 +127,6 @@ export function TaskCard({
       className={`card relative overflow-hidden transition-all duration-200 ${
         isDone ? "opacity-60" : ""
       } ${isDeleting ? "scale-[0.97] opacity-0" : ""}`}
-      style={{ transition: "box-shadow 200ms ease, transform 200ms ease, opacity 200ms ease" }}
       onClick={handleCardClick}
       role="button"
       aria-label={`任務: ${task.title}`}
