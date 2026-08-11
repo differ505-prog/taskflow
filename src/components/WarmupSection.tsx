@@ -163,9 +163,14 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
                 if (e.key === "Enter") handleCreateAndComplete();
                 if (e.key === "Escape") { setIsCreating(false); setNewHabitTitle(""); }
               }}
+              className="mb-2 w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1"
+              style={{
+                background: "var(--surface-muted)",
+                color: "var(--text-primary)",
+                border: "1px solid var(--border)",
+              }}
               placeholder="例如：喝一口水"
               maxLength={20}
-              className="mb-2 w-full rounded-lg border border-slate-200 bg-white/60 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-rose-300 focus:outline-none focus:ring-1 focus:ring-rose-300"
             />
             <div className="flex gap-2">
               <button

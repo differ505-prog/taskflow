@@ -100,46 +100,47 @@ export default function TaskCommentsInline({ taskId }: Props) {
     <div className="space-y-3 pt-3" style={{ borderTop: "1px solid var(--border-subtle, #e2e8f0)" }}>
       <div className="flex items-center gap-2 pt-1">
         <MessageSquare className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
-        <span className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
-          評論 {comments.length > 0 && <span className="text-slate-400">({comments.length})</span>}
-        </span>
+          <span className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
+            評論 {comments.length > 0 && <span style={{ color: "var(--text-tertiary)" }}>({comments.length})</span>}
+          </span>
       </div>
 
       {/* 評論列表 */}
       {loading ? (
-        <div className="flex items-center py-2 text-[12px] text-slate-400">
+        <div className="flex items-center py-2 text-[12px]" style={{ color: "var(--text-tertiary)" }}>
           <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> 載入中…
         </div>
       ) : comments.length === 0 ? (
-        <p className="text-[12px] text-slate-400">還沒有評論，在下方新增第一則回報</p>
+        <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>還沒有評論，在下方新增第一則回報</p>
       ) : (
         <ul className="space-y-2.5">
           {comments.map((c) => {
             const isMine = c.authorUid === user?.uid;
             return (
               <li key={c.id} className="group flex items-start gap-2">
-                <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-200 to-slate-300 text-[10px] font-semibold text-slate-700">
+                <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-semibold" style={{ background: "var(--surface-muted)", color: "var(--text-secondary)" }}>
                   {c.authorEmail.slice(0, 1).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline gap-2">
-                    <span className="truncate text-[12px] font-medium text-slate-800">
+                    <span className="truncate text-[12px] font-medium">
                       {isMine ? "你" : maskEmail(c.authorEmail)}
                     </span>
-                    <span className="text-[10px] text-slate-400">
+                    <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>
                       {relativeTime(c.createdAt)}
                     </span>
                     {isMine && (
                       <button
                         onClick={() => handleDelete(c.id)}
-                        className="ml-auto rounded p-0.5 text-slate-300 opacity-0 transition-all duration-200 hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
+                        className="ml-auto rounded p-0.5 opacity-0 transition-all duration-200 group-hover:opacity-100"
+                        style={{ color: "var(--text-tertiary)" }}
                         aria-label="刪除評論"
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>
                     )}
                   </div>
-                  <p className="mt-0.5 whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-slate-700">
+                  <p className="mt-0.5 whitespace-pre-wrap break-words text-[12.5px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
                     {c.content}
                   </p>
                 </div>
@@ -163,12 +164,17 @@ export default function TaskCommentsInline({ taskId }: Props) {
               handleSubmit();
             }
           }}
-          placeholder="新增回報…（Enter 送出，Shift+Enter 換行）"
-          rows={2}
-          className="w-full resize-none rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[12.5px] text-slate-800 placeholder:text-slate-400 transition-all duration-200 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+          className="w-full resize-none rounded-lg px-2.5 py-2 text-[12.5px] transition-all duration-200 focus:outline-none focus:ring-2"
+            style={{
+              background: "var(--surface)",
+              color: "var(--text-primary)",
+              border: "1px solid var(--border)",
+            }}
+            rows={2}
+            placeholder="新增回報…（Enter 送出，Shift+Enter 換行）"
         />
         <div className="flex items-center justify-between">
-          <span className="text-[10px] text-slate-400">
+          <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>
             {content.length} / 500
           </span>
           <button

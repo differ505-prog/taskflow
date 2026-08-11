@@ -136,18 +136,19 @@ export default function TaskCommentsDrawer({ taskId, taskTitle, open, onClose }:
         {/* Header */}
         <header className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
           <div className="min-w-0 flex-1 pr-3">
-            <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
-              <MessageSquare className="h-4 w-4 text-slate-500" />
+            <h2 className="flex items-center gap-2 text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+              <MessageSquare className="h-4 w-4" style={{ color: "var(--text-tertiary)" }} />
               任務評論
             </h2>
-            <p className="mt-0.5 truncate text-sm text-slate-500" title={taskTitle}>
+            <p className="mt-0.5 truncate text-sm" title={taskTitle} style={{ color: "var(--text-tertiary)" }}>
               {taskTitle}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="rounded-full p-2 text-slate-400 transition-all duration-200 hover:bg-slate-100 hover:text-slate-700 active:scale-95"
-            aria-label="關閉"
+            className="rounded-full p-2 transition-all duration-200 hover:bg-[var(--hover-bg)] active:scale-95"
+              style={{ color: "var(--text-tertiary)" }}
+              aria-label="關閉"
           >
             <X className="h-5 w-5" />
           </button>
@@ -156,17 +157,17 @@ export default function TaskCommentsDrawer({ taskId, taskTitle, open, onClose }:
         {/* 評論列表 */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {loading ? (
-            <div className="flex items-center justify-center py-12 text-sm text-slate-400">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              載入中…
+            <div className="flex items-center justify-center py-12 text-sm">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" style={{ color: "var(--text-tertiary)" }} />
+              <span style={{ color: "var(--text-tertiary)" }}>載入中…</span>
             </div>
           ) : comments.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-                <MessageSquare className="h-5 w-5 text-slate-400" />
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full" style={{ background: "var(--surface-muted)" }}>
+                <MessageSquare className="h-5 w-5" style={{ color: "var(--text-tertiary)" }} />
               </div>
-              <p className="text-sm font-medium text-slate-700">還沒有評論</p>
-              <p className="mt-1 text-xs text-slate-400">在下方輸入第一則回報</p>
+              <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>還沒有評論</p>
+              <p className="mt-1 text-xs" style={{ color: "var(--text-tertiary)" }}>在下方輸入第一則回報</p>
             </div>
           ) : (
             <ul className="space-y-4">
@@ -175,28 +176,29 @@ export default function TaskCommentsDrawer({ taskId, taskTitle, open, onClose }:
                 return (
                   <li key={c.id} className="group">
                     <div className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-200 to-slate-300 text-xs font-semibold text-slate-700">
+                      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold" style={{ background: "linear-gradient(135deg, var(--surface-muted), var(--surface-hover))", color: "var(--text-secondary)" }}>
                         {c.authorEmail.slice(0, 1).toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-baseline gap-2">
-                          <span className="truncate text-sm font-medium text-slate-800">
+                          <span className="truncate text-sm font-medium">
                             {isMine ? "你" : maskEmail(c.authorEmail)}
                           </span>
-                          <span className="text-xs text-slate-400">
+                          <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
                             {relativeTime(c.createdAt)}
                           </span>
                           {isMine && (
                             <button
                               onClick={() => handleDelete(c.id)}
-                              className="ml-auto rounded p-1 text-slate-300 opacity-0 transition-all duration-200 hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
+                              className="ml-auto rounded p-1 opacity-0 transition-all duration-200 group-hover:opacity-100"
+                              style={{ color: "var(--text-tertiary)" }}
                               aria-label="刪除評論"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           )}
                         </div>
-                        <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-700">
+                        <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
                           {c.content}
                         </p>
                       </div>
@@ -221,12 +223,17 @@ export default function TaskCommentsDrawer({ taskId, taskTitle, open, onClose }:
                 handleSubmit();
               }
             }}
+            className="w-full resize-none rounded-lg px-3 py-2 text-sm transition-all duration-200 focus:outline-none focus:ring-2"
+            style={{
+              background: "var(--surface)",
+              color: "var(--text-primary)",
+              border: "1px solid var(--border)",
+            }}
             placeholder="新增回報… (⌘/Ctrl + Enter 送出)"
             rows={2}
-            className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 transition-all duration-200 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
           />
           <div className="mt-2 flex items-center justify-between">
-            <span className="text-xs text-slate-400">
+            <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
               {content.length} / 500
             </span>
             <button

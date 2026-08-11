@@ -216,7 +216,8 @@ export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps
                 onKeyDown={handleKeyDown}
                 placeholder="想到什麼？按 Enter 丟進收件箱..."
                 aria-label="大腦傾倒輸入框 — Enter 送出到收件箱，Shift+Enter 加入今日任務"
-                className="flex-1 min-w-0 bg-transparent text-[16px] sm:text-[17px] text-slate-800 placeholder:text-slate-400 focus:outline-none"
+                className="flex-1 min-w-0 bg-transparent text-[16px] sm:text-[17px] placeholder:text-[var(--text-placeholder)] focus:outline-none"
+                style={{ color: "var(--text-primary)" }}
               />
               {/* Desktop NLP 預覽晶片 */}
               <AnimatePresence>
@@ -319,7 +320,8 @@ export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps
                   onKeyDown={handleKeyDown}
                   placeholder="想到什麼？..."
                   aria-label="大腦傾倒輸入框 — 送出到收件箱或今日"
-                  className="flex-1 min-w-0 bg-transparent text-[16px] text-slate-800 placeholder:text-slate-400 focus:outline-none"
+                  className="flex-1 min-w-0 bg-transparent text-[16px] placeholder:text-[var(--text-placeholder)] focus:outline-none"
+                style={{ color: "var(--text-primary)" }}
                 />
                 {/* 成功提示 */}
                 <span
