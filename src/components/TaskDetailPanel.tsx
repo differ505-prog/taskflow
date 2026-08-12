@@ -124,10 +124,13 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
       const existingInShared = sharedLists[targetSharedListId]?.tasks.some((t) => t.id === taskId);
       if (!existingInShared && task.listId !== targetListId) {
         console.warn(
-          `[TaskDetailPanel] §DEFENSIVE: task=${taskId} not in shared list=${targetSharedListId} yet; this is expected when transitioning from personal→shared. Allowing write to propagate via updateSharedTask.`
+          `[TaskDetailPanel] §DEFENSIVE: task=${taskId} not in shared list=${targetSharedListId} yet. Routing to updateTask to handle personal→shared migration properly.`
         );
+        // §FIX: Route to updateTask to execute the migration logic (remove from personal, insert to shared)
+        updateTask(taskId, updates);
+      } else {
+        updateSharedTask(targetSharedListId, taskId, updates);
       }
-      updateSharedTask(targetSharedListId, taskId, updates);
     } else {
       updateTask(taskId, updates);
     }

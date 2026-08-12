@@ -843,13 +843,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // §DEFENSIVE: upsert into shared list in case the caller only called updateTask
       const targetSharedData = sharedLists[nextListId];
       if (targetSharedData) {
+        console.info(`[AppContext] Task ${id} moved to shared list ${nextListId}. Upserting locally and syncing to cloud.`);
         const mergedTask = { ...prevTask, ...updates, updatedAt: new Date().toISOString() };
         const existingIdx = targetSharedData.tasks.findIndex((t) => t.id === id);
         const newSharedTasks = existingIdx >= 0
           ? targetSharedData.tasks.map((t, i) => i === existingIdx ? mergedTask : t)
           : [...targetSharedData.tasks, mergedTask];
-        saveSharedList(nextListId, { ...targetSharedData, tasks: newSharedTasks });
+        
+        // 1. 本地更新 (Local update)
+        const newSharedData = { ...targetSharedData, tasks: newSharedTasks };
+        saveSharedList(nextListId, newSharedData);
         setSharedLists(getSharedLists());
+
+        // 2. 雲端同步 (Cloud sync) 防禦性寫入
+        const ownerId = targetSharedData.list.ownerId ?? "";
+        updateSharedSnapshot(
+          nextListId, 
+          targetSharedData.list, 
+          newSharedTasks, 
+          ownerId, 
+          targetSharedData.ownerName, 
+          (sid, writtenTasks) => {
+            console.info(`[AppContext] Successfully synced moved task ${id} to cloud shared list ${sid}.`);
+            setSharedLists((prev) => ({ ...prev, [sid]: { ...prev[sid], tasks: writtenTasks } }));
+            saveSharedList(sid, { ...getSharedLists()[sid], tasks: writtenTasks });
+          }
+        ).catch((err) => {
+          console.error(`[SharedList] Failed to sync moved task ${id} to cloud:`, err);
+        });
       }
       return;
     }
