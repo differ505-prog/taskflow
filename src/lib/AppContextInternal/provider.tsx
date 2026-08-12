@@ -857,6 +857,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         // 2. 雲端同步 (Cloud sync) 防禦性寫入
         const ownerId = targetSharedData.list.ownerId ?? "";
+        
+        isWritingRef.current[nextListId] = true;
+        const pendingHash = JSON.stringify(newSharedTasks.map((t) => `${t.id}:${t.updatedAt}`).sort());
+        lastSyncedHashRef.current[nextListId] = pendingHash;
+        lastSyncedTaskCountRef.current[nextListId] = newSharedTasks.length;
+
         updateSharedSnapshot(
           nextListId, 
           targetSharedData.list, 
@@ -865,11 +871,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           targetSharedData.ownerName, 
           (sid, writtenTasks) => {
             console.info(`[AppContext] Successfully synced moved task ${id} to cloud shared list ${sid}.`);
-            setSharedLists((prev) => ({ ...prev, [sid]: { ...prev[sid], tasks: writtenTasks } }));
-            saveSharedList(sid, { ...getSharedLists()[sid], tasks: writtenTasks });
+            const u = { ...targetSharedData, tasks: writtenTasks };
+            saveSharedList(sid, u);
+            setSharedLists((prev) => ({ ...prev, [sid]: u }));
+            snapshotTasksRef.current[sid] = writtenTasks;
+            const hash = JSON.stringify(writtenTasks.map((t) => `${t.id}:${t.updatedAt}`).sort());
+            lastSyncedHashRef.current[sid] = hash;
+            lastSyncedTaskCountRef.current[sid] = writtenTasks.length;
+            isWritingRef.current[sid] = false;
           }
         ).catch((err) => {
           console.error(`[SharedList] Failed to sync moved task ${id} to cloud:`, err);
+          isWritingRef.current[nextListId] = false;
+          saveSharedList(nextListId, targetSharedData); // Revert to old data if fail
+          setSharedLists(getSharedLists());
         });
       }
       return;

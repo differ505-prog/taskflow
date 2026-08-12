@@ -207,7 +207,7 @@ export function AppShell({
 
   const handleSubmit = (data: Parameters<typeof addTask>[0]) => {
     if (editingTask) {
-      updateTask(editingTask.id, data);
+      routeUpdateTask(editingTask.id, data);
     } else {
       // Ensure listId is set for new tasks (from list view or shared list)
       const withListId = { ...data, listId: data.listId ?? currentListId };
