@@ -97,6 +97,10 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   const { updateTask, deleteTask, updateSharedTask, deleteSharedTask, sharedLists, lists, getTagCounts, markEditingActivity, clearEditingActivity, reorderSubTasks } = useApp();
   const { user } = useAuth();
   const confirm = useConfirm();
+  
+  // Properly resolve the shared list ID from the lists array
+  const currentList = lists.find(l => l.id === task.listId);
+  const sharedListId = currentList?.sharedId ?? null;
 
   const handleUpdateTask = useCallback((taskId: string, updates: Partial<Task>) => {
     const targetListId = updates.listId ?? task.listId;
