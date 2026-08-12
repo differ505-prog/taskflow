@@ -814,25 +814,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [tasks, user, markRecentlyWritten]);
 
   const updateTask = useCallback((id: string, updates: Partial<Task>) => {
-    // §FIX: Detect cross-list migrations (personal → shared).
-    // When listId changes to a shared-list id, remove from personal tasks array
-    // and let updateSharedTask / sharedSync handle the cloud write.
-    // The task will reappear in the shared list view via sharedLists state.
     const prevTask = tasks.find((t) => t.id === id);
     const nextListId = updates.listId ?? prevTask?.listId;
+    const targetList = lists.find(l => l.id === nextListId);
+    const targetSharedId = targetList?.sharedId;
 
-    if (
-      process.env.NODE_ENV === "development" &&
-      updates.listId !== undefined &&
-      updates.listId !== prevTask?.listId
-    ) {
-      const movingToShared = Boolean(nextListId && sharedLists[nextListId]);
-      console.info(
-        `[AppContext] updateTask listId migration: task=${id} prev=${prevTask?.listId ?? "(none)"} next=${updates.listId} movingToShared=${movingToShared}`
-      );
-    }
-
-    if (prevTask && nextListId && sharedLists[nextListId]) {
+    if (prevTask && targetSharedId && sharedLists[targetSharedId]) {
       // Task is being moved to a shared list — remove from personal array.
       // The shared write is handled by the caller's updateSharedTask path.
       // Defensively also upsert to shared in case caller didn't call updateSharedTask.
@@ -841,9 +828,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       saveTasks(updated);
       markRecentlyWritten(id);
       // §DEFENSIVE: upsert into shared list in case the caller only called updateTask
-      const targetSharedData = sharedLists[nextListId];
+      const targetSharedData = sharedLists[targetSharedId];
       if (targetSharedData) {
-        console.info(`[AppContext] Task ${id} moved to shared list ${nextListId}. Upserting locally and syncing to cloud.`);
+        console.info(`[AppContext] Task ${id} moved to shared list ${targetSharedId}. Upserting locally and syncing to cloud.`);
         const mergedTask = { ...prevTask, ...updates, updatedAt: new Date().toISOString() };
         const existingIdx = targetSharedData.tasks.findIndex((t) => t.id === id);
         const newSharedTasks = existingIdx >= 0
@@ -852,19 +839,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         
         // 1. 本地更新 (Local update)
         const newSharedData = { ...targetSharedData, tasks: newSharedTasks };
-        saveSharedList(nextListId, newSharedData);
+        saveSharedList(targetSharedId, newSharedData);
         setSharedLists(getSharedLists());
 
         // 2. 雲端同步 (Cloud sync) 防禦性寫入
         const ownerId = targetSharedData.list.ownerId ?? "";
         
-        isWritingRef.current[nextListId] = true;
+        isWritingRef.current[targetSharedId] = true;
         const pendingHash = JSON.stringify(newSharedTasks.map((t) => `${t.id}:${t.updatedAt}`).sort());
-        lastSyncedHashRef.current[nextListId] = pendingHash;
-        lastSyncedTaskCountRef.current[nextListId] = newSharedTasks.length;
+        lastSyncedHashRef.current[targetSharedId] = pendingHash;
+        lastSyncedTaskCountRef.current[targetSharedId] = newSharedTasks.length;
 
         updateSharedSnapshot(
-          nextListId, 
+          targetSharedId, 
           targetSharedData.list, 
           newSharedTasks, 
           ownerId, 
@@ -882,8 +869,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           }
         ).catch((err) => {
           console.error(`[SharedList] Failed to sync moved task ${id} to cloud:`, err);
-          isWritingRef.current[nextListId] = false;
-          saveSharedList(nextListId, targetSharedData); // Revert to old data if fail
+          isWritingRef.current[targetSharedId] = false;
+          saveSharedList(targetSharedId, targetSharedData); // Revert to old data if fail
           setSharedLists(getSharedLists());
         });
       }

@@ -98,35 +98,27 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   const { user } = useAuth();
   const confirm = useConfirm();
 
-  // Helper wrappers for shared lists
-  const sharedListId = task.listId && sharedLists[task.listId] ? task.listId : null;
-  // §FIX: Resolve targetSharedListId from the INCOMING updates.listId, NOT from the stale
-  // captured value frozen at component mount time. Otherwise switching from personal→shared
-  // always routes to updateTask (personal) instead of updateSharedTask (cloud).
   const handleUpdateTask = useCallback((taskId: string, updates: Partial<Task>) => {
     const targetListId = updates.listId ?? task.listId;
-    const targetSharedListId = targetListId && sharedLists[targetListId] ? targetListId : null;
+    const targetList = lists.find(l => l.id === targetListId);
+    const targetSharedListId = targetList?.sharedId ?? null;
+    const existingInShared = targetSharedListId ? sharedLists[targetSharedListId]?.tasks.some((t) => t.id === taskId) : false;
 
-    // §DEFENSIVE: ListId migration logging — trace personal↔shared transitions
     if (process.env.NODE_ENV === "development") {
-      const prevSharedId = task.listId && sharedLists[task.listId] ? task.listId : null;
+      const prevList = lists.find(l => l.id === task.listId);
+      const prevSharedId = prevList?.sharedId ?? null;
       if (updates.listId !== undefined && updates.listId !== task.listId) {
         console.info(
-          `[TaskDetailPanel] listId migration: task=${taskId} prev=${task.listId ?? "(none)"} next=${updates.listId} prevShared=${prevSharedId ?? "(none)"} nextShared=${targetSharedListId ?? "(none)"} route=${targetSharedListId ? "updateSharedTask" : "updateTask"}`
+          `[TaskDetailPanel] listId migration: task=${taskId} prev=${task.listId ?? "(none)"} next=${updates.listId} prevShared=${prevSharedId ?? "(none)"} nextShared=${targetSharedListId ?? "(none)"} route=${(!existingInShared && targetSharedListId) ? "updateTask(migration)" : targetSharedListId ? "updateSharedTask" : "updateTask"}`
         );
       }
     }
 
     if (targetSharedListId) {
-      // §DEFENSIVE: Verify the task actually lives in this shared list before writing.
-      // If the task is in shared state but the write went to personal (e.g. stale
-      // sharedListId captured before the listId was updated), this guard recovers.
-      const existingInShared = sharedLists[targetSharedListId]?.tasks.some((t) => t.id === taskId);
       if (!existingInShared && task.listId !== targetListId) {
         console.warn(
           `[TaskDetailPanel] §DEFENSIVE: task=${taskId} not in shared list=${targetSharedListId} yet. Routing to updateTask to handle personal→shared migration properly.`
         );
-        // §FIX: Route to updateTask to execute the migration logic (remove from personal, insert to shared)
         updateTask(taskId, updates);
       } else {
         updateSharedTask(targetSharedListId, taskId, updates);
@@ -134,7 +126,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     } else {
       updateTask(taskId, updates);
     }
-  }, [task.listId, sharedLists, updateSharedTask, updateTask]);
+  }, [task.listId, sharedLists, updateSharedTask, updateTask, lists]);
 
   const handleDeleteTask = useCallback((taskId: string) => {
     if (sharedListId) {
