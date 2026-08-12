@@ -100,13 +100,38 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
 
   // Helper wrappers for shared lists
   const sharedListId = task.listId && sharedLists[task.listId] ? task.listId : null;
+  // §FIX: Resolve targetSharedListId from the INCOMING updates.listId, NOT from the stale
+  // captured value frozen at component mount time. Otherwise switching from personal→shared
+  // always routes to updateTask (personal) instead of updateSharedTask (cloud).
   const handleUpdateTask = useCallback((taskId: string, updates: Partial<Task>) => {
-    if (sharedListId) {
-      updateSharedTask(sharedListId, taskId, updates);
+    const targetListId = updates.listId ?? task.listId;
+    const targetSharedListId = targetListId && sharedLists[targetListId] ? targetListId : null;
+
+    // §DEFENSIVE: ListId migration logging — trace personal↔shared transitions
+    if (process.env.NODE_ENV === "development") {
+      const prevSharedId = task.listId && sharedLists[task.listId] ? task.listId : null;
+      if (updates.listId !== undefined && updates.listId !== task.listId) {
+        console.info(
+          `[TaskDetailPanel] listId migration: task=${taskId} prev=${task.listId ?? "(none)"} next=${updates.listId} prevShared=${prevSharedId ?? "(none)"} nextShared=${targetSharedListId ?? "(none)"} route=${targetSharedListId ? "updateSharedTask" : "updateTask"}`
+        );
+      }
+    }
+
+    if (targetSharedListId) {
+      // §DEFENSIVE: Verify the task actually lives in this shared list before writing.
+      // If the task is in shared state but the write went to personal (e.g. stale
+      // sharedListId captured before the listId was updated), this guard recovers.
+      const existingInShared = sharedLists[targetSharedListId]?.tasks.some((t) => t.id === taskId);
+      if (!existingInShared && task.listId !== targetListId) {
+        console.warn(
+          `[TaskDetailPanel] §DEFENSIVE: task=${taskId} not in shared list=${targetSharedListId} yet; this is expected when transitioning from personal→shared. Allowing write to propagate via updateSharedTask.`
+        );
+      }
+      updateSharedTask(targetSharedListId, taskId, updates);
     } else {
       updateTask(taskId, updates);
     }
-  }, [sharedListId, updateSharedTask, updateTask]);
+  }, [task.listId, sharedLists, updateSharedTask, updateTask]);
 
   const handleDeleteTask = useCallback((taskId: string) => {
     if (sharedListId) {

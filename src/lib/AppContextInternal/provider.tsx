@@ -814,6 +814,46 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [tasks, user, markRecentlyWritten]);
 
   const updateTask = useCallback((id: string, updates: Partial<Task>) => {
+    // §FIX: Detect cross-list migrations (personal → shared).
+    // When listId changes to a shared-list id, remove from personal tasks array
+    // and let updateSharedTask / sharedSync handle the cloud write.
+    // The task will reappear in the shared list view via sharedLists state.
+    const prevTask = tasks.find((t) => t.id === id);
+    const nextListId = updates.listId ?? prevTask?.listId;
+
+    if (
+      process.env.NODE_ENV === "development" &&
+      updates.listId !== undefined &&
+      updates.listId !== prevTask?.listId
+    ) {
+      const movingToShared = Boolean(nextListId && sharedLists[nextListId]);
+      console.info(
+        `[AppContext] updateTask listId migration: task=${id} prev=${prevTask?.listId ?? "(none)"} next=${updates.listId} movingToShared=${movingToShared}`
+      );
+    }
+
+    if (prevTask && nextListId && sharedLists[nextListId]) {
+      // Task is being moved to a shared list — remove from personal array.
+      // The shared write is handled by the caller's updateSharedTask path.
+      // Defensively also upsert to shared in case caller didn't call updateSharedTask.
+      const updated = tasks.filter((t) => t.id !== id);
+      setTasks(updated);
+      saveTasks(updated);
+      markRecentlyWritten(id);
+      // §DEFENSIVE: upsert into shared list in case the caller only called updateTask
+      const targetSharedData = sharedLists[nextListId];
+      if (targetSharedData) {
+        const mergedTask = { ...prevTask, ...updates, updatedAt: new Date().toISOString() };
+        const existingIdx = targetSharedData.tasks.findIndex((t) => t.id === id);
+        const newSharedTasks = existingIdx >= 0
+          ? targetSharedData.tasks.map((t, i) => i === existingIdx ? mergedTask : t)
+          : [...targetSharedData.tasks, mergedTask];
+        saveSharedList(nextListId, { ...targetSharedData, tasks: newSharedTasks });
+        setSharedLists(getSharedLists());
+      }
+      return;
+    }
+
     const updated = tasks.map((t) =>
       t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
     );
@@ -824,7 +864,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const task = updated.find((t) => t.id === id);
       if (task) batchSaveTasksFirebase(user.uid, [task]).catch((err) => console.error("[SUP SYNC] 更新失敗:", err));
     }
-  }, [tasks, user, markRecentlyWritten]);
+  }, [tasks, sharedLists, user, markRecentlyWritten]);
 
   const UNDO_WINDOW_MS = 5_000;
 
