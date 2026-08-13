@@ -129,6 +129,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const recentlyWrittenHabitsRef = useRef<Map<string, number>>(new Map());
   const recentlyWrittenListsRef = useRef<Map<string, number>>(new Map());
   const ACTIVE_THROTTLE_MS = 30_000;
+  const recentDeleteTimestamps = useRef<Map<string, number>>(new Map());
+  const RECENT_DELETE_WINDOW_MS = 10_000;
 
   const markRecentlyWritten = useCallback((id: string) => {
     recentlyWrittenRef.current.set(id, Date.now());
@@ -921,6 +923,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     console.log(`[AppContext] 刪除任務 ${id}，時間: ${Date.now()}`);
     setTasks(updated);
     saveTasks(updated);
+    // Guard: 標記「這是一次用戶主動刪除」，在後續 Realtime 回呼觸發 setTasks 時，
+    // setTasks 內的刪除 toast（如有）會被抑制，防止歷史刪除事件重現時誤觸通知
+    recentDeleteTimestamps.current.set(id, Date.now());
+    setTimeout(() => recentDeleteTimestamps.current.delete(id), RECENT_DELETE_WINDOW_MS);
     toast.success(
       <div className="flex items-center gap-3">
         <span className="flex-1">已刪除「{task.title}」</span>
