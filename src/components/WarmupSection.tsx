@@ -8,6 +8,7 @@ import { useProgressStatus } from "@/hooks/useProgressStatus";
 import { useLevelUpNotification } from "@/components/LevelUpNotification";
 import { getLocalToday, toLocalDateString } from "@/lib/dateUtils";
 import { Heart, Check, Plus, Flame, ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 /**
  * WarmupSection — 禪模式暖身區塊（角落固定）
@@ -48,6 +49,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
   const showWindow = useStatusWindow();
   const { addPp } = useProgressStatus();
   const levelUp = useLevelUpNotification();
+  const router = useRouter();
 
   const [isCreating, setIsCreating] = useState(false);
   const [newHabitTitle, setNewHabitTitle] = useState("");
@@ -229,7 +231,10 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
           {/* 本月打卡統計 */}
           <button
             type="button"
-            onClick={() => setCurrentView("habits")}
+            onClick={() => {
+              setCurrentView("habits");
+              router.push("/?board=1");
+            }}
             className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
             aria-label="查看完整月曆"
           >
@@ -351,7 +356,10 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
           return (
             <button
               type="button"
-              onClick={() => setCurrentView("habits")}
+              onClick={() => {
+                setCurrentView("habits");
+                router.push("/?board=1");
+              }}
               className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
               aria-label="查看完整月曆"
             >
