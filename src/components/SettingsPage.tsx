@@ -31,11 +31,7 @@ import { toast } from "sonner";
 import { useConfirm } from "@/hooks/useConfirm";
 import { translatePushError } from "@/lib/errorMessages";
 import { isComposingKey } from "@/utils/imeGuard";
-import { ProGhostButton } from "./ProGhostButton";
-import { GhostButton } from "./GhostButton";
-import { ProWaitlistModal } from "./ProWaitlistModal";
-import { useGhostButton } from "@/hooks/useGhostButton";
-import { Palette } from "lucide-react";
+import { ProFeaturesSection } from "./SettingsSections/ProFeaturesSection";
 
 interface SettingsPageProps {
   isOpen: boolean;
@@ -46,18 +42,15 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
   const { notificationPermission, requestNotificationPermission, setNotificationPermission, tasks, habits, lists, addTask, addHabit, addList } = useApp();
   const { user, role, roleConfig, isAdmin } = useAuth();
   const confirm = useConfirm();
-  // §假門測試 C:Pro 版專屬功能 (pro_themes) — 設定頁 外觀區
-  // 與既有 ProGhostButton 並列,但走 ProWaitlistModal 系統
-  const proThemesGhost = useGhostButton({ buttonId: "pro_themes" });
-  const [theme, setTheme] = useState<"light" | "dark" | "system">("light");
+  // ── 推播自測狀態 ──
   const [exportMsg, setExportMsg] = useState<string | null>(null);
+  const [theme, setTheme] = useState<"light" | "dark" | "system">("light");
   const [importMsg, setImportMsg] = useState<string | null>(null);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [importStats, setImportStats] = useState<{ tasks: number; habits: number; lists: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [lastBackupAt, setLastBackupAt] = useState<string | null>(null);
   const [daysSinceBackup, setDaysSinceBackup] = useState<number>(Infinity);
-  // ── 推播自測狀態 ──
   const [pushTestPending, setPushTestPending] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushDbSubscribed, setPushDbSubscribed] = useState<boolean | null>(null);
@@ -586,83 +579,8 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
             </div>
           </section>
 
-          {/* PRO 功能（幽靈按鈕埋點） */}
-          <section>
-            <h3 className="text-[12px] font-semibold tracking-tight mb-3 flex items-center gap-2" style={{ color: "var(--text-tertiary)" }}>
-              <Crown className="w-3.5 h-3.5" aria-hidden="true" />
-              PRO 功能搶先看
-            </h3>
-            <div className="space-y-2">
-              {/* Karma Mode 開關（幽靈） */}
-              <div className="card px-4 py-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: "rgba(244, 63, 94, 0.10)" }}
-                  >
-                    <Heart className="w-4 h-4" style={{ color: "#F43F5E" }} aria-hidden="true" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>Karma Mode</p>
-                    <p className="text-[12px] truncate" style={{ color: "var(--text-tertiary)" }}>
-                      心靈還債引擎 · 拖延會扣信用血條
-                    </p>
-                  </div>
-                </div>
-                <ProGhostButton feature="karma-mode" variant="inline" title="啟用 Karma Mode（PRO 專屬）">
-                  <span>啟用</span>
-                </ProGhostButton>
-              </div>
-
-              {/* 加大儲存空間（幽靈） */}
-              <div className="card px-4 py-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: "var(--brand-tint)" }}
-                  >
-                    <Package className="w-4 h-4" style={{ color: "var(--brand)" }} aria-hidden="true" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>加大儲存空間</p>
-                    <p className="text-[12px] truncate" style={{ color: "var(--text-tertiary)" }}>
-                      ZIP 備份、大檔清理、滿載加購
-                    </p>
-                  </div>
-                </div>
-                <ProGhostButton feature="storage-cleaner" variant="inline" title="管理儲存空間（PRO 專屬）">
-                  <span>管理</span>
-                </ProGhostButton>
-              </div>
-
-              {/* §假門測試 C:Pro 版專屬功能 (pro_themes) — 主題客製化 + 深黑模式 */}
-              <div className="card px-4 py-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: "rgba(251, 191, 36, 0.10)" }}
-                  >
-                    <Palette className="w-4 h-4" style={{ color: "#fbbf24" }} aria-hidden="true" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>Pro 版專屬功能</p>
-                    <p className="text-[12px] truncate" style={{ color: "var(--text-tertiary)" }}>
-                      主題客製化 · 深黑模式 · 自訂稱號
-                    </p>
-                  </div>
-                </div>
-                <GhostButton
-                  onClick={proThemesGhost.handleClick}
-                  variant="glowing"
-                  icon={Palette}
-                  featureId="pro_themes"
-                  dismissed={proThemesGhost.dismissed}
-                >
-                  解鎖
-                </GhostButton>
-              </div>
-            </div>
-          </section>
+      {/* PRO 功能 */}
+      <ProFeaturesSection />
 
           {/* User Role */}
           <section>
@@ -1588,13 +1506,6 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
         </div>
       </motion.div>
 
-      {/* §假門測試 C:Pro 版專屬功能 (pro_themes) Modal */}
-      <ProWaitlistModal
-        open={proThemesGhost.open}
-        onClose={proThemesGhost.handleDismiss}
-        onJoin={proThemesGhost.handleJoin}
-        featureId="pro_themes"
-      />
     </motion.div>
   );
 }
