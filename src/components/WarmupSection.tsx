@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/lib/AppContext";
 import { useStatusWindow } from "@/hooks/useStatusWindow";
 import { useProgressStatus } from "@/hooks/useProgressStatus";
 import { useLevelUpNotification } from "@/components/LevelUpNotification";
-import { getLocalToday } from "@/lib/dateUtils";
-import { Heart, Check, Plus, Flame } from "lucide-react";
+import { getLocalToday, toLocalDateString } from "@/lib/dateUtils";
+import { Heart, Check, Plus, Flame, ChevronRight } from "lucide-react";
 
 /**
  * WarmupSection — 禪模式暖身區塊（角落固定）
@@ -45,6 +46,7 @@ interface WarmupSectionProps {
 
 export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
   const { habits, checkinHabit, addHabit } = useApp();
+  const router = useRouter();
   const showWindow = useStatusWindow();
   const { addPp } = useProgressStatus();
   const levelUp = useLevelUpNotification();
@@ -196,22 +198,46 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
     );
   }
 
-  // 有 Habit 但今日全部完成 → 顯示「今日暖身完成」安靜訊息
+  // 有 Habit 但今日全部完成 → 顯示「今日暖身完成」安靜訊息 + 本月統計
   if (pendingHabits.length === 0) {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const today = getLocalToday();
+    const todayDay = parseInt(today.split("-")[2], 10);
+    const activeHabits = habits.filter((h) => !h.archivedAt);
+    const monthDays = Array.from({ length: todayDay }, (_, i) =>
+      toLocalDateString(new Date(currentYear, currentMonth, i + 1))
+    );
+    const doneDaysThisMonth = monthDays.filter((date) =>
+      activeHabits.every((h) => h.checkins.some((c) => c.date === date && c.completed))
+    ).length;
+
     return (
       <>
-        {/* 桌機:原貌 */}
+        {/* 桌機:原貌 + 底部統計行 */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut", delay: 0.3 }}
-          className="hidden sm:flex fixed bottom-6 left-6 z-20 items-center gap-2 rounded-full bg-white/70 px-3 py-2 backdrop-blur"
+          className="hidden sm:flex fixed bottom-6 left-6 z-20 flex-col items-start gap-1.5 rounded-2xl bg-white/70 px-4 py-3 backdrop-blur"
           style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
         >
-          <span className="text-lg" aria-hidden>
-            ✓
-          </span>
-          <span className="text-xs font-medium text-slate-400">今日暖身已就位</span>
+          <div className="flex items-center gap-2">
+            <span className="text-lg" aria-hidden>✓</span>
+            <span className="text-xs font-medium text-slate-400">今日暖身已就位</span>
+          </div>
+          {/* 本月打卡統計 */}
+          <button
+            type="button"
+            onClick={() => router.push("/?view=habits")}
+            className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+            aria-label="查看完整月曆"
+          >
+            <span>📅 本月打卡 {doneDaysThisMonth}/{todayDay} 天</span>
+            <ChevronRight className="w-3 h-3" aria-hidden />
+          </button>
         </motion.div>
 
         {/* 手機:compact ✓ icon(靜默,不可點) */}
@@ -310,6 +336,32 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
             );
           })}
         </div>
+        {/* 本月打卡統計行 */}
+        {(() => {
+          const now = new Date();
+          const currentMonth = now.getMonth();
+          const currentYear = now.getFullYear();
+          const today = getLocalToday();
+          const todayDay = parseInt(today.split("-")[2], 10);
+          const activeHabits = habits.filter((h) => !h.archivedAt);
+          const monthDays = Array.from({ length: todayDay }, (_, i) =>
+            toLocalDateString(new Date(currentYear, currentMonth, i + 1))
+          );
+          const doneDaysThisMonth = monthDays.filter((date) =>
+            activeHabits.every((h) => h.checkins.some((c) => c.date === date && c.completed))
+          ).length;
+          return (
+            <button
+              type="button"
+              onClick={() => router.push("/?view=habits")}
+              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+              aria-label="查看完整月曆"
+            >
+              <span>📅 本月打卡 {doneDaysThisMonth}/{todayDay} 天</span>
+              <ChevronRight className="w-3 h-3" aria-hidden />
+            </button>
+          );
+        })()}
       </motion.div>
 
       {/* §26 B 評分表 9.1:「開始暖身」入口 — 點擊進入全螢幕抽卡流程
