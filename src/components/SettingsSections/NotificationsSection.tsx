@@ -3,21 +3,19 @@
  *
  * 職責: 系統推播、心流計時器提醒
  * 從 SettingsContext 取 push* state + handlers
+ * 從 useApp 取 notificationPermission / requestNotificationPermission
  */
 "use client";
 
 import { CheckCircle2, AlertCircle, X } from "lucide-react";
 import { useSettingsContext } from "./index";
+import { useApp } from "@/lib/AppContext";
 
-interface NotificationsSectionProps {
-  notificationPermission: NotificationPermission | "default";
-  requestNotificationPermission: () => Promise<boolean>;
-}
-
-export function NotificationsSection({
-  notificationPermission,
-  requestNotificationPermission,
-}: NotificationsSectionProps) {
+export function NotificationsSection() {
+  const {
+    notificationPermission,
+    requestNotificationPermission,
+  } = useApp();
   const {
     pushTestPending,
     setPushTestPending,

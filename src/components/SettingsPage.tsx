@@ -34,8 +34,6 @@ interface SettingsPageProps {
 
 export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
   const {
-    notificationPermission,
-    requestNotificationPermission,
     setNotificationPermission,
     tasks,
     habits,
@@ -74,14 +72,11 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
     >
       <SettingsProvider
         isOpen={isOpen}
-        notificationPermission={notificationPermission}
         setNotificationPermission={setNotificationPermission}
         userId={user?.id ?? null}
         applyTheme={applyTheme}
       >
         <SettingsContent
-          notificationPermission={notificationPermission}
-          requestNotificationPermission={requestNotificationPermission}
           tasks={tasks}
           habits={habits}
           lists={lists}
@@ -102,8 +97,6 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
 import { useSettingsContext } from "./SettingsSections";
 
 interface SettingsContentProps {
-  notificationPermission: NotificationPermission | "default";
-  requestNotificationPermission: () => Promise<boolean>;
   tasks: ReturnType<typeof useApp>["tasks"];
   habits: ReturnType<typeof useApp>["habits"];
   lists: ReturnType<typeof useApp>["lists"];
@@ -114,8 +107,6 @@ interface SettingsContentProps {
 }
 
 function SettingsContent({
-  notificationPermission,
-  requestNotificationPermission,
   tasks,
   habits,
   lists,
@@ -190,10 +181,7 @@ function SettingsContent({
 
         <ProFeaturesSection />
         <AccountSection />
-        <NotificationsSection
-          notificationPermission={notificationPermission}
-          requestNotificationPermission={requestNotificationPermission}
-        />
+        <NotificationsSection />
         <InteractionSection />
         <DataSection
           tasks={tasks}

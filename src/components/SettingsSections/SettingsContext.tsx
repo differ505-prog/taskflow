@@ -99,8 +99,6 @@ interface SettingsProviderProps {
   children: ReactNode;
   /** 傳入 SettingsPage 的 isOpen prop，讓 provider 知道何時 init */
   isOpen: boolean;
-  /** 從 useApp 取 notificationPermission/setNotificationPermission */
-  notificationPermission: NotificationPermission | "default";
   setNotificationPermission: (v: NotificationPermission | "default") => void;
   /** 從 useAuth 取 user.id */
   userId: string | null;
@@ -111,7 +109,6 @@ interface SettingsProviderProps {
 export function SettingsProvider({
   children,
   isOpen,
-  notificationPermission,
   setNotificationPermission,
   userId,
   applyTheme,
