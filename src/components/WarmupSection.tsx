@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/lib/AppContext";
 import { useStatusWindow } from "@/hooks/useStatusWindow";
@@ -45,8 +44,7 @@ interface WarmupSectionProps {
 }
 
 export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
-  const { habits, checkinHabit, addHabit } = useApp();
-  const router = useRouter();
+  const { habits, checkinHabit, addHabit, setCurrentView } = useApp();
   const showWindow = useStatusWindow();
   const { addPp } = useProgressStatus();
   const levelUp = useLevelUpNotification();
@@ -231,7 +229,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
           {/* 本月打卡統計 */}
           <button
             type="button"
-            onClick={() => router.push("/?view=habits")}
+            onClick={() => setCurrentView("habits")}
             className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
             aria-label="查看完整月曆"
           >
@@ -353,7 +351,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
           return (
             <button
               type="button"
-              onClick={() => router.push("/?view=habits")}
+              onClick={() => setCurrentView("habits")}
               className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
               aria-label="查看完整月曆"
             >
