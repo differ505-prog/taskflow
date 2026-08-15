@@ -34,6 +34,7 @@ import { ProFeaturesSection } from "./SettingsSections/ProFeaturesSection";
 import { KeyboardShortcutsSection } from "./SettingsSections/KeyboardShortcutsSection";
 import { AccountSection } from "./SettingsSections/AccountSection";
 import { AboutSection } from "./SettingsSections/AboutSection";
+import { SettingsProvider, useSettingsContext } from "./SettingsSections/SettingsContext";
 
 interface SettingsPageProps {
   isOpen: boolean;
@@ -487,13 +488,19 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
       aria-modal="true"
       aria-labelledby="settings-title"
     >
-      <motion.div
-        initial={{ scale: 0.95, y: 10 }}
-        animate={{ scale: 1, y: 0 }}
-        exit={{ scale: 0.95, y: 10 }}
-        className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl"
-        style={{ background: "var(--surface-elevated)", boxShadow: "var(--shadow-lg)" }}
+      <SettingsProvider
+        isOpen={isOpen}
+        notificationPermission={notificationPermission}
+        setNotificationPermission={setNotificationPermission}
+        userId={user?.id ?? null}
       >
+        <motion.div
+          initial={{ scale: 0.95, y: 10 }}
+          animate={{ scale: 1, y: 0 }}
+          exit={{ scale: 0.95, y: 10 }}
+          className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl"
+          style={{ background: "var(--surface-elevated)", boxShadow: "var(--shadow-lg)" }}
+        >
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-5" style={{ background: "var(--surface-elevated)", borderBottom: "1px solid var(--border)" }}>
           <h2 id="settings-title" className="text-[17px] font-semibold" style={{ color: "var(--text-primary)" }}>設定</h2>
@@ -1123,6 +1130,7 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
           <AboutSection />
         </div>
       </motion.div>
+      </SettingsProvider>
 
     </motion.div>
   );
