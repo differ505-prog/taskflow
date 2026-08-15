@@ -7,7 +7,7 @@
  *
  * 設計：
  *   - Fire-and-forget:不 await,不影響主流程
- *   - 失敗靜默:console.warn 但不 throw
+ *   - 失敗靜默:logger.warn 但不 throw
  *   - SSR-safe:在 server-side 直接 no-op
  *   - 介面精簡:logEvent(eventName, metadata) 一行搞定
  *
@@ -15,6 +15,8 @@
  *   - console.log 只在本機 dev 看得見
  *   - 假門測試需要「跨用戶、跨 session」的資料,Vercel log 才能保留
  */
+
+import { logger } from "@/lib/logger";
 
 export interface LogEventOptions {
   /** 哪個幽靈按鈕/位置,用於跨事件關聯(例如 "timebar" / "unlimited_shred") */
@@ -51,7 +53,7 @@ export function logEvent(event: string, options: LogEventOptions = {}): void {
   }).catch((err) => {
     // 事件追蹤失敗絕不影響主流程 UX
     if (typeof console !== "undefined") {
-      console.warn("[eventLog] failed:", err);
+      logger.ns("eventLog").warn("failed", { error: err });
     }
   });
 }

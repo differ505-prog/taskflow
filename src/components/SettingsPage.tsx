@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/Button";
+import { logger } from "@/lib/logger";
 import { useApp } from "@/lib/AppContext";
 import { useAuth } from "@/lib/AuthContext";
 import {
@@ -81,12 +82,12 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
         .eq("is_active", true)
         .limit(1);
       if (error) {
-        console.warn("[push] detect DB state failed:", error);
+        logger.ns("SettingsPage").warn("detect DB state failed", { error });
         return;
       }
       setPushDbSubscribed((data?.length ?? 0) > 0);
     } catch (e) {
-      console.warn("[push] detect DB state threw:", e);
+      logger.ns("SettingsPage").warn("detect DB state threw", { error: e });
     }
   }, [user]);
 

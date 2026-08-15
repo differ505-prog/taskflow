@@ -6,6 +6,7 @@ import { Task, Priority, TaskStatus, Recurrence, SubTask, Attachment } from "@/l
 import { PRIORITY_CONFIG } from "@/lib/types";
 import { useApp } from "@/lib/AppContext";
 import { useAuth } from "@/lib/AuthContext";
+import { logger } from "@/lib/logger";
 import { getTagColors } from "@/lib/storage";
 import { getEisenhowerVisual } from "@/lib/eisenhower";
 import { AnimatePresence, motion } from "framer-motion";
@@ -120,8 +121,9 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
 
     if (targetSharedListId) {
       if (!existingInShared && task.listId !== targetListId) {
-        console.warn(
-          `[TaskDetailPanel] §DEFENSIVE: task=${taskId} not in shared list=${targetSharedListId} yet. Routing to updateTask to handle personal→shared migration properly.`
+        logger.ns("TaskDetailPanel").warn(
+          "§DEFENSIVE: task not in shared list yet. Routing to updateTask to handle personal→shared migration properly.",
+          { taskId, targetSharedListId }
         );
         updateTask(taskId, updates);
       } else {
@@ -940,7 +942,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
                   onRemoveAttachment={(attachment) => {
                     if (attachment.storagePath) {
                       deleteFile(attachment.storagePath).catch((err) => {
-                        console.warn("[TaskDetailPanel] Failed to delete attachment from storage:", err);
+                        logger.ns("TaskDetailPanel").warn("Failed to delete attachment from storage", { error: err });
                       });
                     }
                     setAttachments((prev) => prev.filter((a) => a.id !== attachment.id));

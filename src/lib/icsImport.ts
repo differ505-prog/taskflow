@@ -19,6 +19,8 @@
 
 // ─── localStorage 快取 ────────────────────────────────────────
 const EXTERNAL_CAL_KEY = "taskflow_external_calendars";
+import { logger } from "@/lib/logger";
+const log = logger.ns("icsImport");
 /** 快取結構:{ url → { dateCountMap, fetchedAt } } */
 interface CachedCalendar {
   dateCountMap: Record<string, number>; // YYYY-MM-DD → 事件數
@@ -40,7 +42,7 @@ function writeExternalCalendars(data: Record<string, CachedCalendar>): void {
   try {
     localStorage.setItem(EXTERNAL_CAL_KEY, JSON.stringify(data));
   } catch (e) {
-    console.warn("[externalCal] storage write failed:", e);
+    log.warn("storage write failed", { error: e });
   }
 }
 

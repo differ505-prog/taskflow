@@ -1,5 +1,8 @@
 import { Task, TaskList, Habit, FlowTimerSession, Tag, DEFAULT_LISTS, DEFAULT_LIST_IDS } from "./types";
 import { MemberRole } from "./sharedSync";
+import { logger } from "./logger";
+
+const log = logger.ns("storage");
 
 const TASKS_KEY = "taskflow_tasks";
 const LAST_USER_UID_KEY = "taskflow_last_user_uid"; // §26-J:追蹤寫入的 uid,切換帳號時用來過濾殘留任務
@@ -34,7 +37,7 @@ function write<T>(key: string, value: T): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    console.warn("Storage write failed for:", key);
+    log.warn("Storage write failed", { key });
   }
 }
 

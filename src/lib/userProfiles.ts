@@ -9,8 +9,10 @@
  *
  * 全部透過 Supabase RPC 執行，繞過 RLS（因 RPC 為 security definer）。
  */
-import { supabase, isSupabaseConfigured } from "./supabase";
+import { logger } from "@/lib/logger";
+const log = logger.ns("userProfiles");
 import { UserRole } from "./types";
+import { supabase, isSupabaseConfigured } from "./supabase";
 
 /**
  * Upsert 使用者 profile（首登建立，之後更新 last_login_at）
@@ -32,7 +34,7 @@ export async function upsertProfile(args: {
       p_avatar_url: args.avatarUrl ?? null,
     });
   } catch (err) {
-    console.warn("[userProfiles] upsertProfile failed:", err);
+    log.warn("upsertProfile failed", { error: err });
   }
 }
 
@@ -44,7 +46,7 @@ export async function updateLastActive(uid: string): Promise<void> {
   try {
     await supabase!.rpc("update_last_active", { p_uid: uid });
   } catch (err) {
-    console.warn("[userProfiles] updateLastActive failed:", err);
+    log.warn("updateLastActive failed", { error: err });
   }
 }
 
@@ -79,7 +81,7 @@ export async function getProfile(uid: string): Promise<UserProfile | null> {
       createdAt: row.created_at,
     };
   } catch (err) {
-    console.warn("[userProfiles] getProfile failed:", err);
+    log.warn("getProfile failed", { error: err });
     return null;
   }
 }
@@ -109,9 +111,9 @@ export async function setUserRole(uid: string, role: UserRole): Promise<void> {
       p_role: role,
     });
     if (error) {
-      console.warn("[userProfiles] setUserRole failed:", error.message);
+      log.warn("setUserRole failed", { error: error.message });
     }
   } catch (err) {
-    console.warn("[userProfiles] setUserRole failed:", err);
+    log.warn("setUserRole failed", { error: err });
   }
 }

@@ -12,6 +12,9 @@
  * - 桌機 navigator.share 也支援,Chrome/Edge/Safari 17+ 都可用
  */
 
+import { logger } from "@/lib/logger";
+const log = logger.ns("shareBackup");
+
 export interface ShareBackupOptions {
   /** 備份 JSON 字串 */
   data: string;
@@ -81,7 +84,7 @@ export async function shareOrDownloadBackup({
       return "cancelled";
     }
     // 其他錯誤(權限、檔案太大等)→ 降級到下載
-    console.warn("[shareBackup] Web Share 失敗,降級到下載:", err);
+    log.warn("Web Share 失敗,降級到下載", { error: err });
     onFallback?.();
     return "fallback";
   }

@@ -18,6 +18,9 @@
 
 import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { logger } from "./logger";
+
+const log = logger.ns("supabase");
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 // 支援兩種命名：Supabase v2 改用 publishable_key，但舊 codebase 仍可能寫 anon_key
@@ -29,9 +32,7 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
   // eslint-disable-next-line no-console
   // 在 build 時看不到 env，不 throw；只在 runtime 用到時報錯
   if (typeof window !== "undefined") {
-    console.warn(
-      "[Supabase] NEXT_PUBLIC_SUPABASE_URL 或 publishable/anon key 未設定，相關功能將無法運作"
-    );
+    log.warn("NEXT_PUBLIC_SUPABASE_URL 或 publishable/anon key 未設定，相關功能將無法運作");
   }
 }
 

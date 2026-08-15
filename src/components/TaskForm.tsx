@@ -15,6 +15,7 @@ import { useGhostButton } from "@/hooks/useGhostButton";
 import { GhostButton } from "./GhostButton";
 import { ProWaitlistModal } from "./ProWaitlistModal";
 import { deleteFile } from "@/lib/storageUpload";
+import { logger } from "@/lib/logger";
 import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
 import { getEisenhowerVisual } from "@/lib/eisenhower";
 import { isComposingKey, isComposingSubmit } from "@/utils/imeGuard";
@@ -559,7 +560,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                   onRemoveAttachment={(attachment) => {
                     if (attachment.storagePath) {
                       deleteFile(attachment.storagePath).catch((err) => {
-                        console.warn("[TaskForm] Failed to delete attachment from storage:", err);
+                        logger.ns("TaskForm").warn("Failed to delete attachment from storage", { error: err });
                       });
                     }
                     setAttachments((prev) => prev.filter((a) => a.id !== attachment.id));

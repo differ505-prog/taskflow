@@ -28,6 +28,9 @@ import { getFirebaseDB } from "./firebase";
 import { Task, TaskList, Habit, FlowTimerSession, Tag, SharedListMeta, SharedListSnapshot } from "./types";
 import * as SharedSync from "./sharedSync";
 import { isSupabaseConfigured } from "./supabase";
+import { logger } from "./logger";
+
+const log = logger.ns("firestore");
 
 // ─── 路徑常數 ────────────────────────────────────────────────
 const uid = (userId: string) => userId;
@@ -53,7 +56,7 @@ export async function subscribeTasks(
       onUpdate(tasks);
     },
     (err) => {
-      console.warn("[FB SYNC] onSnapshot error:", err);
+      log.warn("onSnapshot error", { error: err });
     }
   );
 }
@@ -315,7 +318,7 @@ export async function updateSharedSnapshot(
       onWriteComplete(sharedListId, tasks);
     } catch (cbError) {
       // eslint-disable-next-line no-console
-      console.error("[SharedSync] onWriteComplete threw:", cbError);
+          log.error("onWriteComplete threw", { error: cbError });
     }
   }
 }
@@ -332,8 +335,7 @@ export async function subscribeToSharedSnapshot(
   onDeleted?: () => void
 ): Promise<Unsubscribe> {
   if (!isSupabaseConfigured()) {
-    // eslint-disable-next-line no-console
-    console.warn("[SharedSync] Supabase not configured; realtime disabled");
+    log.warn("Supabase not configured; realtime disabled");
     onUpdate(null);
     return Promise.resolve(() => {});
   }
