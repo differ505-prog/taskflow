@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { translatePushError } from "@/lib/errorMessages";
 import { subscribeToPush, unsubscribeFromPush } from "@/lib/push/vapid";
 import { logger } from "@/lib/logger";
+import { getConfettiEnabled } from "@/lib/confetti";
 
 /* ─────────────────────────────────────────────────────────────
    Context value type
@@ -145,6 +146,13 @@ export function SettingsProvider({
 
   // ── Confetti ───────────────────────────────────────────────
   const [confettiEnabled, setConfettiEnabledState] = useState(true);
+
+  // ── Theme init ────────────────────────────────────────────
+  useEffect(() => {
+    setConfettiEnabledState(getConfettiEnabled());
+    const saved = localStorage.getItem("taskflow_theme") as "light" | "dark" | "system" | null;
+    if (saved) setTheme(saved);
+  }, [setTheme]);
 
   /* ── Push handlers ────────────────────────────────────────── */
 

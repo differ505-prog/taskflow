@@ -1,40 +1,21 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Button } from "@/components/ui/Button";
-import { logger } from "@/lib/logger";
+import { useEffect, useCallback } from "react";
+import { Moon, Sun, X } from "lucide-react";
+import { motion } from "framer-motion";
 import { useApp } from "@/lib/AppContext";
 import { useAuth } from "@/lib/AuthContext";
-import {
-  clearAllData, exportAllData, downloadJSON,
-  importData,
-  recordBackupAt, getLastBackupAt, getDaysSinceBackup,
-} from "@/lib/storage";
-import { shareOrDownloadBackup, fallbackDownload } from "@/lib/shareBackup";
-import { motion } from "framer-motion";
-import {
-  Moon, Sun, Bell, Download, Upload, Trash2, Info,
-  ChevronRight, X, CheckCircle2, AlertCircle,
-  CalendarDays, Shield, Zap, Copy,
-  Heart, Lock, Package, Plus, RefreshCw, ExternalLink,
-} from "lucide-react";
-import { getTasks } from "@/lib/storage";
-import { TemplateMarketplace } from "./TemplateMarketplace";
-import { subscribeToPush, unsubscribeFromPush } from "@/lib/push/vapid";
-import { downloadICal } from "@/lib/ical";
-import { useExternalCalendar, formatFetchedAgo } from "@/hooks/useExternalCalendar";
-import { ExternalCalendarSection } from "./ExternalCalendarSection";
-import { useWebhookSettings, triggerWebhook } from "@/lib/useWebhook";
-import { getConfettiEnabled, setConfettiEnabled, previewConfetti } from "@/lib/confetti";
-import { toast } from "sonner";
-import { useConfirm } from "@/hooks/useConfirm";
-import { translatePushError } from "@/lib/errorMessages";
 import { isComposingKey } from "@/utils/imeGuard";
 import { ProFeaturesSection } from "./SettingsSections/ProFeaturesSection";
 import { KeyboardShortcutsSection } from "./SettingsSections/KeyboardShortcutsSection";
 import { AccountSection } from "./SettingsSections/AccountSection";
 import { AboutSection } from "./SettingsSections/AboutSection";
 import { SettingsProvider, useSettingsContext } from "./SettingsSections/SettingsContext";
+import { NotificationsSection } from "./SettingsSections/NotificationsSection";
+import { InteractionSection } from "./SettingsSections/InteractionSection";
+import { DataSection } from "./SettingsSections/DataSection";
+import { CalendarSection } from "./SettingsSections/CalendarSection";
+import { WebhookSection } from "./SettingsSections/WebhookSection";
 
 interface SettingsPageProps {
   isOpen: boolean;
@@ -42,437 +23,40 @@ interface SettingsPageProps {
 }
 
 export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
-  const { notificationPermission, requestNotificationPermission, setNotificationPermission, tasks, habits, lists, addTask, addHabit, addList } = useApp();
+  const {
+    notificationPermission,
+    requestNotificationPermission,
+    setNotificationPermission,
+    tasks,
+    habits,
+    lists,
+    addTask,
+    addHabit,
+    addList,
+  } = useApp();
   const { user, role, roleConfig, isAdmin } = useAuth();
-  const confirm = useConfirm();
-  // ── 推播自測狀態 ──
-  const [exportMsg, setExportMsg] = useState<string | null>(null);
-  const [theme, setTheme] = useState<"light" | "dark" | "system">("light");
-  const [importMsg, setImportMsg] = useState<string | null>(null);
-  const [importErrors, setImportErrors] = useState<string[]>([]);
-  const [importStats, setImportStats] = useState<{ tasks: number; habits: number; lists: number } | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [lastBackupAt, setLastBackupAt] = useState<string | null>(null);
-  const [daysSinceBackup, setDaysSinceBackup] = useState<number>(Infinity);
-  const [pushTestPending, setPushTestPending] = useState(false);
-  const [pushBusy, setPushBusy] = useState(false);
-  const [pushDbSubscribed, setPushDbSubscribed] = useState<boolean | null>(null);
-  const [pushSafariHint, setPushSafariHint] = useState<string | null>(null);
-  const [isPwa] = useState(
-    typeof window !== "undefined" &&
-      window.matchMedia?.("(display-mode: standalone)").matches,
-  );
-  const pushBusyRef = useRef(false);
+  const { theme: themeValue, setTheme: setThemeCtx } = useSettingsContext();
 
-  // ── 外部日曆匯入(read-only)— §26 邊界 1.1+2.1 衝突指示器 ──
-  const externalCal = useExternalCalendar();
-  const [newCalendarUrl, setNewCalendarUrl] = useState("");
-
-  const detectPushDbState = useCallback(async () => {
-    if (!user) return;    try {
-      const { supabase } = await import("@/lib/supabase");
-      const { data, error } = await supabase
-        .from("push_subscriptions")
-        .select("endpoint")
-        .eq("owner_uid", user.id)
-        .eq("is_active", true)
-        .limit(1);
-      if (error) {
-        logger.ns("SettingsPage").warn("detect DB state failed", { error });
-        return;
-      }
-      setPushDbSubscribed((data?.length ?? 0) > 0);
-    } catch (e) {
-      logger.ns("SettingsPage").warn("detect DB state threw", { error: e });
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (isOpen && user) {
-      void detectPushDbState();
-    }
-  }, [isOpen, user, detectPushDbState]);
-
-  const handleResubscribePush = useCallback(async () => {
-    if (pushBusyRef.current) return;
-    pushBusyRef.current = true;
-    setPushBusy(true);
-    const rescue = () => {
-      pushBusyRef.current = false;
-      setPushBusy(false);
-    };
-    const timeout = setTimeout(rescue, 15000);
-    try {
-      const sub = await Promise.race([
-        subscribeToPush(),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 12000)),
-      ]);
-      if (!sub) {
-        // 拆出三種原因讓使用者知道怎麼處理（對齊 VOICE_AND_TONE.md §5）
-        if (typeof Notification === "undefined") {
-          toast.error("此瀏覽器不支援推播");
-        } else if (Notification.permission === "denied") {
-          toast.error("推播被拒絕,到 iOS 設定 → Safari 開啟");
-        } else if (Notification.permission === "default") {
-          toast.error("通知權限視窗被略過,請用 Safari 一般 tab 開站一次並允許");
-        } else {
-          toast.error("訂閱逾時,請再試一次");
-        }
-        return;
-      }
-      const json = sub.toJSON() as {
-        endpoint: string;
-        keys: { p256dh: string; auth: string };
-      };
-      const ua = navigator.userAgent;
-      const deviceLabel = /iPhone|iPad/.test(ua)
-        ? "iOS Safari"
-        : /Android/.test(ua)
-        ? "Android Chrome"
-        : /Mac/.test(ua)
-        ? "Mac"
-        : /Windows/.test(ua)
-        ? "Windows"
-        : "Unknown";
-      const res = await Promise.race([
-        fetch("/api/push/subscribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            endpoint: json.endpoint,
-            keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
-            deviceLabel,
-          }),
-        }),
-        new Promise<Response>((_, reject) =>
-          setTimeout(() => reject(new Error("API 連線逾時 12 秒")), 12000)
-        ),
-      ]);
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        toast.error(`訂閱寫入失敗：${err.error ?? res.status}`);
-        return;
-      }
-      toast.success("推播已重新訂閱");
-      setPushDbSubscribed(true);
-    } catch (e) {
-      toast.error(translatePushError(e, "subscribe"));
-    } finally {
-      clearTimeout(timeout);
-      rescue();
-    }
-  }, []);
-
-  const handleUnsubscribePush = useCallback(async () => {
-    if (pushBusyRef.current) return;
-    pushBusyRef.current = true;
-    setPushBusy(true);
-    const rescue = () => {
-      pushBusyRef.current = false;
-      setPushBusy(false);
-    };
-    const timeout = setTimeout(rescue, 12000);
-    try {
-      await unsubscribeFromPush();
-      const registration = await Promise.race([
-        navigator.serviceWorker.ready,
-        new Promise<ServiceWorkerRegistration>((_, reject) =>
-          setTimeout(() => reject(new Error("Service Worker ready 逾時 10 秒")), 10000)
-        ),
-      ]);
-      const sub = await registration.pushManager.getSubscription();
-      if (!sub) {
-        toast.info("瀏覽器端沒有訂閱");
-        setPushDbSubscribed(false);
-        return;
-      }
-      const endpoint = sub.endpoint;
-      await unsubscribeFromPush();
-      await fetch("/api/push/unsubscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ endpoint }),
-      }).catch(() => {});
-      toast.success("已取消推播訂閱");
-      setPushDbSubscribed(false);
-    } catch (e) {
-      toast.error(translatePushError(e, "unsubscribe"));
-    } finally {
-      clearTimeout(timeout);
-      rescue();
-    }
-  }, []);
-
-  /**
-   * 強制重置推播 —
-   * 當 iOS PWA 內 SW.ready 卡死、瀏覽器端有訂閱但「取消失敗」時的治本按鈕。
-   * 直接刪 SW 註冊 + DB 對應紀錄（透過 owner_uid 而不是 endpoint），
-   * 下次重新訂閱會拿全新的 SW 重新走完整流程。
-   */
-  const handleForceResetPush = useCallback(async () => {
-    if (pushBusyRef.current) return;
-    pushBusyRef.current = true;
-    setPushBusy(true);
-    const rescue = () => {
-      pushBusyRef.current = false;
-      setPushBusy(false);
-    };
-    const timeout = setTimeout(rescue, 15000);
-    try {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      for (const reg of registrations) {
-        try {
-          const sub = await reg.pushManager.getSubscription();
-          if (sub) await sub.unsubscribe();
-        } catch {
-          // 個別 unsubscribe 失敗仍繼續
-        }
-        try {
-          await reg.unregister();
-        } catch {
-          // unregister 失敗仍繼續
-        }
-      }
-      // §26 命中類別：handleForceResetPush unregister SW 後沒重灌，使用者按「啟用推播」
-      // 會卡在 navigator.serviceWorker.ready 永久 pending（12s timeout 顯示「瀏覽器拒絕授權」）。
-      // 治本：unregister 完立刻重新註冊，讓下次訂閱能拿到 SW。
-      if ("serviceWorker" in navigator) {
-        try {
-          await navigator.serviceWorker.register("/sw.js");
-        } catch {
-          // SW 重註冊失敗仍繼續
-        }
-      }
-      if (user) {
-        const { supabase } = await import("@/lib/supabase");
-        await supabase
-          .from("push_subscriptions")
-          .update({ is_active: false, updated_at: new Date().toISOString() })
-          .eq("owner_uid", user.id)
-          .eq("is_active", true);
-      }
-      toast.success("推播已強制重置，請重新啟用推播");
-      setPushDbSubscribed(false);
-      // 同步把前端 Notification.permission 狀態歸零，讓 UI 回到「啟用推播」按鈕
-      setNotificationPermission("default");
-    } catch (e) {
-      toast.error(translatePushError(e, "reset"));
-    } finally {
-      clearTimeout(timeout);
-      rescue();
-    }
-  }, [user]);
-
-  const handleTestPush = useCallback(async () => {
-    if (pushTestPending) return;
-    setPushTestPending(true);
-    try {
-      const res = await fetch("/api/push/test-self", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(`測試失敗：${data?.error ?? res.status}`);
-        return;
-      }
-      if (data.sent > 0) {
-        toast.success(`推播已送出 ${data.sent} 則`);
-      } else if (data.expired > 0) {
-        toast.warning("訂閱已過期，請重新授權通知");
-      } else {
-        toast.error("沒有可送達的訂閱，請確認已授權通知權限");
-      }
-    } catch (e) {
-      toast.error(translatePushError(e, "test"));
-    } finally {
-      setPushTestPending(false);
-    }
-  }, [pushTestPending]);
-  // ── Webhook 整合狀態 ──
-  const webhook = useWebhookSettings();
-  const [webhookDraft, setWebhookDraft] = useState("");
-  const [webhookTestMsg, setWebhookTestMsg] = useState<string | null>(null);
-  const [webhookSaved, setWebhookSaved] = useState(false);
-
-  // ── Webcal URL（動態，base URL + /api/calendar/webcal）─────
-  const [webcalUrlCopied, setWebcalUrlCopied] = useState(false);
-  const getWebcalUrl = useCallback((): string => {
-    if (typeof window === "undefined") return "";
-    return `${window.location.origin}/api/calendar/webcal`;
-  }, []);
-
-  const handleCopyWebcalUrl = useCallback(async () => {
-    const url = getWebcalUrl();
-    try {
-      await navigator.clipboard.writeText(url);
-    } catch {
-      const ta = document.createElement("textarea");
-      ta.value = url;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-    }
-    setWebcalUrlCopied(true);
-    toast.success("Webcal 連結已複製！");
-    setTimeout(() => setWebcalUrlCopied(false), 2500);
-  }, [getWebcalUrl]);
-
-  const handleOpenWebcalGoogle = useCallback(() => {
-    const url = getWebcalUrl();
-    window.open(
-      `https://calendar.google.com/calendar/r/settings/addcalendar?splash=2&url=${encodeURIComponent(url)}`,
-      "_blank",
-      "noopener,noreferrer"
-    );
-  }, [getWebcalUrl]);
-
-  // ── Confetti 慶祝動畫設定 ──
-  const [confettiEnabled, setConfettiEnabledState] = useState(true);
-  useEffect(() => {
-    setConfettiEnabledState(getConfettiEnabled());
-  }, []);
-  const handleConfettiToggle = (enabled: boolean) => {
-    setConfettiEnabledState(enabled);
-    setConfettiEnabled(enabled);
-  };
-  useEffect(() => {
-    const saved = localStorage.getItem("taskflow_theme") as "light" | "dark" | "system" | null;
-    if (saved) {
-      setTheme(saved);
-      applyTheme(saved);
-    }
-    // L3 自動化備份：開啟設定時載入上次備份時間
-    setLastBackupAt(getLastBackupAt());
-    setDaysSinceBackup(getDaysSinceBackup());
-  }, []);
-
-  const applyTheme = (t: "light" | "dark" | "system") => {
+  // ── Theme ─────────────────────────────────────────────────
+  const applyTheme = useCallback((t: "light" | "dark" | "system") => {
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const isDark = t === "dark" || (t === "system" && prefersDark);
     document.documentElement.setAttribute("data-theme", isDark ? "dark" : "");
-  };
+  }, []);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("taskflow_theme") as "light" | "dark" | "system" | null;
+    if (saved) {
+      setThemeCtx(saved);
+      applyTheme(saved);
+    }
+  }, [applyTheme, setThemeCtx]);
 
   const handleThemeChange = (t: "light" | "dark" | "system") => {
-    setTheme(t);
+    setThemeCtx(t);
     localStorage.setItem("taskflow_theme", t);
     applyTheme(t);
   };
-
-  const handleExport = () => {
-    const data = exportAllData();
-    const blob = new Blob([data], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `taskflow-backup-${new Date().toISOString().split("T")[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setExportMsg("已匯出備份檔案");
-    setTimeout(() => setExportMsg(null), 3000);
-  };
-
-  const handleClearAll = async () => {
-    const ok = await confirm({
-      intent: "delete",
-      title: "清除所有資料",
-      message: "所有任務、清單、習慣、設定將從本機與雲端完全移除。匯出備份後再清除可避免資料遺失。",
-      impactDetail: `${tasks.length} 項任務 · ${habits.length} 個習慣 · ${lists.length} 個清單將永久刪除`,
-      tone: "danger",
-    });
-    if (!ok) return;
-    clearAllData();
-    toast.success(`已清除 ${tasks.length} 項任務、${habits.length} 個習慣、${lists.length} 個清單`);
-    setTimeout(() => window.location.reload(), 600);
-  };
-
-  const handleExportJSON = async () => {
-    const data = exportAllData();
-    const filename = `taskflow-backup-${new Date().toISOString().split("T")[0]}.json`;
-
-    // 優先用 Web Share API(手機原生分享面板:存 Files/AirDrop/傳 LINE/Email 自己)
-    // 不支援或失敗時降級到 <a download>
-    await shareOrDownloadBackup({
-      data,
-      filename,
-      onFallback: () => {
-        fallbackDownload(data, filename);
-        recordBackupAt();
-        setLastBackupAt(getLastBackupAt());
-        setDaysSinceBackup(getDaysSinceBackup());
-        setExportMsg("已下載 JSON 備份");
-        setTimeout(() => setExportMsg(null), 3000);
-      },
-      onShared: () => {
-        recordBackupAt();
-        setLastBackupAt(getLastBackupAt());
-        setDaysSinceBackup(getDaysSinceBackup());
-        setExportMsg("已分享 JSON 備份");
-        setTimeout(() => setExportMsg(null), 3000);
-      },
-      // onCancelled: 用戶主動關掉分享面板,靜默處理(不顯示訊息)
-    });
-  };
-
-  const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target?.result as string;
-      const parsed = JSON.parse(text);
-      const result = importData(text, tasks, habits, lists);
-      if (result.success) {
-        if (result.tasks > 0 && Array.isArray(parsed.tasks)) {
-          parsed.tasks.forEach((t: any) => {
-            addTask({
-              title: t.title,
-              description: t.description || "",
-              priority: t.priority || "medium",
-              status: t.status || "todo",
-              dueDate: t.dueDate || undefined,
-              dueTime: t.dueTime || undefined,
-              tags: t.tags || [],
-              subTasks: t.subTasks || [],
-              recurrence: t.recurrence || undefined,
-              listId: t.listId || undefined,
-            });
-          });
-        }
-        if (result.habits > 0 && Array.isArray(parsed.habits)) {
-          parsed.habits.forEach((h: any) => {
-            addHabit({
-              title: h.title || h.name || "",
-              description: h.description || "",
-              frequency: h.frequency || "daily",
-              targetCount: h.targetCount || h.target || 1,
-              color: h.color || "#4F6AF5",
-            });
-          });
-        }
-        if (result.lists > 0 && Array.isArray(parsed.lists)) {
-          parsed.lists.forEach((l: any) => {
-            addList({
-              name: l.name,
-              icon: l.icon || "📋",
-              color: l.color || "#4F6AF5",
-            });
-          });
-        }
-        setImportStats({ tasks: result.tasks, habits: result.habits, lists: result.lists });
-        setImportErrors(result.errors);
-        setImportMsg(`成功匯入 ${result.tasks} 項任務、${result.habits} 項習慣、${result.lists} 個清單`);
-      } else {
-        setImportMsg("匯入失敗");
-        setImportErrors(result.errors);
-      }
-      setTimeout(() => { setImportMsg(null); setImportErrors([]); setImportStats(null); }, 5000);
-    };
-    reader.readAsText(file);
-    e.target.value = "";
-  };
-
-  const totalTasks = tasks.length;
-  const totalHabits = habits.length;
-  const completedTasks = tasks.filter((t) => t.status === "done").length;
 
   if (!isOpen) return null;
 
@@ -501,637 +85,75 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
           className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl"
           style={{ background: "var(--surface-elevated)", boxShadow: "var(--shadow-lg)" }}
         >
-        {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-5" style={{ background: "var(--surface-elevated)", borderBottom: "1px solid var(--border)" }}>
-          <h2 id="settings-title" className="text-[17px] font-semibold" style={{ color: "var(--text-primary)" }}>設定</h2>
-          <button onClick={onClose} className="p-2 rounded-xl transition-colors duration-200 hover:bg-[var(--hover-bg)]" style={{ color: "var(--text-tertiary)" }} aria-label="關閉設定">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+          {/* Header */}
+          <div
+            className="sticky top-0 z-10 flex items-center justify-between px-6 py-5"
+            style={{ background: "var(--surface-elevated)", borderBottom: "1px solid var(--border)" }}
+          >
+            <h2 id="settings-title" className="text-[17px] font-semibold" style={{ color: "var(--text-primary)" }}>
+              設定
+            </h2>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl transition-colors duration-200 hover:bg-[var(--hover-bg)]"
+              style={{ color: "var(--text-tertiary)" }}
+              aria-label="關閉設定"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
-        <div className="p-6 space-y-6">
-
-          {/* Theme */}
-          <section>
-            <h3 className="text-[12px] font-semibold tracking-tight mb-3" style={{ color: "var(--text-tertiary)" }}>外觀</h3>
-            <div className="flex gap-2">
-              {([
-                { value: "light" as const, label: "淺色", icon: <Sun className="w-4 h-4" /> },
-                { value: "dark" as const, label: "深色", icon: <Moon className="w-4 h-4" /> },
-              ]).map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => handleThemeChange(opt.value)}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[14px] font-medium transition-all duration-150 border"
-                  aria-label={`切換至${opt.label}模式`}
-                  aria-pressed={theme === opt.value}
-                  style={
-                    theme === opt.value
-                      ? { background: "var(--brand-tint)", borderColor: "var(--brand)", color: "var(--brand)" }
-                      : { borderColor: "var(--border)", color: "var(--text-secondary)" }
-                  }
-                >
-                  {opt.icon}
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </section>
-
-      {/* PRO 功能 */}
-      <ProFeaturesSection />
-
-          {/* Account */}
-          <AccountSection />
-
-
-          {/* Notifications */}
-          <section>
-            <h3 className="text-[12px] font-semibold tracking-tight mb-3" style={{ color: "var(--text-tertiary)" }}>提醒通知</h3>
-            <div className="card p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>系統推播</p>
-                  <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>任務到期時收到提醒</p>
-                </div>
-                {notificationPermission === "granted" ? (
-                  <div className="flex flex-col items-end gap-2">
-                    <div className="flex items-center gap-2">
-                      {pushDbSubscribed === false && (
-                        <span
-                          className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-lg"
-                          style={{ background: "rgba(255,149,0,0.1)", color: "var(--status-warning)" }}
-                          title="瀏覽器有訂閱但雲端資料庫沒有，需要重新訂閱"
-                        >
-                          <AlertCircle className="w-3 h-3" /> 雲端未同步
-                        </span>
-                      )}
-                      <span className="flex items-center gap-1 text-[12px]" style={{ color: "var(--status-success)" }}>
-                        <CheckCircle2 className="w-4 h-4" /> 已授權
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={handleTestPush}
-                        disabled={pushTestPending}
-                        className="px-3 py-1.5 rounded-xl text-[12px] font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
-                        style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
-                      >
-                        {pushTestPending ? "送出中…" : "測試推播"}
-                      </button>
-                      <button
-                        onClick={handleResubscribePush}
-                        disabled={pushBusy}
-                        title="瀏覽器重新註冊訂閱並把雲端資料庫補上"
-                        className="px-3 py-1.5 rounded-xl text-[12px] font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
-                        style={{ background: "var(--surface-muted)", color: "var(--text-secondary)" }}
-                      >
-                        {pushBusy ? "處理中…" : "重新訂閱"}
-                      </button>
-                      <button
-                        onClick={handleUnsubscribePush}
-                        disabled={pushBusy}
-                        title="取消瀏覽器推播訂閱"
-                        className="p-1.5 rounded-xl text-[12px] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
-                        style={{ background: "transparent", color: "var(--text-tertiary)" }}
-                        aria-label="取消推播訂閱"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <button
-                      onClick={handleForceResetPush}
-                      disabled={pushBusy}
-                      title="iOS PWA SW 卡死時的治本按鈕：unregister SW + 清 DB"
-                      className="text-[10px] underline disabled:opacity-50"
-                      style={{ color: "var(--text-tertiary)" }}
-                    >
-                      推播卡住了？強制重置
-                    </button>
-                  </div>
-                ) : notificationPermission === "denied" ? (
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="flex items-center gap-1 text-[12px]" style={{ color: "var(--status-danger)" }}>
-                      <AlertCircle className="w-4 h-4" /> 已拒絕
-                    </span>
-                    <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>
-                      設定 → Safari → 進階 → 網站資料 → 刪除 vercel domain
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-end gap-1">
-                    <button
-                      onClick={async () => {
-                        const ok = await requestNotificationPermission();
-                        if (!ok) {
-                          const permNow = typeof Notification !== "undefined" ? Notification.permission : "default";
-                          setPushSafariHint(
-                            permNow === "denied"
-                              ? "瀏覽器已封鎖,請到 iOS 設定 → Safari → 進階 → 網站資料 → 刪除此網站再重試"
-                              : isPwa
-                                ? "瀏覽器已靜默拒絕,請檢查 iOS 設定 → Safari → 進階 → 網站資料"
-                                : "Safari 分頁不支援,請將網站加入主畫後再開啟通知",
-                          );
-                        } else {
-                          setPushSafariHint(null);
-                        }
-                      }}
-                      className="px-3 py-1.5 rounded-xl text-[12px] font-medium"
-                      style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
-                    >
-                      開啟通知
-                    </button>
-                    {pushSafariHint && (
-                      <span className="text-[10px] text-right" style={{ color: "var(--text-tertiary)" }}>
-                        {pushSafariHint}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-              <div className="h-px" style={{ background: "var(--border)" }} />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>心流計時器提醒</p>
-                  <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>專注時間結束時通知</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" defaultChecked aria-label="心流計時器提醒" />
-                  <div className="w-11 h-6 rounded-full peer peer-checked:bg-brand bg-black/10 transition-colors" />
-                  <div className="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5" />
-                </label>
-              </div>
-            </div>
-          </section>
-
-          {/* Interaction / 互動體驗 */}
-          <section>
-            <h3 className="text-[12px] font-semibold tracking-tight mb-3" style={{ color: "var(--text-tertiary)" }}>
-              互動體驗
-            </h3>
-            <div className="card p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0 pr-3">
-                  <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>
-                    完成任務慶祝動畫
-                  </p>
-                  <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>
-                    標記任務為完成時顯示 confetti
-                  </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={confettiEnabled}
-                    onChange={(e) => handleConfettiToggle(e.target.checked)}
-                    aria-label="啟用完成任務慶祝動畫"
-                  />
-                  <div className="w-11 h-6 rounded-full peer peer-checked:bg-brand bg-black/10 transition-colors" />
-                  <div className="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5" />
-                </label>
-              </div>
-              {confettiEnabled && (
-                <>
-                  <div className="h-px" style={{ background: "var(--border)" }} />
+          <div className="p-6 space-y-6">
+            {/* Theme */}
+            <section>
+              <h3 className="text-[12px] font-semibold tracking-tight mb-3" style={{ color: "var(--text-tertiary)" }}>
+                外觀
+              </h3>
+              <div className="flex gap-2">
+                {([
+                  { value: "light" as const, label: "淺色", icon: <Sun className="w-4 h-4" /> },
+                  { value: "dark" as const, label: "深色", icon: <Moon className="w-4 h-4" /> },
+                ]).map((opt) => (
                   <button
-                    onClick={previewConfetti}
-                    className="w-full py-2 rounded-xl text-[13px] font-medium transition-all duration-150 hover:opacity-80"
-                    style={{
-                      background: "var(--brand-tint)",
-                      color: "var(--brand)",
-                    }}
+                    key={opt.value}
+                    onClick={() => handleThemeChange(opt.value)}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[14px] font-medium transition-all duration-150 border"
+                    aria-label={`切換至${opt.label}模式`}
+                    aria-pressed={themeValue === opt.value}
+                    style={
+                      themeValue === opt.value
+                        ? { background: "var(--brand-tint)", borderColor: "var(--brand)", color: "var(--brand)" }
+                        : { borderColor: "var(--border)", color: "var(--text-secondary)" }
+                    }
                   >
-                    預覽效果
+                    {opt.icon}
+                    {opt.label}
                   </button>
-                </>
-              )}
-            </div>
-          </section>
-
-          {/* Keyboard Shortcuts */}
-          <KeyboardShortcutsSection />
-
-          {/* Templates */}
-          <section>
-            <div className="card p-4">
-              <TemplateMarketplace embedded />
-            </div>
-          </section>
-
-          {/* Data */}
-          <section>
-            <h3 className="text-[12px] font-semibold tracking-tight mb-3" style={{ color: "var(--text-tertiary)" }}>資料管理</h3>
-
-            {/* L3 自動化備份提醒 */}
-            {(() => {
-              const days = daysSinceBackup;
-              const isNever = days === Infinity;
-              const isWarning = !isNever && days >= 7;
-              const isRecent = !isNever && days < 7;
-              return (
-                <div
-                  className="mb-3 px-4 py-3 rounded-xl flex items-center gap-3"
-                  style={{
-                    background: isWarning ? "rgba(255,149,0,0.08)" : isNever ? "rgba(59,130,246,0.08)" : "rgba(52,199,89,0.08)",
-                    border: `1px solid ${isWarning ? "rgba(255,149,0,0.25)" : isNever ? "rgba(59,130,246,0.25)" : "rgba(52,199,89,0.25)"}`,
-                  }}
-                  role="status"
-                >
-                  <Shield className="w-4 h-4 flex-shrink-0" style={{ color: isWarning ? "var(--status-warning)" : isNever ? "var(--brand)" : "var(--status-success)" }} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-medium truncate" style={{ color: isWarning ? "var(--status-warning)" : isNever ? "var(--brand)" : "var(--status-success)" }}>
-                      {isNever ? "從未備份過" : isWarning ? `已 ${days} 天未備份` : `上次備份 ${days === 0 ? "今天" : `${days} 天前`}`}
-                    </p>
-                    <p className="text-[11px] truncate" style={{ color: "var(--text-tertiary)" }}>
-                      {isNever ? "建議立即匯出一次 JSON 備份" : isWarning ? "備份有助於資料安全，點上方按鈕匯出" : "備份狀態良好"}
-                    </p>
-                  </div>
-                </div>
-              );
-            })()}
-
-            <div className="space-y-2">
-
-              {/* Export */}
-              <div>
-                <p className="text-[12px] font-medium mb-2" style={{ color: "var(--text-secondary)" }}>匯出資料</p>
-                <button onClick={handleExportJSON} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-medium transition-all active:scale-95" style={{ background: "var(--brand)", color: "white" }} aria-label="匯出 JSON 備份">
-                  <Download className="w-4 h-4" aria-hidden="true" /> JSON 備份
-                </button>
+                ))}
               </div>
+            </section>
 
-              {exportMsg && (
-                <p className="text-[12px] px-3 py-2 rounded-xl" style={{ background: "rgba(52,199,89,0.08)", color: "var(--status-success)" }}>
-                  ✓ {exportMsg}
-                </p>
-              )}
-
-              <div style={{ height: "1px", background: "var(--border)" }} />
-
-              {/* Import */}
-              <div>
-                <p className="text-[12px] font-medium mb-2" style={{ color: "var(--text-secondary)" }}>匯入資料</p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".json"
-                  aria-hidden="true"
-                  tabIndex={-1}
-                  className="hidden"
-                  onChange={handleImportJSON}
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full flex items-center justify-between p-4 rounded-xl transition-colors hover:bg-[var(--hover-bg)]"
-                  style={{ background: "var(--surface-muted)" }}
-                >
-                  <div className="flex items-center gap-3">
-                    <Upload className="w-5 h-5" style={{ color: "var(--text-secondary)" }} />
-                    <div className="text-left">
-                      <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>匯入 JSON 備份</p>
-                      <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>還原之前匯出的資料</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4" style={{ color: "var(--text-tertiary)" }} />
-                </button>
-                {importMsg && (
-                  <div className="mt-2 px-3 py-2.5 rounded-xl text-[13px]" style={{ background: importErrors.length > 0 ? "rgba(255,149,0,0.08)" : "rgba(52,199,89,0.08)", color: importErrors.length > 0 ? "var(--status-warning)" : "var(--status-success)" }}>
-                    {importMsg}
-                    {importStats && (
-                      <div className="mt-1 text-[12px] opacity-80">
-                        任務 {importStats.tasks} · 習慣 {importStats.habits} · 清單 {importStats.lists}
-                      </div>
-                    )}
-                    {importErrors.length > 0 && (
-                      <div className="mt-1 text-[12px]" style={{ color: "var(--status-danger)" }}>
-                        {importErrors.slice(0, 3).join("；")}
-                        {importErrors.length > 3 && `...共 ${importErrors.length} 項`}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div style={{ height: "1px", background: "var(--border)" }} />
-
-              <button
-                onClick={handleClearAll}
-                className="w-full flex items-center gap-3 p-4 rounded-xl transition-colors hover:bg-red-50/50"
-                style={{ background: "var(--surface-muted)" }}
-              >
-                <Trash2 className="w-5 h-5" style={{ color: "var(--status-danger)" }} />
-                <div className="text-left">
-                  <p className="text-[14px] font-medium" style={{ color: "var(--status-danger)" }}>清除所有資料</p>
-                  <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>刪除所有任務、習慣與設定</p>
-                </div>
-              </button>
-            </div>
-          </section>
-
-          {/* Stats */}
-          <section>
-            <h3 className="text-[12px] font-semibold tracking-tight mb-3" style={{ color: "var(--text-tertiary)" }}>統計資訊</h3>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: "總任務", value: totalTasks },
-                { label: "已完成", value: completedTasks },
-                { label: "習慣", value: totalHabits },
-              ].map((item) => (
-                <div key={item.label} className="text-center p-3 rounded-xl" style={{ background: "var(--surface-muted)" }}>
-                  <p className="text-[20px] font-semibold" style={{ color: "var(--text-primary)" }}>{item.value}</p>
-                  <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>{item.label}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Calendar Sync */}
-          <section>
-            <h3 className="text-[12px] font-semibold tracking-tight mb-3" style={{ color: "var(--text-tertiary)" }}>
-              日曆同步
-            </h3>
-            <div className="space-y-3">
-              {/* ── Webcal 動態訂閱（新）── */}
-              <div
-                className="p-4 rounded-xl space-y-3"
-                style={{ background: "var(--surface-muted)", border: "1px solid var(--border)" }}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "color-mix(in srgb, var(--status-success) 10%, transparent)" }}>
-                    <CalendarDays className="w-5 h-5" style={{ color: "var(--status-success)" }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>
-                      日曆訂閱（自動同步）
-                    </p>
-                    <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>
-                      複製連結到 Google Calendar / Apple Calendar，自動同步最新任務
-                    </p>
-                  </div>
-                </div>
-
-                {/* URL 顯示 + 複製 */}
-                <div
-                  className="flex items-center gap-2 p-3 rounded-xl"
-                  style={{ background: "var(--surface-elevated)", border: "1px solid var(--border)" }}
-                >
-                  <span
-                    className="flex-1 text-[11px] truncate font-mono"
-                    style={{ color: "var(--text-secondary)" }}
-                    title={getWebcalUrl()}
-                  >
-                    {getWebcalUrl() || "載入中..."}
-                  </span>
-                  <button
-                    onClick={handleCopyWebcalUrl}
-                    className="p-1.5 rounded-lg hover:bg-[var(--hover-bg)] transition-colors flex-shrink-0"
-                    title="複製連結"
-                  >
-                    {webcalUrlCopied ? (
-                      <span className="text-[11px] font-medium" style={{ color: "var(--status-success)" }}>已複製 ✓</span>
-                    ) : (
-                      <Copy className="w-4 h-4" style={{ color: "var(--text-tertiary)" }} />
-                    )}
-                  </button>
-                </div>
-
-                {/* 一鍵加入按鈕 */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleOpenWebcalGoogle}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-medium transition-all active:scale-97"
-                    style={{ background: "color-mix(in srgb, var(--status-success) 10%, transparent)", color: "var(--status-success)" }}
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                      <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-2-8v-4l3 3-3 3v-2H7v-4h3z" fill="currentColor"/>
-                    </svg>
-                    加入 Google Calendar
-                  </button>
-                  <button
-                    onClick={handleCopyWebcalUrl}
-                    className="flex-shrink-0 px-3 py-2.5 rounded-xl text-[12px] font-medium transition-all active:scale-97"
-                    style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
-                  >
-                    {webcalUrlCopied ? "已複製 ✓" : "複製連結"}
-                  </button>
-                </div>
-
-                <p className="text-[10.5px]" style={{ color: "var(--text-tertiary)" }}>
-                  需要登入帳號，連結含個人識別，請勿外流
-                </p>
-              </div>
-
-              {/* ── 下載 .ics 檔案（維持現有）── */}
-              <button
-                onClick={() => {
-                  downloadICal(getTasks(), "VibeList 任務");
-                  setExportMsg("已下載 .ics 檔案");
-                  setTimeout(() => setExportMsg(null), 3000);
-                }}
-                className="w-full flex items-center gap-3 p-4 rounded-xl transition-all active:scale-98 hover:bg-[var(--surface-hover)]"
-                style={{ background: "var(--surface-muted)" }}
-              >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "var(--brand-tint)" }}>
-                  <CalendarDays className="w-5 h-5" style={{ color: "var(--brand)" }} />
-                </div>
-                <div className="text-left flex-1 min-w-0">
-                  <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>下載日曆檔案</p>
-                  <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>
-                    匯出為 .ics 檔案，匯入 Google Calendar 或 Apple Calendar
-                  </p>
-                </div>
-                <span
-                  className="text-[12px] font-medium flex-shrink-0 px-3 py-1.5 rounded-xl"
-                  style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
-                >
-                  下載 .ics
-                </span>
-              </button>
-
-              {/* How to use instructions */}
-              <div className="p-4 rounded-xl space-y-3" style={{ background: "var(--surface-muted)", border: "1px solid var(--border)" }}>
-                <p className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>匯入 Google Calendar 步驟</p>
-                <div className="space-y-3">
-                  {[
-                    {
-                      label: "下載檔案",
-                      text: "點擊上方「下載 .ics」按鈕，會下載一個「VibeList 任務.ics」檔案",
-                    },
-                    {
-                      label: "打開 Google Calendar",
-                      text: "在新分頁打開 ",
-                      link: { href: "https://calendar.google.com", label: "Google Calendar" },
-                    },
-                    {
-                      label: "匯入日曆",
-                      text: "「設定」→「匯入」→「選擇檔案」，上傳剛下載的 .ics",
-                    },
-                    {
-                      label: "完成",
-                      text: "選取要加入的日曆後點確認。即可在 Google Calendar 看見所有任務",
-                    },
-                    {
-                      label: "更新同步",
-                      text: "新增或編輯任務後，回來重新下載一次 .ics 檔案即可",
-                    },
-                  ].map((step, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <div
-                        className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5 text-[10px] font-bold"
-                        style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
-                      >
-                        {i + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <span className="text-[12px] font-medium" style={{ color: "var(--text-primary)" }}>{step.label}：</span>
-                        <span className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>{step.text}</span>
-                        {"link" in step && step.link && (
-                          <a
-                            href={step.link.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[12px] underline underline-offset-2 ml-1"
-                            style={{ color: "var(--brand)" }}
-                          >
-                            {step.link.label} ↗
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <ExternalCalendarSection
-                externalCal={externalCal}
-                newCalendarUrl={newCalendarUrl}
-                setNewCalendarUrl={setNewCalendarUrl}
-              />
-            </div>
-          </section>
-
-          {/* 自動化整合 — Outbound Webhook（Zapier / Make / n8n） */}
-          <section>
-            <h3 className="text-[12px] font-semibold tracking-tight mb-3" style={{ color: "var(--text-tertiary)" }}>
-              自動化整合
-            </h3>
-            <div className="space-y-3">
-              {/* URL 輸入 + 操作 */}
-              <div
-                className="p-4 rounded-xl space-y-3"
-                style={{ background: "var(--surface-muted)", border: "1px solid var(--border)" }}
-              >
-                <div className="flex items-start gap-3">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: "var(--brand-tint)" }}
-                  >
-                    <Zap className="w-5 h-5" style={{ color: "var(--brand)" }} aria-hidden="true" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>
-                      Webhook URL
-                    </p>
-                    <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>
-                      任務變動時會 POST payload 到此 URL。可整合 Zapier、Make、n8n 等自動化平台。
-                    </p>
-                  </div>
-                </div>
-
-                {/* Input */}
-                <div className="flex items-center gap-2">
-                  <input
-                    type="url"
-                    value={webhookDraft ?? (webhook.url ?? "")}
-                    placeholder="https://hooks.zapier.com/..."
-                    onChange={(e) => { setWebhookDraft(e.target.value); setWebhookSaved(false); }}
-                    className="flex-1 min-w-0 px-3 py-2 rounded-xl text-[13px]"
-                    style={{
-                      background: "var(--surface-elevated)",
-                      color: "var(--text-primary)",
-                      border: "1px solid var(--border)",
-                    }}
-                    aria-label="Webhook URL"
-                  />
-                  <button
-                    onClick={() => {
-                      if (!webhookDraft || !webhookDraft.trim()) {
-                        webhook.clear();
-                        setWebhookTestMsg("已清除");
-                      } else {
-                        webhook.update(webhookDraft.trim());
-                        setWebhookSaved(true);
-                        setWebhookTestMsg("已儲存");
-                      }
-                      setTimeout(() => setWebhookTestMsg(null), 2500);
-                    }}
-                    className="px-3 py-2 rounded-xl text-[12.5px] font-medium flex-shrink-0"
-                    style={{
-                      background: "var(--brand-tint)",
-                      color: "var(--brand)",
-                    }}
-                    disabled={!webhookDraft && !webhook.url}
-                  >
-                    {webhook.url ? "更新" : "儲存"}
-                  </button>
-                  <button
-                    onClick={() => {
-                      // §1 主動 emit 一筆測試 payload
-                      const url = webhook.url;
-                      if (!url) { setWebhookTestMsg("請先儲存 URL"); setTimeout(() => setWebhookTestMsg(null), 2500); return; }
-                      triggerWebhook({
-                        timestamp: new Date().toISOString(),
-                        event: "batch",
-                        source: "user_test",
-                        data: { hello: "world", tasks: getTasks().length, type: "test" },
-                      });
-                      setWebhookTestMsg("已送出測試 payload（檢查 Zapier/Make）");
-                      setTimeout(() => setWebhookTestMsg(null), 3000);
-                    }}
-                    className="px-3 py-2 rounded-xl text-[12.5px] font-medium flex-shrink-0"
-                    style={{
-                      background: "var(--surface-elevated)",
-                      color: "var(--text-secondary)",
-                      border: "1px solid var(--border)",
-                    }}
-                    aria-label="送出測試"
-                  >
-                    測試
-                  </button>
-                </div>
-
-                {/* 狀態訊息 */}
-                {webhookTestMsg && (
-                  <p className="text-[11.5px]" style={{ color: webhookSaved ? "var(--status-success)" : "var(--text-secondary)" }}>
-                    {webhookTestMsg}
-                  </p>
-                )}
-
-                {/* §8 資安提示 */}
-                <div className="text-[10.5px] leading-relaxed pt-1" style={{ color: "var(--text-tertiary)" }}>
-                  <strong>資安提醒：</strong> Webhook URL 儲存於本機 localStorage,且 payload 透過瀏覽器直接 POST 到您設定的 endpoint。建議使用 HTTPS endpoint,並定期更換以免外洩。
-                </div>
-              </div>
-
-              {/* 使用說明 */}
-              <div className="p-4 rounded-xl space-y-2" style={{ background: "var(--surface-muted)", border: "1px solid var(--border)" }}>
-                <p className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>Zapier 整合步驟</p>
-                <ol className="text-[11.5px] space-y-1 list-decimal pl-5" style={{ color: "var(--text-tertiary)" }}>
-                  <li>在 Zapier 建立 Catch Hook trigger,複製其 Webhook URL</li>
-                  <li>貼到上方輸入框,點「儲存」</li>
-                  <li>點「測試」確認 payload 有送達 Zapier</li>
-                  <li>後續任何任務新增/編輯/刪除都會自動觸發</li>
-                </ol>
-              </div>
-            </div>
-          </section>
-
-          <AboutSection />
-        </div>
-      </motion.div>
+            <ProFeaturesSection />
+            <AccountSection />
+            <NotificationsSection
+              notificationPermission={notificationPermission}
+              requestNotificationPermission={requestNotificationPermission}
+            />
+            <InteractionSection />
+            <DataSection
+              tasks={tasks}
+              habits={habits}
+              lists={lists}
+              addTask={addTask}
+              addHabit={addHabit}
+              addList={addList}
+            />
+            <CalendarSection />
+            <WebhookSection />
+            <AboutSection />
+          </div>
+        </motion.div>
       </SettingsProvider>
-
     </motion.div>
   );
 }
