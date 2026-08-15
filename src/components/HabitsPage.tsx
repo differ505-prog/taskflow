@@ -57,14 +57,6 @@ interface HabitCalendarProps {
   activeHabits: Habit[];
   checkinHabit: (id: string, date: string) => void;
   uncheckHabit: (id: string, date: string) => void;
-}
-
-
-interface HabitCalendarProps {
-  habits: Habit[];
-  activeHabits: Habit[];
-  checkinHabit: (id: string, date: string) => void;
-  uncheckHabit: (id: string, date: string) => void;
   selectedDate: string;
   onSelectDate: (date: string) => void;
 }
@@ -91,10 +83,6 @@ function HabitCalendar({ habits, activeHabits, checkinHabit, uncheckHabit, selec
     else setViewMonth(m => m + 1);
   };
 
-  const nextMonth = () => {
-    if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0); }
-    else setViewMonth(m => m + 1);
-  };
 
   return (
     <div className="card px-5 py-4 relative">
