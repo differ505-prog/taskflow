@@ -9,7 +9,7 @@
 
 import { useCallback } from "react";
 import { CalendarDays, Copy, CheckCircle2 } from "lucide-react";
-import { useSettingsContext } from "./SettingsContext";
+import { useSettingsContext } from "./index";
 import { useExternalCalendar } from "@/hooks/useExternalCalendar";
 import { ExternalCalendarSection } from "@/components/ExternalCalendarSection";
 import { downloadICal } from "@/lib/ical";

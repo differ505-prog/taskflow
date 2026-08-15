@@ -6,7 +6,7 @@
  */
 "use client";
 
-import { useSettingsContext } from "./SettingsContext";
+import { useSettingsContext } from "./index";
 import { getConfettiEnabled, setConfettiEnabled, previewConfetti } from "@/lib/confetti";
 
 export function InteractionSection() {

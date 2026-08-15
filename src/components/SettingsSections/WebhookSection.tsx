@@ -8,7 +8,7 @@
 "use client";
 
 import { Zap } from "lucide-react";
-import { useSettingsContext } from "./SettingsContext";
+import { useSettingsContext } from "./index";
 import { useWebhookSettings, triggerWebhook } from "@/lib/useWebhook";
 import { getTasks } from "@/lib/storage";
 

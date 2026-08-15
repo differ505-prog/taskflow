@@ -10,7 +10,7 @@
 import { useState, useEffect } from "react";
 import { Download, Upload, Trash2, Shield } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { useSettingsContext } from "./SettingsContext";
+import { useSettingsContext } from "./index";
 import { useConfirm } from "@/hooks/useConfirm";
 import { toast } from "sonner";
 import {
