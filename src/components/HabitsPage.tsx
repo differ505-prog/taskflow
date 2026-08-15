@@ -1,17 +1,216 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/Button";
 import { useApp } from "@/lib/AppContext";
 import { Habit } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
-import { Plus, X, CheckCircle2, Circle, Trash2, Edit3, TrendingUp, Heart } from "lucide-react";
+import {
+  Plus,
+  X,
+  CheckCircle2,
+  Circle,
+  Trash2,
+  Edit3,
+  TrendingUp,
+  Heart,
+  ChevronLeft,
+  ChevronRight,
+  CalendarDays,
+} from "lucide-react";
 import { useConfirm } from "@/hooks/useConfirm";
 import { getLocalToday, toLocalDateString } from "@/lib/dateUtils";
 
-const HABIT_COLORS = ["#4F6AF5", "#8B5CF6", "#EC4899", "#EF4444", "#F97316", "#EAB308", "#22C55E", "#14B8A6", "#06B6D4", "#636366"];
+const HABIT_COLORS = [
+  "#4F6AF5",
+  "#8B5CF6",
+  "#EC4899",
+  "#EF4444",
+  "#F97316",
+  "#EAB308",
+  "#22C55E",
+  "#14B8A6",
+  "#06B6D4",
+  "#636366",
+];
 
 const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
+const MONTH_NAMES = [
+  "1月", "2月", "3月", "4月", "5月", "6月",
+  "7月", "8月", "9月", "10月", "11月", "12月",
+];
+
+/** 取得某年月的日曆格（包含上月底空白 + 當月所有日） */
+function getMonthGrid(year: number, month: number): (string | null)[] {
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const grid: (string | null)[] = [];
+  for (let i = 0; i < firstDay; i++) grid.push(null);
+  for (let d = 1; d <= daysInMonth; d++) {
+    grid.push(toLocalDateString(new Date(year, month, d)));
+  }
+  return grid;
+}
+
+interface HabitCalendarProps {
+  habits: Habit[];
+  checkinHabit: (id: string, date: string) => void;
+  uncheckHabit: (id: string, date: string) => void;
+}
+
+function HabitCalendar({ habits, checkinHabit, uncheckHabit }: HabitCalendarProps) {
+  const today = getLocalToday();
+  const now = new Date();
+  const [viewYear, setViewYear] = useState(now.getFullYear());
+  const [viewMonth, setViewMonth] = useState(now.getMonth());
+
+  const grid = useMemo(() => getMonthGrid(viewYear, viewMonth), [viewYear, viewMonth]);
+  const monthLabel = `${viewYear}年 ${MONTH_NAMES[viewMonth]}`;
+  const isCurrentMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth();
+
+  const prevMonth = () => {
+    if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11); }
+    else setViewMonth(m => m - 1);
+  };
+  const nextMonth = () => {
+    if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0); }
+    else setViewMonth(m => m + 1);
+  };
+
+  return (
+    <div className="card px-5 py-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-[var(--hover-bg)] transition-colors" aria-label="上個月">
+          <ChevronLeft className="w-4 h-4" style={{ color: "var(--text-secondary)" }} />
+        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>{monthLabel}</span>
+          {!isCurrentMonth && (
+            <button
+              onClick={() => { setViewYear(now.getFullYear()); setViewMonth(now.getMonth()); }}
+              className="px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors"
+              style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+              aria-label="回到今天"
+            >
+              今天
+            </button>
+          )}
+        </div>
+        <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-[var(--hover-bg)] transition-colors" aria-label="下個月">
+          <ChevronRight className="w-4 h-4" style={{ color: "var(--text-secondary)" }} />
+        </button>
+      </div>
+
+      {/* Weekday labels */}
+      <div className="grid grid-cols-7 mb-1">
+        {WEEKDAY_LABELS.map((label, i) => (
+          <div
+            key={i}
+            className="text-center text-[10px] font-medium py-1"
+            style={{ color: i === 0 || i === 6 ? "var(--text-quaternary)" : "var(--text-tertiary)" }}
+          >
+            {label}
+          </div>
+        ))}
+      </div>
+
+      {/* Day grid */}
+      <div className="grid grid-cols-7 gap-0.5">
+        {grid.map((dateStr, idx) => {
+          if (!dateStr) return <div key={`empty-${idx}`} />;
+          const dayNum = parseInt(dateStr.split("-")[2], 10);
+          const isToday = dateStr === today;
+          const isFuture = dateStr > today;
+          const isPast = dateStr < today;
+          const dayCheckins = habits
+            .filter((h) => !h.archivedAt && h.checkins.some((c) => c.date === dateStr && c.completed))
+            .map((h) => ({ habit: h, checkin: h.checkins.find((c) => c.date === dateStr)! }));
+
+          return (
+            <div
+              key={dateStr}
+              className="relative flex flex-col items-center py-1.5 rounded-lg transition-colors select-none"
+              style={{
+                background: isToday ? "var(--brand-tint)" : "transparent",
+                cursor: isFuture ? "default" : "pointer",
+              }}
+            >
+              <span
+                className="text-[12px] font-medium"
+                style={{
+                  color: isToday
+                    ? "var(--brand)"
+                    : isFuture
+                    ? "var(--text-quaternary)"
+                    : isPast
+                    ? "var(--text-secondary)"
+                    : "var(--text-tertiary)",
+                }}
+              >
+                {dayNum}
+              </span>
+              {/* Habit dots */}
+              {!isFuture && dayCheckins.length > 0 && (
+                <div className="flex flex-wrap justify-center gap-0.5 mt-0.5 max-w-[36px]">
+                  {dayCheckins.slice(0, 3).map(({ habit, checkin }) => (
+                    <button
+                      key={habit.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        uncheckHabit(habit.id, dateStr);
+                      }}
+                      className="w-2 h-2 rounded-full transition-transform hover:scale-125"
+                      style={{ background: habit.color }}
+                      title={`${habit.title} ${dateStr} ✓`}
+                      aria-label={`取消 ${habit.title} ${dateStr} 打卡`}
+                    />
+                  ))}
+                  {dayCheckins.length > 3 && (
+                    <span className="text-[8px]" style={{ color: "var(--text-tertiary)" }}>+{dayCheckins.length - 3}</span>
+                  )}
+                </div>
+              )}
+              {/* Unchecked habits → tap to check in */}
+              {!isFuture && (
+                <div
+                  className="absolute inset-0 rounded-lg opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center"
+                  onClick={() => {
+                    const uncheckedHabits = habits.filter(
+                      (h) => !h.archivedAt && !h.checkins.some((c) => c.date === dateStr && c.completed)
+                    );
+                    uncheckedHabits.forEach((h) => checkinHabit(h.id, dateStr));
+                  }}
+                  title={dayCheckins.length === 0 ? "今日無打卡，點此全部打卡" : "點此補打卡"}
+                >
+                  {dayCheckins.length === 0 && (
+                    <div
+                      className="w-4 h-4 rounded-full border border-dashed"
+                      style={{ borderColor: "var(--text-quaternary)" }}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 mt-3 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 rounded-full" style={{ background: "var(--text-quaternary)" }} />
+          <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>未打卡</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 rounded-full" style={{ background: "var(--brand)" }} />
+          <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>已打卡</span>
+        </div>
+        <span className="text-[10px]" style={{ color: "var(--text-quaternary)" }}>點格補打卡</span>
+      </div>
+    </div>
+  );
+}
 
 interface HabitFormData {
   title: string;
@@ -161,6 +360,7 @@ export function HabitsPage() {
   const confirm = useConfirm();
   const [showForm, setShowForm] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [form, setForm] = useState<HabitFormData>({
     title: "",
     frequency: "daily",
@@ -215,6 +415,14 @@ export function HabitsPage() {
               {showArchived ? "← 返回" : `查看封存 (${archivedHabits.length})`}
             </button>
           )}
+          <Button
+            onClick={() => setShowCalendar((v) => !v)}
+            aria-label="月曆視圖"
+            className="flex items-center gap-1.5"
+            icon={<CalendarDays className="w-4 h-4" />}
+          >
+            {showCalendar ? "列表" : "月曆"}
+          </Button>
           <Button onClick={() => setShowForm(true)} aria-label="新增習慣" className="flex items-center gap-1.5" icon={<Plus className="w-4 h-4" />}>新增習慣</Button>
         </div>
       </div>
@@ -317,6 +525,17 @@ export function HabitsPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Calendar view */}
+      {showCalendar && !showArchived && (
+        <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
+          <HabitCalendar
+            habits={activeHabits}
+            checkinHabit={checkinHabit}
+            uncheckHabit={uncheckHabit}
+          />
+        </motion.div>
+      )}
 
       {/* Habits list */}
       {displayHabits.length === 0 && !showForm ? (
