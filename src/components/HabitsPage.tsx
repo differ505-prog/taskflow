@@ -391,7 +391,8 @@ export function HabitsPage() {
   const displayHabits = showArchived ? archivedHabits : activeHabits;
 
   return (
-    <div className="max-w-2xl mx-auto p-6 space-y-5">
+    <div className="max-w-2xl mx-auto p-6 space-y-5 overflow-y-auto overscroll-contain pb-[calc(60px+env(safe-area-inset-bottom,0px)+12px)]"
+      style={{ minHeight: 0 }}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
