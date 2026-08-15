@@ -59,92 +59,24 @@ interface HabitCalendarProps {
   uncheckHabit: (id: string, date: string) => void;
 }
 
-function DayDetailPopover({ dateStr, allHabits, checkedIds, checkinHabit, uncheckHabit, top, left, onClose }: {
-  dateStr: string;
-  allHabits: Habit[];
-  checkedIds: Set<string>;
+
+interface HabitCalendarProps {
+  habits: Habit[];
+  activeHabits: Habit[];
   checkinHabit: (id: string, date: string) => void;
   uncheckHabit: (id: string, date: string) => void;
-  top: number;
-  left: number;
-  onClose: () => void;
-}) {
-  const checkedCount = checkedIds.size;
-  const totalCount = allHabits.length;
-  const displayDate = dateStr.replace(/^\d{4}-/, "").replace("-", "/");
-
-  return (
-    <>
-      {/* Backdrop */}
-      <div className="fixed inset-0 z-40" onClick={onClose} aria-hidden />
-      {/* Popover */}
-      <div
-        className="fixed z-50 w-64 rounded-2xl shadow-lg border overflow-hidden"
-        style={{
-          top: Math.min(top + 4, window.innerHeight - 320),
-          left: Math.max(8, Math.min(left - 32, window.innerWidth - 280)),
-          background: "var(--surface)",
-          borderColor: "var(--border)",
-        }}
-        role="dialog"
-        aria-label={`${dateStr} 打卡狀態`}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
-          <div>
-            <div className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>{displayDate}</div>
-            <div className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
-              {checkedCount}/{totalCount} 已打卡
-            </div>
-          </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-[var(--hover-bg)]" aria-label="關閉">
-            <X className="w-4 h-4" style={{ color: "var(--text-tertiary)" }} />
-          </button>
-        </div>
-        {/* Habit list */}
-        <div className="max-h-60 overflow-y-auto divide-y" style={{ borderColor: "var(--border)" }}>
-          {allHabits.length === 0 ? (
-            <div className="px-4 py-6 text-center text-[12px]" style={{ color: "var(--text-tertiary)" }}>
-              這天沒有進行的習慣
-            </div>
-          ) : (
-            allHabits.map((habit) => {
-              const isChecked = checkedIds.has(habit.id);
-              return (
-                <button
-                  key={habit.id}
-                  onClick={() => {
-                    if (isChecked) uncheckHabit(habit.id, dateStr);
-                    else checkinHabit(habit.id, dateStr);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--hover-bg)] transition-colors text-left"
-                >
-                  {isChecked ? (
-                    <CheckCircle2 className="w-5 h-5 flex-shrink-0" style={{ color: habit.color }} />
-                  ) : (
-                    <Circle className="w-5 h-5 flex-shrink-0" style={{ color: "var(--text-tertiary)" }} />
-                  )}
-                  <span className="text-[13px] flex-1 truncate" style={{ color: isChecked ? "var(--text-primary)" : "var(--text-secondary)" }}>
-                    {habit.title}
-                  </span>
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: isChecked ? habit.color : "var(--text-quaternary)" }} />
-                </button>
-              );
-            })
-          )}
-        </div>
-      </div>
-    </>
-  );
+  selectedDate: string;
+  onSelectDate: (date: string) => void;
 }
 
-function HabitCalendar({ habits, activeHabits, checkinHabit, uncheckHabit }: HabitCalendarProps) {
+function HabitCalendar({ habits, activeHabits, checkinHabit, uncheckHabit, selectedDate, onSelectDate }: HabitCalendarProps) {
   const today = getLocalToday();
   const now = new Date();
-  const [viewYear, setViewYear] = useState(now.getFullYear());
-  const [viewMonth, setViewMonth] = useState(now.getMonth());
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
+  
+  // 嘗試將 viewYear / viewMonth 初始化為 selectedDate 所在的年月
+  const selectedDateObj = new Date(selectedDate);
+  const [viewYear, setViewYear] = useState(selectedDateObj.getFullYear());
+  const [viewMonth, setViewMonth] = useState(selectedDateObj.getMonth());
 
   const grid = useMemo(() => getMonthGrid(viewYear, viewMonth), [viewYear, viewMonth]);
   const monthLabel = `${viewYear}年 ${MONTH_NAMES[viewMonth]}`;
@@ -159,15 +91,10 @@ function HabitCalendar({ habits, activeHabits, checkinHabit, uncheckHabit }: Hab
     else setViewMonth(m => m + 1);
   };
 
-  const selectedDateData = useMemo(() => {
-    if (!selectedDate) return null;
-    const checked = habits.filter((h) => !h.archivedAt && h.checkins.some((c) => c.date === selectedDate && c.completed));
-    const all = activeHabits.filter((h) => !h.archivedAt);
-    return {
-      dayAllHabits: all,
-      dayCheckedIds: new Set(checked.map((d) => d.id)),
-    };
-  }, [selectedDate, habits, activeHabits]);
+  const nextMonth = () => {
+    if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0); }
+    else setViewMonth(m => m + 1);
+  };
 
   return (
     <div className="card px-5 py-4 relative">
@@ -224,10 +151,14 @@ function HabitCalendar({ habits, activeHabits, checkinHabit, uncheckHabit }: Hab
           return (
             <div
               key={dateStr}
+              onClick={() => {
+                if (!isFuture) onSelectDate(dateStr);
+              }}
               className="relative flex flex-col items-center py-1.5 rounded-lg transition-colors select-none"
               style={{
-                background: isToday ? "var(--brand-tint)" : "transparent",
+                background: dateStr === selectedDate ? "var(--brand-tint)" : isToday ? "var(--surface-hover)" : "transparent",
                 cursor: isFuture ? "default" : "pointer",
+                border: dateStr === selectedDate ? "1px solid var(--brand)" : "1px solid transparent",
               }}
             >
               <span
@@ -268,14 +199,7 @@ function HabitCalendar({ habits, activeHabits, checkinHabit, uncheckHabit }: Hab
               {/* Unchecked habits → tap to view day summary */}
               {!isFuture && (
                 <div
-                  className="absolute inset-0 rounded-lg opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                    setSelectedDate(dateStr);
-                    setPopoverPos({ top: rect.bottom, left: rect.left });
-                  }}
-                  title="查看打卡狀態"
+                  className="absolute inset-0 rounded-lg opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none"
                 >
                   {dayCheckins.length === 0 && (
                     <div
@@ -300,22 +224,7 @@ function HabitCalendar({ habits, activeHabits, checkinHabit, uncheckHabit }: Hab
           <div className="w-2 h-2 rounded-full" style={{ background: "var(--brand)" }} />
           <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>已打卡</span>
         </div>
-        <span className="text-[10px]" style={{ color: "var(--text-quaternary)" }}>點格查打卡</span>
       </div>
-
-      {/* Day detail popover */}
-      {selectedDate && popoverPos && selectedDateData && (
-        <DayDetailPopover
-          dateStr={selectedDate}
-          allHabits={selectedDateData.dayAllHabits}
-          checkedIds={selectedDateData.dayCheckedIds}
-          checkinHabit={checkinHabit}
-          uncheckHabit={uncheckHabit}
-          top={popoverPos.top}
-          left={popoverPos.left}
-          onClose={() => { setSelectedDate(null); setPopoverPos(null); }}
-        />
-      )}
     </div>
   );
 }
@@ -338,18 +247,18 @@ function getLast30Days(): string[] {
   return days;
 }
 
-function HabitRow({ habit, onCheckin, onDelete, onUpdate, onRestore }: {
+function HabitRow({ habit, date, onCheckin, onDelete, onUpdate, onRestore }: {
   habit: Habit;
+  date: string;
   onCheckin: () => void;
   onDelete: () => void;
   onUpdate: (updates: Partial<Habit>) => void;
   onRestore?: () => void;
 }) {
   const [showHeatmap, setShowHeatmap] = useState(false);
-  const today = getLocalToday();
   const isArchived = !!habit.archivedAt;
-  const todayCheckin = habit.checkins.find((c) => c.date === today);
-  const isCheckedToday = !!todayCheckin?.completed;
+  const currentCheckin = habit.checkins.find((c) => c.date === date);
+  const isChecked = !!currentCheckin?.completed;
   const last30Days = getLast30Days();
   const completedDays = new Set(habit.checkins.filter((c) => c.completed).map((c) => c.date));
 
@@ -370,9 +279,9 @@ function HabitRow({ habit, onCheckin, onDelete, onUpdate, onRestore }: {
           onClick={onCheckin}
           disabled={isArchived}
           className="flex-shrink-0 mt-0.5 transition-transform hover:scale-110 disabled:hover:scale-100 disabled:cursor-not-allowed"
-          aria-label={isArchived ? "已封存" : isCheckedToday ? "取消打卡" : "打卡"}
+          aria-label={isArchived ? "已封存" : isChecked ? "取消打卡" : "打卡"}
         >
-          {isCheckedToday ? (
+          {isChecked ? (
             <CheckCircle2 className="w-6 h-6" style={{ color: habit.color }} />
           ) : (
             <Circle className="w-6 h-6" style={{ color: "var(--text-tertiary)" }} />
@@ -466,6 +375,8 @@ function HabitRow({ habit, onCheckin, onDelete, onUpdate, onRestore }: {
 export function HabitsPage() {
   const { habits, addHabit, checkinHabit, uncheckHabit, archiveHabit, unarchiveHabit } = useApp();
   const confirm = useConfirm();
+  const today = getLocalToday();
+  const [selectedDate, setSelectedDate] = useState<string>(today);
   const [showForm, setShowForm] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -492,10 +403,9 @@ export function HabitsPage() {
     setShowForm(false);
   };
 
-  const today = getLocalToday();
   const activeHabits = habits.filter((h) => !h.archivedAt);
   const archivedHabits = habits.filter((h) => !!h.archivedAt);
-  const todayDone = activeHabits.filter((h) => h.checkins.some((c) => c.date === today && c.completed)).length;
+  const selectedDateDone = activeHabits.filter((h) => h.checkins.some((c) => c.date === selectedDate && c.completed)).length;
   const displayHabits = showArchived ? archivedHabits : activeHabits;
 
   return (
@@ -506,7 +416,7 @@ export function HabitsPage() {
         <div>
           <h1 className="text-[18px] font-semibold" style={{ color: "var(--text-primary)" }}>習慣打卡</h1>
           <p className="text-[12px] mt-1.5" style={{ color: "var(--text-tertiary)" }}>
-            今日完成 {todayDone}/{activeHabits.length} 個習慣
+            {selectedDate === today ? "今日" : selectedDate.replace(/^\d{4}-/, "").replace("-", "/")} 完成 {selectedDateDone}/{activeHabits.length} 個習慣
             {archivedHabits.length > 0 && !showArchived && (
               <span className="ml-2">
                 · 已封存 {archivedHabits.length} 個
@@ -643,6 +553,8 @@ export function HabitsPage() {
             activeHabits={activeHabits}
             checkinHabit={checkinHabit}
             uncheckHabit={uncheckHabit}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
           />
         </motion.div>
       )}
@@ -670,10 +582,11 @@ export function HabitsPage() {
               >
                 <HabitRow
                   habit={habit}
+                  date={selectedDate}
                   onCheckin={() => {
-                    const isDone = habit.checkins.some((c) => c.date === today && c.completed);
-                    if (isDone) uncheckHabit(habit.id, today);
-                    else checkinHabit(habit.id, today);
+                    const isDone = habit.checkins.some((c) => c.date === selectedDate && c.completed);
+                    if (isDone) uncheckHabit(habit.id, selectedDate);
+                    else checkinHabit(habit.id, selectedDate);
                   }}
                   onDelete={async () => {
                   const ok = await confirm({
