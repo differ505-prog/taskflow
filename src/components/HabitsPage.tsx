@@ -54,15 +54,97 @@ function getMonthGrid(year: number, month: number): (string | null)[] {
 
 interface HabitCalendarProps {
   habits: Habit[];
+  activeHabits: Habit[];
   checkinHabit: (id: string, date: string) => void;
   uncheckHabit: (id: string, date: string) => void;
 }
 
-function HabitCalendar({ habits, checkinHabit, uncheckHabit }: HabitCalendarProps) {
+function DayDetailPopover({ dateStr, allHabits, checkedIds, checkinHabit, uncheckHabit, top, left, onClose }: {
+  dateStr: string;
+  allHabits: Habit[];
+  checkedIds: Set<string>;
+  checkinHabit: (id: string, date: string) => void;
+  uncheckHabit: (id: string, date: string) => void;
+  top: number;
+  left: number;
+  onClose: () => void;
+}) {
+  const checkedCount = checkedIds.size;
+  const totalCount = allHabits.length;
+  const displayDate = dateStr.replace(/^\d{4}-/, "").replace("-", "/");
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 z-40" onClick={onClose} aria-hidden />
+      {/* Popover */}
+      <div
+        className="fixed z-50 w-64 rounded-2xl shadow-lg border overflow-hidden"
+        style={{
+          top: Math.min(top + 4, window.innerHeight - 320),
+          left: Math.max(8, Math.min(left - 32, window.innerWidth - 280)),
+          background: "var(--surface)",
+          borderColor: "var(--border)",
+        }}
+        role="dialog"
+        aria-label={`${dateStr} 打卡狀態`}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
+          <div>
+            <div className="text-[13px] font-semibold" style={{ color: "var(--text-primary)" }}>{displayDate}</div>
+            <div className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+              {checkedCount}/{totalCount} 已打卡
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-[var(--hover-bg)]" aria-label="關閉">
+            <X className="w-4 h-4" style={{ color: "var(--text-tertiary)" }} />
+          </button>
+        </div>
+        {/* Habit list */}
+        <div className="max-h-60 overflow-y-auto divide-y" style={{ borderColor: "var(--border)" }}>
+          {allHabits.length === 0 ? (
+            <div className="px-4 py-6 text-center text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+              這天沒有進行的習慣
+            </div>
+          ) : (
+            allHabits.map((habit) => {
+              const isChecked = checkedIds.has(habit.id);
+              return (
+                <button
+                  key={habit.id}
+                  onClick={() => {
+                    if (isChecked) uncheckHabit(habit.id, dateStr);
+                    else checkinHabit(habit.id, dateStr);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--hover-bg)] transition-colors text-left"
+                >
+                  {isChecked ? (
+                    <CheckCircle2 className="w-5 h-5 flex-shrink-0" style={{ color: habit.color }} />
+                  ) : (
+                    <Circle className="w-5 h-5 flex-shrink-0" style={{ color: "var(--text-tertiary)" }} />
+                  )}
+                  <span className="text-[13px] flex-1 truncate" style={{ color: isChecked ? "var(--text-primary)" : "var(--text-secondary)" }}>
+                    {habit.title}
+                  </span>
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: isChecked ? habit.color : "var(--text-quaternary)" }} />
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function HabitCalendar({ habits, activeHabits, checkinHabit, uncheckHabit }: HabitCalendarProps) {
   const today = getLocalToday();
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
 
   const grid = useMemo(() => getMonthGrid(viewYear, viewMonth), [viewYear, viewMonth]);
   const monthLabel = `${viewYear}年 ${MONTH_NAMES[viewMonth]}`;
@@ -77,8 +159,18 @@ function HabitCalendar({ habits, checkinHabit, uncheckHabit }: HabitCalendarProp
     else setViewMonth(m => m + 1);
   };
 
+  const selectedDateData = useMemo(() => {
+    if (!selectedDate) return null;
+    const checked = habits.filter((h) => !h.archivedAt && h.checkins.some((c) => c.date === selectedDate && c.completed));
+    const all = activeHabits.filter((h) => !h.archivedAt);
+    return {
+      dayAllHabits: all,
+      dayCheckedIds: new Set(checked.map((d) => d.id)),
+    };
+  }, [selectedDate, habits, activeHabits]);
+
   return (
-    <div className="card px-5 py-4">
+    <div className="card px-5 py-4 relative">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-[var(--hover-bg)] transition-colors" aria-label="上個月">
@@ -126,6 +218,8 @@ function HabitCalendar({ habits, checkinHabit, uncheckHabit }: HabitCalendarProp
           const dayCheckins = habits
             .filter((h) => !h.archivedAt && h.checkins.some((c) => c.date === dateStr && c.completed))
             .map((h) => ({ habit: h, checkin: h.checkins.find((c) => c.date === dateStr)! }));
+          const dayAllHabits = activeHabits.filter((h) => !h.archivedAt);
+          const dayCheckedIds = new Set(dayCheckins.map((d) => d.habit.id));
 
           return (
             <div
@@ -171,17 +265,17 @@ function HabitCalendar({ habits, checkinHabit, uncheckHabit }: HabitCalendarProp
                   )}
                 </div>
               )}
-              {/* Unchecked habits → tap to check in */}
+              {/* Unchecked habits → tap to view day summary */}
               {!isFuture && (
                 <div
                   className="absolute inset-0 rounded-lg opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center"
-                  onClick={() => {
-                    const uncheckedHabits = habits.filter(
-                      (h) => !h.archivedAt && !h.checkins.some((c) => c.date === dateStr && c.completed)
-                    );
-                    uncheckedHabits.forEach((h) => checkinHabit(h.id, dateStr));
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                    setSelectedDate(dateStr);
+                    setPopoverPos({ top: rect.bottom, left: rect.left });
                   }}
-                  title={dayCheckins.length === 0 ? "今日無打卡，點此全部打卡" : "點此補打卡"}
+                  title="查看打卡狀態"
                 >
                   {dayCheckins.length === 0 && (
                     <div
@@ -206,8 +300,22 @@ function HabitCalendar({ habits, checkinHabit, uncheckHabit }: HabitCalendarProp
           <div className="w-2 h-2 rounded-full" style={{ background: "var(--brand)" }} />
           <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>已打卡</span>
         </div>
-        <span className="text-[10px]" style={{ color: "var(--text-quaternary)" }}>點格補打卡</span>
+        <span className="text-[10px]" style={{ color: "var(--text-quaternary)" }}>點格查打卡</span>
       </div>
+
+      {/* Day detail popover */}
+      {selectedDate && popoverPos && selectedDateData && (
+        <DayDetailPopover
+          dateStr={selectedDate}
+          allHabits={selectedDateData.dayAllHabits}
+          checkedIds={selectedDateData.dayCheckedIds}
+          checkinHabit={checkinHabit}
+          uncheckHabit={uncheckHabit}
+          top={popoverPos.top}
+          left={popoverPos.left}
+          onClose={() => { setSelectedDate(null); setPopoverPos(null); }}
+        />
+      )}
     </div>
   );
 }
@@ -531,7 +639,8 @@ export function HabitsPage() {
       {showCalendar && !showArchived && (
         <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
           <HabitCalendar
-            habits={activeHabits}
+            habits={habits}
+            activeHabits={activeHabits}
             checkinHabit={checkinHabit}
             uncheckHabit={uncheckHabit}
           />
