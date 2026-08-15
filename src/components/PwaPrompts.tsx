@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Download, X, Share, Plus, PartyPopper, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 
 // ─── 共用工具 ────────────────────────────────────────────────────
 
@@ -140,7 +141,7 @@ export function AndroidInstallPrompt() {
         toast.success("已加入主畫面,隨時點圖示開啟");
       }
     } catch (err) {
-      console.warn("[PWA] Install prompt failed:", err);
+      logger.ns("PwaPrompts").warn("Install prompt failed", { error: err });
     } finally {
       setDeferredPrompt(null);
       setVisible(false);

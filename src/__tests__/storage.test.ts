@@ -58,6 +58,9 @@ describe("exportTasksToCSV", () => {
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z",
         order: 0,
+        tags: [],
+        isArchived: false,
+        focusMinutes: 0,
       },
     ];
     const csv = exportTasksToCSV(tasks);

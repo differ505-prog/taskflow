@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { TaskList, Task, SharedListSnapshot } from "@/lib/types";
 import { SharedListData, getSharedLists } from "@/lib/storage";
 import { getSharedSnapshot } from "@/lib/firestore";
+import { logger } from "@/lib/logger";
 import { SharedMember, MemberRole } from "@/lib/sharedSync";
 import { translateShareError } from "@/lib/errorMessages";
 import { X, Link2, Copy, Check, Users, Trash2, Loader2, Mail, Shield, ShieldCheck, UserMinus } from "lucide-react";
@@ -242,7 +243,7 @@ export function ShareListModal({ isOpen, onClose, listToShare: staleListToShare,
       }
     } catch (err: any) {
       // eslint-disable-next-line no-console
-      console.error("[ShareListModal] handleShareList threw:", err);
+      logger.ns("ShareListModal").error("handleShareList threw", err);
       const detail = err?.message || err?.hint || (typeof err === "string" ? err : "");
       setShareError(
         "建立分享連結失敗：" + (detail || "未知錯誤") +

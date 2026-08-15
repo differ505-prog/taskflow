@@ -68,3 +68,55 @@ export function getNextRecurrenceDate(
   }
   return { dueDate: nextDueDate };
 }
+
+/**
+ * AppContext sync debug logger
+ * - dev: 完整輸出可讀日誌
+ * - prod: 靜默（生產日誌乾淨）
+ *
+ * 用法:
+ *   import { appContextLog } from "./utils";
+ *   const log = appContextLog("AppContext");
+ *   log.sync("setTasks result", { merged: 3, deleted: 1 });
+ */
+export function appContextLog(ns: string) {
+  const isProd = process.env.NODE_ENV === "production";
+  return {
+    breadcrumb: (msg: string) => {
+      if (isProd) return;
+      console.log(`[${ns}] ${msg} — ${Date.now()}`);
+    },
+    sync: (msg: string, data?: Record<string, unknown>) => {
+      if (isProd) return;
+      if (data) {
+        console.log(`[${ns}] ${msg}`, data);
+      } else {
+        console.log(`[${ns}] ${msg}`);
+      }
+    },
+    warn: (msg: string, err?: unknown) => {
+      if (isProd) return;
+      if (err) {
+        console.warn(`[${ns}] ${msg}`, err);
+      } else {
+        console.warn(`[${ns}] ${msg}`);
+      }
+    },
+    error: (msg: string, err?: unknown) => {
+      // error 等級無論環境都輸出，但 dev 格式更詳細
+      if (isProd) {
+        console.error(JSON.stringify({ ns, msg, error: String(err) }));
+      } else {
+        console.error(`[${ns}] ${msg}`, err);
+      }
+    },
+    info: (msg: string, data?: Record<string, unknown>) => {
+      if (isProd) return;
+      if (data) {
+        console.info(`[${ns}] ${msg}`, data);
+      } else {
+        console.info(`[${ns}] ${msg}`);
+      }
+    },
+  };
+}

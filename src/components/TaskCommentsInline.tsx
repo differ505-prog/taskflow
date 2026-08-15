@@ -14,6 +14,7 @@ import {
   TaskComment,
 } from "@/lib/taskCommentsFS";
 import { isComposingKey } from "@/utils/imeGuard";
+import { logger } from "@/lib/logger";
 
 interface Props {
   taskId: string;
@@ -91,7 +92,7 @@ export default function TaskCommentsInline({ taskId }: Props) {
     try {
       await deleteTaskComment({ uid: user.uid, taskId, commentId });
     } catch (err) {
-      console.error("[TaskComments] 刪除失敗，還原列表", err);
+      logger.ns("TaskComments").error("刪除失敗，還原列表", { error: err });
       setComments(previous);
     }
   };

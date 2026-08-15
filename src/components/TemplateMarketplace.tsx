@@ -6,6 +6,7 @@ import { Sparkles, X, CheckCircle2, Loader2 } from "lucide-react";
 import { useApp } from "@/lib/AppContext";
 import { TEMPLATES, applyTemplate, type Template } from "@/lib/templates";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 import { translateError } from "@/lib/errorMessages";
 
 interface TemplateMarketplaceProps {
@@ -34,9 +35,9 @@ export function TemplateMarketplace({ embedded = false }: TemplateMarketplacePro
         { description: "點選側邊欄新清單查看。" }
       );
       setActiveTemplate(null);
-      console.log("[Templates] Applied", template.id, "listId=", listId, "taskIds=", taskIds);
+      logger.ns("Templates").info("Applied", { templateId: template.id, listId, taskIds });
     } catch (err) {
-      console.error("[Templates] Apply failed:", err);
+      logger.ns("Templates").error("Apply failed", { error: err });
       toast.error(translateError(err, "套用失敗,請稍後再試"));
     } finally {
       setApplyingId(null);

@@ -81,8 +81,10 @@ import { toast } from "sonner";
 import { getLocalToday, toLocalDateString } from "../dateUtils";
 import { AppShellSkeleton } from "@/components/Skeleton";
 import { dispatchPwaInstallPrompt } from "@/components/PwaPrompts";
-import { computeHabitStreak, getNextRecurrenceDate } from "./utils";
+import { computeHabitStreak, getNextRecurrenceDate, appContextLog } from "./utils";
 import type { AppContextValue } from "./types";
+
+const log = appContextLog("AppProvider");
 
 // ── Context ─────────────────────────────────────────────────────
 const AppContext = createContext<AppContextValue | null>(null);
@@ -91,7 +93,7 @@ export { AppContext };
 
 // ── Provider ────────────────────────────────────────────────────
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  console.log(`[Breadcrumb] 100. AppProvider 渲染開始 - ${Date.now()}`);
+  log.breadcrumb("100. AppProvider 渲染開始");
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [lists, setLists] = useState<TaskList[]>([]);
@@ -100,7 +102,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const lastEmittedSizesRef = useRef({ tasks: 0, habits: 0, lists: 0 });
 
   useEffect(() => {
-    console.log(`[UI RENDER] tasks updated: count=${tasks.length} at ${new Date().toISOString()}`);
+    log.sync(`UI RENDER tasks updated: count=${tasks.length}`);
   }, [tasks]);
 
   const [currentView, setCurrentViewState] = useState<AppView>("inbox");
@@ -238,7 +240,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setLists(storedLists);
     const localTasks = getTasks();
     setTasks(localTasks);
-    console.log(`[APP INIT] localStorage tasks=${localTasks.length} user=${user?.uid ?? "null"}`);
+    log.sync(`APP INIT localStorage tasks=${localTasks.length} user=${user?.uid ?? "null"}`);
     setHabits(getHabits());
     setTodayFocusMinutes(getTodayFocusMinutes());
     const removed = deduplicateSharedLists();
@@ -272,10 +274,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // ── Supabase Realtime 訂閱 ──────
     if (user) {
-      console.log(`[APP INIT] subscribing to uid=${user.uid}`);
+      log.sync(`APP INIT subscribing to uid=${user.uid}`);
       if (fbUnsubRef.current) fbUnsubRef.current();
       subscribeTasks(user.uid, (fbTasks, deletedId, pendingDeletions) => {
-        if (fbSyncDebug) console.log("[SUP SYNC] tasks 推送:", fbTasks.length);
+        log.sync(`SUP SYNC tasks 推送: ${fbTasks.length}`);
         setTasks((prev) => {
           const deleted = new Set(deletedTaskIdsRef.current);
           if (deletedId) deleted.add(deletedId);
@@ -299,14 +301,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           );
           const trueLocalOnly = localOnly.filter((t) => !syncedTaskIdsRef.current.has(t.id));
           const result = [...merged, ...trueLocalOnly];
-          console.log(`[SUP SYNC] setTasks result: merged=${merged.length} trueLocalOnly=${trueLocalOnly.length} deleted=${deleted.size} result=${result.length}`);
+          log.sync(`SUP SYNC setTasks result: merged=${merged.length} trueLocalOnly=${trueLocalOnly.length} deleted=${deleted.size} result=${result.length}`);
           saveTasks(result);
           if (trueLocalOnly.length > 0 && user) {
             const orphans = trueLocalOnly.filter((t) => !isWithinRecentWriteWindow(t.id));
             if (orphans.length > 0) {
-              console.log(`[SUP SYNC] 自動補推 ${orphans.length} 個孤兒任務上雲`);
+              log.sync(`自動補推 ${orphans.length} 個孤兒任務上雲`);
               batchSaveTasksFirebase(user.uid, orphans).catch((err) =>
-                console.error("[SUP SYNC] 孤兒補推失敗:", err)
+                log.error("孤兒補推失敗", err)
               );
             }
           }
@@ -315,9 +317,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }, deletedTaskIdsRef.current).then((unsub) => {
         fbUnsubRef.current = unsub;
         setTasksInitialized(true);
-        if (fbSyncDebug) console.log("[SUP SYNC] 已訂閱 tasks uid:", user.uid);
+        log.sync(`已訂閱 tasks uid: ${user.uid}`);
       }).catch((err) => {
-        console.warn("[SUP SYNC] 訂閱任務失敗:", err);
+        log.warn("訂閱任務失敗", err);
       });
 
       let lastCloudLists: TaskList[] = [];
@@ -326,7 +328,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           firstListsLoadDone.current = true;
           return;
         }
-        if (fbSyncDebug) console.log("[SUP SYNC] lists 推送:", fbLists.length);
+        log.sync(`SUP SYNC lists 推送: ${fbLists.length}`);
         const deduped = dedupeDuplicateLists(fbLists);
         rebindTasksToKeptLists(fbLists, deduped);
         lastCloudLists = deduped;
@@ -349,17 +351,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }).then((unsub) => {
         listsUnsubRef.current = unsub;
       }).catch((err) => {
-        console.warn("[SUP SYNC] 訂閱清單失敗:", err);
+        log.warn("訂閱清單失敗", err);
       });
 
       habitsUnsubRef.current?.();
       subscribeHabits(user.uid, (fbHabits) => {
-        console.log(`[SUBSCRIBE HABITS] callback uid=${user.uid} fbHabits=${fbHabits.length} firstLoadDone=${firstHabitsLoadDone.current}`);
+        log.sync(`SUBSCRIBE HABITS callback uid=${user.uid} fbHabits=${fbHabits.length} firstLoadDone=${firstHabitsLoadDone.current}`);
         if (!firstHabitsLoadDone.current) {
           firstHabitsLoadDone.current = true;
           return;
         }
-        if (fbSyncDebug) console.log("[SUP SYNC] habits 推送:", fbHabits.length);
+        log.sync(`SUP SYNC habits 推送: ${fbHabits.length}`);
         setHabits((prev) => {
           const localById = new Map(prev.map((h) => [h.id, h]));
           const fbIds = new Set<string>();
@@ -380,9 +382,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           if (trueLocalOnly.length > 0 && user) {
             const orphans = trueLocalOnly.filter((h) => !isWithinRecentWriteWindowHabit(h.id));
             if (orphans.length > 0) {
-              console.log(`[SUP SYNC] 自動補推 ${orphans.length} 個孤兒 habit 上雲`);
+              log.sync(`自動補推 ${orphans.length} 個孤兒 habit 上雲`);
               batchSaveHabits(user.uid, orphans).catch((err) =>
-                console.error("[SUP SYNC] 孤兒 habit 補推失敗:", err)
+                log.error("孤兒 habit 補推失敗", err)
               );
             }
           }
@@ -390,9 +392,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         });
       }).then((unsub) => {
         habitsUnsubRef.current = unsub;
-        if (fbSyncDebug) console.log("[SUP SYNC] 已訂閱 habits uid:", user.uid);
+        log.sync(`已訂閱 habits uid: ${user.uid}`);
       }).catch((err) => {
-        console.warn("[SUP SYNC] 訂閱習慣失敗:", err);
+        log.warn("訂閱習慣失敗", err);
       });
 
       firstTasksLoadDone.current = false;
@@ -423,20 +425,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const localHabits = getHabits();
         if (localTasks.length > 0) {
           await batchSaveTasksFirebase(uid, localTasks);
-          console.log(`[SUP SYNC] 遷移 ${localTasks.length} 筆任務到雲端`);
+          log.sync(`遷移 ${localTasks.length} 筆任務到雲端`);
         }
         if (localLists.length > 0) {
           await batchSaveListsFirebase(uid, localLists);
-          console.log(`[SUP SYNC] 遷移 ${localLists.length} 筆清單到雲端`);
+          log.sync(`遷移 ${localLists.length} 筆清單到雲端`);
         }
         if (localHabits.length > 0) {
           await batchSaveHabits(uid, localHabits);
-          console.log(`[SUP SYNC] 遷移 ${localHabits.length} 筆習慣到雲端`);
+          log.sync(`遷移 ${localHabits.length} 筆習慣到雲端`);
         }
         localStorage.setItem(MIGRATE_KEY, "1");
         await cleanupDuplicateListsInCloud(uid);
       } catch (err) {
-        console.warn("[SUP SYNC] 遷移失敗（不影響現有功能）:", err);
+        log.warn("遷移失敗（不影響現有功能）", err);
       }
     }
 
@@ -471,7 +473,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           }
           for (const dupId of dupIds) {
             await delList(uid, dupId);
-            console.log(`[SUP SYNC] 清理重複清單: ${dupId}（保留 ${keeper.id}）`);
+            log.sync(`清理重複清單: ${dupId}（保留 ${keeper.id}）`);
           }
         }
         const finalCloudLists = await loadLists(uid);
@@ -479,7 +481,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setLists(finalDeduped);
         saveLists(finalDeduped);
       } catch (err) {
-        console.warn("[SUP SYNC] 雲端去重失敗:", err);
+        log.warn("雲端去重失敗", err);
       }
     }
 
@@ -487,7 +489,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [user, reloadKey]);
 
   useEffect(() => {
-    console.log(`[Breadcrumb] 101. AppProvider useEffect (user=${user?.uid}) - ${Date.now()}`);
+    log.breadcrumb(`101. AppProvider useEffect user=${user?.uid}`);
     if (!isLoaded || !user) return;
     const storedSharedLists = getSharedLists();
     const acceptedIds = Object.keys(storedSharedLists).filter(
@@ -501,7 +503,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const { ownedIds, joinedIds } = await fetchMySharedListIds(user.uid);
         const orphanOwnedIds = ownedSharedListIds.filter(id => !ownedIds.includes(id));
         if (orphanOwnedIds.length > 0) {
-          console.log("[SharedList] Removing orphan owned lists:", orphanOwnedIds);
+          log.sync(`Removing orphan owned lists: ${orphanOwnedIds.length}`);
           orphanOwnedIds.forEach(id => removeSharedList(id));
           setSharedLists(getSharedLists());
         }
@@ -514,7 +516,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         );
         const orphanJoinedIds = acceptedIds.filter(id => !joinedIds.includes(id));
         if (newAcceptedIds.length > 0 || orphanJoinedIds.length > 0) {
-          console.log("[SharedList] Syncing joined lists. New:", newAcceptedIds, "Orphans to remove:", orphanJoinedIds);
+          log.sync(`Syncing joined lists. New: ${newAcceptedIds.length}, Orphans: ${orphanJoinedIds.length}`);
           if (orphanJoinedIds.length > 0) {
             orphanJoinedIds.forEach(id => removeSharedList(id));
             setSharedLists(getSharedLists());
@@ -526,7 +528,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           });
         }
       } catch (err) {
-        console.warn("[SharedList] Failed to discover new shared lists:", err);
+        log.warn("Failed to discover new shared lists", err);
       }
     };
     discoverNewSharedLists();
@@ -710,7 +712,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (rebuiltTasks.some((t, i) => t !== tasksRef.current[i])) {
       setTasks(rebuiltTasks);
       saveTasks(rebuiltTasks);
-      if (user) batchSaveTasksFirebase(user.uid, rebuiltTasks).catch(console.warn);
+      if (user) batchSaveTasksFirebase(user.uid, rebuiltTasks).catch((err) => log.warn("rebind tasks failed", err));
     }
     return result;
   }
@@ -738,7 +740,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setTasks(rebuilt);
       saveTasks(rebuilt);
       batchSaveTasksFirebase(user.uid, rebuilt).catch((err) =>
-        console.warn("[SUP SYNC] rebind tasks failed:", err)
+        log.warn("rebind tasks failed", err)
       );
     }
   }
@@ -764,7 +766,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (user) {
       const { updateLastUserUid: ulu } = require("../storage");
       ulu(user.uid);
-      batchSaveTasksFirebase(user.uid, [task]).catch((err) => console.error("[SUP SYNC] 新增失敗:", err));
+      batchSaveTasksFirebase(user.uid, [task]).catch((err) => log.error("新增失敗", err));
     }
     return id;
   }, [tasks, user, markRecentlyWritten]);
@@ -808,9 +810,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (user) {
       const { updateLastUserUid: ulu } = require("../storage");
       ulu(user.uid);
-      batchSaveTasksFirebase(user.uid, newTasks).catch((err) =>
-        console.error("[SUP SYNC] 批次新增失敗:", err)
-      );
+        batchSaveTasksFirebase(user.uid, newTasks).catch((err) => log.error("批次新增失敗", err));
     }
     return ids;
   }, [tasks, user, markRecentlyWritten]);
@@ -832,7 +832,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // §DEFENSIVE: upsert into shared list in case the caller only called updateTask
       const targetSharedData = sharedLists[targetSharedId];
       if (targetSharedData) {
-        console.info(`[AppContext] Task ${id} moved to shared list ${targetSharedId}. Upserting locally and syncing to cloud.`);
+        log.info(`Task ${id} moved to shared list ${targetSharedId}. Upserting locally and syncing to cloud.`);
         const mergedTask = { ...prevTask, ...updates, updatedAt: new Date().toISOString() };
         const existingIdx = targetSharedData.tasks.findIndex((t) => t.id === id);
         const newSharedTasks = existingIdx >= 0
@@ -859,7 +859,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           ownerId, 
           targetSharedData.ownerName, 
           (sid, writtenTasks) => {
-            console.info(`[AppContext] Successfully synced moved task ${id} to cloud shared list ${sid}.`);
+            log.info(`Successfully synced moved task ${id} to cloud shared list ${sid}.`);
             const u = { ...targetSharedData, tasks: writtenTasks };
             saveSharedList(sid, u);
             setSharedLists((prev) => ({ ...prev, [sid]: u }));
@@ -870,7 +870,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             isWritingRef.current[sid] = false;
           }
         ).catch((err) => {
-          console.error(`[SharedList] Failed to sync moved task ${id} to cloud:`, err);
+          log.error(`Failed to sync moved task ${id} to cloud`, err);
           isWritingRef.current[targetSharedId] = false;
           saveSharedList(targetSharedId, targetSharedData); // Revert to old data if fail
           setSharedLists(getSharedLists());
@@ -887,7 +887,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     markRecentlyWritten(id);
     if (user) {
       const task = updated.find((t) => t.id === id);
-      if (task) batchSaveTasksFirebase(user.uid, [task]).catch((err) => console.error("[SUP SYNC] 更新失敗:", err));
+      if (task) batchSaveTasksFirebase(user.uid, [task]).catch((err) => log.error("更新失敗", err));
     }
   }, [tasks, sharedLists, user, markRecentlyWritten]);
 
@@ -901,7 +901,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTasks(updated);
     saveTasks(updated);
     syncedTaskIdsRef.current.delete(taskId);
-    if (user) batchSaveTasksFirebase(user.uid, [task]).catch((err) => console.error("[SUP SYNC] undo 寫入失敗:", err));
+    if (user) batchSaveTasksFirebase(user.uid, [task]).catch((err) => log.error("undo 寫入失敗", err));
     toast.success(`已恢復「${task.title}」`);
   }, [tasks, user]);
 
@@ -912,7 +912,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       for (const attachment of task.attachments) {
         if (attachment.storagePath) {
           deleteFile(attachment.storagePath).catch((err) => {
-            console.warn("[AppContext] Failed to delete attachment:", err);
+            log.warn("Failed to delete attachment", err);
           });
         }
       }
@@ -920,7 +920,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     previousTasksRef.current = tasks;
     deletedTaskIdsRef.current.add(id);
     const updated = tasks.filter((t) => t.id !== id);
-    console.log(`[AppContext] 刪除任務 ${id}，時間: ${Date.now()}`);
+    log.sync(`刪除任務 ${id}`);
     setTasks(updated);
     saveTasks(updated);
     // Guard: 標記「這是一次用戶主動刪除」，在後續 Realtime 回呼觸發 setTasks 時，
@@ -946,7 +946,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           deletedTaskIdsRef.current.delete(id);
         })
         .catch((err) => {
-          console.warn("[SUP SYNC] 刪除失敗:", err);
+          log.warn("刪除失敗", err);
           deletedTaskIdsRef.current.delete(id);
         });
     } else {
@@ -977,7 +977,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     if (user) {
       const updatedTask = updated.find((t) => t.id === id);
-      if (updatedTask) batchSaveTasksFirebase(user.uid, [updatedTask]).catch((err) => console.error("[SUP SYNC] toggle 失敗:", err));
+      if (updatedTask) batchSaveTasksFirebase(user.uid, [updatedTask]).catch((err) => log.error("toggle 失敗", err));
     }
     if (newStatus === "done" && user?.uid) {
       const now = Date.now();
@@ -1075,7 +1075,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     markRecentlyWritten(taskId);
     if (user) {
       const updatedTask = updated.find((t) => t.id === taskId);
-      if (updatedTask) batchSaveTasksFirebase(user.uid, [updatedTask]).catch((err) => console.error("[SUP SYNC] rec 失敗:", err));
+      if (updatedTask) batchSaveTasksFirebase(user.uid, [updatedTask]).catch((err) => log.error("rec 失敗", err));
     }
   }, [tasks, user, markRecentlyWritten]);
 
@@ -1107,7 +1107,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const updated = [...lists, newList];
     setLists(updated);
     saveLists(updated);
-    if (user) batchSaveListsFirebase(user.uid, [newList]).catch(console.warn);
+    if (user) batchSaveListsFirebase(user.uid, [newList]).catch((err) => log.warn("addList failed", err));
     return newList.id;
   }, [lists, user]);
 
@@ -1119,7 +1119,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     saveLists(updated);
     if (user) {
       const list = updated.find((l) => l.id === id);
-      if (list) batchSaveListsFirebase(user.uid, [list]).catch(console.warn);
+      if (list) batchSaveListsFirebase(user.uid, [list]).catch((err) => log.warn("updateList failed", err));
     }
   }, [lists, user]);
 
@@ -1127,13 +1127,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const updated = lists.filter((l) => l.id !== id);
     setLists(updated);
     saveLists(updated);
-    if (user) deleteListFirebase(user.uid, id).catch(console.warn);
+    if (user) deleteListFirebase(user.uid, id).catch((err) => log.warn("deleteList failed", err));
     const affectedTasks = tasks.filter((t) => t.listId === id);
     const taskUpdated = tasks.map((t) => t.listId === id ? { ...t, listId: undefined } : t);
     setTasks(taskUpdated);
     saveTasks(taskUpdated);
     if (user && affectedTasks.length > 0) {
-      batchSaveTasksFirebase(user.uid, affectedTasks.map((t) => ({ ...t, listId: undefined }))).catch(console.warn);
+      batchSaveTasksFirebase(user.uid, affectedTasks.map((t) => ({ ...t, listId: undefined }))).catch((err) => log.warn("deleteList clear tasks failed", err));
     }
   }, [lists, tasks, user]);
 
@@ -1161,7 +1161,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setLists(updated);
     saveLists(updated);
     updated.forEach((l) => recentlyWrittenListsRef.current.set(l.id, Date.now()));
-    if (user) batchSaveListsFirebase(user.uid, updated).catch(console.warn);
+    if (user) batchSaveListsFirebase(user.uid, updated).catch((err) => log.warn("reorderLists failed", err));
   }, [lists, user]);
 
   const reorderTasks = useCallback((reorderedTasks: Task[]) => {
@@ -1173,7 +1173,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTasks(merged);
     saveTasks(merged);
     updated.forEach((t) => recentlyWrittenRef.current.set(t.id, Date.now()));
-    if (user) batchSaveTasksFirebase(user.uid, updated).catch((err) => console.error("[SUP SYNC] reorder 寫入失敗:", err));
+    if (user) batchSaveTasksFirebase(user.uid, updated).catch((err) => log.error("reorder 寫入失敗", err));
   }, [tasks, user]);
 
   const saveTasksDirectly = useCallback((updatedTasks: Task[]) => {
@@ -1184,7 +1184,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     saveTasks(merged);
     updatedTasks.forEach((t) => recentlyWrittenRef.current.set(t.id, Date.now()));
     if (user) {
-      batchSaveTasksFirebase(user.uid, updatedTasks).catch(console.error);
+      batchSaveTasksFirebase(user.uid, updatedTasks).catch((err) => log.error("saveTasksDirectly failed", err));
     }
   }, [tasks, user]);
 
@@ -1200,7 +1200,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setHabits(updated);
     saveHabits(updated);
     recentlyWrittenHabitsRef.current.set(newHabit.id, Date.now());
-    if (user) batchSaveHabits(user.uid, [newHabit]).catch((err) => console.error("[SUP SYNC] addHabit 寫入失敗:", err));
+    if (user) batchSaveHabits(user.uid, [newHabit]).catch((err) => log.error("addHabit 寫入失敗", err));
   }, [habits, user]);
 
   const updateHabit = useCallback((id: string, updates: Partial<Habit>) => {
@@ -1210,7 +1210,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     recentlyWrittenHabitsRef.current.set(id, Date.now());
     if (user) {
       const changed = updated.find((h) => h.id === id);
-      if (changed) batchSaveHabits(user.uid, [changed]).catch((err) => console.error("[SUP SYNC] updateHabit 寫入失敗:", err));
+      if (changed) batchSaveHabits(user.uid, [changed]).catch((err) => log.error("updateHabit 寫入失敗", err));
     }
   }, [habits, user]);
 
@@ -1223,7 +1223,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     recentlyWrittenHabitsRef.current.set(id, Date.now());
     if (user) {
       const changed = updated.find((h) => h.id === id);
-      if (changed) batchSaveHabits(user.uid, [changed]).catch((err) => console.error("[SUP SYNC] archiveHabit 寫入失敗:", err));
+      if (changed) batchSaveHabits(user.uid, [changed]).catch((err) => log.error("archiveHabit 寫入失敗", err));
     }
   }, [habits, user]);
 
@@ -1238,7 +1238,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     recentlyWrittenHabitsRef.current.set(id, Date.now());
     if (user) {
       const changed = updated.find((h) => h.id === id);
-      if (changed) batchSaveHabits(user.uid, [changed]).catch((err) => console.error("[SUP SYNC] unarchiveHabit 寫入失敗:", err));
+      if (changed) batchSaveHabits(user.uid, [changed]).catch((err) => log.error("unarchiveHabit 寫入失敗", err));
     }
   }, [habits, user]);
 
@@ -1265,7 +1265,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     recentlyWrittenHabitsRef.current.set(id, Date.now());
     if (user) {
       const changed = updated.find((h) => h.id === id);
-      if (changed) batchSaveHabits(user.uid, [changed]).catch((err) => console.error("[SUP SYNC] checkinHabit 寫入失敗:", err));
+      if (changed) batchSaveHabits(user.uid, [changed]).catch((err) => log.error("checkinHabit 寫入失敗", err));
     }
   }, [habits, user]);
 
@@ -1284,7 +1284,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     recentlyWrittenHabitsRef.current.set(id, Date.now());
     if (user) {
       const changed = updated.find((h) => h.id === id);
-      if (changed) batchSaveHabits(user.uid, [changed]).catch((err) => console.error("[SUP SYNC] uncheckHabit 寫入失敗:", err));
+      if (changed) batchSaveHabits(user.uid, [changed]).catch((err) => log.error("uncheckHabit 寫入失敗", err));
     }
   }, [habits, user]);
 
@@ -1302,14 +1302,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setLists(updatedLists);
       saveLists(updatedLists);
       recentlyWrittenListsRef.current.set(listId, Date.now());
-      batchSaveListsFirebase(user.uid, [updatedList]).catch(console.warn);
+      batchSaveListsFirebase(user.uid, [updatedList]).catch((err) => log.warn("shareList sync failed", err));
       setOwnedSharedListIds((prev) =>
         prev.includes(sharedListId) ? prev : [...prev, sharedListId]
       );
       setMyRoleByList((prev) => ({ ...prev, [sharedListId]: "owner" }));
       return sharedListId;
     } catch (error: any) {
-      console.error("[AppContext.shareList] createSharedList failed:", error);
+      log.error("createSharedList failed", error);
       throw error;
     }
   }, [user, lists, tasks]);
@@ -1326,7 +1326,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       saveLists(updatedLists);
       if (changedList) {
         recentlyWrittenListsRef.current.set(changedList.id, Date.now());
-        batchSaveListsFirebase(user.uid, [{ ...changedList, sharedId: undefined, ownerId: undefined, updatedAt: new Date().toISOString() }]).catch(console.warn);
+        batchSaveListsFirebase(user.uid, [{ ...changedList, sharedId: undefined, ownerId: undefined, updatedAt: new Date().toISOString() }]).catch((err) => log.warn("unshareList sync failed", err));
       }
       setOwnedSharedListIds((prev) => prev.filter((id) => id !== sharedListId));
       if (sharedListUnsubscribeRefs.current[sharedListId]) {
@@ -1334,7 +1334,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         delete sharedListUnsubscribeRefs.current[sharedListId];
       }
     } catch (error) {
-      console.error("Failed to unshare list:", error);
+      log.error("Failed to unshare list", error);
     }
   }, [user, lists]);
 
@@ -1343,7 +1343,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       await bindCurrentUserToSharedList({ sharedListId, memberUid: user.uid, memberEmail: user.email || "" });
     } catch (err) {
-      console.error("[Shared] accept invite failed (likely not invited):", err);
+      log.error("accept invite failed (likely not invited)", err);
       return;
     }
     const snapshot = await getSharedSnapshot(sharedListId);
@@ -1355,7 +1355,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         d.list.ownerId === (snapshot.ownerId || snapshot.list.ownerId)
     );
     if (duplicate) {
-      console.warn("[Shared] 跳過重複加入：", snapshot.list.name, "(已有)", duplicate[0]);
+      log.warn(`跳過重複加入：${snapshot.list.name}`);
       return;
     }
     const ownerId = snapshot.ownerId || snapshot.list.ownerId;
@@ -1405,7 +1405,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const snapshot = await getSharedSnapshot(shareParam);
       if (snapshot) return { sharedListId: shareParam, snapshot };
     } catch (error) {
-      console.error("Failed to fetch shared list:", error);
+      log.error("Failed to fetch shared list", error);
     }
     return null;
   }, []);
@@ -1585,7 +1585,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const quickAddToShared = useCallback((sharedListId: string, input: string): string | null => {
     if (!input.trim()) return null;
     if (!canEditSharedList(sharedListId)) {
-      console.warn("[Shared] Viewer cannot add tasks");
+      log.warn("Viewer cannot add tasks");
       return null;
     }
     const parsed = parseNaturalLanguage(input);
@@ -1624,7 +1624,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           lastSyncedTaskCountRef.current[sid] = writtenTasks.length;
           isWritingRef.current[sid] = false;
         }).catch((err) => {
-          console.error("[SharedList] Failed to save task:", err);
+          log.error("Failed to save task", err);
           isWritingRef.current[sharedListId] = false;
           saveSharedList(sharedListId, fetchedData);
           setSharedLists(getSharedLists());
@@ -1653,7 +1653,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       lastSyncedTaskCountRef.current[sid] = writtenTasks.length;
       isWritingRef.current[sid] = false;
     }).catch((err) => {
-      console.error("[SharedList] Failed to save task:", err);
+      log.error("Failed to save task", err);
       isWritingRef.current[sharedListId] = false;
       saveSharedList(sharedListId, data);
       setSharedLists(getSharedLists());
@@ -1665,7 +1665,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!canEditSharedList(sharedListId)) {
       // @ts-ignore
       window.appDebug?.(`canEditSharedList returned FALSE for ${sharedListId}`);
-      console.warn("[Shared] Viewer cannot edit tasks");
+      log.warn("Viewer cannot edit tasks");
       return;
     }
     const currentSharedLists = getSharedLists();
@@ -1691,7 +1691,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       lastSyncedTaskCountRef.current[sid] = writtenTasks.length;
       isWritingRef.current[sid] = false;
     }).catch((err) => {
-      console.error("[SharedList] Failed to update task:", err);
+      log.error("Failed to update task", err);
       isWritingRef.current[sharedListId] = false;
       saveSharedList(sharedListId, data);
       setSharedLists(getSharedLists());
@@ -1700,7 +1700,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const deleteSharedTask = useCallback((sharedListId: string, taskId: string) => {
     if (!canEditSharedList(sharedListId)) {
-      console.warn("[Shared] Viewer cannot delete tasks");
+      log.warn("Viewer cannot delete tasks");
       return;
     }
     const data = sharedLists[sharedListId];
@@ -1723,7 +1723,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       lastSyncedTaskCountRef.current[sid] = writtenTasks.length;
       isWritingRef.current[sid] = false;
     }).catch((err) => {
-      console.error("[SharedList] Failed to delete task:", err);
+      log.error("Failed to delete task", err);
       isWritingRef.current[sharedListId] = false;
       saveSharedList(sharedListId, data);
       setSharedLists(getSharedLists());
@@ -1735,7 +1735,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       await setSharedTaskPosition(sharedListId, taskId, position);
     } catch (err) {
-      console.warn("[SharedList] reorder failed:", err);
+      log.warn("reorder failed", err);
     }
   }, [canEditSharedList]);
 
