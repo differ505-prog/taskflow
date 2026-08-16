@@ -218,17 +218,17 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
   if (pendingHabits.length === 0) {
     return (
       <>
-        {/* 桌機:原貌 + 底部統計行 */}
+        {/* 桌機:inline pill — 低調確認，不與 Empty State 競爭 */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut", delay: 0.3 }}
-          className="hidden sm:flex fixed bottom-6 left-6 z-20 flex-col items-start gap-1.5 rounded-2xl bg-white/70 px-4 py-3 backdrop-blur"
+          className="hidden sm:flex fixed bottom-6 left-6 z-20 items-center gap-2"
           style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
         >
-          <div className="flex items-center gap-2">
-            <span className="text-lg" aria-hidden>✓</span>
-            <span className="text-xs font-medium text-slate-400">今日暖身已就位</span>
+          <div className="flex items-center gap-1.5 rounded-full bg-rose-50/80 px-3 py-1.5 backdrop-blur">
+            <Check className="h-3.5 w-3.5 text-rose-400" aria-hidden />
+            <span className="text-[11px] font-medium text-rose-500">今日暖身已就位</span>
           </div>
           {/* 本月打卡統計 */}
           <button
@@ -237,10 +237,10 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
               setCurrentView("habits");
               router.push("/?board=1");
             }}
-            className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+            className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-rose-400/70 transition-colors hover:bg-rose-100 hover:text-rose-600"
             aria-label="查看完整月曆"
           >
-            <span>📅 本月打卡 {monthStats.doneDaysThisMonth}/{monthStats.todayDay} 天</span>
+            <span>📅 {monthStats.doneDaysThisMonth}/{monthStats.todayDay} 天</span>
             <ChevronRight className="w-3 h-3" aria-hidden />
           </button>
         </motion.div>
@@ -250,7 +250,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut", delay: 0.3 }}
-          className="sm:hidden fixed bottom-6 left-6 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-500 shadow-sm ring-1 ring-emerald-200/60 backdrop-blur"
+          className="sm:hidden fixed bottom-6 left-6 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-rose-50 text-rose-400 shadow-sm ring-1 ring-rose-200/60 backdrop-blur"
           style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
           aria-label="今日暖身已就位"
           role="status"

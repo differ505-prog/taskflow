@@ -364,7 +364,7 @@ export default function ZenDashboard() {
           {/* §Safari-test: 移除 touch-manipulation + active:scale, 改用 touch-action:auto + user-select:auto 測試 hit-testing */}
           <a
             href="/?board=1"
-            className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-2 text-sm font-medium text-slate-500 backdrop-blur transition-all duration-200 ease-out md:hover:-translate-y-0.5 md:hover:text-slate-700 md:hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 sm:px-4"
+            className="inline-flex items-center gap-1.5 rounded-full bg-rose-50/80 px-3 py-2 text-sm font-medium text-rose-500 backdrop-blur transition-all duration-200 ease-out md:hover:-translate-y-0.5 md:hover:text-rose-600 md:hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200 sm:px-4"
             style={{ touchAction: "auto", userSelect: "auto" }}
             aria-label="進入任務大廳(收件箱) — 整理任務或快速 Brain Dump"
           >
