@@ -391,76 +391,119 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
         </motion.button>
       )}
 
-      {/* 手機:單顆 compact icon(只取第一個 pending habit 作為捷徑),點擊展開確認
-          §ADHD 最小摩擦:不開中間 sheet,但需看到完整名稱才能完成 */}
-      <motion.button
-        type="button"
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: "easeOut", delay: 0.3 }}
-        onClick={() => {
-          const first = pendingHabits[0];
-          if (!first) return;
-          setConfirmingHabitId((prev) => (prev === first.id ? null : first.id));
-        }}
-        aria-label={`展開暖身：${pendingHabits[0]?.title ?? ""}`}
-        aria-expanded={confirmingHabitId === pendingHabits[0]?.id}
-        className="sm:hidden fixed bottom-6 left-6 z-20 flex h-10 items-center justify-center rounded-full bg-white/80 text-slate-400 shadow-sm ring-1 ring-slate-200/60 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
-        style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
-        whileTap={{ scale: 0.92 }}
-      >
-        <span
-          className="flex h-10 w-10 items-center justify-center text-base font-medium"
-          aria-hidden
-        >
-          {pendingHabits[0]?.title.slice(0, 1) ?? "·"}
-        </span>
-        <AnimatePresence initial={false}>
-          {confirmingHabitId === pendingHabits[0]?.id && pendingHabits[0] && (
-            <motion.span
-              key="mobile-confirm-row"
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: "auto", opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="flex items-center gap-2 overflow-hidden pr-3 whitespace-nowrap"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <span className="text-xs font-medium text-slate-600">
-                {pendingHabits[0].title}
-              </span>
-              <span
-                role="button"
-                tabIndex={0}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const first = pendingHabits[0];
-                  if (first) {
-                    handleComplete(first.id, first.title);
-                    setConfirmingHabitId(null);
-                  }
+      {/* 手機:多功能膠囊按鈕
+          左熱區(首字+計數):展開完成流程 右熱區(打卡統計):進 habits 頁
+          §ADHD 即時可見性:本月打卡 X/Y 天不需要展開就在膠囊上即時可見 */}
+      {pendingHabits.length > 0 && (
+        <div className="sm:hidden fixed bottom-6 left-6 z-20 flex items-center">
+          {/* 本月打卡統計行 — 膠囊右側熱區 */}
+          {(() => {
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            const today = getLocalToday();
+            const todayDay = parseInt(today.split("-")[2], 10);
+            const activeHabits = habits.filter((h) => !h.archivedAt);
+            const monthDays = Array.from({ length: todayDay }, (_, i) =>
+              toLocalDateString(new Date(currentYear, currentMonth, i + 1))
+            );
+            const doneDaysThisMonth = monthDays.filter((date) =>
+              activeHabits.every((h) => h.checkins.some((c) => c.date === date && c.completed))
+            ).length;
+            return (
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentView("habits");
+                  router.push("/?board=1");
                 }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const first = pendingHabits[0];
-                    if (first) {
-                      handleComplete(first.id, first.title);
-                      setConfirmingHabitId(null);
-                    }
-                  }
-                }}
-                className="flex h-6 w-6 items-center justify-center rounded-full text-white transition-colors duration-200 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-warm-start)]"
-                style={{ background: "var(--accent-warm-end)" }}
-                aria-label={`完成暖身：${pendingHabits[0].title}`}
+                className="relative flex items-center gap-1 rounded-l-full border border-r-0 border-slate-200/60 bg-white/80 px-2.5 py-2 pr-1 text-[11px] font-medium text-slate-400 backdrop-blur transition-colors duration-200 hover:bg-white hover:text-slate-600 active:bg-slate-50"
+                aria-label={`本月打卡 ${doneDaysThisMonth}/${todayDay} 天，點擊進入習慣頁`}
+                style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
               >
-                <Check className="h-3.5 w-3.5" aria-hidden />
+                <span>📅 {doneDaysThisMonth}/{todayDay} 天</span>
+                <ChevronRight className="w-3 h-3" aria-hidden />
+              </button>
+            );
+          })()}
+
+          {/* 習慣首字 — 膠囊左側熱區 */}
+          <motion.button
+            type="button"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut", delay: 0.3 }}
+            onClick={() => {
+              const first = pendingHabits[0];
+              if (!first) return;
+              setConfirmingHabitId((prev) => (prev === first.id ? null : first.id));
+            }}
+            aria-label={`暖身：${pendingHabits[0]?.title ?? ""}`}
+            aria-expanded={confirmingHabitId === pendingHabits[0]?.id}
+            className="relative flex h-[52px] items-center rounded-r-full border border-l-0 border-slate-200/60 bg-white/80 pr-3 pl-0 text-slate-400 shadow-sm backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 active:scale-95"
+            style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
+            whileTap={{ scale: 0.92 }}
+          >
+            <span
+              className="flex h-[52px] w-[52px] items-center justify-center rounded-r-full text-base font-medium text-white"
+              style={{ background: "var(--accent-warm-end)" }}
+              aria-hidden
+            >
+              {pendingHabits[0]?.title.slice(0, 1) ?? "·"}
+            </span>
+            <span className="flex items-center gap-1.5 pr-1">
+              <span className="text-[11px] font-medium text-slate-500">
+                {pendingHabits.filter((h) => h.checkins.some((c) => c.date === getLocalToday() && c.completed)).length}/{pendingHabits.length}
               </span>
-            </motion.span>
-          )}
-        </AnimatePresence>
-      </motion.button>
+              <AnimatePresence initial={false}>
+                {confirmingHabitId === pendingHabits[0]?.id && pendingHabits[0] && (
+                  <motion.span
+                    key="mobile-confirm-row"
+                    initial={{ width: 0, opacity: 0 }}
+                    animate={{ width: "auto", opacity: 1 }}
+                    exit={{ width: 0, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="flex items-center gap-1.5 overflow-hidden whitespace-nowrap"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span className="text-[11px] font-medium text-slate-600">
+                      {pendingHabits[0].title}
+                    </span>
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const first = pendingHabits[0];
+                        if (first) {
+                          handleComplete(first.id, first.title);
+                          setConfirmingHabitId(null);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const first = pendingHabits[0];
+                          if (first) {
+                            handleComplete(first.id, first.title);
+                            setConfirmingHabitId(null);
+                          }
+                        }
+                      }}
+                      className="flex h-5 w-5 items-center justify-center rounded-full text-white transition-colors hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-warm-start)]"
+                      style={{ background: "var(--accent-warm-end)" }}
+                      aria-label={`完成暖身：${pendingHabits[0].title}`}
+                    >
+                      <Check className="h-3 w-3" aria-hidden />
+                    </span>
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </span>
+          </motion.button>
+        </div>
+      )}
     </>
   );
 }
