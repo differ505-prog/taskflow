@@ -364,7 +364,7 @@ export default function ZenDashboard() {
           {/* §Safari-test: 移除 touch-manipulation + active:scale, 改用 touch-action:auto + user-select:auto 測試 hit-testing */}
           <a
             href="/?board=1"
-            className="inline-flex items-center gap-1.5 rounded-full bg-rose-50/80 px-3 py-2 text-sm font-medium text-rose-500 backdrop-blur transition-all duration-200 ease-out md:hover:-translate-y-0.5 md:hover:text-rose-600 md:hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200 sm:px-4"
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-slate-500 transition-all duration-200 ease-out hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-200 sm:px-4"
             style={{ touchAction: "auto", userSelect: "auto" }}
             aria-label="進入任務大廳(收件箱) — 整理任務或快速 Brain Dump"
           >
@@ -466,8 +466,11 @@ export default function ZenDashboard() {
         {/* 「今天先這樣」 — 禪模式主動封存,只剩焦點卡時也可單獨封存 */}
         <TodayWrapUpButton tasks={visibleTasks} />
 
-        {/* 陪伴指示燈 — §26 放在「今天先這樣」正下方置中，統一中軸線 */}
-        <div className="mt-8 flex justify-center pb-24">
+        {/* 陪伴指示燈 — 對齊右下角，建立隱形底部網格 */}
+        <div 
+          className="mt-8 flex justify-center pb-24 sm:fixed sm:bottom-6 sm:right-6 sm:z-20 sm:mt-0 sm:pb-0"
+          style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
+        >
           <PresenceDot />
         </div>
       </div>
@@ -792,7 +795,7 @@ function QueueItemCard({ task, isDragging = false }: { task: Task; isDragging?: 
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center gap-4 rounded-3xl bg-white px-12 py-16 text-center shadow-sm ring-1 ring-slate-200/60">
+    <div className="flex flex-col items-center gap-4 rounded-3xl bg-slate-50/50 px-12 py-16 text-center ring-1 ring-black/5">
       <div className="relative flex h-20 w-20 items-center justify-center">
         <div
           className="absolute inset-0 rounded-full"

@@ -150,7 +150,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
             transition={{ duration: 0.4, ease: "easeOut", delay: 0.3 }}
             onClick={() => setIsCreating(true)}
             aria-label="建立第一個暖身習慣"
-            className="fixed bottom-6 left-6 z-30 flex items-center gap-2 rounded-full bg-white/90 px-3 py-2 text-rose-400 shadow-sm ring-1 ring-slate-200/60 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+            className="fixed bottom-6 left-6 z-30 flex items-center gap-2 rounded-full bg-white/90 px-3 py-2 text-slate-500 shadow-sm ring-1 ring-slate-200/60 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
             style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
             whileTap={{ scale: 0.92 }}
           >
@@ -226,9 +226,9 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
           className="hidden sm:flex fixed bottom-6 left-6 z-20 items-center gap-2"
           style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
         >
-          <div className="flex items-center gap-1.5 rounded-full bg-rose-50/80 px-3 py-1.5 backdrop-blur">
-            <Check className="h-3.5 w-3.5 text-rose-400" aria-hidden />
-            <span className="text-[11px] font-medium text-rose-500">今日暖身已就位</span>
+          <div className="flex items-center gap-1.5 rounded-full bg-slate-100/80 px-3 py-1.5 backdrop-blur">
+            <Check className="h-3.5 w-3.5 text-slate-400" aria-hidden />
+            <span className="text-[11px] font-medium text-slate-500">今日暖身已就位</span>
           </div>
           {/* 本月打卡統計 */}
           <button
@@ -237,7 +237,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
               setCurrentView("habits");
               router.push("/?board=1");
             }}
-            className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-rose-400/70 transition-colors hover:bg-rose-100 hover:text-rose-600"
+            className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-slate-400/70 transition-colors hover:bg-slate-100 hover:text-slate-600"
             aria-label="查看完整月曆"
           >
             <span>📅 {monthStats.doneDaysThisMonth}/{monthStats.todayDay} 天</span>
@@ -250,7 +250,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut", delay: 0.3 }}
-          className="sm:hidden fixed bottom-6 left-6 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-rose-50 text-rose-400 shadow-sm ring-1 ring-rose-200/60 backdrop-blur"
+          className="sm:hidden fixed bottom-6 left-6 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-slate-400 shadow-sm ring-1 ring-slate-200/60 backdrop-blur"
           style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
           aria-label="今日暖身已就位"
           role="status"
@@ -300,7 +300,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
           transition={{ duration: 0.35, ease: "easeOut", delay: 0.5 }}
           onClick={onEnterFlow}
           aria-label="開始暖身儀式"
-          className="fixed left-6 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-xs font-medium uppercase leading-none tracking-widest text-rose-600 shadow-md ring-2 ring-rose-200 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-rose-50 hover:text-rose-700 hover:shadow-lg hover:ring-rose-300 active:scale-95 sm:bottom-6 sm:translate-x-0"
+          className="fixed left-6 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-xs font-medium uppercase leading-none tracking-widest text-slate-600 shadow-md ring-1 ring-slate-200/60 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-slate-50 hover:text-slate-700 hover:shadow-lg hover:ring-slate-300 active:scale-95 sm:bottom-6 sm:translate-x-0"
           style={{ bottom: "max(9.5rem, calc(9.5rem + env(safe-area-inset-bottom, 0px)))" }}
           whileTap={{ scale: 0.92 }}
         >

@@ -25,11 +25,7 @@ export function QuickCaptureTrigger({ variant, onClick }: QuickCaptureTriggerPro
         type="button"
         onClick={onClick}
         aria-label="新增任務至收件箱"
-        className="hidden items-center gap-2 rounded-full px-4 py-2.5 text-[14px] font-medium text-white shadow-md transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 md:inline-flex"
-        style={{
-          background: "var(--brand)",
-          boxShadow: "0 4px 12px -2px color-mix(in srgb, var(--brand) 25%, transparent)",
-        }}
+        className="hidden items-center gap-2 rounded-full bg-slate-100 px-4 py-2.5 text-[14px] font-medium text-slate-600 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[var(--brand)] hover:text-white hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] md:inline-flex"
       >
         <Plus className="h-4 w-4" aria-hidden />
         <span>新增</span>
