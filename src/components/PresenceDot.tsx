@@ -34,8 +34,8 @@ export default function PresenceDot() {
     >
       {/* 綠點 → 柔和 emerald-400/70 + 微弱 pulse(已有 animate-ping) */}
       <span className="relative inline-flex h-1.5 w-1.5">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/40 opacity-50" />
-        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400/80" />
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400/40 opacity-50" />
+        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-400/80" />
       </span>
 
       {/* 主文案:字體縮小 + 顏色調淡,更緊密依附 FAB */}

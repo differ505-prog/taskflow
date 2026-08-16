@@ -26,7 +26,7 @@ export const BASE_HABIT_PP = 10;
 export const PROGRESS_LEVELS: readonly ProgressLevel[] = [
   { tier: 1, code: "I",   label: "Pro 等級 I",   min: 0,     max: 500,    color: "#94a3b8" },
   { tier: 2, code: "II",  label: "Pro 等級 II",  min: 500,   max: 1500,   color: "#64748b" },
-  { tier: 3, code: "III", label: "Pro 等級 III", min: 1500,   max: 3500,   color: "#3b82f6" },
+  { tier: 3, code: "III", label: "Pro 等級 III", min: 1500,   max: 3500,   color: "#f43f5e" },
   { tier: 4, code: "IV",  label: "Pro 等級 IV",  min: 3500,   max: 7000,   color: "#a855f7" },
   { tier: 5, code: "V",   label: "Pro 等級 V",   min: 7000,   max: 15000,  color: "#ec4899" },
   { tier: 6, code: "VI",  label: "Pro 等級 VI",  min: 15000,  max: Infinity, color: "#f59e0b" },

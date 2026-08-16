@@ -300,7 +300,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
           transition={{ duration: 0.35, ease: "easeOut", delay: 0.5 }}
           onClick={onEnterFlow}
           aria-label="開始暖身儀式"
-          className="fixed left-6 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2 text-xs font-medium uppercase leading-none tracking-widest text-slate-400 shadow-sm ring-1 ring-slate-200/60 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-white hover:text-slate-600 hover:shadow-md active:scale-95 sm:bottom-6 sm:translate-x-0"
+          className="fixed left-6 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-medium uppercase leading-none tracking-widest text-rose-600 shadow-md ring-2 ring-rose-200 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-rose-50 hover:text-rose-700 hover:shadow-lg hover:ring-rose-300 active:scale-95 sm:bottom-6 sm:translate-x-0"
           style={{ bottom: "max(140px, calc(140px + env(safe-area-inset-bottom, 0px)))" }}
           whileTap={{ scale: 0.92 }}
         >
