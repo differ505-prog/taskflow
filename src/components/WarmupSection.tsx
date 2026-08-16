@@ -82,6 +82,22 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
     });
   }, [habits, today]);
 
+  // 本月打卡統計（供手機版按鈕直接取用，無需 IIFE 包裝）
+  const monthStats = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const todayDay = parseInt(today.split("-")[2], 10);
+    const activeHabits = habits.filter((h) => !h.archivedAt);
+    const monthDays = Array.from({ length: todayDay }, (_, i) =>
+      toLocalDateString(new Date(currentYear, currentMonth, i + 1))
+    );
+    const doneDaysThisMonth = monthDays.filter((date) =>
+      activeHabits.every((h) => h.checkins.some((c) => c.date === date && c.completed))
+    ).length;
+    return { doneDaysThisMonth, todayDay };
+  }, [habits, today]);
+
   const handleComplete = (habitId: string, habitTitle: string) => {
     checkinHabit(habitId, today);
     // 多巴胺回饋:toast + 微量 PP
@@ -200,20 +216,6 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
 
   // 有 Habit 但今日全部完成 → 顯示「今日暖身完成」安靜訊息 + 本月統計
   if (pendingHabits.length === 0) {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    const daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const today = getLocalToday();
-    const todayDay = parseInt(today.split("-")[2], 10);
-    const activeHabits = habits.filter((h) => !h.archivedAt);
-    const monthDays = Array.from({ length: todayDay }, (_, i) =>
-      toLocalDateString(new Date(currentYear, currentMonth, i + 1))
-    );
-    const doneDaysThisMonth = monthDays.filter((date) =>
-      activeHabits.every((h) => h.checkins.some((c) => c.date === date && c.completed))
-    ).length;
-
     return (
       <>
         {/* 桌機:原貌 + 底部統計行 */}
@@ -238,7 +240,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
             className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
             aria-label="查看完整月曆"
           >
-            <span>📅 本月打卡 {doneDaysThisMonth}/{todayDay} 天</span>
+            <span>📅 本月打卡 {monthStats.doneDaysThisMonth}/{monthStats.todayDay} 天</span>
             <ChevronRight className="w-3 h-3" aria-hidden />
           </button>
         </motion.div>
@@ -272,34 +274,18 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
         aria-label="暖身習慣：點擊展開確認"
       >
         {/* 本月打卡統計行 */}
-        {(() => {
-          const now = new Date();
-          const currentMonth = now.getMonth();
-          const currentYear = now.getFullYear();
-          const today = getLocalToday();
-          const todayDay = parseInt(today.split("-")[2], 10);
-          const activeHabits = habits.filter((h) => !h.archivedAt);
-          const monthDays = Array.from({ length: todayDay }, (_, i) =>
-            toLocalDateString(new Date(currentYear, currentMonth, i + 1))
-          );
-          const doneDaysThisMonth = monthDays.filter((date) =>
-            activeHabits.every((h) => h.checkins.some((c) => c.date === date && c.completed))
-          ).length;
-          return (
-            <button
-              type="button"
-              onClick={() => {
-                setCurrentView("habits");
-                router.push("/?board=1");
-              }}
-              className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-              aria-label="查看完整月曆"
-            >
-              <span>📅 本月打卡 {doneDaysThisMonth}/{todayDay} 天</span>
-              <ChevronRight className="w-3 h-3" aria-hidden />
-            </button>
-          );
-        })()}
+        <button
+          type="button"
+          onClick={() => {
+            setCurrentView("habits");
+            router.push("/?board=1");
+          }}
+          className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+          aria-label="查看完整月曆"
+        >
+          <span>📅 本月打卡 {monthStats.doneDaysThisMonth}/{monthStats.todayDay} 天</span>
+          <ChevronRight className="w-3 h-3" aria-hidden />
+        </button>
       </motion.div>
 
       {/* §26 B 評分表 9.1:「開始暖身」入口 — 點擊進入全螢幕抽卡流程
@@ -321,6 +307,23 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
           <Flame className="h-3.5 w-3.5" aria-hidden />
           <span className="leading-none">開始暖身</span>
         </motion.button>
+      )}
+
+      {/* 手機:本月打卡統計入口 */}
+      {habits.some((h) => !h.archivedAt) && (
+        <button
+          type="button"
+          onClick={() => {
+            setCurrentView("habits");
+            router.push("/?board=1");
+          }}
+          className="sm:hidden fixed bottom-6 left-6 z-20 flex items-center gap-1 rounded-full border border-slate-200/60 bg-white/80 px-3 py-2 text-[11px] font-medium text-slate-400 shadow-sm backdrop-blur transition-colors duration-200 hover:bg-white hover:text-slate-600 active:bg-slate-50"
+          style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
+          aria-label={`本月打卡 ${monthStats.doneDaysThisMonth}/${monthStats.todayDay} 天，點擊進入習慣頁`}
+        >
+          <span>📅 {monthStats.doneDaysThisMonth}/{monthStats.todayDay} 天</span>
+          <ChevronRight className="w-3 h-3" aria-hidden />
+        </button>
       )}
 
     </>
