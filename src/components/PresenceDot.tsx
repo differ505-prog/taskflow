@@ -30,7 +30,7 @@ export default function PresenceDot() {
       className="inline-flex items-center gap-2 rounded-full bg-slate-100/50 px-3 py-1.5 backdrop-blur"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      aria-label={`估計目前有 ${range.min} 到 ${range.max} 位用戶同步專注,這是基於活躍用戶時區的估算數值`}
+      aria-label={`此刻約有 ${range.min} 到 ${range.max} 位專注中,這是基於時區的估算數值`}
     >
       {/* 綠點 → 柔和 emerald-400/70 + 微弱 pulse(已有 animate-ping) */}
       <span className="relative inline-flex h-1.5 w-1.5">
@@ -39,8 +39,8 @@ export default function PresenceDot() {
       </span>
 
       {/* 主文案:字體縮小 + 顏色調淡,更緊密依附 FAB */}
-      <span className="text-[11px] text-slate-400">
-        估計目前有 {range.min}-{range.max} 位用戶同步專注
+      <span className="text-[11px] text-slate-400 tabular-nums">
+        此刻約有 {range.min}-{range.max} 位專注中
       </span>
 
       {/* Hover tooltip — 揭露這是估算,建立信任 */}
@@ -54,7 +54,7 @@ export default function PresenceDot() {
             className="absolute bottom-full right-0 mb-2 w-64 rounded-lg bg-slate-800/95 px-3 py-2 text-xs leading-relaxed text-slate-100 shadow-lg backdrop-blur"
             role="tooltip"
           >
-            這是基於活躍用戶時區的估算數值,希望能為你的專注時刻營造安靜的陪伴氛圍。
+            此刻約有 {range.min} 到 {range.max} 位用戶與你同在,這是基於時區的估算,希望能為你的專注時刻帶來一點安靜的陪伴。
             {/* 小三角箭頭 */}
             <span
               className="absolute right-4 top-full h-2 w-2 -translate-y-1/2 rotate-45 bg-slate-800/95"
