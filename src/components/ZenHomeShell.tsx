@@ -150,7 +150,7 @@ function BoardDrawer({
                 <span>關閉</span>
               </button>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto">{content}</div>
+            <div className="min-h-0 flex-1 overflow-y-auto [&>*]:h-full [&>*]:overflow-auto">{content}</div>
           </motion.div>
         </>
       )}
