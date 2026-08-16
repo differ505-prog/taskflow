@@ -279,6 +279,31 @@
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
   }
 
+  /* Zen 模式暖色 Primary CTA */
+  .btn-primary-zen {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 20px;
+    background: var(--accent-warm-start);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: var(--radius-md);
+    border: none;
+    cursor: pointer;
+    transition: background 200ms ease,
+                transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 200ms ease;
+  }
+
+  .btn-primary-zen:hover {
+    background: #9171F5;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(var(--accent-warm-start-rgb), 0.45);
+  }
+
   .btn-primary:active {
     transform: scale(0.97);
     box-shadow: none;
@@ -586,6 +611,41 @@
   .fab:active {
     transform: scale(0.94);
     box-shadow: 0 2px 8px rgba(79, 106, 245, 0.30);
+  }
+
+  /* Zen 模式 FAB — warm violet */
+  .fab-zen {
+    position: fixed;
+    bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--accent-warm-start);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(var(--accent-warm-start-rgb), 0.50), 0 2px 8px rgba(0,0,0,0.12);
+    transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 200ms ease;
+    z-index: 40;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    min-width: 56px;
+    min-height: 56px;
+  }
+
+  .fab-zen:hover {
+    transform: scale(1.08) translateY(-2px);
+    box-shadow: 0 8px 24px rgba(var(--accent-warm-start-rgb), 0.60), 0 4px 12px rgba(0,0,0,0.16);
+  }
+
+  .fab-zen:active {
+    transform: scale(0.94);
+    box-shadow: 0 2px 8px rgba(var(--accent-warm-start-rgb), 0.40);
   }
 
   /* Bottom Navigation */

@@ -488,6 +488,7 @@ const canDrag = !currentSharedListId && !isMobile;
                 onClick={() => { setFormInitialStatus("todo"); setIsFormOpen(true); }}
                 aria-label="新增任務"
                 icon={<Plus className="w-4 h-4" />}
+                className={currentView === "inbox" ? "btn-primary-zen" : undefined}
               >
                 新增任務
               </Button>
@@ -1172,7 +1173,7 @@ const canDrag = !currentSharedListId && !isMobile;
       {/* FAB — Mobile only, hidden in shared list view and when task selected */}
       {!currentSharedListId && !selectedTaskId && (
       <button
-        className="md:hidden fab"
+        className={`md:hidden ${currentView === "inbox" ? "fab-zen" : "fab"}`}
         onClick={() => { setFormInitialStatus("todo"); setIsFormOpen(true); setEditingTask(null); }}
         aria-label="新增任務"
         style={{ animation: "fab-pop 300ms cubic-bezier(0.34,1.56,0.64,1)" }}
