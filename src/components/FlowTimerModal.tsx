@@ -144,7 +144,7 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
         exit={{ scale: 0.95, y: 10 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
         className="relative flex items-stretch overflow-hidden"
-        style={{ background: "var(--surface-elevated)", boxShadow: "var(--shadow-lg)", borderRadius: "1.5rem" }}
+        style={{ background: "var(--surface-elevated)", boxShadow: "var(--shadow-lg)", borderRadius: "1.5rem", maxHeight: "85vh" }}
       >
         {/* Left: timer content */}
         <div className="flex-1 flex flex-col items-center p-8 text-center space-y-5 min-w-0">
