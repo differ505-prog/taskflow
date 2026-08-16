@@ -150,7 +150,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
             transition={{ duration: 0.4, ease: "easeOut", delay: 0.3 }}
             onClick={() => setIsCreating(true)}
             aria-label="建立第一個暖身習慣"
-            className="fixed bottom-6 left-6 z-20 flex items-center gap-2 rounded-full bg-white/80 px-3 py-2 text-rose-400 shadow-sm ring-1 ring-slate-200/60 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+            className="fixed bottom-6 left-6 z-30 flex items-center gap-2 rounded-full bg-white/90 px-3 py-2 text-rose-400 shadow-sm ring-1 ring-slate-200/60 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:ring-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
             style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
             whileTap={{ scale: 0.92 }}
           >
@@ -300,8 +300,8 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
           transition={{ duration: 0.35, ease: "easeOut", delay: 0.5 }}
           onClick={onEnterFlow}
           aria-label="開始暖身儀式"
-          className="fixed left-6 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-medium uppercase leading-none tracking-widest text-rose-600 shadow-md ring-2 ring-rose-200 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-rose-50 hover:text-rose-700 hover:shadow-lg hover:ring-rose-300 active:scale-95 sm:bottom-6 sm:translate-x-0"
-          style={{ bottom: "max(140px, calc(140px + env(safe-area-inset-bottom, 0px)))" }}
+          className="fixed left-6 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-xs font-medium uppercase leading-none tracking-widest text-rose-600 shadow-md ring-2 ring-rose-200 backdrop-blur transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-rose-50 hover:text-rose-700 hover:shadow-lg hover:ring-rose-300 active:scale-95 sm:bottom-6 sm:translate-x-0"
+          style={{ bottom: "max(9.5rem, calc(9.5rem + env(safe-area-inset-bottom, 0px)))" }}
           whileTap={{ scale: 0.92 }}
         >
           <Flame className="h-3.5 w-3.5" aria-hidden />
