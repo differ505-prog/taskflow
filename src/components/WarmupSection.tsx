@@ -289,9 +289,9 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
       </motion.div>
 
       {/* §26 B 評分表 9.1:「開始暖身」入口 — 點擊進入全螢幕抽卡流程
-          只在 ≥2 個 pending 時出現,避免與「快速完成」競爭點擊目標
+          只在 ≥1 個 pending 時出現;完成最後一個習慣時此按鈕自然消失(該習慣已可直接點擊完成)
           雙平台都顯示:手機移到左下角群組上方(避開中央 FAB),桌機維持底部中央 */}
-      {pendingHabits.length >= 2 && onEnterFlow && (
+      {pendingHabits.length >= 1 && onEnterFlow && (
         <motion.button
           type="button"
           initial={{ opacity: 0, scale: 0.85 }}
