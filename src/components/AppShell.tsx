@@ -488,6 +488,7 @@ const canDrag = !currentSharedListId && !isMobile;
                 onClick={() => { setFormInitialStatus("todo"); setIsFormOpen(true); }}
                 aria-label="新增任務"
                 icon={<Plus className="w-4 h-4" />}
+                variant={currentView === "inbox" ? "ghost" : "primary"}
                 className={currentView === "inbox" ? "btn-primary-zen" : undefined}
               >
                 新增任務

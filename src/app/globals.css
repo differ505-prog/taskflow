@@ -298,10 +298,15 @@
                 box-shadow 200ms ease;
   }
 
-  .btn-primary-zen:hover {
+  .btn-primary-zen.btn-primary-zen:hover {
     background: #9171F5;
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(167, 139, 250, 0.45);
+  }
+
+  .btn-primary-zen.btn-primary-zen:active {
+    transform: scale(0.97);
+    box-shadow: none;
   }
 
   .btn-primary:active {
