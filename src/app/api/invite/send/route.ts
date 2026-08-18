@@ -46,10 +46,33 @@ function getResend(): Resend | null {
   return key ? new Resend(key) : null;
 }
 
+// Rate limiting: 20 / hour per IP (invite emails are expensive)
+const inviteRequestCounts = new Map<string, { count: number; resetAt: number }>();
+const INVITE_RATE_LIMIT = 20;
+const INVITE_RATE_WINDOW_MS = 60 * 60 * 1000;
+
+function checkInviteRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = inviteRequestCounts.get(ip);
+  if (!entry || now > entry.resetAt) {
+    inviteRequestCounts.set(ip, { count: 1, resetAt: now + INVITE_RATE_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= INVITE_RATE_LIMIT) return false;
+  entry.count++;
+  return true;
+}
+
 // ─── POST handler ──────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   try {
+    // ── 0. Rate limit ────────────────────────────────────────────────────────
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0] ?? "unknown";
+    if (!checkInviteRateLimit(ip)) {
+      return NextResponse.json({ error: "太多次數,請稍後再試" }, { status: 429 });
+    }
+
     // ── 1. 解析 body ────────────────────────────────────────────────────────
     const body = await req.json();
     const { sharedListId, inviteeEmail, role } = body;
@@ -72,9 +95,6 @@ export async function POST(req: NextRequest) {
     let senderEmail: string;
     try {
       const authHeader = req.headers.get("Authorization");
-      const tokenStr = authHeader ? authHeader.replace("Bearer ", "").trim() : "none";
-      const tokenPrefix = tokenStr.substring(0, 15);
-      
       const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -88,13 +108,12 @@ export async function POST(req: NextRequest) {
       );
       const { data: { user }, error } = await supabase.auth.getUser();
       if (error || !user) {
-        return NextResponse.json({ error: `Invalid token (${tokenPrefix}...): ${error?.message || 'unknown'}` }, { status: 401 });
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
       senderUid = user.id;
       senderEmail = user.email ?? "";
-    } catch (err: any) {
-      console.error("Auth verification failed:", err);
-      return NextResponse.json({ error: `Auth verification failed: ${err?.message || 'unknown'}` }, { status: 401 });
+    } catch {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // ── 3. 確認發送者是清單 owner ────────────────────────────────────────────
