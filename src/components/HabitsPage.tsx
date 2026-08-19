@@ -281,6 +281,9 @@ function HabitRow({ habit, date, onCheckin, onDelete, onUpdate, onRestore }: {
           <div className="flex items-start justify-between gap-2">
             <div>
               <h3 className="text-[15px] font-medium" style={{ color: "var(--text-primary)" }}>{habit.title}</h3>
+              {habit.description && (
+                <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>{habit.description}</p>
+              )}
             </div>
             <div className="flex gap-1">
               <button
