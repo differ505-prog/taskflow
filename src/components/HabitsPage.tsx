@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { useApp } from "@/lib/AppContext";
 import { Habit } from "@/lib/types";
@@ -249,6 +249,12 @@ function HabitRow({ habit, date, onCheckin, onDelete, onUpdate, onRestore }: {
   const isChecked = !!currentCheckin?.completed;
   const last30Days = getLast30Days();
   const completedDays = new Set(habit.checkins.filter((c) => c.completed).map((c) => c.date));
+  
+  const [desc, setDesc] = useState(habit.description || "");
+
+  useEffect(() => {
+    setDesc(habit.description || "");
+  }, [habit.description]);
 
   const heatmapColors = (date: string) => {
     if (!completedDays.has(date)) return "var(--surface-hover)";
@@ -279,11 +285,27 @@ function HabitRow({ habit, date, onCheckin, onDelete, onUpdate, onRestore }: {
         {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <div>
+            <div className="flex-1">
               <h3 className="text-[15px] font-medium" style={{ color: "var(--text-primary)" }}>{habit.title}</h3>
-              {habit.description && (
-                <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>{habit.description}</p>
-              )}
+              <input
+                type="text"
+                value={desc}
+                onChange={(e) => setDesc(e.target.value)}
+                onBlur={() => {
+                  if (desc.trim() !== (habit.description || "")) {
+                    onUpdate({ description: desc.trim() });
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.currentTarget.blur();
+                  }
+                }}
+                placeholder="新增符合的行為 (例如: 慢跑、重訓...)"
+                className="w-full bg-transparent outline-none text-[12px] mt-0.5 placeholder:opacity-50 transition-colors"
+                style={{ color: "var(--text-tertiary)" }}
+                disabled={isArchived}
+              />
             </div>
             <div className="flex gap-1">
               <button
@@ -364,7 +386,7 @@ function HabitRow({ habit, date, onCheckin, onDelete, onUpdate, onRestore }: {
 }
 
 export function HabitsPage() {
-  const { habits, addHabit, checkinHabit, uncheckHabit, archiveHabit, unarchiveHabit } = useApp();
+  const { habits, addHabit, updateHabit, checkinHabit, uncheckHabit, archiveHabit, unarchiveHabit } = useApp();
   const confirm = useConfirm();
   const today = getLocalToday();
   const [selectedDate, setSelectedDate] = useState<string>(today);
@@ -597,7 +619,7 @@ export function HabitsPage() {
                   });
                   if (ok) archiveHabit(habit.id);
                 }}
-                  onUpdate={() => {}}
+                  onUpdate={(updates) => updateHabit(habit.id, updates)}
                   onRestore={showArchived ? () => unarchiveHabit(habit.id) : undefined}
                 />
               </motion.div>
