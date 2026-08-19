@@ -526,6 +526,14 @@ export function HabitsPage() {
               ))}
             </div>
 
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="符合行為，例如：慢跑、游泳、健身（選填）"
+              rows={2}
+              className="input resize-none text-[13px]"
+            />
+
             <div className="flex gap-3">
               <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>取消</Button>
               <Button type="button" onClick={handleSubmit} disabled={!form.title.trim()}>
