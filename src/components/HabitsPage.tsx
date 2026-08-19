@@ -235,13 +235,14 @@ function getLast30Days(): string[] {
   return days;
 }
 
-function HabitRow({ habit, date, onCheckin, onDelete, onUpdate, onRestore }: {
+function HabitRow({ habit, date, onCheckin, onDelete, onUpdate, onRestore, onEdit }: {
   habit: Habit;
   date: string;
   onCheckin: () => void;
   onDelete: () => void;
   onUpdate: (updates: Partial<Habit>) => void;
   onRestore?: () => void;
+  onEdit: () => void;
 }) {
   const [showHeatmap, setShowHeatmap] = useState(false);
   const isArchived = !!habit.archivedAt;
@@ -308,15 +309,7 @@ function HabitRow({ habit, date, onCheckin, onDelete, onUpdate, onRestore }: {
               />
             </div>
             <div className="flex gap-1">
-              <button
-                onClick={() => setShowHeatmap(!showHeatmap)}
-                className="p-1.5 rounded-lg hover:bg-[var(--hover-bg)] transition-colors"
-                style={{ color: "var(--text-tertiary)" }}
-                aria-label="顯示熱力圖"
-              >
-                <TrendingUp className="w-4 h-4" />
-              </button>
-              {onRestore ? (
+              {isArchived && onRestore ? (
                 <button
                   onClick={onRestore}
                   className="px-2 py-1 rounded-lg text-[12px] font-medium hover:bg-blue-50 transition-colors"
@@ -326,14 +319,32 @@ function HabitRow({ habit, date, onCheckin, onDelete, onUpdate, onRestore }: {
                   還原
                 </button>
               ) : (
-                <button
-                  onClick={onDelete}
-                  className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
-                  style={{ color: "var(--text-tertiary)" }}
-                  aria-label="封存習慣"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <>
+                  <button
+                    onClick={() => setShowHeatmap(!showHeatmap)}
+                    className="p-1.5 rounded-lg hover:bg-[var(--hover-bg)] transition-colors"
+                    style={{ color: "var(--text-tertiary)" }}
+                    aria-label="顯示熱力圖"
+                  >
+                    <TrendingUp className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={onEdit}
+                    className="p-1.5 rounded-lg hover:bg-[var(--hover-bg)] transition-colors"
+                    style={{ color: "var(--text-tertiary)" }}
+                    aria-label="編輯習慣"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={onDelete}
+                    className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                    style={{ color: "var(--text-tertiary)" }}
+                    aria-label="封存習慣"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -393,6 +404,7 @@ export function HabitsPage() {
   const [showForm, setShowForm] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
   const [form, setForm] = useState<HabitFormData>({
     title: "",
     frequency: "daily",
@@ -404,14 +416,45 @@ export function HabitsPage() {
 
   const handleSubmit = () => {
     if (!form.title.trim()) return;
-    addHabit({
-      title: form.title.trim(),
-      description: form.description || undefined,
-      frequency: form.frequency,
-      color: form.color,
-      daysOfWeek: form.frequency === "weekly" ? form.daysOfWeek : undefined,
-      targetCount: form.targetCount,
+    if (editingHabitId) {
+      updateHabit(editingHabitId, {
+        title: form.title.trim(),
+        description: form.description || undefined,
+        frequency: form.frequency,
+        color: form.color,
+        daysOfWeek: form.frequency === "weekly" ? form.daysOfWeek : undefined,
+        targetCount: form.targetCount,
+      });
+      setEditingHabitId(null);
+    } else {
+      addHabit({
+        title: form.title.trim(),
+        description: form.description || undefined,
+        frequency: form.frequency,
+        color: form.color,
+        daysOfWeek: form.frequency === "weekly" ? form.daysOfWeek : undefined,
+        targetCount: form.targetCount,
+      });
+    }
+    setForm({ title: "", frequency: "daily", color: HABIT_COLORS[0], daysOfWeek: [], targetCount: 1, description: "" });
+    setShowForm(false);
+  };
+
+  const openEditForm = (habit: Habit) => {
+    setEditingHabitId(habit.id);
+    setForm({
+      title: habit.title,
+      frequency: habit.frequency,
+      color: habit.color,
+      daysOfWeek: habit.daysOfWeek || [],
+      targetCount: habit.targetCount,
+      description: habit.description || "",
     });
+    setShowForm(true);
+  };
+
+  const cancelEdit = () => {
+    setEditingHabitId(null);
     setForm({ title: "", frequency: "daily", color: HABIT_COLORS[0], daysOfWeek: [], targetCount: 1, description: "" });
     setShowForm(false);
   };
@@ -557,9 +600,9 @@ export function HabitsPage() {
             />
 
             <div className="flex gap-3">
-              <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>取消</Button>
+              <Button type="button" variant="ghost" onClick={cancelEdit}>取消</Button>
               <Button type="button" onClick={handleSubmit} disabled={!form.title.trim()}>
-                建立習慣
+                {editingHabitId ? "儲存變更" : "建立習慣"}
               </Button>
             </div>
           </motion.div>
@@ -621,6 +664,7 @@ export function HabitsPage() {
                 }}
                   onUpdate={(updates) => updateHabit(habit.id, updates)}
                   onRestore={showArchived ? () => unarchiveHabit(habit.id) : undefined}
+                  onEdit={() => openEditForm(habit)}
                 />
               </motion.div>
             ))}
