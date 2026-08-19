@@ -167,16 +167,12 @@ function HabitCalendar({ habits, activeHabits, checkinHabit, uncheckHabit, selec
               {!isFuture && dayCheckins.length > 0 && (
                 <div className="flex flex-wrap justify-center gap-0.5 mt-0.5 max-w-[36px]">
                   {dayCheckins.slice(0, 3).map(({ habit, checkin }) => (
-                    <button
+                    <div
                       key={habit.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        uncheckHabit(habit.id, dateStr);
-                      }}
-                      className="w-2 h-2 rounded-full transition-transform hover:scale-125"
+                      className="w-2 h-2 rounded-full"
                       style={{ background: habit.color }}
                       title={`${habit.title} ${dateStr} ✓`}
-                      aria-label={`取消 ${habit.title} ${dateStr} 打卡`}
+                      aria-label={`${habit.title} ${dateStr} 已打卡`}
                     />
                   ))}
                   {dayCheckins.length > 3 && (
