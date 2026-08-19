@@ -298,7 +298,7 @@ function HabitRow({ habit, date, onCheckin, onDelete, onUpdate, onRestore, onEdi
                   }
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") {
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                     e.currentTarget.blur();
                   }
                 }}
