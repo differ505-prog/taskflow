@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
 import { translateAuthError } from "@/lib/errorMessages";
-import { toast } from "sonner";
-import { Loader2, Mail } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 interface LandingPageProps {
   onGuestMode: () => void;
@@ -15,9 +14,7 @@ export function LandingPage({ onGuestMode }: LandingPageProps) {
   const { signInWithGoogle, loading: authLoading } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [signingIn, setSigningIn] = useState(false);
-  const [showEmailFallback, setShowEmailFallback] = useState(false);
 
-  // Parse OAuth error from URL (Google 登入失敗時 redirect 回來帶 error)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -39,7 +36,6 @@ export function LandingPage({ onGuestMode }: LandingPageProps) {
     }
   };
 
-  // 登入成功後，AuthGate 會自動處理 redirect，this component 將 unmount
   if (authLoading) {
     return (
       <div
@@ -56,56 +52,126 @@ export function LandingPage({ onGuestMode }: LandingPageProps) {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center px-5"
+      className="min-h-screen flex flex-col items-center justify-center px-5 overflow-hidden"
       style={{ background: "var(--surface-muted)" }}
     >
       {/* Ambient background blobs */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
         <div
-          className="absolute -top-48 -right-48 w-[28rem] h-[28rem] rounded-full opacity-15 blur-3xl"
+          className="absolute -top-48 -right-48 w-[28rem] h-[28rem] rounded-full opacity-10 blur-3xl"
           style={{ background: "var(--brand)" }}
         />
         <div
-          className="absolute -bottom-48 -left-48 w-[28rem] h-[28rem] rounded-full opacity-10 blur-3xl"
-          style={{ background: "var(--status-success)" }}
+          className="absolute -bottom-48 -left-48 w-[28rem] h-[28rem] rounded-full opacity-8 blur-3xl"
+          style={{ background: "#818CF8" }}
         />
       </div>
 
-      <div className="relative w-full max-w-xs">
-        {/* Logo mark */}
+      <div className="relative w-full max-w-xs flex flex-col items-center">
+
+        {/* Logo wordmark */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="flex justify-center mb-12"
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          className="mb-10"
         >
-          <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center"
-            style={{ background: "var(--brand)" }}
+          <span
+            className="text-[22px] font-semibold tracking-tight"
+            style={{ color: "var(--text-primary)" }}
           >
-            <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-              <path
-                d="M8 16L14 22L24 10"
-                stroke="white"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+            VibeList
+          </span>
         </motion.div>
 
-        {/* Headline */}
+        {/* H1: 核彈級文案 */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="text-center mb-12"
+          transition={{ delay: 0.1, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          className="text-center mb-5"
         >
-          <h1 className="text-[28px] font-semibold leading-snug" style={{ color: "var(--text-primary)" }}>
+          <h1
+            className="text-[26px] font-semibold leading-snug text-balance"
+            style={{ color: "var(--text-primary)" }}
+          >
             你需要的不是效率工具，<br />
             <span style={{ color: "var(--brand)" }}>是多巴胺。</span>
           </h1>
+        </motion.div>
+
+        {/* H2: 極低調副標題 */}
+        <motion.p
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.22, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          className="text-center text-[13px] leading-relaxed mb-10"
+          style={{ color: "var(--text-tertiary)" }}
+        >
+          專為啟動癱瘓設計的極簡防線。<br />
+          <span className="text-[11px]">Beta 公測中。</span>
+        </motion.p>
+
+        {/* UI 截圖點綴：禪模式任務卡浮現 */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.3, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          className="mb-10 w-full max-w-[260px]"
+        >
+          <div
+            className="rounded-2xl overflow-hidden shadow-lg"
+            style={{
+              background: "var(--surface)",
+              boxShadow: "0 8px 40px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06)",
+            }}
+          >
+            {/* Simulated Zen task card */}
+            <div className="px-4 py-3.5 flex items-center gap-3">
+              <div
+                className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center"
+                style={{
+                  background: "var(--surface-muted)",
+                  border: "1.5px solid var(--border)",
+                }}
+              >
+                <div className="w-2 h-2 rounded-full" style={{ background: "var(--text-tertiary)" }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] truncate" style={{ color: "var(--text-primary)" }}>
+                  讀完這章
+                </p>
+                <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+                  今天
+                </p>
+              </div>
+            </div>
+            {/* Glow accent line */}
+            <div
+              className="h-0.5 w-16 mx-4 mb-3 rounded-full"
+              style={{ background: "var(--brand)" }}
+            />
+            {/* Second task (muted) */}
+            <div className="px-4 pb-3.5 flex items-center gap-3">
+              <div
+                className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center"
+                style={{
+                  background: "var(--surface-muted)",
+                  border: "1.5px solid var(--border)",
+                }}
+              >
+                <div className="w-2 h-2 rounded-full opacity-40" style={{ background: "var(--text-tertiary)" }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] truncate opacity-40" style={{ color: "var(--text-primary)" }}>
+                  下一步行動
+                </p>
+                <p className="text-[11px] opacity-40" style={{ color: "var(--text-tertiary)" }}>
+                  明天
+                </p>
+              </div>
+            </div>
+          </div>
         </motion.div>
 
         {/* Error message */}
@@ -113,7 +179,7 @@ export function LandingPage({ onGuestMode }: LandingPageProps) {
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-5 px-4 py-3 rounded-xl text-[13px] text-center"
+            className="mb-4 px-4 py-3 rounded-xl text-[13px] text-center w-full max-w-xs"
             style={{
               background: "rgba(255,59,48,0.08)",
               color: "var(--status-danger)",
@@ -127,7 +193,8 @@ export function LandingPage({ onGuestMode }: LandingPageProps) {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ delay: 0.4, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          className="w-full max-w-xs"
         >
           <button
             onClick={handleGoogle}
@@ -145,51 +212,23 @@ export function LandingPage({ onGuestMode }: LandingPageProps) {
                   <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" />
                   <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" />
                 </svg>
-                使用 Google 登入
+                使用 Google 帳號登入
               </>
             )}
           </button>
         </motion.div>
 
-        {/* Divider */}
-        {!showEmailFallback && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.35 }}
-            className="mt-8 text-center"
-          >
-            <button
-              onClick={() => setShowEmailFallback(true)}
-              className="text-[13px] underline underline-offset-2 transition-colors"
-              style={{ color: "var(--text-tertiary)" }}
-            >
-              還沒有帳號？
-            </button>
-          </motion.div>
-        )}
+        {/* Privacy note */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.55, duration: 0.5 }}
+          className="text-center text-[11px] mt-4"
+          style={{ color: "var(--text-tertiary)" }}
+        >
+          開始無壓體驗
+        </motion.p>
 
-        {/* Email fallback */}
-        {showEmailFallback && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            transition={{ duration: 0.3 }}
-            className="mt-8 text-center overflow-hidden"
-          >
-            <button
-              onClick={() => {
-                // 導向完整登入頁（包含 Email 表單）
-                window.location.href = "/login?mode=email";
-              }}
-              className="inline-flex items-center gap-1.5 text-[13px] underline underline-offset-2 transition-colors"
-              style={{ color: "var(--text-tertiary)" }}
-            >
-              <Mail className="w-3.5 h-3.5" />
-              用 Email 註冊
-            </button>
-          </motion.div>
-        )}
       </div>
     </div>
   );
