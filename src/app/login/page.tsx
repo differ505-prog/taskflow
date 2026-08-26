@@ -1,6 +1,6 @@
 "use client";
 
-import { AuthPage } from "@/components/AuthPage";
+import { LandingPage } from "@/components/LandingPage";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -11,5 +11,5 @@ export default function LoginPage() {
     router.push("/");
   };
 
-  return <AuthPage onGuestMode={handleGuestMode} />;
+  return <LandingPage onGuestMode={handleGuestMode} />;
 }
