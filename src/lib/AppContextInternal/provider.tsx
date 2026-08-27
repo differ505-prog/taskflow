@@ -602,7 +602,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       queueMicrotask(() => saveTasks(migratedTasks));
     }
     const active = migratedTasks.filter((t) => !t.isArchived && (!t.listId || !sharedLists[t.listId]));
-    const activeShared = Object.values(sharedLists).flatMap(l => l.tasks).filter(t => !t.isArchived);
+    const activeShared = Object.entries(sharedLists).flatMap(([listId, l]) => l.tasks.map(t => ({ ...t, listId }))).filter(t => !t.isArchived);
     let result = [...active, ...activeShared];
     const now = new Date();
     const localToday = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;

@@ -491,7 +491,13 @@ export interface SharedListData {
 }
 
 export function getSharedLists(): Record<string, SharedListData> {
-  return read<Record<string, SharedListData>>(SHARED_LISTS_KEY, {});
+  const data = read<Record<string, SharedListData>>(SHARED_LISTS_KEY, {});
+  for (const listId in data) {
+    if (data[listId]?.tasks) {
+      data[listId].tasks = data[listId].tasks.map((t) => ({ ...t, listId }));
+    }
+  }
+  return data;
 }
 
 export function saveSharedLists(data: Record<string, SharedListData>): void {
