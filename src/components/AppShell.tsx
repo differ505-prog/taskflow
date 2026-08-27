@@ -819,7 +819,15 @@ const canDrag = !currentSharedListId && !isMobile;
                     </div>
                 </div>
                 {/* Task list 區塊 — activeTasks 空時顯示對應空狀態,有任務時渲染清單 */}
-                {currentView === "inbox" && activeTasks.length === 0 && completedTasks.length === 0 ? (
+                {searchQuery && todayActiveTasks.length === 0 && overdueTasks.length === 0 && completedTasks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center flex-1 py-12 px-4 text-center">
+                    <div className="text-[48px] mb-4 opacity-50">🔍</div>
+                    <h3 className="text-[16px] font-semibold mb-2" style={{ color: "var(--text-primary)" }}>找不到符合的任務</h3>
+                    <p className="text-[14px]" style={{ color: "var(--text-tertiary)" }}>
+                      試試看其他關鍵字
+                    </p>
+                  </div>
+                ) : currentView === "inbox" && activeTasks.length === 0 && completedTasks.length === 0 ? (
                   <div className="flex flex-col items-center justify-center flex-1 py-12 px-4">
                     <motion.div
                       className="w-full max-w-md"
