@@ -94,6 +94,7 @@ export function AppShell({
     quickAddToShared, updateSharedTask, deleteSharedTask,
     getMyRole,
     reorderTasks,
+    searchQuery,
   } = useApp();
   const router = useRouter();
   const confirm = useConfirm();
