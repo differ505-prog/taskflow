@@ -1,7 +1,7 @@
 "use client";
 import { getLocalToday } from "@/lib/dateUtils";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -221,9 +221,23 @@ export function AppShell({
   const sharedListTasks: Task[] = currentSharedListId
     ? sharedLists[currentSharedListId]?.tasks ?? []
     : [];
-  const sharedFilteredTasks = activeFilter.status
-    ? sharedListTasks.filter((task) => task.status === activeFilter.status)
-    : sharedListTasks;
+  const sharedFilteredTasks = useMemo(() => {
+    let result = sharedListTasks;
+    if (activeFilter.status) {
+      result = result.filter((task) => task.status === activeFilter.status);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (t) =>
+          t.title.toLowerCase().includes(q) ||
+          t.description?.toLowerCase().includes(q) ||
+          t.tags.some((tag) => tag.toLowerCase().includes(q)) ||
+          t.subTasks?.some((s) => s.title.toLowerCase().includes(q))
+      );
+    }
+    return result;
+  }, [sharedListTasks, activeFilter.status, searchQuery]);
   // 用戶主動點了「已完成」狀態標籤時,只顯示已完成
   const explicitlyShowingDone = activeFilter.status === "done";
   // L6.5:已完成任務一律顯示在底部折疊區,所以 displayTasks 永遠包含全部
