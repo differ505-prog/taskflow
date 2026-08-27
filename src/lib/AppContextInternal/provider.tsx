@@ -1666,11 +1666,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // @ts-ignore
       window.appDebug?.(`canEditSharedList returned FALSE for ${sharedListId}`);
       log.warn("Viewer cannot edit tasks");
+      toast.error("您沒有此共享清單的編輯權限");
       return;
     }
     const currentSharedLists = getSharedLists();
     const data = currentSharedLists[sharedListId] || sharedLists[sharedListId];
-    if (!data) return;
+    if (!data) {
+      toast.error("找不到該共享清單資料");
+      return;
+    }
+    
+    const taskExists = data.tasks.some(t => t.id === taskId);
+    if (!taskExists) {
+      toast.error("在共享清單中找不到該任務");
+      return;
+    }
+
     const updatedTasks = data.tasks.map((t) =>
       t.id === taskId ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
     );
@@ -1692,6 +1703,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       isWritingRef.current[sid] = false;
     }).catch((err) => {
       log.error("Failed to update task", err);
+      toast.error("同步至伺服器失敗，任務狀態已還原");
       isWritingRef.current[sharedListId] = false;
       saveSharedList(sharedListId, data);
       setSharedLists(getSharedLists());

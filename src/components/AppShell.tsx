@@ -269,7 +269,10 @@ export function AppShell({
 
   const routeCompleteTask = useCallback((taskId: string) => {
     const task = [...activeTasks, ...completedTasks].find(t => t.id === taskId);
-    if (!task) return;
+    if (!task) {
+      import("sonner").then(m => m.toast.error("找不到該任務 (routeCompleteTask)"));
+      return;
+    }
     const isShared = task.listId && sharedLists[task.listId];
     if (isShared) {
       updateSharedTask(task.listId!, taskId, { status: task.status === "done" ? "todo" : "done" });
