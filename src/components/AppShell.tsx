@@ -342,7 +342,11 @@ export function AppShell({
       ? lists.find((l) => l.id === currentListId)?.name
       : VIEW_LABELS[currentView];
 
-  const selectedTask = selectedTaskId ? tasks.find((t) => t.id === selectedTaskId) ?? null : null;
+  const selectedTask = selectedTaskId
+    ? currentSharedListId
+      ? sharedLists[currentSharedListId]?.tasks.find((t) => t.id === selectedTaskId) ?? null
+      : tasks.find((t) => t.id === selectedTaskId) ?? null
+    : null;
 
 // O-007：拖曳排序 ─────────────────────────────────────
 // 僅同清單內（簡單版範圍）；shared list 跳過拖曳(viewer 唯讀 + 簡單版不跨清單)
