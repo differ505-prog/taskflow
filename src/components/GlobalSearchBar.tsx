@@ -24,7 +24,7 @@ const MAX_RESULTS = 10;
  * 搜尋期間 input 下方會展開 dropdown 浮層,列出符合的任務 + 點擊跳轉 detail panel
  */
 export function GlobalSearchBar({ className = "", onSelectTask, onNavigateToTask }: GlobalSearchBarProps) {
-  const { searchQuery, setSearchQuery, getFilteredTasks, tasks, lists } = useApp();
+  const { searchQuery, setSearchQuery, tasks, lists, sharedLists } = useApp();
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -35,19 +35,19 @@ export function GlobalSearchBar({ className = "", onSelectTask, onNavigateToTask
   // 因為 getFilteredTasks() 會受到 currentView/activeFilter 影響,搜尋結果應該是「所有任務中匹配的字」,
   // 不能被當前 view 限制掉(例如在 calendar 搜尋 inbox 的任務,也該跳出來)。
   // 為了 UX 一致性,搜尋 dropdown 顯示「全任務比對」,而當前 view 內的就地過濾仍由 getFilteredTasks 負責。
+  // sharedLists 同理：共享清單的任務也該被搜到，不因當前視圖不含共享清單而被過濾。
   const matchedTasks: Task[] = hasQuery
     ? (() => {
         const q = trimmed.toLowerCase();
-        return tasks
-          .filter((t) => !t.isArchived)
-          .filter(
-            (t) =>
-              t.title.toLowerCase().includes(q) ||
-              t.description?.toLowerCase().includes(q) ||
-              t.tags.some((tag) => tag.toLowerCase().includes(q)) ||
-              t.subTasks?.some((s) => s.title.toLowerCase().includes(q))
-          )
-          .slice(0, MAX_RESULTS);
+        const matchesTask = (t: Task) =>
+          !t.isArchived &&
+          (t.title.toLowerCase().includes(q) ||
+            t.description?.toLowerCase().includes(q) ||
+            t.tags.some((tag) => tag.toLowerCase().includes(q)) ||
+            t.subTasks?.some((s) => s.title.toLowerCase().includes(q)));
+        const personal = tasks.filter(matchesTask);
+        const shared = Object.values(sharedLists).flatMap((l) => l.tasks.filter(matchesTask));
+        return [...personal, ...shared].slice(0, MAX_RESULTS);
       })()
     : [];
 
@@ -163,6 +163,8 @@ export function GlobalSearchBar({ className = "", onSelectTask, onNavigateToTask
                 <div className="overflow-y-auto" style={{ maxHeight: 380 }}>
                   {matchedTasks.map((task) => {
                     const list = task.listId ? listNameById.get(task.listId) : null;
+                    const sharedList = task.listId ? sharedLists[task.listId] : null;
+                    const displayListName = sharedList ? sharedList.list.name : list?.name;
                     return (
                       <button
                         key={task.id}
@@ -190,7 +192,7 @@ export function GlobalSearchBar({ className = "", onSelectTask, onNavigateToTask
                             className="text-[11px] truncate flex items-center gap-2"
                             style={{ color: "var(--text-tertiary)" }}
                           >
-                            {list && <span>{list.name}</span>}
+                            {displayListName && <span>{sharedList ? `🔗 ${displayListName}` : displayListName}</span>}
                             {task.dueDate && (
                               <>
                                 {list && <span>·</span>}
