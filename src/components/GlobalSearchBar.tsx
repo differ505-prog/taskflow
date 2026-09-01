@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/lib/AppContext";
@@ -27,6 +27,10 @@ export function GlobalSearchBar({ className = "", onSelectTask, onNavigateToTask
   const { searchQuery, setSearchQuery, tasks, lists, sharedLists } = useApp();
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // 中文/日文 IME composition 期間,使用者按 Enter 是「確認選字」而非「提交搜尋」。
+  // §15.4/§26-C: onKeyDown 在 React controlled state 同步前觸發,若不擋會誤送出第一個結果。
+  const isComposingRef = useRef(false);
+  const [isComposing, setIsComposing] = useState(false);
 
   const trimmed = searchQuery.trim();
   const hasQuery = trimmed.length > 0;
@@ -94,9 +98,20 @@ export function GlobalSearchBar({ className = "", onSelectTask, onNavigateToTask
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          onCompositionStart={() => {
+            isComposingRef.current = true;
+            setIsComposing(true);
+          }}
+          onCompositionEnd={() => {
+            isComposingRef.current = false;
+            setIsComposing(false);
+          }}
           onKeyDown={(e) => {
             // Enter on first result (若 dropdown 顯示) → 開啟它
+            // 但 IME composition 期間的 Enter 是「確認選字」,絕對不能誤觸發提交。
+            // 用 nativeEvent.isComposing + ref 雙保險,確保同步與非同步時序都擋下。
             if (e.key === "Enter") {
+              if (isComposingRef.current || (e.nativeEvent as any).isComposing) return;
               e.preventDefault();
               if (matchedTasks.length > 0) handleSelect(matchedTasks[0]);
             }
