@@ -1384,6 +1384,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       saveLists(updatedLists);
       recentlyWrittenListsRef.current.set(listId, Date.now());
       batchSaveListsFirebase(user.uid, [updatedList]).catch((err) => log.warn("shareList sync failed", err));
+      // §FIX-D4:搬遷後必須清掉個人 tasks[] 殘留,否則 getFilteredTasks 的 active filter
+      // 仍會撈到舊版(同名 task 兩個 id 都還在),造成詳情面板新名稱 vs 列表舊名稱不一致。
+      // 治本:從 React state + localStorage + Firestore 三層同步移除。
+      if (listTasks.length > 0) {
+        const movedIds = new Set(listTasks.map((t) => t.id));
+        const remainingTasks = tasks.filter((t) => !movedIds.has(t.id));
+        setTasks(remainingTasks);
+        saveTasks(remainingTasks);
+        if (user) {
+          // 雲端刪除(逐個 doc 刪,確保 reload 後不再被 sync 回來)
+          listTasks.forEach((t) => {
+            deleteTaskFirebase(user.uid, t.id).catch((err) => log.warn(`shareList delete personal task ${t.id} failed`, err));
+          });
+        }
+      }
       setOwnedSharedListIds((prev) =>
         prev.includes(sharedListId) ? prev : [...prev, sharedListId]
       );
