@@ -88,12 +88,18 @@ export interface UseAIShredderReturn {
   loading: boolean;
   /** 錯誤訊息 (null = 無錯誤) */
   error: string | null;
+  /** 最近一次成功拆解的步驟(給預覽 Sheet 用) */
+  steps: string[] | null;
   /**
    * 呼叫 AI 拆解任務
    * @param title 任務標題
    * @returns 拆解出的步驟陣列;若失敗回傳 null
    */
   shred: (title: string) => Promise<string[] | null>;
+  /** 重新生成 (與 shred 相同但語意明確,用於預覽 Sheet「換一組」按鈕;共用同一額度) */
+  regenerate: (title: string) => Promise<string[] | null>;
+  /** 清除 steps(預覽 Sheet 關閉時) */
+  clearSteps: () => void;
   /** 手動重置計數 (測試 / debug 用,UI 流程不應直接呼叫) */
   resetUsage: () => void;
 }
@@ -107,6 +113,8 @@ export function useAIShredder(): UseAIShredderReturn {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 最近一次成功拆解的步驟(給預覽 Sheet 用);null = 尚未拆解或已關閉
+  const [steps, setSteps] = useState<string[] | null>(null);
   const hydratedRef = useRef(false);
 
   // Mount 後讀 localStorage (client-only,避免 SSR hydration mismatch)
@@ -143,6 +151,10 @@ export function useAIShredder(): UseAIShredderReturn {
     const fresh: DailyUsage = { date: getTodayDate(), count: 0 };
     setUsage(fresh);
     writeDailyUsage(fresh);
+  }, []);
+
+  const clearSteps = useCallback(() => {
+    setSteps(null);
   }, []);
 
   const shred = useCallback(
@@ -208,6 +220,7 @@ export function useAIShredder(): UseAIShredderReturn {
         };
         setUsage(next);
         writeDailyUsage(next);
+        setSteps(data.steps);
         return data.steps;
       } catch (e: unknown) {
         const message = e instanceof Error ? e.message : "Network error";
@@ -227,7 +240,11 @@ export function useAIShredder(): UseAIShredderReturn {
     isLimitReached: usage.count >= DAILY_LIMIT,
     loading,
     error,
+    steps,
     shred,
+    // regenerate 與 shred 同一行為(共用額度),只是語意讓預覽 Sheet「換一組」按鈕讀起來更清晰
+    regenerate: shred,
+    clearSteps,
     resetUsage,
   };
 }

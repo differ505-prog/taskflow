@@ -14,6 +14,7 @@ import { useAIShredder } from "@/hooks/useAIShredder";
 import { useGhostButton } from "@/hooks/useGhostButton";
 import { GhostButton } from "./GhostButton";
 import { ProWaitlistModal } from "./ProWaitlistModal";
+import { AIShredPreviewSheet } from "./AIShredPreviewSheet";
 import { deleteFile } from "@/lib/storageUpload";
 import { logger } from "@/lib/logger";
 import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
@@ -103,6 +104,8 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
   const [recurrenceDayOfMonth, setRecurrenceDayOfMonth] = useState<number | undefined>(undefined);
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
   const [subTaskInputs, setSubTaskInputs] = useState<string[]>([]);
+  // AI Shred Preview Sheet
+  const [previewSheetOpen, setPreviewSheetOpen] = useState(false);
 
   // ─── A1 NLP 即時預覽 ───────────────────────────────
   // 標題打字時 debounce 200ms 跑 parseNaturalLanguage,把解析結果
@@ -494,17 +497,18 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                 ) : (
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={async () => {
                       if (!title.trim()) {
                         titleRef.current?.focus();
                         return;
                       }
-                      // § Wizard of Oz MVP:攔截點擊 → 顯示提示 toast → 後台偷偷記錄意願
-                      logEvent("clicked_ai_smash", { buttonId: "task_form_ai_shred", metadata: { taskTitle: title.slice(0, 100) } });
-                      toast("🚀 任務粉碎機正在充能中！\n\n這個強大的 AI 魔法將在下一波更新解鎖。\n\n(我們已經記錄下你的渴望了 😉)", {
-                        duration: 4000,
-                        id: "ai-smash-ghost",
-                      });
+                      // § B 方案:接回 AI 真路徑
+                      logEvent("ai_shred", { metadata: { taskTitle: title.slice(0, 100) } });
+                      const result = await aiShredder.shred(title);
+                      if (result && result.length > 0) {
+                        setPreviewSheetOpen(true);
+                      }
+                      // error / null result → useAIShredder 內部 toast 處理
                     }}
                     disabled={!title.trim() || aiShredder.loading}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
@@ -883,6 +887,30 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
         onClose={unlimitedShredGhost.handleDismiss}
         onJoin={unlimitedShredGhost.handleJoin}
         featureId="infinite_ai"
+      />
+
+      {/* §B 方案:AI 任務拆解預覽 Sheet */}
+      <AIShredPreviewSheet
+        open={previewSheetOpen}
+        onClose={() => {
+          setPreviewSheetOpen(false);
+          aiShredder.clearSteps();
+        }}
+        steps={aiShredder.steps}
+        loading={aiShredder.loading}
+        canRegenerate={!aiShredder.isLimitReached && !aiShredder.loading}
+        remainingHint={`剩餘 ${aiShredder.remainingCount} 次`}
+        onRegenerate={async () => {
+          if (!title.trim()) return;
+          await aiShredder.regenerate(title);
+          // steps 自動更新,Sheet 保持 open
+        }}
+        onAccept={(steps) => {
+          setSubTaskInputs(steps);
+          setPreviewSheetOpen(false);
+          aiShredder.clearSteps();
+          toast.success(`已加入 ${steps.length} 個步驟`, { duration: 2000 });
+        }}
       />
     </AnimatePresence>
   );
