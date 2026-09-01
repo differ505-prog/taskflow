@@ -119,6 +119,12 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
       }
     }
 
+    // 任務目前在共享清單中 → 編輯時直接寫 shared snapshot（不走 targetSharedListId 邏輯）
+    if (sharedListId) {
+      updateSharedTask(sharedListId, taskId, updates);
+      return;
+    }
+    // 以下：任務不在共享清單中的路由
     if (targetSharedListId) {
       if (!existingInShared && task.listId !== targetListId) {
         logger.ns("TaskDetailPanel").warn(
@@ -132,7 +138,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     } else {
       updateTask(taskId, updates);
     }
-  }, [task.listId, sharedLists, updateSharedTask, updateTask, lists]);
+  }, [task.listId, sharedListId, sharedLists, updateSharedTask, updateTask, lists]);
 
   const handleDeleteTask = useCallback((taskId: string) => {
     if (sharedListId) {
