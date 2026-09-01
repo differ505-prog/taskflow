@@ -296,9 +296,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             }
             return fbT;
           });
-          const localOnly = prevWithoutDeleted.filter(
-            (t) => !fbIds.has(t.id) && (!t.listId || !getSharedLists()[t.listId])
-          );
+          const localOnly = prevWithoutDeleted.filter((t) => {
+            if (fbIds.has(t.id)) return false;
+            if (!t.listId) return true;
+            // §FIX-D3:用「該 list 是否帶 sharedId」判斷,不可用 getSharedLists()[t.listId]
+            // 否則已搬遷到共享的 task 不會被視為 localOnly,殘留在個人 tasks[] 蓋掉 shared 版本
+            const owningList = lists.find((l) => l.id === t.listId);
+            return !owningList?.sharedId;
+          });
           const trueLocalOnly = localOnly.filter((t) => !syncedTaskIdsRef.current.has(t.id));
           const result = [...merged, ...trueLocalOnly];
           log.sync(`SUP SYNC setTasks result: merged=${merged.length} trueLocalOnly=${trueLocalOnly.length} deleted=${deleted.size} result=${result.length}`);
@@ -601,7 +606,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (migrated) {
       queueMicrotask(() => saveTasks(migratedTasks));
     }
-    const active = migratedTasks.filter((t) => !t.isArchived && (!t.listId || !sharedLists[t.listId]));
+    // §FIX-D1:「個人 task 是否屬於共享清單」應檢查 t.listId 對應的 list 是否帶 sharedId,
+    // 不可用 sharedLists[t.listId]（key 是 sharedId,不是 listId）— 否則搬遷後個人 tasks[] 殘留
+    // 會同時出現在 active 與 activeShared,舊版顯示在前蓋過新版（測試123→測試 的根源）
+    const active = migratedTasks.filter((t) => {
+      if (t.isArchived) return false;
+      if (!t.listId) return true;
+      const owningList = lists.find((l) => l.id === t.listId);
+      return !owningList?.sharedId;
+    });
     const activeShared = Object.entries(sharedLists).flatMap(([listId, l]) => l.tasks.map(t => ({ ...t, listId }))).filter(t => !t.isArchived);
     let result = [...active, ...activeShared];
     const now = new Date();
@@ -618,7 +631,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } else if (currentView === "list" && currentListId) {
       result = result.filter((t) => t.listId === currentListId);
     } else if (currentView === "inbox") {
-      result = result.filter((t) => !t.listId || (t.listId && !lists.find(l => l.id === t.listId) && !sharedLists[t.listId]));
+      // §FIX-D1:同樣改用「list.sharedId」而非 sharedLists[t.listId]
+      result = result.filter((t) =>
+        !t.listId ||
+        (!lists.find((l) => l.id === t.listId) && !sharedLists[lists.find((l) => l.id === t.listId)?.sharedId || ""])
+      );
     } else if (currentView === "pinned") {
       result = result.filter((t) => t.isPinned);
     } else if (currentView === "shared") {
@@ -815,51 +832,115 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return ids;
   }, [tasks, user, markRecentlyWritten]);
 
+  // §FIX-D2:把「個人 → 共享」搬遷從 updateTask §DEFENSIVE 雙寫路徑獨立出來,
+  // 改由呼叫端（TaskDetailPanel）明確呼叫 moveTaskToShared,UI 上同步彈出確認 modal
+  const moveTaskToShared = useCallback((id: string, targetListId: string, updates: Partial<Task> = {}) => {
+    const prevTask = tasks.find((t) => t.id === id);
+    const targetList = lists.find((l) => l.id === targetListId);
+    const targetSharedId = targetList?.sharedId;
+    if (!prevTask || !targetSharedId || !sharedLists[targetSharedId]) {
+      log.warn(`moveTaskToShared: missing prereqs (task=${!!prevTask} sharedId=${targetSharedId})`);
+      return false;
+    }
+    const targetSharedData = sharedLists[targetSharedId];
+    const mergedTask = {
+      ...prevTask,
+      ...updates,
+      listId: targetListId,
+      updatedAt: new Date().toISOString(),
+    };
+    const existingIdx = targetSharedData.tasks.findIndex((t) => t.id === id);
+    const newSharedTasks =
+      existingIdx >= 0
+        ? targetSharedData.tasks.map((t, i) => (i === existingIdx ? mergedTask : t))
+        : [...targetSharedData.tasks, mergedTask];
+
+    // 1. 從個人 tasks[] 移除（個人 listId 已不再適用）
+    const personalUpdated = tasks.filter((t) => t.id !== id);
+    setTasks(personalUpdated);
+    saveTasks(personalUpdated);
+
+    // 2. 寫入共享 snapshot（本地 + 雲端）
+    const newSharedData = { ...targetSharedData, tasks: newSharedTasks };
+    saveSharedList(targetSharedId, newSharedData);
+    setSharedLists(getSharedLists());
+
+    const ownerId = targetSharedData.list.ownerId ?? "";
+    isWritingRef.current[targetSharedId] = true;
+    const pendingHash = JSON.stringify(newSharedTasks.map((t) => `${t.id}:${t.updatedAt}`).sort());
+    lastSyncedHashRef.current[targetSharedId] = pendingHash;
+    lastSyncedTaskCountRef.current[targetSharedId] = newSharedTasks.length;
+
+    markRecentlyWritten(id);
+
+    updateSharedSnapshot(
+      targetSharedId,
+      targetSharedData.list,
+      newSharedTasks,
+      ownerId,
+      targetSharedData.ownerName,
+      (sid, writtenTasks) => {
+        log.info(`moveTaskToShared synced ${id} → ${sid}`);
+        const u = { ...targetSharedData, tasks: writtenTasks };
+        saveSharedList(sid, u);
+        setSharedLists((prev) => ({ ...prev, [sid]: u }));
+        snapshotTasksRef.current[sid] = writtenTasks;
+        const hash = JSON.stringify(writtenTasks.map((t) => `${t.id}:${t.updatedAt}`).sort());
+        lastSyncedHashRef.current[sid] = hash;
+        lastSyncedTaskCountRef.current[sid] = writtenTasks.length;
+        isWritingRef.current[sid] = false;
+      }
+    ).catch((err) => {
+      log.error(`moveTaskToShared cloud sync failed`, err);
+      isWritingRef.current[targetSharedId] = false;
+      // rollback: 把 task 放回個人 tasks[]
+      const restored = [...tasks];
+      setTasks(restored);
+      saveTasks(restored);
+      saveSharedList(targetSharedId, targetSharedData);
+      setSharedLists(getSharedLists());
+    });
+    return true;
+  }, [tasks, lists, sharedLists, user, markRecentlyWritten]);
+
   const updateTask = useCallback((id: string, updates: Partial<Task>) => {
     const prevTask = tasks.find((t) => t.id === id);
     const nextListId = updates.listId ?? prevTask?.listId;
-    const targetList = lists.find(l => l.id === nextListId);
+    const targetList = lists.find((l) => l.id === nextListId);
     const targetSharedId = targetList?.sharedId;
+    const prevOwningList = prevTask?.listId ? lists.find((l) => l.id === prevTask.listId) : undefined;
+    const prevSharedId = prevOwningList?.sharedId;
 
-    if (prevTask && targetSharedId && sharedLists[targetSharedId]) {
-      // Task is being moved to a shared list — remove from personal array.
-      // The shared write is handled by the caller's updateSharedTask path.
-      // Defensively also upsert to shared in case caller didn't call updateSharedTask.
+    // §FIX-D2:個人 → 共享的搬遷必須走 moveTaskToShared,不可在 updateTask 內靜默雙寫
+    if (prevTask && targetSharedId && sharedLists[targetSharedId] && prevSharedId !== targetSharedId) {
+      log.warn(`updateTask received personal→shared migration; caller must use moveTaskToShared instead`);
+      // 防呆：仍走舊路徑（保留 §DEFENSIVE 相容性,直到 TaskDetailPanel 完成 modal 串接）
       const updated = tasks.filter((t) => t.id !== id);
       setTasks(updated);
       saveTasks(updated);
       markRecentlyWritten(id);
-      // §DEFENSIVE: upsert into shared list in case the caller only called updateTask
       const targetSharedData = sharedLists[targetSharedId];
       if (targetSharedData) {
-        log.info(`Task ${id} moved to shared list ${targetSharedId}. Upserting locally and syncing to cloud.`);
         const mergedTask = { ...prevTask, ...updates, updatedAt: new Date().toISOString() };
         const existingIdx = targetSharedData.tasks.findIndex((t) => t.id === id);
         const newSharedTasks = existingIdx >= 0
           ? targetSharedData.tasks.map((t, i) => i === existingIdx ? mergedTask : t)
           : [...targetSharedData.tasks, mergedTask];
-        
-        // 1. 本地更新 (Local update)
         const newSharedData = { ...targetSharedData, tasks: newSharedTasks };
         saveSharedList(targetSharedId, newSharedData);
         setSharedLists(getSharedLists());
-
-        // 2. 雲端同步 (Cloud sync) 防禦性寫入
         const ownerId = targetSharedData.list.ownerId ?? "";
-        
         isWritingRef.current[targetSharedId] = true;
         const pendingHash = JSON.stringify(newSharedTasks.map((t) => `${t.id}:${t.updatedAt}`).sort());
         lastSyncedHashRef.current[targetSharedId] = pendingHash;
         lastSyncedTaskCountRef.current[targetSharedId] = newSharedTasks.length;
-
         updateSharedSnapshot(
-          targetSharedId, 
-          targetSharedData.list, 
-          newSharedTasks, 
-          ownerId, 
-          targetSharedData.ownerName, 
+          targetSharedId,
+          targetSharedData.list,
+          newSharedTasks,
+          ownerId,
+          targetSharedData.ownerName,
           (sid, writtenTasks) => {
-            log.info(`Successfully synced moved task ${id} to cloud shared list ${sid}.`);
             const u = { ...targetSharedData, tasks: writtenTasks };
             saveSharedList(sid, u);
             setSharedLists((prev) => ({ ...prev, [sid]: u }));
@@ -870,9 +951,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             isWritingRef.current[sid] = false;
           }
         ).catch((err) => {
-          log.error(`Failed to sync moved task ${id} to cloud`, err);
+          log.error(`Failed to sync moved task ${id}`, err);
           isWritingRef.current[targetSharedId] = false;
-          saveSharedList(targetSharedId, targetSharedData); // Revert to old data if fail
+          saveSharedList(targetSharedId, targetSharedData);
           setSharedLists(getSharedLists());
         });
       }
@@ -1828,7 +1909,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     currentSharedListId, setCurrentSharedList,
     searchQuery, setSearchQuery,
     activeFilter, setActiveFilter,
-    addTask, addTaskLocalOnly, batchAddTasks, updateTask, deleteTask, toggleTaskStatus, archiveTask, unarchiveTask, escapeTask,
+    addTask, addTaskLocalOnly, batchAddTasks, updateTask, moveTaskToShared, deleteTask, toggleTaskStatus, archiveTask, unarchiveTask, escapeTask,
     addSubTask, toggleSubTask, deleteSubTask, reorderSubTasks,
     completeRecurringAndClone, completeTask,
     addList, updateList, deleteList, reorderLists, reorderTasks, saveTasksDirectly,

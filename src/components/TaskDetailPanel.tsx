@@ -95,7 +95,7 @@ interface TaskDetailPanelProps {
 const SELECT_ARROW = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23999' strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E";
 
 export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
-  const { updateTask, deleteTask, updateSharedTask, deleteSharedTask, sharedLists, lists, getTagCounts, markEditingActivity, clearEditingActivity, reorderSubTasks } = useApp();
+  const { updateTask, deleteTask, moveTaskToShared, updateSharedTask, deleteSharedTask, sharedLists, lists, getTagCounts, markEditingActivity, clearEditingActivity, reorderSubTasks } = useApp();
   const { user } = useAuth();
   const confirm = useConfirm();
   
@@ -173,6 +173,43 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   const [dueTime, setDueTime] = useState(task.dueTime || "");
   const [listId, setListId] = useState<string | undefined>(task.listId);
   const [tags, setTags] = useState<string[]>(task.tags || []);
+
+  /**
+   * ListChipPicker onChange 攔截器：偵測「個人清單 → 共享清單」轉換時跳出確認。
+   * - 個人 → 個人：直接 setListId（debounced 寫入）
+   * - 共享 → 個人：直接 setListId（debounced 寫入；既有 sync 邏輯處理）
+   * - 個人 → 共享：§FIX-D2 跳出 confirm；確認後呼叫 moveTaskToShared 明確搬遷（不再依賴 updateTask 隱式雙寫）
+   * - 共享 → 共享：直接 setListId（debounced 寫入）
+   */
+  const handleListIdChange = useCallback(async (nextId: string | undefined) => {
+    if (nextId === listId) return;
+    const prevList = lists.find((l) => l.id === listId);
+    const nextList = lists.find((l) => l.id === nextId);
+    const prevIsShared = Boolean(prevList?.sharedId);
+    const nextIsShared = Boolean(nextList?.sharedId);
+    // 個人 → 共享：跳出正向確認（§5 情緒包裝原則：正向語氣、不用「警告」/「遷移」等工程詞）
+    if (!prevIsShared && nextIsShared) {
+      const ok = await confirm({
+        title: "移到共享清單？",
+        message: `這項任務會搬進「${nextList?.icon ?? ""} ${nextList?.name ?? ""}」，所有協作成員都能看到並編輯。`,
+        impactDetail: "你隨時可以再搬回個人清單。",
+        confirmText: "好，搬過去",
+        cancelText: "先不要",
+        tone: "info",
+      });
+      if (!ok) return;
+      // §FIX-D2:明確呼叫 moveTaskToShared,不走 updateTask 隱式雙寫
+      if (!nextId) return; // shared 目標必須有 listId
+      const moved = moveTaskToShared(task.id, nextId);
+      if (!moved) {
+        // 搬遷失敗（如 shared snapshot 未就緒）→ picker 視覺回彈
+        return;
+      }
+      setListId(nextId);
+      return;
+    }
+    setListId(nextId);
+  }, [listId, lists, confirm, moveTaskToShared, task.id]);
   const [tagInput, setTagInput] = useState("");
   const [tagColors, setTagColors] = useState<Record<string, string>>({});
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -731,7 +768,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
             <ListChipPicker
               lists={lists}
               value={listId}
-              onChange={(id) => setListId(id)}
+              onChange={handleListIdChange}
             />
           </div>
         </div>

@@ -31,6 +31,8 @@ export interface AppContextValue {
     datas: Omit<import("../types").Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order">[]
   ) => string[];
   updateTask: (id: string, updates: Partial<import("../types").Task>) => void;
+  /** §FIX-D2:明確的「個人 → 共享」搬遷 API;UI 需彈確認 modal 後呼叫 */
+  moveTaskToShared: (id: string, targetListId: string, updates?: Partial<import("../types").Task>) => boolean;
   deleteTask: (id: string) => Promise<void>;
   toggleTaskStatus: (id: string) => void;
   markEditingActivity: (id: string) => void;
