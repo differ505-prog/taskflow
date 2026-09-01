@@ -542,7 +542,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="任務描述（支援 Markdown）"
+                  placeholder="任務描述（貼網址會自動變連結）"
                   rows={3}
                   className="input resize-none"
                   style={{ minHeight: 80 }}
@@ -852,7 +852,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                     value={subtaskInputValue}
                     onChange={(e) => setSubtaskInputValue(e.target.value)}
                     onKeyDown={(e) => { if (!isComposingKey(e) && e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
-                    placeholder="新增子任務..." className="input flex-1" style={{ fontSize: 16, padding: "8px 12px" }} />
+                    placeholder="新增子任務…（貼網址會自動變連結）" className="input flex-1" style={{ fontSize: 16, padding: "8px 12px" }} />
                   <Button type="button" variant="ghost" size="icon-sm" onClick={addSubTask} aria-label="新增子任務"><Plus className="w-4 h-4" /></Button>
                 </div>
               </div>

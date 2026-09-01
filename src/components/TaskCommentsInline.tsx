@@ -15,6 +15,7 @@ import {
 } from "@/lib/taskCommentsFS";
 import { isComposingKey } from "@/utils/imeGuard";
 import { logger } from "@/lib/logger";
+import { TextWithLinks } from "./TextWithLinks";
 
 interface Props {
   taskId: string;
@@ -142,7 +143,13 @@ export default function TaskCommentsInline({ taskId }: Props) {
                     )}
                   </div>
                   <p className="mt-0.5 whitespace-pre-wrap break-words text-[12.5px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                    {c.content}
+                    <TextWithLinks
+                      text={c.content}
+                      linkStyle={{
+                        color: "var(--brand)",
+                        textDecoration: "underline",
+                      }}
+                    />
                   </p>
                 </div>
               </li>
@@ -172,7 +179,7 @@ export default function TaskCommentsInline({ taskId }: Props) {
               border: "1px solid var(--border)",
             }}
             rows={2}
-            placeholder="新增回報…（Enter 送出，Shift+Enter 換行）"
+            placeholder="新增回報…（貼網址會自動變連結）"
         />
         <div className="flex items-center justify-between">
           <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>

@@ -18,6 +18,7 @@ import {
   TaskComment,
 } from "@/lib/taskCommentsFS";
 import { isComposingKey } from "@/utils/imeGuard";
+import { TextWithLinks } from "./TextWithLinks";
 
 interface Props {
   taskId: string;
@@ -199,7 +200,13 @@ export default function TaskCommentsDrawer({ taskId, taskTitle, open, onClose }:
                           )}
                         </div>
                         <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                          {c.content}
+                          <TextWithLinks
+                            text={c.content}
+                            linkStyle={{
+                              color: "var(--brand)",
+                              textDecoration: "underline",
+                            }}
+                          />
                         </p>
                       </div>
                     </div>
@@ -229,7 +236,7 @@ export default function TaskCommentsDrawer({ taskId, taskTitle, open, onClose }:
               color: "var(--text-primary)",
               border: "1px solid var(--border)",
             }}
-            placeholder="新增回報… (⌘/Ctrl + Enter 送出)"
+            placeholder="新增回報…（貼網址會自動變連結；⌘/Ctrl + Enter 送出）"
             rows={2}
           />
           <div className="mt-2 flex items-center justify-between">

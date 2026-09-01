@@ -758,7 +758,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               value={subtaskInputValue}
               onChange={(e) => setSubtaskInputValue(e.target.value)}
               onKeyDown={(e) => { if (!isComposingKey(e) && e.key === "Enter") { e.preventDefault(); addSubTask(); } }}
-              placeholder="新增子任務..." className="input flex-1" style={{ fontSize: 16, padding: "8px 12px" }} />
+              placeholder="新增子任務…（貼網址會自動變連結）" className="input flex-1" style={{ fontSize: 16, padding: "8px 12px" }} />
             <Button
               type="button"
               onClick={(e) => {
@@ -990,7 +990,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="任務描述（支援 Markdown）"
+            placeholder="任務描述（貼網址會自動變連結）"
             rows={6}
             className="input resize-none"
             style={{ minHeight: 160 }}

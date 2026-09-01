@@ -13,6 +13,7 @@ import { useSubTaskCollapse } from "@/utils/useSubTaskCollapse";
 import { SubTaskItem } from "./SubTaskItem";
 import { DueDateChip } from "./DueDateChip";
 import { TaskCardToolbar } from "./TaskCardToolbar";
+import { TextWithLinks } from "./TextWithLinks";
 import {
   CheckCircle2, Circle, Plus, ListChecks, Paperclip, ExternalLink,
   ChevronDown, ChevronRight,
@@ -253,9 +254,17 @@ export function TaskCard({
               className={`text-[13px] leading-relaxed mt-2 ${
                 isDone ? "line-through opacity-50" : ""
               }`}
-              style={{ color: isDone ? "var(--text-tertiary)" : "var(--text-secondary)" }}
+              style={{ color: isDone ? "var(--text-tertiary)" : "var(--text-secondary)", whiteSpace: "pre-wrap" }}
             >
-              {task.description}
+              <TextWithLinks
+                text={task.description}
+                linkStyle={{
+                  color: "var(--brand)",
+                  textDecoration: "underline",
+                  wordBreak: "break-word",
+                  overflowWrap: "anywhere",
+                }}
+              />
             </p>
           )}
 
