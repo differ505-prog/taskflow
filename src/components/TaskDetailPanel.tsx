@@ -1028,7 +1028,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               }}
             >
               {description ? (
-                <TextWithLinks text={description} />
+                <TextWithLinks text={description} linkClassName="text-blue-500 hover:underline underline-offset-2 transition-colors duration-150" />
               ) : (
                 <span>任務描述（貼網址會自動變連結）</span>
               )}
