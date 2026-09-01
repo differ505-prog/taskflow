@@ -14,7 +14,7 @@ import {
   X, Repeat, Calendar, Mic, MicOff, Hash,
   Trash2, Check, CheckCircle2, Circle, Tag as TagIcon,
   AlignLeft, Clock, Timer, ListChecks, Paperclip,
-  AlertCircle, Flag, ChevronDown, ChevronRight, Pin, ExternalLink,
+  AlertCircle, Flag, ChevronDown, ChevronRight, Pin, ExternalLink, Pencil,
 } from "lucide-react";
 import { sortSubTasks } from "@/utils/subtaskSort";
 import { useSubTaskCollapse } from "@/utils/useSubTaskCollapse";
@@ -194,6 +194,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
   const [showTagPanel, setShowTagPanel] = useState(false);
   const [commentsDrawerOpen, setCommentsDrawerOpen] = useState(false);
+  const [isEditingDesc, setIsEditingDesc] = useState(false);
 
   useEffect(() => {
     setTagColors(getTagColors());
@@ -219,6 +220,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     setEditingSubId(null);
     setAttachments(task.attachments || []);
     setHasChanges(false);
+    setIsEditingDesc(false);
   }, [task.id]);
 
   // Track changes
@@ -983,19 +985,55 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
 
         {/* Description */}
         <div>
-          <div className="flex items-center gap-1.5 mb-2">
-            <AlignLeft className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
-            <label className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>描述</label>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <AlignLeft className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
+              <label className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>描述</label>
+            </div>
+            {!isEditingDesc && (
+              <button
+                type="button"
+                onClick={() => setIsEditingDesc(true)}
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-[12px] font-medium transition-all duration-200 ease-out hover:bg-black/5 active:scale-[0.98]"
+                style={{ color: "var(--text-secondary)" }}
+                aria-label="編輯描述"
+              >
+                <Pencil className="w-3 h-3" />
+                編輯
+              </button>
+            )}
           </div>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="任務描述（貼網址會自動變連結）"
-            rows={6}
-            className="input resize-none"
-            style={{ minHeight: 160 }}
-            maxLength={1000}
-          />
+          {isEditingDesc ? (
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              onBlur={() => setIsEditingDesc(false)}
+              placeholder="任務描述（貼網址會自動變連結）"
+              rows={6}
+              className="input resize-none"
+              style={{ minHeight: 160 }}
+              maxLength={1000}
+              autoFocus
+            />
+          ) : (
+            <div
+              onClick={() => setIsEditingDesc(true)}
+              className="rounded-md px-3 py-2.5 text-[14px] cursor-text transition-all duration-200 ease-out min-h-[160px]"
+              style={{
+                background: "var(--surface-elevated)",
+                color: description ? "var(--text-primary)" : "var(--text-tertiary)",
+                border: "1px solid var(--border)",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}
+            >
+              {description ? (
+                <TextWithLinks text={description} />
+              ) : (
+                <span>任務描述（貼網址會自動變連結）</span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Dates */}
