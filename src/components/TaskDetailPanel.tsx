@@ -98,12 +98,41 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   const { updateTask, deleteTask, moveTaskToShared, updateSharedTask, deleteSharedTask, sharedLists, lists, getTagCounts, markEditingActivity, clearEditingActivity, reorderSubTasks } = useApp();
   const { user } = useAuth();
   const confirm = useConfirm();
-  
-  // Properly resolve the shared list ID from the lists array
-  const currentList = lists.find(l => l.id === task.listId);
+  const keyboard = useKeyboardOffset();
+  const collapseScope = user?.uid ?? "anon";
+  const { isCollapsed: isDoneCollapsed, toggle: toggleDoneCollapse } = useSubTaskCollapse(task.id, task.subTasks || [], collapseScope);
+
+  // 持續輸入保護（§26 類別 A 子模式，詳情面板防護）：
+  // - 面板開啟期間 → 標記 task 為「編輯中」,realtime echo 不會覆蓋本地版本
+  // - 任一欄位 keystroke → 重置活動計時,延長 30 秒保護窗
+  // - 面板關閉 → 結束編輯狀態,回歸既有 5 秒窗(避免永遠不釋放)
+  useEffect(() => {
+    markEditingActivity(task.id);
+    return () => clearEditingActivity(task.id);
+  }, [task.id, markEditingActivity, clearEditingActivity]);
+
+  // 任務切換時滾動到面板頂部（確保 DOM 完全渲染後執行）
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const doScroll = () => el.scrollTo({ top: 0, behavior: 'instant' });
+    doScroll();
+    requestAnimationFrame(doScroll);
+    setTimeout(doScroll, 50);
+  }, [task.id]);
+
+  const [title, setTitle] = useState(task.title);
+  const [description, setDescription] = useState(task.description || "");
+  const [priority, setPriority] = useState<Priority>(task.priority);
+  const [status, setStatus] = useState<TaskStatus>(task.status);
+  const [startDate, setStartDate] = useState(task.startDate || "");
+  const [dueDate, setDueDate] = useState(task.dueDate || "");
+  const [dueTime, setDueTime] = useState(task.dueTime || "");
+  const [listId, setListId] = useState<string | undefined>(task.listId);
+  const [tags, setTags] = useState<string[]>(task.tags || []);
+
   // §BUG-FIX: 用 local `listId` state 而非閉包的 `task.listId`，確保 moveTaskToShared 後
   // 父層還沒重渲染時，routing 一樣正確走 updateSharedTask（不走 updateTask）。
-  // 同時重新計算 currentSharedListIdFromState，確保刪除/更新操作路由到正確目標。
   const currentListIdForRoute = listId ?? task.listId;
   const currentListForRoute = lists.find(l => l.id === currentListIdForRoute);
   const currentSharedListId = currentListForRoute?.sharedId ?? null;
@@ -153,38 +182,6 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
       deleteTask(taskId);
     }
   }, [currentSharedListId, deleteSharedTask, deleteTask]);
-  const keyboard = useKeyboardOffset();
-  const collapseScope = user?.uid ?? "anon";
-  const { isCollapsed: isDoneCollapsed, toggle: toggleDoneCollapse } = useSubTaskCollapse(task.id, task.subTasks || [], collapseScope);
-
-  // 持續輸入保護（§26 類別 A 子模式，詳情面板防護）：
-  // - 面板開啟期間 → 標記 task 為「編輯中」,realtime echo 不會覆蓋本地版本
-  // - 任一欄位 keystroke → 重置活動計時,延長 30 秒保護窗
-  // - 面板關閉 → 結束編輯狀態,回歸既有 5 秒窗(避免永遠不釋放)
-  useEffect(() => {
-    markEditingActivity(task.id);
-    return () => clearEditingActivity(task.id);
-  }, [task.id, markEditingActivity, clearEditingActivity]);
-
-  // 任務切換時滾動到面板頂部（確保 DOM 完全渲染後執行）
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const doScroll = () => el.scrollTo({ top: 0, behavior: 'instant' });
-    doScroll();
-    requestAnimationFrame(doScroll);
-    setTimeout(doScroll, 50);
-  }, [task.id]);
-
-  const [title, setTitle] = useState(task.title);
-  const [description, setDescription] = useState(task.description || "");
-  const [priority, setPriority] = useState<Priority>(task.priority);
-  const [status, setStatus] = useState<TaskStatus>(task.status);
-  const [startDate, setStartDate] = useState(task.startDate || "");
-  const [dueDate, setDueDate] = useState(task.dueDate || "");
-  const [dueTime, setDueTime] = useState(task.dueTime || "");
-  const [listId, setListId] = useState<string | undefined>(task.listId);
-  const [tags, setTags] = useState<string[]>(task.tags || []);
 
   /**
    * ListChipPicker onChange 攔截器：偵測「個人清單 → 共享清單」轉換時跳出確認。
