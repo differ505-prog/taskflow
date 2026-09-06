@@ -80,8 +80,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-TW" className={inter.variable}>
+    <html lang="zh-TW" className={inter.variable} suppressHydrationWarning>
       <head>
+        {/* 主題同步：reload 時在 React hydrate 前先讀 localStorage 套用 data-theme，避免白閃 */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("taskflow_theme");var p=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches;var d=t==="dark"||(t==="system"&&p);document.documentElement.setAttribute("data-theme",d?"dark":"");}catch(e){}})();`,
+          }}
+        />
         <link rel="icon" href="/icon-192.png?v=2" type="image/png" sizes="192x192" />
         <link rel="shortcut icon" href="/icon-192.png?v=2" />
         <link rel="manifest" href="/manifest.json" />

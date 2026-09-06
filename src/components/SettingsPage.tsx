@@ -9,11 +9,12 @@
  * - 回傳 null 當 !isOpen
  * - 內層 SettingsContent 使用 SettingsContext
  */
-import { useEffect, useCallback } from "react";
+import { useEffect } from "react";
 import { Moon, Sun, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { useApp } from "@/lib/AppContext";
 import { useAuth } from "@/lib/AuthContext";
+import { applyTheme, THEME_STORAGE_KEY, type Theme } from "@/lib/theme";
 import {
   AccountSection,
   AboutSection,
@@ -44,17 +45,11 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
   } = useApp();
   const { user, role, roleConfig, isAdmin } = useAuth();
 
-  // ── Theme apply（module-level，SettingsPage mount 時執行一次）─────
-  const applyTheme = useCallback((t: "light" | "dark" | "system") => {
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const isDark = t === "dark" || (t === "system" && prefersDark);
-    document.documentElement.setAttribute("data-theme", isDark ? "dark" : "");
-  }, []);
-
+  // ── Theme init（modal mount 時讀 localStorage 套用；layout inline script 已先套過一次，這裡是保險）──
   useEffect(() => {
-    const saved = localStorage.getItem("taskflow_theme") as "light" | "dark" | "system" | null;
+    const saved = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
     if (saved) applyTheme(saved);
-  }, [applyTheme]);
+  }, []);
 
   if (!isOpen) return null;
 
@@ -74,7 +69,6 @@ export function SettingsPage({ isOpen, onClose }: SettingsPageProps) {
         isOpen={isOpen}
         setNotificationPermission={setNotificationPermission}
         userId={user?.id ?? null}
-        applyTheme={applyTheme}
       >
         <SettingsContent
           tasks={tasks}

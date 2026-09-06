@@ -24,6 +24,7 @@ import { translatePushError } from "@/lib/errorMessages";
 import { subscribeToPush, unsubscribeFromPush } from "@/lib/push/vapid";
 import { logger } from "@/lib/logger";
 import { getConfettiEnabled } from "@/lib/confetti";
+import { THEME_STORAGE_KEY, type Theme } from "@/lib/theme";
 
 /* ─────────────────────────────────────────────────────────────
    Context value type
@@ -102,8 +103,6 @@ interface SettingsProviderProps {
   setNotificationPermission: (v: NotificationPermission | "default") => void;
   /** 從 useAuth 取 user.id */
   userId: string | null;
-  /** 從 SettingsPage 外層傳入的 applyTheme callback */
-  applyTheme: (t: "light" | "dark" | "system") => void;
 }
 
 export function SettingsProvider({
@@ -111,7 +110,6 @@ export function SettingsProvider({
   isOpen,
   setNotificationPermission,
   userId,
-  applyTheme,
 }: SettingsProviderProps) {
   // ── Push ─────────────────────────────────────────────────
   const [pushTestPending, setPushTestPending] = useState(false);
@@ -148,15 +146,13 @@ export function SettingsProvider({
   const [confettiEnabled, setConfettiEnabledState] = useState(true);
 
   // ── Theme init ────────────────────────────────────────────
-  // SettingsPage mount 時從 localStorage 讀 theme，apply 到 DOM 並同步 context state
+  // SettingsPage mount 時從 localStorage 讀 theme，套到 context state
+  // （DOM 的 data-theme 由 layout inline script + SettingsPage effect 處理）
   useEffect(() => {
     setConfettiEnabledState(getConfettiEnabled());
-    const saved = localStorage.getItem("taskflow_theme") as "light" | "dark" | "system" | null;
-    if (saved) {
-      setTheme(saved);
-      applyTheme(saved);
-    }
-  }, [applyTheme]);
+    const saved = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
+    if (saved) setTheme(saved);
+  }, []);
 
   /* ── Push handlers ────────────────────────────────────────── */
 
