@@ -615,8 +615,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const owningList = lists.find((l) => l.id === t.listId);
       return !owningList?.sharedId;
     });
-    const activeShared = Object.entries(sharedLists).flatMap(([listId, l]) => l.tasks.map(t => ({ ...t, listId }))).filter(t => !t.isArchived);
-    let result = [...active, ...activeShared];
+    const activeShared = Object.entries(sharedLists)
+      .flatMap(([listId, l]) => l.tasks.map(t => ({ ...t, listId })))
+      .filter(t => !t.isArchived);
+    // 同一任務可能短暫同時存在於個人殘留與共享快照，列表只能保留一份。
+    // 共享快照是搬遷後的權威來源，放在後面並以 id 去重可確保新標題優先。
+    const resultById = new Map<string, Task>();
+    [...active, ...activeShared].forEach((task) => resultById.set(task.id, task));
+    let result = Array.from(resultById.values());
     const now = new Date();
     const localToday = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
     const weekEndDate = new Date(now.getTime() + 7 * 86400000);
