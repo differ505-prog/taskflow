@@ -618,10 +618,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const activeShared = Object.entries(sharedLists)
       .flatMap(([listId, l]) => l.tasks.map(t => ({ ...t, listId })))
       .filter(t => !t.isArchived);
-    // 同一任務可能短暫同時存在於個人殘留與共享快照，列表只能保留一份。
-    // 共享快照是搬遷後的權威來源，放在後面並以 id 去重可確保新標題優先。
+    // 詳情面板=個人剛寫入的新值;列表若用共享舊 snapshot 蓋在新值之上,會卡在舊標題(測試123→測試)。
+    // 解法:同 id 兩個版本並存時,以 updatedAt 取新者;皆無 updatedAt 則維持目前行為。
+    const pickedAt = (t: Task): number => {
+      const ts = t.updatedAt;
+      if (typeof ts !== 'string') return 0;
+      const ms = Date.parse(ts);
+      return Number.isFinite(ms) ? ms : 0;
+    };
     const resultById = new Map<string, Task>();
-    [...active, ...activeShared].forEach((task) => resultById.set(task.id, task));
+    [...active, ...activeShared].forEach((task) => {
+      const existing = resultById.get(task.id);
+      if (!existing || pickedAt(task) >= pickedAt(existing)) {
+        resultById.set(task.id, task);
+      }
+    });
     let result = Array.from(resultById.values());
     const now = new Date();
     const localToday = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
