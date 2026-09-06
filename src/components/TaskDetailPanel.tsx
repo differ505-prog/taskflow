@@ -101,32 +101,37 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   
   // Properly resolve the shared list ID from the lists array
   const currentList = lists.find(l => l.id === task.listId);
-  const sharedListId = currentList?.sharedId ?? null;
+  // §BUG-FIX: 用 local `listId` state 而非閉包的 `task.listId`，確保 moveTaskToShared 後
+  // 父層還沒重渲染時，routing 一樣正確走 updateSharedTask（不走 updateTask）。
+  // 同時重新計算 currentSharedListIdFromState，確保刪除/更新操作路由到正確目標。
+  const currentListIdForRoute = listId ?? task.listId;
+  const currentListForRoute = lists.find(l => l.id === currentListIdForRoute);
+  const currentSharedListId = currentListForRoute?.sharedId ?? null;
 
   const handleUpdateTask = useCallback((taskId: string, updates: Partial<Task>) => {
-    const targetListId = updates.listId ?? task.listId;
+    const targetListId = updates.listId ?? currentListIdForRoute;
     const targetList = lists.find(l => l.id === targetListId);
     const targetSharedListId = targetList?.sharedId ?? null;
     const existingInShared = targetSharedListId ? sharedLists[targetSharedListId]?.tasks.some((t) => t.id === taskId) : false;
 
     if (process.env.NODE_ENV === "development") {
-      const prevList = lists.find(l => l.id === task.listId);
+      const prevList = lists.find(l => l.id === currentListIdForRoute);
       const prevSharedId = prevList?.sharedId ?? null;
-      if (updates.listId !== undefined && updates.listId !== task.listId) {
+      if (updates.listId !== undefined && updates.listId !== currentListIdForRoute) {
         console.info(
-          `[TaskDetailPanel] listId migration: task=${taskId} prev=${task.listId ?? "(none)"} next=${updates.listId} prevShared=${prevSharedId ?? "(none)"} nextShared=${targetSharedListId ?? "(none)"} route=${(!existingInShared && targetSharedListId) ? "updateTask(migration)" : targetSharedListId ? "updateSharedTask" : "updateTask"}`
+          `[TaskDetailPanel] listId migration: task=${taskId} prev=${currentListIdForRoute ?? "(none)"} next=${updates.listId} prevShared=${prevSharedId ?? "(none)"} nextShared=${targetSharedListId ?? "(none)"} route=${(!existingInShared && targetSharedListId) ? "updateTask(migration)" : targetSharedListId ? "updateSharedTask" : "updateTask"}`
         );
       }
     }
 
-    // 任務目前在共享清單中 → 編輯時直接寫 shared snapshot（不走 targetSharedListId 邏輯）
-    if (sharedListId) {
-      updateSharedTask(sharedListId, taskId, updates);
+    // 任務目前在共享清單中（從本地 state 判斷）→ 直接寫 shared snapshot
+    if (currentSharedListId) {
+      updateSharedTask(currentSharedListId, taskId, updates);
       return;
     }
     // 以下：任務不在共享清單中的路由
     if (targetSharedListId) {
-      if (!existingInShared && task.listId !== targetListId) {
+      if (!existingInShared && currentListIdForRoute !== targetListId) {
         logger.ns("TaskDetailPanel").warn(
           "§DEFENSIVE: task not in shared list yet. Routing to updateTask to handle personal→shared migration properly.",
           { taskId, targetSharedListId }
@@ -138,15 +143,16 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
     } else {
       updateTask(taskId, updates);
     }
-  }, [task.listId, sharedListId, sharedLists, updateSharedTask, updateTask, lists]);
+  }, [currentListIdForRoute, currentSharedListId, sharedLists, updateSharedTask, updateTask, lists]);
 
   const handleDeleteTask = useCallback((taskId: string) => {
-    if (sharedListId) {
-      deleteSharedTask(sharedListId, taskId);
+    // §BUG-FIX: 用 local `listId` state，確保刪除路由正確（moveTaskToShared 後 sharedListIdFromProp 已過時）
+    if (currentSharedListId) {
+      deleteSharedTask(currentSharedListId, taskId);
     } else {
       deleteTask(taskId);
     }
-  }, [sharedListId, deleteSharedTask, deleteTask]);
+  }, [currentSharedListId, deleteSharedTask, deleteTask]);
   const keyboard = useKeyboardOffset();
   const collapseScope = user?.uid ?? "anon";
   const { isCollapsed: isDoneCollapsed, toggle: toggleDoneCollapse } = useSubTaskCollapse(task.id, task.subTasks || [], collapseScope);
@@ -211,11 +217,16 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
         // 搬遷失敗（如 shared snapshot 未就緒）→ picker 視覺回彈
         return;
       }
-      setListId(nextId);
+      // §BUG-FIX: moveTaskToShared 已同步 setTasks，任務已從個人清單移除。
+      // 若此時 setListId(nextId)，面板 local state 會是 shared listId，
+      // 但父層 `task` prop 可能還是舊的（listId=收集箱），
+      // 導致 handleUpdateTask 的 routing 走到錯誤路徑。
+      // 改為：直接關閉面板，讓父層重新 render 並以正確 task prop 重開面板。
+      onClose?.();
       return;
     }
     setListId(nextId);
-  }, [listId, lists, confirm, moveTaskToShared, task.id]);
+  }, [listId, lists, confirm, moveTaskToShared, task.id, onClose]);
   const [tagInput, setTagInput] = useState("");
   const [tagColors, setTagColors] = useState<Record<string, string>>({});
   const [showSuggestions, setShowSuggestions] = useState(false);
