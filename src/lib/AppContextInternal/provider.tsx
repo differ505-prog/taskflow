@@ -616,7 +616,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return !owningList?.sharedId;
     });
     const activeShared = Object.entries(sharedLists)
-      .flatMap(([listId, l]) => l.tasks.map(t => ({ ...t, listId })))
+      .flatMap(([sharedId, l]) => {
+        const localList = lists.find(list => list.sharedId === sharedId);
+        const mappedListId = localList ? localList.id : sharedId;
+        return l.tasks.map(t => ({ ...t, listId: mappedListId }));
+      })
       .filter(t => !t.isArchived);
     // 詳情面板=個人剛寫入的新值;列表若用共享舊 snapshot 蓋在新值之上,會卡在舊標題(測試123→測試)。
     // 解法:同 id 兩個版本並存時,以 updatedAt 取新者;皆無 updatedAt 則維持目前行為。
@@ -876,6 +880,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const personalUpdated = tasks.filter((t) => t.id !== id);
     setTasks(personalUpdated);
     saveTasks(personalUpdated);
+    if (user) {
+      deleteTaskFirebase(user.uid, id).catch((err) => log.error("Failed to delete migrated task from personal firebase", err));
+    }
 
     // 2. 寫入共享 snapshot（本地 + 雲端）
     const newSharedData = { ...targetSharedData, tasks: newSharedTasks };
