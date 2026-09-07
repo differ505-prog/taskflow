@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/AppContext";
+import { useExternalCalendar } from "@/hooks/useExternalCalendar";
+import { format } from "date-fns";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useProactiveClosure } from "@/hooks/useProactiveClosure";
 import { useAddToToday } from "@/hooks/useAddToToday";
@@ -624,6 +626,19 @@ const canDrag = !currentSharedListId && !isMobile;
             className={`flex-1 min-h-0 overflow-y-auto overscroll-contain h-full pb-[calc(60px+env(safe-area-inset-bottom,0px)+12px)] ${selectedTaskId ? "hidden md:flex md:flex-col md:pb-5" : "flex flex-col"}`}
           >
           <div className="px-6 py-5 min-w-0 flex flex-col flex-1">
+
+            {/* 今天視圖的節慶情境橫幅 (UX 強化) */}
+            {currentView === "today" && todayHoliday && (
+              <div className="mb-4 px-4 py-3 rounded-2xl flex items-center justify-between" style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--brand) 12%, transparent), color-mix(in srgb, var(--status-success) 10%, transparent))", border: "1px solid color-mix(in srgb, var(--brand) 20%, transparent)" }}>
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">🎊</span>
+                  <p className="text-[14px] font-medium" style={{ color: "var(--brand)" }}>
+                    今天是 {todayHoliday}，祝您有個美好的一天！
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* 失物招領 — 只在 Inbox(任務大廳)頂端顯示
                 死守「Today = 神聖專注區」:失物招領永遠不出現在「今天/禪模式」等專注視圖
                 避免 ADHD 用戶進入「今天」時被昨天的過期任務焦慮擊垮 */}

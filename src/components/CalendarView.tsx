@@ -10,6 +10,9 @@ import { ChevronLeft, ChevronRight, Plus, X, ChevronDown, ChevronRight as Chevro
 import { TaskDetailPanel } from "./TaskDetailPanel";
 import { SwipeableTaskCard } from "./SwipeableTaskCard";
 import { TaskForm } from "./TaskForm";
+import { toast } from "sonner";
+import { TAIWAN_HOLIDAYS_ICS_URL } from "@/lib/icsImport";
+import { translateIcsError } from "@/lib/errorMessages";
 import { useBottomSheet } from "@/hooks/useBottomSheet";
 import { useRef } from "react";
 import { haptic } from "@/lib/haptics";
@@ -143,6 +146,18 @@ export function CalendarView({
     }
   }, [selectedDate]);
 
+
+  const isTaiwanSubscribed = externalCal.urls.includes(TAIWAN_HOLIDAYS_ICS_URL);
+  const handleAddTaiwanHolidays = async () => {
+    if (isTaiwanSubscribed) return;
+    const result = await externalCal.addUrl(TAIWAN_HOLIDAYS_ICS_URL);
+    if (result.ok) {
+      toast.success(`✨ 已訂閱台灣節日（${result.eventCount ?? 0} 個事件）`);
+    } else {
+      toast.error(translateIcsError(new Error(result.error ?? ""), "訂閱失敗"));
+    }
+  };
+
   const submitQuickAdd = (dateStr: string, title: string) => {
     const trimmed = title.trim();
     if (!trimmed) return;
@@ -210,6 +225,8 @@ export function CalendarView({
         externalDateCountMap={externalCal.dateCountMap}
         externalDateTitleMap={externalCal.dateTitleMap}
         hasExternalCalendars={externalCal.urls.length > 0}
+        isTaiwanSubscribed={isTaiwanSubscribed}
+        onAddTaiwanHolidays={handleAddTaiwanHolidays}
       />
       {/* Desktop 新增任務 TaskForm — 與 mobile layout 共用同一個 isOpen state */}
       <TaskForm
@@ -305,6 +322,22 @@ export function CalendarView({
           </div>
         </div>
 
+
+        {!isTaiwanSubscribed && (
+          <div className="mb-3 p-3 rounded-xl flex items-center justify-between" style={{ background: "color-mix(in srgb, var(--brand) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--brand) 20%, transparent)" }}>
+            <div className="flex items-center gap-2">
+              <span className="text-base">🇹🇼</span>
+              <span className="text-[13px] font-medium" style={{ color: "var(--brand)" }}>想在日曆上看到台灣節日嗎？</span>
+            </div>
+            <button
+              onClick={onAddTaiwanHolidays}
+              className="px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-transform active:scale-95"
+              style={{ background: "var(--brand)", color: "var(--brand-foreground)" }}
+            >
+              一鍵加入
+            </button>
+          </div>
+        )}
         {/* Weekday headers */}
         <div className="grid grid-cols-7 mb-2 flex-shrink-0">
           {["日", "一", "二", "三", "四", "五", "六"].map((d) => (
@@ -374,14 +407,16 @@ export function CalendarView({
                   )}
                 </div>
                 {holidayTitle && (
-                  <p
-                    className="mt-auto px-1 pb-0.5 truncate text-[8px] font-medium leading-tight text-pretty"
-                    style={{ color: "var(--text-secondary)" }}
-                    title={holidayTitle}
-                    aria-label={`台灣節日：${holidayTitle}`}
-                  >
-                    {holidayTitle}
-                  </p>
+                  <div className="mt-auto px-1 pb-0.5">
+                    <p
+                      className="truncate text-[10px] font-medium leading-tight px-1 py-0.5 rounded-sm inline-block max-w-full"
+                      style={{ color: "var(--brand)", background: "color-mix(in srgb, var(--brand) 12%, transparent)" }}
+                      title={holidayTitle}
+                      aria-label={`台灣節日：${holidayTitle}`}
+                    >
+                      🎊 {holidayTitle}
+                    </p>
+                  </div>
                 )}
                 {pendingCount > 0 && (
                   <div className="flex-1 min-h-0 px-1 pb-0.5 flex items-start justify-center">
@@ -454,6 +489,8 @@ interface DesktopCalendarLayoutProps {
   externalDateTitleMap: Record<string, string[]>;
   /** 是否至少加入了一個外部日曆(沒有的話不渲染指示器) */
   hasExternalCalendars: boolean;
+  isTaiwanSubscribed: boolean;
+  onAddTaiwanHolidays: () => void;
 }
 
 function DesktopCalendarLayout({
@@ -475,6 +512,8 @@ function DesktopCalendarLayout({
   externalDateCountMap,
   externalDateTitleMap,
   hasExternalCalendars,
+  isTaiwanSubscribed,
+  onAddTaiwanHolidays,
 }: DesktopCalendarLayoutProps) {
 
   const selectedDateTasks = useMemo(() => {
@@ -640,14 +679,16 @@ function DesktopCalendarLayout({
                   )}
                 </div>
                 {holidayTitle && (
-                  <p
-                    className="mt-auto px-1 pb-0.5 truncate text-[8px] font-medium leading-tight text-pretty"
-                    style={{ color: "var(--text-secondary)" }}
-                    title={holidayTitle}
-                    aria-label={`台灣節日：${holidayTitle}`}
-                  >
-                    {holidayTitle}
-                  </p>
+                  <div className="mt-auto px-1 pb-0.5">
+                    <p
+                      className="truncate text-[10px] font-medium leading-tight px-1 py-0.5 rounded-sm inline-block max-w-full"
+                      style={{ color: "var(--brand)", background: "color-mix(in srgb, var(--brand) 12%, transparent)" }}
+                      title={holidayTitle}
+                      aria-label={`台灣節日：${holidayTitle}`}
+                    >
+                      🎊 {holidayTitle}
+                    </p>
+                  </div>
                 )}
                 {pendingCount > 0 && (
                   <div className="flex-1 min-h-0 px-1 pb-0.5 flex items-start justify-center">
