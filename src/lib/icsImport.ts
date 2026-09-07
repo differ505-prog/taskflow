@@ -215,6 +215,10 @@ export interface FetchCalendarResult {
 /**
  * 從遠端 ICS URL 拉取 + 解析 + 寫入 localStorage 快取。
  * 若失敗,保留舊快取(不要把使用者好不容易設好的東西覆蓋掉)。
+ *
+ * §A1 (2026-09-08):所有外部 ICS fetch 統一走 /api/external-calendar 後端代理,
+ * 避免瀏覽器 CORS 阻擋(Google iCal / iCloud / Outlook 都沒送
+ * Access-Control-Allow-Origin,直接從前端 fetch 必失敗)。
  */
 export async function fetchAndCacheExternalCalendar(
   url: string,
@@ -226,17 +230,27 @@ export async function fetchAndCacheExternalCalendar(
     return { ok: false, error: "URL 需以 http:// 或 https:// 開頭" };
   }
 
+  // 走後端代理避免瀏覽器 CORS:把外網 URL 編碼後塞到 query param
+  const proxyUrl = `/api/external-calendar?url=${encodeURIComponent(trimmed)}`;
+
   try {
-    const res = await fetch(trimmed, {
+    const res = await fetch(proxyUrl, {
+      method: "GET",
       signal: options.signal,
-      // Google private ICS URL 通常不需要任何 header
-      headers: { Accept: "text/calendar,text/plain;q=0.9,*/*;q=0.5" },
-      // 不帶 cookies / credentials,因為 private ICS URL 自帶 token
-      credentials: "omit",
+      // 給 ~10s + route 端內建 10s = 給「重新整理全部」一次完整刷新的合理時間
+      credentials: "same-origin",
       cache: "no-store",
     });
     if (!res.ok) {
-      return { ok: false, error: `HTTP ${res.status} — 請檢查 URL 是否正確` };
+      // 上游 4xx/5xx 包成 JSON {error}
+      let errMsg = `代理 HTTP ${res.status}`;
+      try {
+        const body = (await res.json()) as { error?: string };
+        if (body?.error) errMsg = body.error;
+      } catch {
+        // 無法解析時保留原 status 訊息
+      }
+      return { ok: false, error: errMsg };
     }
     const text = await res.text();
     const events = parseICal(text);
