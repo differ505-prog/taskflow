@@ -28,6 +28,12 @@ export interface ExternalCalendarSectionProps {
   setNewCalendarUrl: (url: string) => void;
 }
 
+// §Quick Win:一鍵訂閱台灣節日 — Google 公開 holiday calendar,不需登入/token。
+// 用 zh-tw 的節日清單(春節、端午、中秋、國慶...)+ 農曆節氣會自動帶入台灣當地假日。
+export const TAIWAN_HOLIDAYS_ICS_URL =
+  "https://calendar.google.com/calendar/ical/zh-tw.taiwan%23holiday%40group.v.calendar.google.com/public/basic.ics";
+const TAIWAN_HOLIDAYS_LABEL = "🇹🇼 台灣節日";
+
 export function ExternalCalendarSection({
   externalCal,
   newCalendarUrl,
@@ -41,6 +47,19 @@ export function ExternalCalendarSection({
       toast.success(`已加入 ${result.eventCount ?? 0} 個事件`);
     } else {
       toast.error(translateIcsError(new Error(result.error ?? ""), "加入失敗"));
+    }
+  };
+
+  // §Quick Win:一鍵訂閱台灣節日 — 已訂閱時隱藏 CTA,避免重複加入。
+  const isTaiwanSubscribed = externalCal.urls.includes(TAIWAN_HOLIDAYS_ICS_URL);
+
+  const handleAddTaiwanHolidays = async () => {
+    if (isTaiwanSubscribed) return;
+    const result = await externalCal.addUrl(TAIWAN_HOLIDAYS_ICS_URL);
+    if (result.ok) {
+      toast.success(`✨ 已訂閱 ${TAIWAN_HOLIDAYS_LABEL}（${result.eventCount ?? 0} 個事件）`);
+    } else {
+      toast.error(translateIcsError(new Error(result.error ?? ""), "訂閱失敗"));
     }
   };
 
@@ -65,6 +84,35 @@ export function ExternalCalendarSection({
           </p>
         </div>
       </div>
+
+      {/* §Quick Win:一鍵訂閱台灣節日 — 不需登入、不需貼 URL,按一下即訂閱 */}
+      {!isTaiwanSubscribed && (
+        <button
+          type="button"
+          onClick={handleAddTaiwanHolidays}
+          disabled={externalCal.loading}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-medium transition-all hover:scale-[1.01] active:scale-[0.98] disabled:opacity-50"
+          style={{
+            background:
+              "linear-gradient(135deg, color-mix(in srgb, var(--brand) 12%, transparent), color-mix(in srgb, var(--status-success) 10%, transparent))",
+            color: "var(--text-primary)",
+            border: "1px solid color-mix(in srgb, var(--brand) 25%, transparent)",
+          }}
+          aria-label="一鍵訂閱台灣節日"
+        >
+          <span className="text-base">✨</span>
+          一鍵訂閱 {TAIWAN_HOLIDAYS_LABEL}
+          <span
+            className="text-[11px] font-normal px-1.5 py-0.5 rounded-md"
+            style={{
+              background: "color-mix(in srgb, var(--brand) 18%, transparent)",
+              color: "var(--brand)",
+            }}
+          >
+            免登入
+          </span>
+        </button>
+      )}
 
       {/* 已加入的 URL 列表 */}
       {externalCal.urls.length > 0 && (
