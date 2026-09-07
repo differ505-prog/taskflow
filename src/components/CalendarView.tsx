@@ -330,7 +330,7 @@ export function CalendarView({
               <span className="text-[13px] font-medium" style={{ color: "var(--brand)" }}>想在日曆上看到台灣節日嗎？</span>
             </div>
             <button
-              onClick={onAddTaiwanHolidays}
+              onClick={handleAddTaiwanHolidays}
               className="px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-transform active:scale-95"
               style={{ background: "var(--brand)", color: "var(--brand-foreground)" }}
             >

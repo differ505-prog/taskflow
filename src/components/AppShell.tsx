@@ -102,6 +102,8 @@ export function AppShell({
   const confirm = useConfirm();
   // 「加入今日」共用動作（§Sonner 固定 id + updateTask 自動 markRecentlyWritten）
   const { addToToday, dismissAddToTodayToast } = useAddToToday();
+  // 外部台灣節日(用於 today 視圖橫幅 — 對齊 CalendarView 內 desktop/mobile 同源)讀法)
+  const { dateTitleMap: externalDateTitleMap } = useExternalCalendar();
 
   const listTasks = currentListId ? tasks.filter(t => t.listId === currentListId) : [];
 
@@ -628,7 +630,9 @@ const canDrag = !currentSharedListId && !isMobile;
           <div className="px-6 py-5 min-w-0 flex flex-col flex-1">
 
             {/* 今天視圖的節慶情境橫幅 (UX 強化) */}
-            {currentView === "today" && todayHoliday && (
+            {currentView === "today" && (() => {
+              const todayHoliday = externalDateTitleMap?.[getLocalToday()]?.[0];
+              return todayHoliday && (
               <div className="mb-4 px-4 py-3 rounded-2xl flex items-center justify-between" style={{ background: "linear-gradient(135deg, color-mix(in srgb, var(--brand) 12%, transparent), color-mix(in srgb, var(--status-success) 10%, transparent))", border: "1px solid color-mix(in srgb, var(--brand) 20%, transparent)" }}>
                 <div className="flex items-center gap-3">
                   <span className="text-xl">🎊</span>
@@ -637,7 +641,8 @@ const canDrag = !currentSharedListId && !isMobile;
                   </p>
                 </div>
               </div>
-            )}
+              );
+            })()}
 
             {/* 失物招領 — 只在 Inbox(任務大廳)頂端顯示
                 死守「Today = 神聖專注區」:失物招領永遠不出現在「今天/禪模式」等專注視圖
