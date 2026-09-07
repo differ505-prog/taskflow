@@ -21,6 +21,7 @@ import { ExternalLink, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatFetchedAgo, type ExternalCalendarAPI } from "@/hooks/useExternalCalendar";
 import { translateIcsError } from "@/lib/errorMessages";
+import { TAIWAN_HOLIDAYS_ICS_URL } from "@/lib/icsImport";
 
 export interface ExternalCalendarSectionProps {
   externalCal: ExternalCalendarAPI;
@@ -30,8 +31,6 @@ export interface ExternalCalendarSectionProps {
 
 // §Quick Win:一鍵訂閱台灣節日 — Google 公開 holiday calendar,不需登入/token。
 // 用 zh-tw 的節日清單(春節、端午、中秋、國慶...)+ 農曆節氣會自動帶入台灣當地假日。
-export const TAIWAN_HOLIDAYS_ICS_URL =
-  "https://calendar.google.com/calendar/ical/zh-tw.taiwan%23holiday%40group.v.calendar.google.com/public/basic.ics";
 const TAIWAN_HOLIDAYS_LABEL = "🇹🇼 台灣節日";
 
 export function ExternalCalendarSection({

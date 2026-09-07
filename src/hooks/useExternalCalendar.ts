@@ -5,9 +5,9 @@ import {
   fetchAndCacheExternalCalendar,
   readAllExternalCalendarCaches,
   mergeExternalCalendarCounts,
+  mergeExternalCalendarTitles,
   getStoredExternalCalendarUrls,
   removeStoredExternalCalendar,
-  getCalendarFetchedAt,
 } from "@/lib/icsImport";
 
 /**
@@ -27,6 +27,8 @@ export interface ExternalCalendarAPI {
   dateCountMap: Record<string, number>;
   /** 每個 URL 個別的 date → 事件數(給 SettingsPage 預覽用) */
   perUrlCounts: Record<string, Record<string, number>>;
+  /** 合併後的 date → 官方台灣公開節日標題陣列。 */
+  dateTitleMap: Record<string, string[]>;
   /** 每個 URL 的最後成功拉取時間(ms epoch) */
   perUrlFetchedAt: Record<string, number>;
   /** 是否正在 fetch */
@@ -148,8 +150,9 @@ export function useExternalCalendar(): ExternalCalendarAPI {
     await refreshAllInternal();
   }, [refreshAllInternal]);
 
-  // ─── 聚合所有 URL 的 count map ────────────────────────
+  // ─── 聚合所有 URL 的 count/title maps ─────────────────────
   const dateCountMap = mergeExternalCalendarCounts(urls);
+  const dateTitleMap = mergeExternalCalendarTitles(urls);
 
   // 元件 unmount 時清掉任何 in-flight fetch
   useEffect(() => {
@@ -161,6 +164,7 @@ export function useExternalCalendar(): ExternalCalendarAPI {
   return {
     urls,
     dateCountMap,
+    dateTitleMap,
     perUrlCounts,
     perUrlFetchedAt,
     loading,

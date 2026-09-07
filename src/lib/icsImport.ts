@@ -1,8 +1,8 @@
 /**
  * iCal (.ics) parser for read-only external calendar import.
- * Companion to ical.ts (which generates). This parser extracts only
- * 「這一天是否有事件」,不解析 SUMMARY/DESCRIPTION 用於顯示,
- * 保留使用者隱私(我們不存事件名稱,只存日期清單 + hash)。
+ * Companion to ical.ts (which generates). This parser extracts dates for
+ * conflict indicators and, only for the official Taiwan public holiday feed,
+ * event titles for in-calendar labels. Private calendar content is never persisted.
  *
  * 支援 RFC 5545 的最小子集:
  * - VEVENT 區塊切分
@@ -19,11 +19,24 @@
 
 // ─── localStorage 快取 ────────────────────────────────────────
 const EXTERNAL_CAL_KEY = "taskflow_external_calendars";
+const EXTERNAL_CAL_IMPORT = "icsImport";
+
+/** 一鍵訂閱的官方台灣公開節日來源；只有此 URL 可保存事件標題。 */
+export const TAIWAN_HOLIDAYS_ICS_URL =
+  "https://calendar.google.com/calendar/ical/zh-tw.taiwan%23holiday%40group.v.calendar.google.com/public/basic.ics";
+
+/** 以完整 URL 判斷是否為官方台灣公開節日來源。 */
+export function isTaiwanHolidaysUrl(url: string): boolean {
+  return url.trim() === TAIWAN_HOLIDAYS_ICS_URL;
+}
+
 import { logger } from "@/lib/logger";
-const log = logger.ns("icsImport");
+const log = logger.ns(EXTERNAL_CAL_IMPORT);
 /** 快取結構:{ url → { dateCountMap, fetchedAt } } */
 interface CachedCalendar {
   dateCountMap: Record<string, number>; // YYYY-MM-DD → 事件數
+  /** 僅官方台灣公開節日來源使用。私人日曆不保存此欄位。 */
+  dateTitleMap?: Record<string, string[]>;
   fetchedAt: number; // ms epoch
 }
 
@@ -31,7 +44,21 @@ function readExternalCalendars(): Record<string, CachedCalendar> {
   if (typeof window === "undefined") return {};
   try {
     const raw = localStorage.getItem(EXTERNAL_CAL_KEY);
-    return raw ? JSON.parse(raw) : {};
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, CachedCalendar>;
+    const sanitized: Record<string, CachedCalendar> = {};
+    for (const [url, cached] of Object.entries(parsed)) {
+      if (!cached?.dateCountMap || typeof cached.fetchedAt !== "number") continue;
+      sanitized[url] = {
+        dateCountMap: cached.dateCountMap,
+        // 向後相容舊快取時，也只允許官方台灣公開來源保存標題。
+        ...(isTaiwanHolidaysUrl(url) && cached.dateTitleMap
+          ? { dateTitleMap: cached.dateTitleMap }
+          : {}),
+        fetchedAt: cached.fetchedAt,
+      };
+    }
+    return sanitized;
   } catch {
     return {};
   }
@@ -64,6 +91,8 @@ export interface ParsedVEVENT {
   allDay: boolean;
   /** DTSTAMP 或 UID(用於除錯,不存儲) */
   uid: string | null;
+  /** VEVENT 的公開標題；只有官方台灣節日來源會保存到快取。 */
+  summary: string | null;
 }
 
 /**
@@ -87,6 +116,7 @@ export function parseICal(icsText: string): ParsedVEVENT[] {
   let dtend: string | null = null;
   let dtendIsDate = false;
   let uid: string | null = null;
+  let summary: string | null = null;
 
   const flush = () => {
     if (!inEvent || !dtstart) return;
@@ -96,6 +126,7 @@ export function parseICal(icsText: string): ParsedVEVENT[] {
         dateStr,
         allDay: dtstartIsDate,
         uid,
+        summary,
       });
     }
     // 註:不處理 DTEND 跨日展開 — 我們只需「這一天有事件」,
@@ -114,6 +145,7 @@ export function parseICal(icsText: string): ParsedVEVENT[] {
       dtend = null;
       dtendIsDate = false;
       uid = null;
+      summary = null;
       continue;
     }
     if (line === "END:VEVENT") {
@@ -139,8 +171,10 @@ export function parseICal(icsText: string): ParsedVEVENT[] {
       dtend = value;
     } else if (propUpper.startsWith("UID")) {
       uid = value;
+    } else if (propUpper.startsWith("SUMMARY")) {
+      summary = value.trim() || null;
     }
-    // 其他屬性(SUMMARY/DESCRIPTION/LOCATION 等)刻意忽略 — 隱私保護 + 節省記憶體
+    // 其他屬性(DESCRIPTION/LOCATION 等)刻意忽略 — 隱私保護 + 節省記憶體
   }
 
   return events;
@@ -206,9 +240,23 @@ function aggregateByDate(events: ParsedVEVENT[]): Record<string, number> {
   return map;
 }
 
+/** 過濾 / 聚合:只保留官方台灣公開節日的日期 → 標題陣列。 */
+function aggregateTitlesByDate(events: ParsedVEVENT[]): Record<string, string[]> {
+  const map: Record<string, string[]> = {};
+  for (const ev of events) {
+    if (!ev.summary) continue;
+    const titles = map[ev.dateStr] ?? [];
+    if (!titles.includes(ev.summary)) titles.push(ev.summary);
+    map[ev.dateStr] = titles;
+  }
+  return map;
+}
+
 export interface FetchCalendarResult {
   ok: boolean;
   dateCountMap?: Record<string, number>;
+  /** 僅官方台灣公開節日來源可能回傳；私人日曆永遠為空。 */
+  dateTitleMap?: Record<string, string[]>;
   error?: string;
 }
 
@@ -258,10 +306,16 @@ export async function fetchAndCacheExternalCalendar(
       return { ok: false, error: "ICS 解析失敗或日曆為空 — 請確認這是有效的日曆訂閱連結" };
     }
     const dateCountMap = aggregateByDate(events);
+    const shouldStoreTitles = isTaiwanHolidaysUrl(trimmed);
+    const dateTitleMap = shouldStoreTitles ? aggregateTitlesByDate(events) : {};
     const all = readExternalCalendars();
-    all[trimmed] = { dateCountMap, fetchedAt: Date.now() };
+    all[trimmed] = {
+      dateCountMap,
+      ...(shouldStoreTitles ? { dateTitleMap } : {}),
+      fetchedAt: Date.now(),
+    };
     writeExternalCalendars(all);
-    return { ok: true, dateCountMap };
+    return { ok: true, dateCountMap, ...(shouldStoreTitles ? { dateTitleMap } : {}) };
   } catch (e) {
     if (e instanceof Error && e.name === "AbortError") {
       return { ok: false, error: "請求已取消" };
@@ -295,6 +349,23 @@ export function mergeExternalCalendarCounts(
     if (!cached) continue;
     for (const [date, count] of Object.entries(cached.dateCountMap)) {
       merged[date] = (merged[date] ?? 0) + count;
+    }
+  }
+  return merged;
+}
+
+/** 聚合官方台灣公開節日的標題；私人日曆不會產生標題資料。 */
+export function mergeExternalCalendarTitles(
+  urls: string[],
+): Record<string, string[]> {
+  const all = readExternalCalendars();
+  const merged: Record<string, string[]> = {};
+  for (const url of urls) {
+    const cached = all[url];
+    if (!cached?.dateTitleMap) continue;
+    for (const [date, titles] of Object.entries(cached.dateTitleMap)) {
+      const existing = merged[date] ?? [];
+      merged[date] = [...new Set([...existing, ...titles])];
     }
   }
   return merged;
