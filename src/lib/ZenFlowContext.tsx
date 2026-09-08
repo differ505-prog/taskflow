@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext, useContext, type MutableRefObject } from "react";
 import type {
   ZenFlowTrack,
   OmniSonicSessionPlan,
@@ -50,6 +50,25 @@ export function useFlowTimerContext() {
   const ctx = useContext(FlowTimerContext);
   if (!ctx) {
     throw new Error("useFlowTimerContext must be used inside ZenFlowProvider");
+  }
+  return ctx;
+}
+
+/**
+ * §心流音樂 iframe ref context
+ *
+ * 設計動機: 心流音樂是 provider 等級服務,iframe 常駐 ZenFlowProvider DOM。
+ * FlowTimer 等 UI 元件需要操作這個 iframe 的 src / reload 時,
+ * 透過 context 拿 ref,而不是自己再 embed 一個 iframe。
+ */
+export type ZenMusicFrameRef = MutableRefObject<HTMLIFrameElement | null>;
+
+export const ZenMusicFrameContext = createContext<ZenMusicFrameRef | null>(null);
+
+export function useZenMusicFrame(): ZenMusicFrameRef {
+  const ctx = useContext(ZenMusicFrameContext);
+  if (!ctx) {
+    throw new Error("useZenMusicFrame must be used inside ZenFlowProvider");
   }
   return ctx;
 }

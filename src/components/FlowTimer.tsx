@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Pause, Play } from "lucide-react";
-import { useZenFlowContext, useFlowTimerContext } from "@/lib/ZenFlowContext";
+import {
+  useFlowTimerContext,
+  useZenMusicFrame,
+} from "@/lib/ZenFlowContext";
 import { ProWaitlistModal } from "@/components/ProWaitlistModal";
 import { useGhostButton } from "@/hooks/useGhostButton";
 
@@ -13,6 +16,26 @@ function formatTime(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+/** §音樂圖示 — iframe 提升後,FlowTimer 內只剩視覺 icon */
+function MusicNoteIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M9 18V5l12-2v13" />
+      <circle cx="6" cy="18" r="3" />
+      <circle cx="18" cy="16" r="3" />
+    </svg>
+  );
+}
+
 /**
  * §禪模式膠囊計時器
  *
@@ -20,13 +43,14 @@ function formatTime(seconds: number): string {
  * - 計時器必須在切換分頁（禪模式 unmount）時持續倒數 — 因此 state 必須在
  *   Provider 層（ZenFlowProvider）而非元件 local 持有。改用 useFlowTimerContext
  *   取代原本自寫的 useState + setInterval（已升級為既有 useFlowTimer hook）。
- * - 音樂是計時器的「附屬服務」：使用者必須先開計時器才能開音樂；
- *   計時器停止（自然歸零 / 手動暫停）→ 音樂同步停。
- *   橋接邏輯集中在 ZenFlowProvider（集中式 phase → zenPause 訂閱），避免在
- *   兩處元件（FlowTimer / FlowTimerModal）重複維護。
+ * - 音樂 iframe 提升到 ZenFlowProvider 層（§視圖切換零中斷），本元件只持有
+ *   「音樂圖示按鈕 + 計時器本體 UI」。透過 useZenMusicFrame 取得 provider
+ *   持有的 iframe ref,操作 src 觸發 OmniSonic 站播放/停止。
+ * - 計時器停止（自然歸零 / 手動暫停）→ 音樂 iframe 同步 reload 停止播放。
+ *   橋接邏輯仍集中在 ZenFlowProvider（集中式 phase → iframe reload）。
  */
 export function FlowTimer() {
-  const omnisonicIframeRef = useRef<HTMLIFrameElement | null>(null);
+  const musicFrameRef = useZenMusicFrame();
 
   const {
     snapshot,
@@ -38,29 +62,25 @@ export function FlowTimer() {
 
   const isRunning = snapshot.phase === "running";
 
-  // §React 19 hydration workaround:iframe src 在 useEffect 才注入,
-  // 避免 SSR 階段 React 將 iframe 標記為 hydration mismatch 而跳過 element
-  useEffect(() => {
-    if (!omnisonicIframeRef.current) return;
-    omnisonicIframeRef.current.src = `${process.env.NEXT_PUBLIC_OMNISONIC_URL || "https://music-focus-environment.vercel.app"}/embed/button`;
-  }, []);
-
-  // §計時器結束或暫停時，強制重新載入 iframe 以停止音樂播放
+  // §計時器結束或暫停時,reload provider 持有的 iframe 以停止音樂播放
+  // (原邏輯搬遷後位置;ref 從 useRef 改成從 context 來)
   const prevPhaseRef = useRef(snapshot.phase);
   useEffect(() => {
     if (prevPhaseRef.current === "running" && snapshot.phase !== "running") {
-      if (omnisonicIframeRef.current) {
-        const currentSrc = omnisonicIframeRef.current.src;
-        omnisonicIframeRef.current.src = "";
+      const iframe = musicFrameRef.current;
+      if (iframe) {
+        const currentSrc = iframe.src;
+        iframe.src = "";
         setTimeout(() => {
-          if (omnisonicIframeRef.current) {
-            omnisonicIframeRef.current.src = currentSrc;
+          // §reload 時 ref 可能已被 React 重設;守衛一下避免 stale
+          if (musicFrameRef.current) {
+            musicFrameRef.current.src = currentSrc;
           }
         }, 50);
       }
     }
     prevPhaseRef.current = snapshot.phase;
-  }, [snapshot.phase]);
+  }, [snapshot.phase, musicFrameRef]);
 
   const handlePlayPause = useCallback(() => {
     if (snapshot.phase === "running") {
@@ -146,36 +166,36 @@ export function FlowTimer() {
         {/* 視覺分隔線 */}
         <div className="mx-2 h-3.5 w-px bg-zinc-200/80" />
 
-        {/* §OmniSonic 迷你播放圈圈 */}
-        <div
-          className="group/omnibox relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-purple-500/30 bg-purple-50/50 shadow-[0_0_12px_rgba(var(--flow-glow-color,192,38,211),0.25)] transition-all hover:scale-105 active:scale-95"
-          aria-label={isRunning ? "心流音樂播放中 🎵 點擊調整" : "點這裡播放心流音樂 🎵"}
+        {/* §OmniSonic 迷你播放圈圈
+            iframe 已提升到 ZenFlowProvider 層常駐(§視圖切換零中斷);
+            本元件只剩「視覺圓圈 + 點擊觸發器」。實際音樂由 provider 持有的 iframe 播放。 */}
+        <button
+          type="button"
+          disabled={!isRunning}
+          onClick={() => {
+            // §計時器未啟動時不允許播放 — 與原行為對齊
+            if (!isRunning) {
+              toast("請先開啟心流計時器 🎯", { id: "flow-timer-guard", duration: 2200 });
+              return;
+            }
+            const iframe = musicFrameRef.current;
+            if (!iframe) return;
+            // §點擊觸發 OmniSonic iframe 內部的播放按鈕:
+            // 對 iframe.contentWindow 發 click on its internal play button。
+            // 簡化做法:切換 src query 觸發 OmniSonic 站的 autoplay handler。
+            // (若日後需要更精準的播放/暫停切換,可改用 postMessage。)
+            const url = new URL(iframe.src);
+            url.searchParams.set("autoplay", "1");
+            iframe.src = url.toString();
+          }}
+          aria-label={isRunning ? "心流音樂播放中 🎵" : "點這裡播放心流音樂 🎵"}
+          title={isRunning ? "心流音樂播放中 🎵" : "請先開啟心流計時器"}
+          className={`group/omnibox relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-purple-500/30 bg-purple-50/50 shadow-[0_0_12px_rgba(var(--flow-glow-color,192,38,211),0.25)] transition-all ${
+            isRunning ? "hover:scale-105 active:scale-95 cursor-pointer" : "cursor-not-allowed opacity-60"
+          }`}
         >
-          {/* 獨立一層 overflow-hidden 處理 iframe 裁切，不再影響 overlay 按鈕 */}
-          <div className="relative h-full w-full overflow-hidden rounded-full">
-            <iframe
-              ref={omnisonicIframeRef}
-              title="OmniSonic Deep Focus Button"
-              className="absolute top-1/2 left-1/2 h-[40px] w-[40px] -translate-x-1/2 -translate-y-1/2 scale-[0.7] border-none bg-transparent"
-              style={{ colorScheme: "light" }}
-              allow="autoplay"
-              scrolling="no"
-              src="https://music-focus-environment.vercel.app/?zen=1"
-            />
-            {/* §計時器未啟動時，使用透明遮罩攔截點擊，防止提早播放音樂 */}
-            {!isRunning && (
-              <div 
-                className="absolute inset-0 z-20 cursor-not-allowed"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  toast("請先開啟心流計時器 🎯", { id: "flow-timer-guard", duration: 2200 });
-                }}
-                title="請先開啟心流計時器"
-              />
-            )}
-          </div>
-        </div>
+          <MusicNoteIcon className="h-3 w-3 text-purple-500" />
+        </button>
       </div>
 
       {/* §Free Tier:無限心流 → 解鎖 25 分鐘限制假門 */}
