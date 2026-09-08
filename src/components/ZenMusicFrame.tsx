@@ -14,6 +14,13 @@ import { forwardRef, useImperativeHandle, useRef } from "react";
  *   把 iframe 提升到 ZenFlowProvider 層,常駐 DOM 樹,視圖切換零影響。
  * - 本元件不做任何 UI、不接收使用者互動 — 純 DOM 載體 + ref 把手。
  *   視覺按鈕仍歸 FlowTimer 管(保留現有「沒開計時器不准播音樂」守衛)。
+ *
+ * §iframe 尺寸 audio suppression 規避:
+ * - iframe 採 OmniSonic embed button 真實尺寸(120×40),
+ *   但 style.opacity = 0.001(>0 觸發 audio decoder,視覺實質不可見)+ z-[-1] 墊底。
+ * - 1×1 + opacity:0 會被 Chromium 視為「不可見媒體」延遲/暫停 audio context;
+ *   display:none 也會被部分瀏覽器暫停 autoplay audio context。
+ * - 「真實尺寸 + opacity:0.001 + 視覺靠右下 0/0」是平衡兩者的最簡解。
  */
 export type ZenMusicFrameHandle = {
   /** 取得底層 iframe 元素(供 src 操作 / postMessage 等) */
@@ -34,11 +41,13 @@ export const ZenMusicFrame = forwardRef<ZenMusicFrameHandle>(function ZenMusicFr
     <iframe
       ref={iframeRef}
       title="OmniSonic Deep Focus Button"
-      // §視覺隱藏但常駐 DOM。size 1px 透明 — 唯一目的是不讓瀏覽器回收 audio。
-      // 若用 display:none 會被部分瀏覽器暫停 autoplay audio context。
-      // 故採 visibility:hidden + 1px 維持 layout,但完全不可見不可點。
-      className="pointer-events-none fixed bottom-0 right-0 z-[-1] h-px w-px opacity-0"
-      style={{ border: "none", colorScheme: "light" }}
+      className="pointer-events-none fixed bottom-0 right-0 z-[-1] h-[40px] w-[120px]"
+      // §Chromium audio suppression workaround:
+      // 1×1 opacity:0 iframe 會被瀏覽器判定為「不可見媒體」,延遲/暫停 audio context。
+      // 解法:iframe 採 OmniSonic embed button 真實尺寸(120×40),
+      // 但 style.opacity 設為 0.001 (>0 觸發 audio decoder,視覺實質不可見)。
+      // 搭配 fixed bottom-0 right-0 視覺上仍在畫面角落,不擋主畫面互動。
+      style={{ border: "none", colorScheme: "light", opacity: 0.001 }}
       allow="autoplay"
       scrolling="no"
       src={`${process.env.NEXT_PUBLIC_OMNISONIC_URL || "https://music-focus-environment.vercel.app"}/embed/button`}
