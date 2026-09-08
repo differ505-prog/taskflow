@@ -78,24 +78,31 @@ export function useZenFlow(omnisonicBaseUrl: string) {
 
   const buildAudioUrl = useCallback(
     (track: ZenFlowTrack) => {
-      // Auto DJ 清單提供正式音源；舊 stream endpoint 僅作向下相容 fallback。
-      if (track.media?.audioUrl) {
-        return new URL(track.media.audioUrl, omnisonicBaseUrl).toString();
+      // §走同源 stream proxy 避 OmniSonic CORS(其只放行 taskflow-v2-pink domain)。
+      // 無論 media.audioUrl 還是 fallback,一律吃 /api/omnisonic/stream/[slug],
+      // 由 Next.js server-side fetch 到 OmniSonic 並 pipe body 回前端,
+      // 前端永遠同源不踩 CORS。<audio> 與 WebAudio 兩種模式都解。
+      const origin =
+        typeof window !== "undefined" ? window.location.origin : "";
+      const slug = track.slug ?? track.id;
+      if (!slug) {
+        // 最後 fallback:若 track 完全無 id/slug,試 audioUrl 直連(僅在 production domain 有效)
+        if (track.media?.audioUrl) return track.media.audioUrl;
+        return "";
       }
-      return `${omnisonicBaseUrl}/api/zenflow/stream/${track.slug}`;
+      return `${origin}/api/omnisonic/stream/${encodeURIComponent(slug)}`;
     },
-    [omnisonicBaseUrl],
+    [],
   );
 
   const createHowl = useCallback(
     (track: ZenFlowTrack, initialVolume = 1) => {
-      // §html5:false 走 WebAudio API + AudioContext,徹底解決三件事:
-      //   (1) iOS Safari/PWA user gesture 解鎖 — AudioContext.resume() 在同步 stack 內更可靠
-      //   (2) CORS 寬鬆 — WebAudio fetch 只要 opaque CORS 也行,<audio> element 嚴格 CORS
-      //   (3) load 事件時序更穩 — WebAudio 一旦 decoded 立即可播,不需等下一 chunk
+      // §html5:true 走 <audio> element — stream proxy 已解 CORS,
+      // PWA seek/Range 支援比 WebAudio decode 來得穩;
+      // user gesture 解鎖由 Howler 內部 AudioContext.resume() 自動處理。
       const howl = new Howl({
         src: [buildAudioUrl(track)],
-        html5: false,
+        html5: true,
         preload: true,
         volume: initialVolume,
         format: ["mp3"],
