@@ -171,7 +171,7 @@ export function useZenFlow(omnisonicBaseUrl: string) {
       if (!currentHowlRef.current) {
         if (playlistRef.current.length === 0) {
           setState((prev) => ({ ...prev, isLoading: true }));
-            fetch(`${omnisonicBaseUrl}/api/zenflow/autodj/playlist`, { next: { revalidate: 10 } })
+            fetch(`/api/omnisonic/playlist`, { next: { revalidate: 10 } })
               .then((r) => r.json())
               .then((data: { tracks: ZenFlowTrack[]; sessionPlan: OmniSonicSessionPlan }) => {
                 const tracks = data.tracks ?? [];
@@ -509,7 +509,7 @@ export function useZenFlow(omnisonicBaseUrl: string) {
       : null;
 
     fetch(
-      `${omnisonicBaseUrl}/api/zenflow/autodj/playlist${
+      `/api/omnisonic/playlist${
         currentTrackId || nextTrackId
           ? `?${new URLSearchParams({
               ...(currentTrackId ? { currentTrackId } : {}),
@@ -517,7 +517,7 @@ export function useZenFlow(omnisonicBaseUrl: string) {
             }).toString()}`
           : ""
       }`,
-      { next: { revalidate: 10 } },
+      { next: { revalidate: 10 } }
     )
       .then((r) => r.json())
       .then((data: {
