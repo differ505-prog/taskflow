@@ -133,7 +133,7 @@ export function useZenFlow(omnisonicBaseUrl: string) {
       if (!track) return;
 
       // Update crossfade duration for this track
-      currentCrossfadeSecondsRef.current = track.transition.crossfadeSeconds;
+      currentCrossfadeSecondsRef.current = track.transition?.crossfadeSeconds ?? 4.36;
 
       if (currentHowlRef.current) {
         currentHowlRef.current.stop();
@@ -147,7 +147,7 @@ export function useZenFlow(omnisonicBaseUrl: string) {
       currentHowlRef.current = howl;
 
       howl.once("play", () => {
-        const introCue = track.transition.introCueSeconds;
+        const introCue = track.transition?.introCueSeconds ?? 0;
         const duration = howl.duration();
         if (introCue > 0 && introCue < duration) {
           howl.seek(introCue);
@@ -378,7 +378,7 @@ export function useZenFlow(omnisonicBaseUrl: string) {
           // Update crossfade duration for the NEW current track
           const newTrack = playlistRef.current[currentIndexRef.current];
           if (newTrack) {
-            currentCrossfadeSecondsRef.current = newTrack.transition.crossfadeSeconds;
+            currentCrossfadeSecondsRef.current = newTrack.transition?.crossfadeSeconds ?? 4.36;
           }
 
           setState((prev) => ({ ...prev, isCrossfading: false }));
