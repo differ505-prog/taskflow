@@ -4,11 +4,9 @@ import { useEffect, useRef } from "react";
 import {
   ZenFlowContext,
   FlowTimerContext,
-  ZenMusicFrameContext,
 } from "./ZenFlowContext";
 import { useZenFlow } from "./useZenFlow";
 import { useFlowTimer } from "./usePomodoro";
-import { ZenMusicFrame, type ZenMusicFrameHandle } from "@/components/ZenMusicFrame";
 
 /**
  * §計時器 ↔ 音樂 集中式橋接 (§6 DRY):
@@ -65,26 +63,18 @@ function FlowTimerMusicBridge({
 export function ZenFlowProvider({ children, omnisonicBaseUrl }: { children: React.ReactNode; omnisonicBaseUrl: string }) {
   const controller = useZenFlow(omnisonicBaseUrl);
   const flowTimer = useFlowTimer();
-  // §心流音樂 iframe ref — 提升到 Provider 層常駐,視圖切換零影響
-  const musicFrameRef = useRef<HTMLIFrameElement | null>(null);
 
   return (
     <ZenFlowContext.Provider value={controller}>
       <FlowTimerContext.Provider value={flowTimer}>
-        <ZenMusicFrameContext.Provider value={musicFrameRef}>
+        
           <FlowTimerMusicBridge
             flowTimer={flowTimer}
             zenIsPlaying={controller.state.isPlaying}
             zenPause={controller.pause}
           />
-          {/* §常駐心流音樂 iframe — 不隨視圖切換 unmount */}
-          <ZenMusicFrame
-            ref={(handle: ZenMusicFrameHandle | null) => {
-              musicFrameRef.current = handle?.getIframe() ?? null;
-            }}
-          />
           {children}
-        </ZenMusicFrameContext.Provider>
+        
       </FlowTimerContext.Provider>
     </ZenFlowContext.Provider>
   );

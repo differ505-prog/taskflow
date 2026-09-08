@@ -27,6 +27,7 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
   const { tasks, todayFocusMinutes } = useApp();
 
   const flowTimer = useFlowTimerContext();
+  const zenFlow = useZenFlowContext();
   const {
     snapshot,
     secondsLeft,
@@ -42,26 +43,9 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
   const [taskSearch, setTaskSearch] = useState("");
   const [mounted, setMounted] = useState(false);
   const taskSearchRef = useRef<HTMLInputElement>(null);
-  const omnisonicIframeRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
 
-  // §計時器結束或暫停時，強制重新載入 iframe 以停止音樂播放
-  const prevPhaseRef = useRef(snapshot.phase);
-  useEffect(() => {
-    if (prevPhaseRef.current === "running" && snapshot.phase !== "running") {
-      if (omnisonicIframeRef.current) {
-        const currentSrc = omnisonicIframeRef.current.src;
-        omnisonicIframeRef.current.src = "";
-        setTimeout(() => {
-          if (omnisonicIframeRef.current) {
-            omnisonicIframeRef.current.src = currentSrc;
-          }
-        }, 50);
-      }
-    }
-    prevPhaseRef.current = snapshot.phase;
-  }, [snapshot.phase]);
 
   const totalSeconds = Math.floor(snapshot.totalMs / 1000);
   const minutes = Math.floor(secondsLeft / 60);
@@ -256,28 +240,25 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
           {snapshot.type === "focus" && (
             <div className="flex flex-col items-center gap-2">
               <div
-                className="group/omnibox-modal relative w-20 h-20 rounded-full overflow-hidden border cursor-pointer transition-all hover:scale-105 active:scale-95"
+                className="group/omnibox-modal relative w-20 h-20 rounded-full overflow-hidden border transition-all flex items-center justify-center bg-purple-50"
                 style={{ borderColor: "rgba(192,38,211,0.3)", boxShadow: "0 0 24px rgba(192,38,211,0.25)" }}
               >
-                <iframe
-                  ref={omnisonicIframeRef}
-                  src={`${process.env.NEXT_PUBLIC_OMNISONIC_URL || "https://music-focus-environment.vercel.app"}/embed/button`}
-                  title="OmniSonic Deep Focus Button"
-                  className="w-full h-full border-0"
-                  allow="autoplay"
-                />
-                {/* §計時器未啟動時，使用透明遮罩攔截點擊，防止提早播放音樂 */}
-                {snapshot.phase !== "running" && (
-                  <div 
-                    className="absolute inset-0 z-20 cursor-not-allowed bg-transparent"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
+                {zenFlow.state.isPlaying ? <Pause className="w-8 h-8 text-purple-500" /> : <Play className="w-8 h-8 text-purple-500 ml-1" />}
+                
+                <div 
+                  className={`absolute inset-0 z-20 transition-colors ${snapshot.phase === "running" ? "cursor-pointer hover:bg-purple-500/10 active:bg-purple-500/20" : "cursor-not-allowed"}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (snapshot.phase !== "running") {
                       toast("請先開啟心流計時器 🎯", { id: "flow-timer-guard-modal", duration: 2200 });
-                    }}
-                    title="請先開啟心流計時器"
-                  />
-                )}
+                      return;
+                    }
+                    if (zenFlow.state.isPlaying) zenFlow.pause();
+                    else zenFlow.play();
+                  }}
+                  title={snapshot.phase === "running" ? (zenFlow.state.isPlaying ? "暫停音樂" : "播放音樂") : "請先開啟心流計時器"}
+                />
               </div>
               <p className="text-[10px] tracking-widest uppercase" style={{ color: "var(--text-tertiary)" }}>
                 OmniSonic · Deep Focus · Free 25 分鐘
