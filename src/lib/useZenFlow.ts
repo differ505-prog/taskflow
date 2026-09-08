@@ -77,18 +77,49 @@ export function useZenFlow(omnisonicBaseUrl: string) {
   );
 
   const buildAudioUrl = useCallback(
-    (track: ZenFlowTrack) =>
-      `${omnisonicBaseUrl}/api/zenflow/stream/${track.slug}`,
+    (track: ZenFlowTrack) => {
+      // Auto DJ 清單提供正式音源；舊 stream endpoint 僅作向下相容 fallback。
+      if (track.media?.audioUrl) {
+        return new URL(track.media.audioUrl, omnisonicBaseUrl).toString();
+      }
+      return `${omnisonicBaseUrl}/api/zenflow/stream/${track.slug}`;
+    },
     [omnisonicBaseUrl],
   );
 
   const createHowl = useCallback(
     (track: ZenFlowTrack, initialVolume = 1) => {
+      // §html5:false 走 WebAudio API + AudioContext,徹底解決三件事:
+      //   (1) iOS Safari/PWA user gesture 解鎖 — AudioContext.resume() 在同步 stack 內更可靠
+      //   (2) CORS 寬鬆 — WebAudio fetch 只要 opaque CORS 也行,<audio> element 嚴格 CORS
+      //   (3) load 事件時序更穩 — WebAudio 一旦 decoded 立即可播,不需等下一 chunk
       const howl = new Howl({
         src: [buildAudioUrl(track)],
-        html5: true,
+        html5: false,
         preload: true,
         volume: initialVolume,
+        format: ["mp3"],
+      });
+
+      howl.on("loaderror", (_id, error) => {
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          isPlaying: false,
+          error: `音樂載入失敗：${String(error)}`,
+        }));
+      });
+
+      howl.on("playerror", (_id, error) => {
+        setState((prev) => ({
+          ...prev,
+          isPlaying: false,
+          error: `音樂播放失敗：${String(error)}`,
+        }));
+      });
+
+      howl.on("load", () => {
+        setState((prev) => ({ ...prev, isLoading: false, error: null }));
       });
 
       howl.on("end", () => {
