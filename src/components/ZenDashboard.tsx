@@ -362,7 +362,7 @@ export default function ZenDashboard() {
             無聲營地
           </GhostButton>
           {/* §Safari-test: 移除 touch-manipulation + active:scale, 改用 touch-action:auto + user-select:auto 測試 hit-testing */}
-          <a
+          <Link
             href="/?board=1"
             className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-slate-500 transition-all duration-200 ease-out hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-200 sm:px-4"
             style={{ touchAction: "auto", userSelect: "auto" }}
@@ -385,7 +385,7 @@ export default function ZenDashboard() {
               <rect x="14" y="14" width="7" height="7" rx="1" />
             </svg>
             <span className="hidden sm:inline">任務大廳</span>
-          </a>
+          </Link>
         </div>
       </div>
 
