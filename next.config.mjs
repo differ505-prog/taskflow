@@ -30,8 +30,9 @@ const nextConfig = {
       "img-src 'self' data: blob: https:",
       // font-src: data: 給 icon font inline
       "font-src 'self' data:",
-      // connect-src: Supabase REST + Realtime (wss) + PostHog + Vercel Analytics + Sentry (預留)
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://us.i.posthog.com https://*.vercel-scripts.com https://*.sentry.io",
+      // connect-src: Supabase REST + Realtime (wss) + PostHog + Vercel Analytics + Sentry (預留) +
+      //                  Firestore REST (firestore.googleapis.com) + Google Identity (googleapis.com) + WebChannel (wss://*.firebaseio.com)
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://us.i.posthog.com https://*.vercel-scripts.com https://*.sentry.io https://firestore.googleapis.com https://*.googleapis.com wss://*.firebaseio.com",
       // frame-src: 允許 OmniSonic 音樂播放器的 iframe
       "frame-src 'self' https://music-focus-environment.vercel.app https://omnisonic.vibelist.work",
       "frame-ancestors 'none'",

@@ -40,6 +40,7 @@ import {
   saveFlowTimerSessions,
 } from "@/lib/storage";
 import { Task, TaskList, Habit } from "@/lib/types";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { Unsubscribe } from "firebase/firestore";
 
 // ─── Module-level guards ─────────────────────────────────────
@@ -64,6 +65,12 @@ interface FirebaseDataProviderProps {
 }
 
 export function FirebaseDataProvider({ children }: FirebaseDataProviderProps) {
+  // §FIX-F: Supabase 已是 source of truth 時,Firestore 個人資料同步變 no-op。
+  // 雙重同步會讓 Firestore IndexedDB cache 把已刪除的任務又拉回來（forceReload 覆蓋本地）。
+  // Firestore 路徑保留為「未來 Supabase 出問題時」的 fallback,反轉這個條件即可切回。
+  if (isSupabaseConfigured()) {
+    return <>{children}</>;
+  }
   const { user, loading } = useAuth();
   const { forceReload } = useApp();
   const unsubs = useRef<Unsubscribe[]>([]);
