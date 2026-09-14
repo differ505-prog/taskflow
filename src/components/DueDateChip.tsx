@@ -100,7 +100,7 @@ export function DueDateChip({ dueDate, startDate, dueTime, isDone }: DueDateChip
       className="pill-muted text-[11px] py-0.5"
       style={
         dueInfo.isOverdue && !isDone
-          ? { background: "var(--surface-muted)", color: "var(--priority-do-now)" }
+          ? { background: "color-mix(in srgb, var(--status-warning) 10%, transparent)", color: "var(--status-warning)" }
           : dueInfo.isToday
           ? { background: "var(--brand-tint)", color: "var(--brand)" }
           : isUrgentSoon
