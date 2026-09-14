@@ -245,6 +245,8 @@ function aggregateTitlesByDate(events: ParsedVEVENT[]): Record<string, string[]>
   const map: Record<string, string[]> = {};
   for (const ev of events) {
     if (!ev.summary) continue;
+    // 補班日是上班日,不應標為假日（DGPA 行事曆慣例:補假=放,補班=上）
+    if (ev.summary.includes("補班")) continue;
     const titles = map[ev.dateStr] ?? [];
     if (!titles.includes(ev.summary)) titles.push(ev.summary);
     map[ev.dateStr] = titles;
