@@ -340,8 +340,12 @@ export function CalendarView({
         )}
         {/* Weekday headers */}
         <div className="grid grid-cols-7 mb-2 flex-shrink-0">
-          {["日", "一", "二", "三", "四", "五", "六"].map((d) => (
-            <div key={d} className="text-center text-[12px] font-medium py-2" style={{ color: "var(--text-tertiary)" }}>
+          {["日", "一", "二", "三", "四", "五", "六"].map((d, i) => (
+            <div
+              key={d}
+              className="text-center text-[12px] font-medium py-2"
+              style={{ color: (i === 0 || i === 6) ? "var(--status-danger)" : "var(--text-tertiary)" }}
+            >
               {d}
             </div>
           ))}
@@ -358,6 +362,7 @@ export function CalendarView({
           {days.map((day, i) => {
             const isCurrentMonth = isSameMonth(day, currentMonth);
             const isToday_ = isToday(day);
+            const isWeekend = day.getDay() === 0 || day.getDay() === 6;
             const dateStr = format(day, "yyyy-MM-dd");
             const dayTasks = getTasksForDay(day);
             const isSelected = selectedDate === dateStr;
@@ -390,7 +395,7 @@ export function CalendarView({
                       isToday_
                         ? { background: "var(--brand)", color: "var(--brand-foreground)" }
                         : isCurrentMonth
-                        ? { color: "var(--text-primary)" }
+                        ? { color: (isWeekend || holidayTitle) ? "var(--status-danger)" : "var(--text-primary)" }
                         : { color: "var(--text-tertiary)" }
                     }
                   >
@@ -612,8 +617,12 @@ function DesktopCalendarLayout({
 
         {/* Weekday headers */}
         <div className="grid grid-cols-7 mb-2">
-          {["日", "一", "二", "三", "四", "五", "六"].map((d) => (
-            <div key={d} className="text-center text-[12px] font-medium py-2" style={{ color: "var(--text-tertiary)" }}>
+          {["日", "一", "二", "三", "四", "五", "六"].map((d, i) => (
+            <div
+              key={d}
+              className="text-center text-[12px] font-medium py-2"
+              style={{ color: (i === 0 || i === 6) ? "var(--status-danger)" : "var(--text-tertiary)" }}
+            >
               {d}
             </div>
           ))}
@@ -630,6 +639,7 @@ function DesktopCalendarLayout({
           {days.map((day, i) => {
             const isCurrentMonth = isSameMonth(day, currentMonth);
             const isToday_ = isToday(day);
+            const isWeekend = day.getDay() === 0 || day.getDay() === 6;
             const dateStr = format(day, "yyyy-MM-dd");
             const dayTasks = getTasksForDay(day);
             const isSelected = selectedDate === dateStr;
@@ -662,7 +672,7 @@ function DesktopCalendarLayout({
                       isToday_
                         ? { background: "var(--brand)", color: "var(--brand-foreground)" }
                         : isCurrentMonth
-                        ? { color: "var(--text-primary)" }
+                        ? { color: (isWeekend || holidayTitle) ? "var(--status-danger)" : "var(--text-primary)" }
                         : { color: "var(--text-tertiary)" }
                     }
                   >
