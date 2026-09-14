@@ -240,6 +240,21 @@ function aggregateByDate(events: ParsedVEVENT[]): Record<string, number> {
   return map;
 }
 
+/** 僅部分族群放假的「狹義國定假日」（非全民假日）。 */
+const PARTIAL_HOLIDAY_KEYWORDS = [
+  "軍人節",
+  "警察節",
+  "護理師節",
+  "醫師節",
+  "教師節",
+  "藥師節",
+] as const;
+
+/** 判斷是否為狹義國定假日（僅部分族群放假）。 */
+function isPartialHoliday(summary: string): boolean {
+  return PARTIAL_HOLIDAY_KEYWORDS.some((kw) => summary.includes(kw));
+}
+
 /** 過濾 / 聚合:只保留官方台灣公開節日的日期 → 標題陣列。 */
 function aggregateTitlesByDate(events: ParsedVEVENT[]): Record<string, string[]> {
   const map: Record<string, string[]> = {};
@@ -247,8 +262,12 @@ function aggregateTitlesByDate(events: ParsedVEVENT[]): Record<string, string[]>
     if (!ev.summary) continue;
     // 補班日是上班日,不應標為假日（DGPA 行事曆慣例:補假=放,補班=上）
     if (ev.summary.includes("補班")) continue;
+    // 狹義國定假日（軍人節等）僅部分族群放假，視為「有標記但不全民適用」
+    const isPartial = isPartialHoliday(ev.summary);
     const titles = map[ev.dateStr] ?? [];
-    if (!titles.includes(ev.summary)) titles.push(ev.summary);
+    // 標記前綴區分：★=全民假日, ◇=部分族群假日
+    const label = isPartial ? `◇ ${ev.summary}` : `★ ${ev.summary}`;
+    if (!titles.includes(label)) titles.push(label);
     map[ev.dateStr] = titles;
   }
   return map;
