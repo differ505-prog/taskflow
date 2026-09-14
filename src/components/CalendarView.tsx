@@ -371,6 +371,8 @@ export function CalendarView({
             const pendingCount = pendingTasks.length;
             const externalCount = externalCal.dateCountMap[dateStr] ?? 0;
             const holidayTitle = externalCal.dateTitleMap[dateStr]?.[0];
+            // §部分族群假日:◇ 開頭(軍人節/教師節等)不算全民假日,日期數字不上色,只留 🎊 標記
+            const isFullHoliday = holidayTitle && !holidayTitle.startsWith("◇");
 
             return (
               <div
@@ -395,7 +397,7 @@ export function CalendarView({
                       isToday_
                         ? { background: "var(--brand)", color: "var(--brand-foreground)" }
                         : isCurrentMonth
-                        ? { color: (isWeekend || holidayTitle) ? "var(--status-danger)" : "var(--text-primary)" }
+                        ? { color: (isWeekend || isFullHoliday) ? "var(--status-danger)" : "var(--text-primary)" }
                         : { color: "var(--text-tertiary)" }
                     }
                   >
@@ -650,6 +652,8 @@ function DesktopCalendarLayout({
               ? externalDateCountMap[dateStr] ?? 0
               : 0;
             const holidayTitle = externalDateTitleMap[dateStr]?.[0];
+            // §部分族群假日:◇ 開頭(軍人節/教師節等)不算全民假日,日期數字不上色,只留 🎊 標記
+            const isFullHoliday = holidayTitle && !holidayTitle.startsWith("◇");
 
             return (
               <div
@@ -672,7 +676,7 @@ function DesktopCalendarLayout({
                       isToday_
                         ? { background: "var(--brand)", color: "var(--brand-foreground)" }
                         : isCurrentMonth
-                        ? { color: (isWeekend || holidayTitle) ? "var(--status-danger)" : "var(--text-primary)" }
+                        ? { color: (isWeekend || isFullHoliday) ? "var(--status-danger)" : "var(--text-primary)" }
                         : { color: "var(--text-tertiary)" }
                     }
                   >
