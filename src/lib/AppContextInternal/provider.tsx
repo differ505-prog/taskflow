@@ -117,6 +117,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const lastActiveWriteAtRef = useRef<Record<string, number>>({});
   const deletedTaskIdsRef = useRef<Set<string>>(new Set());
+  const deletedTaskIdsRef_deleteGuards = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const syncedTaskIdsRef = useRef<Set<string>>(new Set());
   const syncedHabitIdsRef = useRef<Set<string>>(new Set());
   const previousTasksRef = useRef<Task[]>([]);
@@ -1023,7 +1024,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
     previousTasksRef.current = tasks;
+    // §FIX-J:deletedTaskIdsRef 必須保留到 Realtime DELETE callback 處理為止,
+    // 否則 merge 時任務會被加回來（即使 cloud delete 成功,DELETE event 到來前 merge 也會蓋過本地刪除）。
+    // 計時器作為最終清理（覆蓋所有 fail 情況：user=null / 網路錯誤 / RLS 阻擋）。
     deletedTaskIdsRef.current.add(id);
+    const DELETE_GUARD_MS = 30_000;
+    const existingGuard = deletedTaskIdsRef_deleteGuards.current.get(id);
+    if (existingGuard) clearTimeout(existingGuard);
+    const guard = setTimeout(() => {
+      deletedTaskIdsRef.current.delete(id);
+      deletedTaskIdsRef_deleteGuards.current.delete(id);
+    }, DELETE_GUARD_MS);
+    deletedTaskIdsRef_deleteGuards.current.set(id, guard);
     const updated = tasks.filter((t) => t.id !== id);
     log.sync(`刪除任務 ${id}`);
     setTasks(updated);
@@ -1048,15 +1060,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (user) {
       deleteTaskFirebase(user.uid, id)
         .then(() => {
-          deletedTaskIdsRef.current.delete(id);
+          // cloud delete 成功：DELETE Realtime event 到來時 deletedTaskIdsRef 會被清除
+          // 計時器作為雙重保護（DELETE event 萬一漏收）
         })
         .catch((err) => {
           log.warn("刪除失敗", err);
-          deletedTaskIdsRef.current.delete(id);
+          // cloud delete 失敗：依賴計時器清理 deletedTaskIdsRef
         });
-    } else {
-      deletedTaskIdsRef.current.delete(id);
     }
+    // 不再在這裡刪除 deletedTaskIdsRef——交給 DELETE callback 或計時器
   }, [tasks, user, undoDelete]);
 
   const toggleTaskStatus = useCallback((id: string) => {
