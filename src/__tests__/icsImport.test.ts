@@ -148,6 +148,72 @@ describe("icsImport privacy contract", () => {
     expect(titles).toEqual({ "2026-09-03": ["★ 軍人節"] });
   });
 
+  // ─── §F4 override 白名單(2026-09-14 新增)────────────────────
+  // DGPA 2025 年修法把這 3 個升格為國定假日,但 Google ICS 仍寫 DESCRIPTION=假日節慶
+  // 用 SUMMARY 命中覆蓋,避免誤標 ◇。
+
+  it("§F4 override:教師節 + DESCRIPTION=假日節慶 → 標 ★(全民放假)", async () => {
+    vi.resetModules();
+    const { aggregateTitlesByDate } = await import("@/lib/icsImport");
+    const titles = aggregateTitlesByDate([
+      {
+        dateStr: "2026-09-28",
+        allDay: true,
+        uid: null,
+        summary: "教師節",
+        description: "假日節慶\\n如要隱藏假日節慶,請前往 Google 日曆的 [設定]",
+      },
+    ] as never);
+    expect(titles).toEqual({ "2026-09-28": ["★ 教師節"] });
+  });
+
+  it("§F4 override:台灣光復節 + DESCRIPTION=假日節慶 → 標 ★", async () => {
+    vi.resetModules();
+    const { aggregateTitlesByDate } = await import("@/lib/icsImport");
+    const titles = aggregateTitlesByDate([
+      {
+        dateStr: "2026-10-25",
+        allDay: true,
+        uid: null,
+        summary: "臺灣光復節",
+        description: "假日節慶\\n如要隱藏假日節慶,請前往 Google 日曆的 [設定]",
+      },
+    ] as never);
+    expect(titles).toEqual({ "2026-10-25": ["★ 臺灣光復節"] });
+  });
+
+  it("§F4 override:行憲紀念日 + DESCRIPTION=假日節慶 → 標 ★", async () => {
+    vi.resetModules();
+    const { aggregateTitlesByDate } = await import("@/lib/icsImport");
+    const titles = aggregateTitlesByDate([
+      {
+        dateStr: "2026-12-25",
+        allDay: true,
+        uid: null,
+        summary: "行憲紀念日",
+        description: "假日節慶\\n如要隱藏假日節慶,請前往 Google 日曆的 [設定]",
+      },
+    ] as never);
+    expect(titles).toEqual({ "2026-12-25": ["★ 行憲紀念日"] });
+  });
+
+  it("§F4 override:軍人節不在白名單 → DESCRIPTION=假日節慶 仍標 ◇(不誤傷)", async () => {
+    // 防衛性測試:確保白名單沒把「只對部分族群放假的紀念日」誤升成全民國定假日
+    vi.resetModules();
+    const { aggregateTitlesByDate } = await import("@/lib/icsImport");
+    const titles = aggregateTitlesByDate([
+      {
+        dateStr: "2026-09-03",
+        allDay: true,
+        uid: null,
+        summary: "軍人節",
+        description: "假日節慶\\n如要隱藏假日節慶,請前往 Google 日曆的 [設定]",
+      },
+    ] as never);
+    expect(titles).toEqual({ "2026-09-03": ["◇ 軍人節"] });
+  });
+  // ─── /§F4 override ─────────────────────────────────────────
+
   it("parseICal 對私人 ICS 仍會回傳 summary(記憶體層級,不寫盤)", async () => {
     vi.resetModules();
     const { parseICal } = await import("@/lib/icsImport");

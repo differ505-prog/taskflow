@@ -259,8 +259,31 @@ function aggregateByDate(events: ParsedVEVENT[]): Record<string, number> {
  * - `DESCRIPTION:國定假日` → 全民放假 → ★
  * - `DESCRIPTION:假日節慶...`(不放假,僅紀念)→ ◇
  * - 其他/缺失 → 保守視為全民放假(★),維持向後相容(舊 cache / 其他 ICS 來源)
+ *
+ * §F4 (2026-09-14):Google ICS 沒跟上「紀念日及節日實施條例」2025 年修法,
+ * 仍把下列 3 個**已升格為國定假日**的日子標成「假日節慶」:
+ *   - 教師節 / 孔子誕辰紀念日 (9/28)
+ *   - 台灣光復節 (10/25,長名為「臺灣光復暨金門古寧頭大捷紀念日」)
+ *   - 行憲紀念日 (12/25)
+ * 用 SUMMARY 命中這份 override 白名單,**強制回傳 ★**,不再受 DESCRIPTION 誤導。
+ * 長期正解見「優化清單.md — DGPA SSOT 替換」條目。
  */
-function deriveHolidayPrefix(description: string | null): "★" | "◇" {
+const SUMMARY_FULL_HOLIDAY_OVERRIDE: ReadonlySet<string> = new Set([
+  "教師節",
+  "孔子誕辰紀念日",
+  "孔子誕辰紀念日／教師節",
+  "台灣光復節",
+  "臺灣光復節",
+  "臺灣光復暨金門古寧頭大捷紀念日",
+  "行憲紀念日",
+]);
+
+function deriveHolidayPrefix(
+  summary: string | null,
+  description: string | null,
+): "★" | "◇" {
+  // §F4 override:SUMMARY 命中白名單 → 直接 ★,不看 DESCRIPTION
+  if (summary && SUMMARY_FULL_HOLIDAY_OVERRIDE.has(summary)) return "★";
   if (!description) return "★";
   // 順序:先檢查「國定假日」,因為兩者互斥但若字串同時含兩個關鍵字(異常資料)
   // 我們以「國定假日」優先 — 它才是法定的全國放假依據。
@@ -276,7 +299,7 @@ export function aggregateTitlesByDate(events: ParsedVEVENT[]): Record<string, st
     if (!ev.summary) continue;
     // 補班日是上班日,不應標為假日（DGPA 行事曆慣例:補假=放,補班=上）
     if (ev.summary.includes("補班")) continue;
-    const prefix = deriveHolidayPrefix(ev.description);
+    const prefix = deriveHolidayPrefix(ev.summary, ev.description);
     const titles = map[ev.dateStr] ?? [];
     // ★=全民國定假日, ◇=紀念日(軍人節/教師節等,僅部分族群放假)
     const label = `${prefix} ${ev.summary}`;
