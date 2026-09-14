@@ -93,6 +93,11 @@ export interface ParsedVEVENT {
   uid: string | null;
   /** VEVENT 的公開標題；只有官方台灣節日來源會保存到快取。 */
   summary: string | null;
+  /**
+   * DESCRIPTION 原文。**只在官方台灣節日 URL 解析路徑會用到,用來區分
+   * 「國定假日」vs「假日節慶」。**私人 ICS 解析結果不寫盤,等同忽略。
+   */
+  description: string | null;
 }
 
 /**
@@ -117,6 +122,7 @@ export function parseICal(icsText: string): ParsedVEVENT[] {
   let dtendIsDate = false;
   let uid: string | null = null;
   let summary: string | null = null;
+  let description: string | null = null;
 
   const flush = () => {
     if (!inEvent || !dtstart) return;
@@ -127,6 +133,7 @@ export function parseICal(icsText: string): ParsedVEVENT[] {
         allDay: dtstartIsDate,
         uid,
         summary,
+        description,
       });
     }
     // 註:不處理 DTEND 跨日展開 — 我們只需「這一天有事件」,
@@ -146,6 +153,7 @@ export function parseICal(icsText: string): ParsedVEVENT[] {
       dtendIsDate = false;
       uid = null;
       summary = null;
+      description = null;
       continue;
     }
     if (line === "END:VEVENT") {
@@ -173,8 +181,13 @@ export function parseICal(icsText: string): ParsedVEVENT[] {
       uid = value;
     } else if (propUpper.startsWith("SUMMARY")) {
       summary = value.trim() || null;
+    } else if (propUpper.startsWith("DESCRIPTION")) {
+      // 官方台灣節日 ICS 用 DESCRIPTION 標記「國定假日」(全民放假) vs
+      // 「假日節慶\n如要隱藏假日節慶...」(僅紀念日,不全民放假)。
+      // 解析但不寫盤(隱私保護),由後續 aggregate 路徑判斷是否使用。
+      description = value || null;
     }
-    // 其他屬性(DESCRIPTION/LOCATION 等)刻意忽略 — 隱私保護 + 節省記憶體
+    // 其他屬性(LOCATION/CATEGORIES 等)刻意忽略 — 隱私保護 + 節省記憶體
   }
 
   return events;
@@ -240,33 +253,33 @@ function aggregateByDate(events: ParsedVEVENT[]): Record<string, number> {
   return map;
 }
 
-/** 僅部分族群放假的「狹義國定假日」（非全民假日）。 */
-const PARTIAL_HOLIDAY_KEYWORDS = [
-  "軍人節",
-  "警察節",
-  "護理師節",
-  "醫師節",
-  "教師節",
-  "藥師節",
-] as const;
-
-/** 判斷是否為狹義國定假日（僅部分族群放假）。 */
-function isPartialHoliday(summary: string): boolean {
-  return PARTIAL_HOLIDAY_KEYWORDS.some((kw) => summary.includes(kw));
+/**
+ * 從 ICS DESCRIPTION 區分全民國定假日 vs 紀念日(不放假)。
+ * 來源:Google「台灣的節慶假日」公開日曆官方分類 — 非自行判斷。
+ * - `DESCRIPTION:國定假日` → 全民放假 → ★
+ * - `DESCRIPTION:假日節慶...`(不放假,僅紀念)→ ◇
+ * - 其他/缺失 → 保守視為全民放假(★),維持向後相容(舊 cache / 其他 ICS 來源)
+ */
+function deriveHolidayPrefix(description: string | null): "★" | "◇" {
+  if (!description) return "★";
+  // 順序:先檢查「國定假日」,因為兩者互斥但若字串同時含兩個關鍵字(異常資料)
+  // 我們以「國定假日」優先 — 它才是法定的全國放假依據。
+  if (description.includes("國定假日")) return "★";
+  if (description.includes("假日節慶")) return "◇";
+  return "★";
 }
 
 /** 過濾 / 聚合:只保留官方台灣公開節日的日期 → 標題陣列。 */
-function aggregateTitlesByDate(events: ParsedVEVENT[]): Record<string, string[]> {
+export function aggregateTitlesByDate(events: ParsedVEVENT[]): Record<string, string[]> {
   const map: Record<string, string[]> = {};
   for (const ev of events) {
     if (!ev.summary) continue;
     // 補班日是上班日,不應標為假日（DGPA 行事曆慣例:補假=放,補班=上）
     if (ev.summary.includes("補班")) continue;
-    // 狹義國定假日（軍人節等）僅部分族群放假，視為「有標記但不全民適用」
-    const isPartial = isPartialHoliday(ev.summary);
+    const prefix = deriveHolidayPrefix(ev.description);
     const titles = map[ev.dateStr] ?? [];
-    // 標記前綴區分：★=全民假日, ◇=部分族群假日
-    const label = isPartial ? `◇ ${ev.summary}` : `★ ${ev.summary}`;
+    // ★=全民國定假日, ◇=紀念日(軍人節/教師節等,僅部分族群放假)
+    const label = `${prefix} ${ev.summary}`;
     if (!titles.includes(label)) titles.push(label);
     map[ev.dateStr] = titles;
   }

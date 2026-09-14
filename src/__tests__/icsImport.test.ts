@@ -97,7 +97,55 @@ describe("icsImport privacy contract", () => {
     vi.resetModules();
     const { mergeExternalCalendarTitles } = await import("@/lib/icsImport");
     const titles = mergeExternalCalendarTitles([TAIWAN_HOLIDAYS_ICS_URL]);
+    // 從 raw cache 讀出時不會加工前綴,保留原樣(這是 read 語義)
     expect(titles).toEqual({ "2026-12-25": ["行憲紀念日"] });
+  });
+
+  it("官方台灣 ICS 的 DESCRIPTION=國定假日 → 標 ★ 前綴(全民放假)", async () => {
+    vi.resetModules();
+    const { aggregateTitlesByDate } = await import("@/lib/icsImport");
+    // 用內部型別極簡規格:從 parseICal 進來才有 description,這裡只驗 aggregator 路徑
+    const titles = aggregateTitlesByDate([
+      {
+        dateStr: "2026-12-25",
+        allDay: true,
+        uid: null,
+        summary: "行憲紀念日",
+        description: "國定假日",
+      },
+    ] as never);
+    expect(titles).toEqual({ "2026-12-25": ["★ 行憲紀念日"] });
+  });
+
+  it("官方台灣 ICS 的 DESCRIPTION=假日節慶 → 標 ◇ 前綴(紀念日,不全民放假)", async () => {
+    vi.resetModules();
+    const { aggregateTitlesByDate } = await import("@/lib/icsImport");
+    const titles = aggregateTitlesByDate([
+      {
+        dateStr: "2026-09-03",
+        allDay: true,
+        uid: null,
+        summary: "軍人節",
+        // 真實 ICS 內容:含「假日節慶」字樣且後面有 \n 與「如要隱藏假日節慶...」
+        description: "假日節慶\\n如要隱藏假日節慶,請前往 Google 日曆的 [設定]",
+      },
+    ] as never);
+    expect(titles).toEqual({ "2026-09-03": ["◇ 軍人節"] });
+  });
+
+  it("官方台灣 ICS 的 DESCRIPTION 缺失 → 保守視為 ★(向後相容舊 cache)", async () => {
+    vi.resetModules();
+    const { aggregateTitlesByDate } = await import("@/lib/icsImport");
+    const titles = aggregateTitlesByDate([
+      {
+        dateStr: "2026-09-03",
+        allDay: true,
+        uid: null,
+        summary: "軍人節",
+        description: null,
+      },
+    ] as never);
+    expect(titles).toEqual({ "2026-09-03": ["★ 軍人節"] });
   });
 
   it("parseICal 對私人 ICS 仍會回傳 summary(記憶體層級,不寫盤)", async () => {
