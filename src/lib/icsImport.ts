@@ -309,6 +309,52 @@ export function aggregateTitlesByDate(events: ParsedVEVENT[]): Record<string, st
   return map;
 }
 
+/** 去除節日前置 ★ 或 ◇ 符號，取得乾淨名稱 */
+export function cleanHolidayName(raw: string): string {
+  if (!raw) return "";
+  return raw.replace(/^[★◇]\s*/, "").trim();
+}
+
+/** 台灣常見節日縮寫字典（在手機版月曆 ~50px 窄格中提供極佳可讀性） */
+const HOLIDAY_SHORT_NAMES: Record<string, string> = {
+  "中華民國開國紀念日": "元旦",
+  "和平紀念日": "二二八",
+  "民族掃墓節": "清明",
+  "清明節": "清明",
+  "孔子誕辰紀念日": "教師節",
+  "孔子誕辰紀念日／教師節": "教師節",
+  "臺灣光復暨金門古寧頭大捷紀念日": "光復節",
+  "臺灣光復節": "光復節",
+  "台灣光復節": "光復節",
+  "農曆除夕": "除夕",
+  "春節": "春節",
+  "端午節": "端午",
+  "中秋節": "中秋",
+  "國慶日": "國慶",
+  "兒童節": "兒童",
+  "勞動節": "勞動",
+  "軍人節": "軍人",
+  "教師節": "教師",
+  "行憲紀念日": "行憲",
+  "原住民族歲時祭儀": "歲時祭",
+};
+
+/**
+ * 取得適用於月曆格子的 2~3 字精簡節日標籤
+ */
+export function getShortHolidayName(raw: string): string {
+  const clean = cleanHolidayName(raw);
+  if (!clean) return "";
+  if (HOLIDAY_SHORT_NAMES[clean]) {
+    return HOLIDAY_SHORT_NAMES[clean];
+  }
+  const stripped = clean.replace(/紀念日$/, "").replace(/節$/, "");
+  if (stripped.length >= 2 && stripped.length <= 3) {
+    return stripped;
+  }
+  return clean.length > 3 ? clean.slice(0, 3) : clean;
+}
+
 export interface FetchCalendarResult {
   ok: boolean;
   dateCountMap?: Record<string, number>;

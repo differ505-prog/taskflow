@@ -250,4 +250,29 @@ describe("icsImport privacy contract", () => {
     // 私人 URL 的 dateTitleMap 必須不存在(undefined),不能是空物件也不能保留舊值
     expect(all[privateUrl].dateTitleMap).toBeUndefined();
   });
+
+  it("cleanHolidayName 正確清除 ★ 與 ◇ 前置標記", async () => {
+    vi.resetModules();
+    const { cleanHolidayName } = await import("@/lib/icsImport");
+    expect(cleanHolidayName("★ 國慶日")).toBe("國慶日");
+    expect(cleanHolidayName("◇ 教師節")).toBe("教師節");
+    expect(cleanHolidayName("★  農曆除夕")).toBe("農曆除夕");
+    expect(cleanHolidayName("端午節")).toBe("端午節");
+    expect(cleanHolidayName("")).toBe("");
+  });
+
+  it("getShortHolidayName 產生 2~3 字精簡標籤", async () => {
+    vi.resetModules();
+    const { getShortHolidayName } = await import("@/lib/icsImport");
+    expect(getShortHolidayName("★ 國慶日")).toBe("國慶");
+    expect(getShortHolidayName("★ 端午節")).toBe("端午");
+    expect(getShortHolidayName("★ 中秋節")).toBe("中秋");
+    expect(getShortHolidayName("★ 中華民國開國紀念日")).toBe("元旦");
+    expect(getShortHolidayName("★ 和平紀念日")).toBe("二二八");
+    expect(getShortHolidayName("★ 民族掃墓節")).toBe("清明");
+    expect(getShortHolidayName("★ 農曆除夕")).toBe("除夕");
+    expect(getShortHolidayName("★ 春節")).toBe("春節");
+    expect(getShortHolidayName("◇ 軍人節")).toBe("軍人");
+    expect(getShortHolidayName("◇ 孔子誕辰紀念日")).toBe("教師節");
+  });
 });

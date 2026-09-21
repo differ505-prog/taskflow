@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/lib/AppContext";
 import { useExternalCalendar } from "@/hooks/useExternalCalendar";
+import { cleanHolidayName } from "@/lib/icsImport";
 import { format } from "date-fns";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useProactiveClosure } from "@/hooks/useProactiveClosure";
@@ -637,7 +638,7 @@ const canDrag = !currentSharedListId && !isMobile;
                 <div className="flex items-center gap-3">
                   <span className="text-xl">🎊</span>
                   <p className="text-[14px] font-medium" style={{ color: "var(--brand)" }}>
-                    今天是 {todayHoliday}，祝您有個美好的一天！
+                    今天是 {cleanHolidayName(todayHoliday)}，祝您有個美好的一天！
                   </p>
                 </div>
               </div>

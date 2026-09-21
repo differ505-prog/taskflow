@@ -11,7 +11,7 @@ import { TaskDetailPanel } from "./TaskDetailPanel";
 import { SwipeableTaskCard } from "./SwipeableTaskCard";
 import { TaskForm } from "./TaskForm";
 import { toast } from "sonner";
-import { TAIWAN_HOLIDAYS_ICS_URL } from "@/lib/icsImport";
+import { TAIWAN_HOLIDAYS_ICS_URL, cleanHolidayName, getShortHolidayName } from "@/lib/icsImport";
 import { translateIcsError } from "@/lib/errorMessages";
 import { useBottomSheet } from "@/hooks/useBottomSheet";
 import { useRef } from "react";
@@ -371,8 +371,10 @@ export function CalendarView({
             const pendingCount = pendingTasks.length;
             const externalCount = externalCal.dateCountMap[dateStr] ?? 0;
             const holidayTitle = externalCal.dateTitleMap[dateStr]?.[0];
-            // §部分族群假日:◇ 開頭(軍人節/教師節等)不算全民假日,日期數字不上色,只留 🎊 標記
+            // §部分族群假日:◇ 開頭(軍人節/教師節等)不算全民假日,日期數字不上色,只留標籤
             const isFullHoliday = holidayTitle && !holidayTitle.startsWith("◇");
+            const cleanTitle = holidayTitle ? cleanHolidayName(holidayTitle) : "";
+            const shortTitle = holidayTitle ? getShortHolidayName(holidayTitle) : "";
 
             return (
               <div
@@ -392,12 +394,15 @@ export function CalendarView({
               >
                 <div className="flex flex-row items-center justify-between px-1 pt-0.5">
                   <span
-                    className="w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-medium"
+                    className="w-5 h-5 flex items-center justify-center rounded-full text-[10px]"
                     style={
                       isToday_
-                        ? { background: "var(--brand)", color: "var(--brand-foreground)" }
+                        ? { background: "var(--brand)", color: "var(--brand-foreground)", fontWeight: 600 }
                         : isCurrentMonth
-                        ? { color: (isWeekend || isFullHoliday) ? "var(--status-danger)" : "var(--text-primary)" }
+                        ? {
+                            color: (isWeekend || isFullHoliday) ? "var(--status-danger)" : "var(--text-primary)",
+                            fontWeight: isFullHoliday ? 600 : 500,
+                          }
                         : { color: "var(--text-tertiary)" }
                     }
                   >
@@ -413,32 +418,45 @@ export function CalendarView({
                     />
                   )}
                 </div>
-                {holidayTitle && (
-                  <div className="mt-auto px-1 pb-0.5">
-                    <p
-                      className="truncate text-[10px] font-medium leading-tight px-1 py-0.5 rounded-sm inline-block max-w-full"
-                      style={{ color: "var(--brand)", background: "color-mix(in srgb, var(--brand) 12%, transparent)" }}
-                      title={holidayTitle}
-                      aria-label={`台灣節日：${holidayTitle}`}
-                    >
-                      🎊 {holidayTitle}
-                    </p>
-                  </div>
-                )}
-                {pendingCount > 0 && (
-                  <div className="flex-1 min-h-0 px-1 pb-0.5 flex items-start justify-center">
+
+                {/* 中間：待辦數量或搜尋命中 */}
+                <div className="flex-1 min-h-0 px-1 flex items-center justify-center">
+                  {pendingCount > 0 ? (
                     <span
-                      className="min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-semibold px-1"
+                      className="min-w-[17px] h-[17px] flex items-center justify-center rounded-full text-[9px] font-semibold px-1"
                       style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
                       aria-label={`${pendingCount} 項未完成任務`}
                     >
                       {pendingCount}
                     </span>
-                  </div>
-                )}
-                {pendingCount === 0 && isSearchMatch && (
-                  <div className="flex-1 flex items-start justify-center px-1 pt-0.5">
+                  ) : pendingCount === 0 && isSearchMatch ? (
                     <span className="text-[10px] font-medium" style={{ color: "var(--brand)" }}>✓</span>
+                  ) : null}
+                </div>
+
+                {/* 底部：節日精簡標籤（方案 A：去 emoji，2~3 字膠囊標籤） */}
+                {holidayTitle && (
+                  <div className="mt-auto px-0.5 pb-0.5 w-full flex justify-center">
+                    <span
+                      className="truncate text-[9px] font-semibold leading-none px-1 py-0.5 rounded text-center block max-w-full"
+                      style={
+                        isFullHoliday
+                          ? {
+                              color: "var(--status-danger)",
+                              background: "color-mix(in srgb, var(--status-danger) 14%, transparent)",
+                              border: "1px solid color-mix(in srgb, var(--status-danger) 24%, transparent)",
+                            }
+                          : {
+                              color: "var(--text-secondary)",
+                              background: "var(--surface-muted)",
+                              border: "1px solid var(--border)",
+                            }
+                      }
+                      title={cleanTitle}
+                      aria-label={`台灣節日：${cleanTitle}`}
+                    >
+                      {shortTitle}
+                    </span>
                   </div>
                 )}
               </div>
@@ -454,6 +472,7 @@ export function CalendarView({
         selectedTask={selectedTask}
         onSelectTask={onSelectTask}
         onQuickAdd={submitQuickAdd}
+        externalDateTitleMap={externalCal.dateTitleMap}
       />
 
       {/* 新增任務 TaskForm（與 quickAdd 的 selectedDate 預填邏輯一致：
@@ -652,8 +671,10 @@ function DesktopCalendarLayout({
               ? externalDateCountMap[dateStr] ?? 0
               : 0;
             const holidayTitle = externalDateTitleMap[dateStr]?.[0];
-            // §部分族群假日:◇ 開頭(軍人節/教師節等)不算全民假日,日期數字不上色,只留 🎊 標記
+            // §部分族群假日:◇ 開頭(軍人節/教師節等)不算全民假日,日期數字不上色,只留標籤
             const isFullHoliday = holidayTitle && !holidayTitle.startsWith("◇");
+            const cleanTitle = holidayTitle ? cleanHolidayName(holidayTitle) : "";
+            const shortTitle = holidayTitle ? getShortHolidayName(holidayTitle) : "";
 
             return (
               <div
@@ -671,12 +692,15 @@ function DesktopCalendarLayout({
               >
                 <div className="flex flex-row items-center justify-between px-1 pt-0.5">
                   <span
-                    className="w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-medium"
+                    className="w-5 h-5 flex items-center justify-center rounded-full text-[10px]"
                     style={
                       isToday_
-                        ? { background: "var(--brand)", color: "var(--brand-foreground)" }
+                        ? { background: "var(--brand)", color: "var(--brand-foreground)", fontWeight: 600 }
                         : isCurrentMonth
-                        ? { color: (isWeekend || isFullHoliday) ? "var(--status-danger)" : "var(--text-primary)" }
+                        ? {
+                            color: (isWeekend || isFullHoliday) ? "var(--status-danger)" : "var(--text-primary)",
+                            fontWeight: isFullHoliday ? 600 : 500,
+                          }
                         : { color: "var(--text-tertiary)" }
                     }
                   >
@@ -692,32 +716,45 @@ function DesktopCalendarLayout({
                     />
                   )}
                 </div>
-                {holidayTitle && (
-                  <div className="mt-auto px-1 pb-0.5">
-                    <p
-                      className="truncate text-[10px] font-medium leading-tight px-1 py-0.5 rounded-sm inline-block max-w-full"
-                      style={{ color: "var(--brand)", background: "color-mix(in srgb, var(--brand) 12%, transparent)" }}
-                      title={holidayTitle}
-                      aria-label={`台灣節日：${holidayTitle}`}
-                    >
-                      🎊 {holidayTitle}
-                    </p>
-                  </div>
-                )}
-                {pendingCount > 0 && (
-                  <div className="flex-1 min-h-0 px-1 pb-0.5 flex items-start justify-center">
+
+                {/* 中間：待辦數量或搜尋命中 */}
+                <div className="flex-1 min-h-0 px-1 flex items-center justify-center">
+                  {pendingCount > 0 ? (
                     <span
-                      className="min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-semibold px-1"
+                      className="min-w-[17px] h-[17px] flex items-center justify-center rounded-full text-[9px] font-semibold px-1"
                       style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
                       aria-label={`${pendingCount} 項未完成任務`}
                     >
                       {pendingCount}
                     </span>
-                  </div>
-                )}
-                {pendingCount === 0 && isSearchMatch && (
-                  <div className="flex-1 flex items-start justify-center px-1 pt-0.5">
+                  ) : pendingCount === 0 && isSearchMatch ? (
                     <span className="text-[10px] font-medium" style={{ color: "var(--brand)" }}>✓</span>
+                  ) : null}
+                </div>
+
+                {/* 底部：節日精簡標籤 */}
+                {holidayTitle && (
+                  <div className="mt-auto px-0.5 pb-0.5 w-full flex justify-center">
+                    <span
+                      className="truncate text-[9px] font-semibold leading-none px-1 py-0.5 rounded text-center block max-w-full"
+                      style={
+                        isFullHoliday
+                          ? {
+                              color: "var(--status-danger)",
+                              background: "color-mix(in srgb, var(--status-danger) 14%, transparent)",
+                              border: "1px solid color-mix(in srgb, var(--status-danger) 24%, transparent)",
+                            }
+                          : {
+                              color: "var(--text-secondary)",
+                              background: "var(--surface-muted)",
+                              border: "1px solid var(--border)",
+                            }
+                      }
+                      title={cleanTitle}
+                      aria-label={`台灣節日：${cleanTitle}`}
+                    >
+                      {shortTitle}
+                    </span>
                   </div>
                 )}
               </div>
@@ -731,15 +768,50 @@ function DesktopCalendarLayout({
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0">
           {dateObj ? (
-            <h2 className="text-[15px] font-semibold flex items-center" style={{ color: "var(--text-primary)" }}>
-              {format(dateObj, "M 月 d 日", { locale: zhTW })}
-              {isToday(dateObj) && (
-                <span className="ml-2 text-[12px] font-normal" style={{ color: "var(--brand)" }}>今天</span>
+            <div className="flex flex-col gap-1 min-w-0">
+              <h2 className="text-[15px] font-semibold flex items-center" style={{ color: "var(--text-primary)" }}>
+                {format(dateObj, "M 月 d 日", { locale: zhTW })}
+                {isToday(dateObj) && (
+                  <span className="ml-2 text-[12px] font-normal" style={{ color: "var(--brand)" }}>今天</span>
+                )}
+                <span className="ml-2 text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+                  {selectedDateTasks.length} 項任務
+                </span>
+              </h2>
+              {selectedDate && externalDateTitleMap[selectedDate]?.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-0.5">
+                  {externalDateTitleMap[selectedDate].map((h, idx) => {
+                    const isFull = !h.startsWith("◇");
+                    const name = cleanHolidayName(h);
+                    return (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium"
+                        style={
+                          isFull
+                            ? {
+                                background: "color-mix(in srgb, var(--status-danger) 12%, transparent)",
+                                color: "var(--status-danger)",
+                                border: "1px solid color-mix(in srgb, var(--status-danger) 25%, transparent)",
+                              }
+                            : {
+                                background: "var(--surface-muted)",
+                                color: "var(--text-secondary)",
+                                border: "1px solid var(--border)",
+                              }
+                        }
+                      >
+                        <span>{isFull ? "🇹🇼" : "📌"}</span>
+                        <span>{name}</span>
+                        <span className="text-[10px] opacity-80 font-normal">
+                          {isFull ? "法定放假" : "節日"}
+                        </span>
+                      </span>
+                    );
+                  })}
+                </div>
               )}
-              <span className="ml-2 text-[12px]" style={{ color: "var(--text-tertiary)" }}>
-                {selectedDateTasks.length} 項任務
-              </span>
-            </h2>
+            </div>
           ) : (
             <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>
               選擇一個日期
@@ -870,12 +942,14 @@ function CalendarTaskSheetMobile({
   selectedTask,
   onSelectTask,
   onQuickAdd,
+  externalDateTitleMap,
 }: {
   selectedDate: string | null;
   onClose: () => void;
   selectedTask: Task | null;
   onSelectTask: (task: Task) => void;
   onQuickAdd: (dateStr: string, title: string) => void;
+  externalDateTitleMap?: Record<string, string[]>;
 }) {
   const { tasks, completeTask, deleteTask } = useApp();
   const [quickAddTitle, setQuickAddTitle] = useState("");
@@ -917,6 +991,11 @@ function CalendarTaskSheetMobile({
   useEffect(() => {
     setQuickAddTitle("");
   }, [selectedDate]);
+
+  const holidays = useMemo(() => {
+    if (!selectedDate || !externalDateTitleMap) return [];
+    return externalDateTitleMap[selectedDate] || [];
+  }, [selectedDate, externalDateTitleMap]);
 
   if (!selectedDate) return null;
 
@@ -972,12 +1051,14 @@ function CalendarTaskSheetMobile({
         <div ref={handleRef} className="flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing touch-none" aria-hidden="true">
           <div className="w-10 h-1 rounded-full" style={{ background: "var(--border)" }} />
         </div>
-        <div className="flex items-center justify-between px-4 pb-3 flex-shrink-0">
-          <h2 className="text-[15px] font-semibold flex items-center" style={{ color: "var(--text-primary)" }}>
-            {format(dateObj, "M 月 d 日", { locale: zhTW })}
-            {isToday(dateObj) && <span className="ml-2 text-[12px] font-normal" style={{ color: "var(--brand)" }}>今天</span>}
-            <span className="ml-2 text-[12px]" style={{ color: "var(--text-tertiary)" }}>{selectedDateTasks.length} 項任務</span>
-          </h2>
+        <div className="flex items-center justify-between px-4 pb-2 flex-shrink-0">
+          <div className="min-w-0">
+            <h2 className="text-[16px] font-bold flex items-center" style={{ color: "var(--text-primary)" }}>
+              {format(dateObj, "M 月 d 日", { locale: zhTW })}
+              {isToday(dateObj) && <span className="ml-2 text-[12px] font-normal" style={{ color: "var(--brand)" }}>今天</span>}
+              <span className="ml-2 text-[12px]" style={{ color: "var(--text-tertiary)" }}>{selectedDateTasks.length} 項任務</span>
+            </h2>
+          </div>
           <div className="flex items-center gap-1">
             <button
               type="button"
@@ -993,6 +1074,49 @@ function CalendarTaskSheetMobile({
             </button>
           </div>
         </div>
+
+        {/* 節日橫幅展示（方案 A：清楚標示節日全名與放假屬性） */}
+        {holidays.length > 0 && (
+          <div className="px-4 pb-3 flex flex-wrap gap-1.5 flex-shrink-0">
+            {holidays.map((h, i) => {
+              const isFull = !h.startsWith("◇");
+              const name = cleanHolidayName(h);
+              return (
+                <div
+                  key={i}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-medium"
+                  style={
+                    isFull
+                      ? {
+                          background: "color-mix(in srgb, var(--status-danger) 12%, transparent)",
+                          color: "var(--status-danger)",
+                          border: "1px solid color-mix(in srgb, var(--status-danger) 25%, transparent)",
+                        }
+                      : {
+                          background: "var(--surface-muted)",
+                          color: "var(--text-secondary)",
+                          border: "1px solid var(--border)",
+                        }
+                  }
+                >
+                  <span className="text-xs">{isFull ? "🇹🇼" : "📌"}</span>
+                  <span className="font-semibold">{name}</span>
+                  <span
+                    className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                    style={{
+                      background: isFull
+                        ? "color-mix(in srgb, var(--status-danger) 18%, transparent)"
+                        : "var(--border)",
+                    }}
+                  >
+                    {isFull ? "法定放假" : "紀念日/節慶"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         <form onSubmit={handleQuickAddSubmit} className="flex items-center gap-2 px-4 mb-3 flex-shrink-0">
           <input
             ref={quickAddInputRef}
@@ -1010,7 +1134,11 @@ function CalendarTaskSheetMobile({
           {selectedDateTasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 gap-3">
               <TodayIllustration className="w-20 h-20 opacity-60" />
-              <p className="text-[13px]" style={{ color: "var(--text-tertiary)" }}>這天沒有任務</p>
+              <p className="text-[13px]" style={{ color: "var(--text-tertiary)" }}>
+                {holidays.length > 0
+                  ? `${cleanHolidayName(holidays[0])}，今天沒有排定任務`
+                  : "這天沒有任務"}
+              </p>
             </div>
           ) : (
             <div className="space-y-2 pb-2">
