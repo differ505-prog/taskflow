@@ -1,7 +1,6 @@
 /**
  * AppRouterProvider — 抽出 AppContextInternal 的路由視圖 state。
- * 職責：currentView / currentListId / currentSharedListId
- * 不包含 searchQuery / activeFilter（這些在主 provider 仍有用到篩選邏輯）。
+ * 職責：currentView / currentListId / currentSharedListId / searchQuery / activeFilter
  */
 import {
   createContext,
@@ -10,7 +9,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import { AppView } from "@/lib/types";
+import { AppView, TaskFilter } from "@/lib/types";
 
 interface AppRouterContextValue {
   currentView: AppView;
@@ -19,6 +18,10 @@ interface AppRouterContextValue {
   setCurrentListId: (id: string | undefined) => void;
   currentSharedListId: string | undefined;
   setCurrentSharedListIdState: (id: string | undefined) => void;
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
+  activeFilter: TaskFilter;
+  setActiveFilter: (f: TaskFilter) => void;
 }
 
 const AppRouterContext = createContext<AppRouterContextValue | null>(null);
@@ -29,6 +32,8 @@ export function AppRouterProvider({ children }: { children: ReactNode }) {
   const [currentView, setCurrentViewState] = useState<AppView>("inbox");
   const [currentListId, setCurrentListId] = useState<string | undefined>(undefined);
   const [currentSharedListId, setCurrentSharedListIdState] = useState<string | undefined>(undefined);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState<TaskFilter>({});
 
   return (
     <AppRouterContext.Provider
@@ -39,6 +44,10 @@ export function AppRouterProvider({ children }: { children: ReactNode }) {
         setCurrentListId,
         currentSharedListId,
         setCurrentSharedListIdState,
+        searchQuery,
+        setSearchQuery,
+        activeFilter,
+        setActiveFilter,
       }}
     >
       {children}

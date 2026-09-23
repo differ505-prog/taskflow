@@ -34,6 +34,7 @@ export interface AppContextValue {
   /** §FIX-D2:明確的「個人 → 共享」搬遷 API;UI 需彈確認 modal 後呼叫 */
   moveTaskToShared: (id: string, targetListId: string, updates?: Partial<import("../types").Task>) => boolean;
   deleteTask: (id: string) => Promise<void>;
+  undoDelete: (taskId: string) => void;
   toggleTaskStatus: (id: string) => void;
   markEditingActivity: (id: string) => void;
   clearEditingActivity: (id: string) => void;
