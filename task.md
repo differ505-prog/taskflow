@@ -1,362 +1,336 @@
-# 安全修復實作清單
+# 公測前資安與成本硬化 — 實作清單
 
-## 前置條件
-
-- Node.js 18+
-- Vercel CLI 已登入
-- `.env.local` 有完整的開發環境變數
+> 依序執行。禁止跳步。每步完成後請自行驗證再進下一步。
 
 ---
 
-## Step 1：修復 `/api/invite/send` in-memory Rate Limit
+## Step 1 — Firebase Config 改為環境變數（H-1）
 
-**檔案：** `src/app/api/invite/send/route.ts`
+**目標檔案**：`src/lib/firebase.ts`（替換第 10–18 行 hardcoded config block）
 
-**變更：**
+**變更內容**：
+```ts
+// 舊（第 10–18 行）：
+const firebaseConfig = {
+  apiKey: "AIzaSyD2yBIIUzRdwvwr_ApEYjAR4ujF-jaX4cs",
+  authDomain: "taskflow-1fbd3.firebaseapp.com",
+  projectId: "taskflow-1fbd3",
+  storageBucket: "taskflow-1fbd3.firebasestorage.app",
+  messagingSenderId: "942619428359",
+  appId: "1:942619428359:web:5718c6891b624a397b8ca2",
+  measurementId: "G-36ELNFZNZD",
+};
 
-1. **移除**第 47-61 行的 in-memory Map 實作：
-   ```typescript
-   // 移除這段：
-   const inviteRequestCounts = new Map<string, { count: number; resetAt: number }>();
-   const INVITE_RATE_LIMIT = 20;
-   const INVITE_RATE_WINDOW_MS = 60 * 60 * 1000;
+// 新（替換為）：
+const firebaseConfig = {
+  apiKey:            process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain:        process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId:         process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket:     process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId:             process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId:     process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+};
+```
 
-   function checkInviteRateLimit(ip: string): boolean {
-     const now = Date.now();
-     const entry = inviteRequestCounts.get(ip);
-     if (!entry || now > entry.resetAt) {
-       inviteRequestCounts.set(ip, { count: 1, resetAt: now + INVITE_RATE_WINDOW_MS });
-       return true;
-     }
-     if (entry.count >= INVITE_RATE_LIMIT) return false;
-     entry.count++;
-     return true;
-   }
-   ```
+**同步更新**：`src/lib/firebase.ts` 頂部註解說明這些 env 來自 `.env.local`（與 `.env.local.example` 對齊）
 
-2. **新增** import：
-   ```typescript
-   import { checkRateLimit } from "@/lib/rate-limit";
-   ```
-
-3. **替換**第 72 行的 rate limit 檢查：
-   ```typescript
-   // 原本：
-   const ip = req.headers.get("x-forwarded-for")?.split(",")[0] ?? "unknown";
-   if (!checkInviteRateLimit(ip)) {
-     return NextResponse.json({ error: "太多次數,請稍後再試" }, { status: 429 });
-   }
-   // 改為：
-   const ip = req.headers.get("x-forwarded-for")?.split(",")[0] ?? "unknown";
-   const { allowed } = await checkRateLimit(`invite:ip:${ip}`, 20, 60 * 60 * 1000);
-   if (!allowed) {
-     return NextResponse.json({ error: "太多次數,請稍後再試" }, { status: 429 });
-   }
-   ```
-
-**依賴：** 此步驟無前置依賴，可最先執行。
-
-**驗證：** `npm run build` 成功，且 `/api/invite/send` 在高並發請求下觸發 429。
-
----
-
-## Step 2：設定 `DIAG_SECRET` 環境變數
-
-**檔案：** `.env.local.example`
-
-**變更：** 在檔案末尾新增：
+**驗證方式**：
 ```bash
-# ─── Admin Diag ───────────────────────────────────────────────────────────
-# 管理員診斷端點金鑰（任意隨機字串，長度 >= 32）
-DIAG_SECRET=
+cd /Users/liangzhiwei/Documents/VIbe\ Coding/任務管理器
+npm run build 2>&1 | tail -20
+# 期望：build success，無 firebase config 相關 error
 ```
 
-**檔案：** `.env.local`
-
-**變更：** 填入隨機值（32 字元以上）：
-```bash
-DIAG_SECRET=your-random-32-char-secret-here
-```
-
-**檔案：** `src/app/api/diag/route.ts`
-
-**變更：** 第 6 行維持不變（已正確比對 `process.env.DIAG_SECRET`）：
-```typescript
-const diagToken = req.headers.get('x-diag-token');
-if (diagToken !== process.env.DIAG_SECRET) {
-  return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-}
-```
-
-**依賴：** 此步驟無程式碼依賴，但需在部署前於 Vercel 環境變數設定 `DIAG_SECRET`。
-
-**驗證：** `npm run build` 成功，且向 `/api/diag` 發送錯誤的 `x-diag-token` header 時返回 403。
+**依賴**：無
 
 ---
 
-## Step 3：清理 `.env.local` 中的 VAPID 公鑰
+## Step 2 — OmniSonic Playlist 加 auth + rate limit（H-2）
 
-**檔案：** `.env.local.example`
+**目標檔案**：`src/app/api/omnisonic/playlist/route.ts`（全檔重寫 GET handler）
 
-**變更：** 將 `NEXT_PUBLIC_VAPID_PUBLIC_KEY` 的值替換為 placeholder：
-```bash
-# 原本：
-NEXT_PUBLIC_VAPID_PUBLIC_KEY=BEGIwtReUeUUWsreqpsPKeuNw53ylHxUleF6sF4j5DgICL21jKz1TZ693ShTeAfT5dNVNtumq2193VpNyI-Ei-0
-# 改為：
-NEXT_PUBLIC_VAPID_PUBLIC_KEY=your-vapid-public-key
-```
+**變更內容**：
+```ts
+import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { checkRateLimit } from "@/lib/rate-limit";
 
-**⚠️ 額外動作（需手動執行，非 CI 可自動化）：**
-
-執行 `git filter-branch` 清除已 commit 的 `.env.local`：
-```bash
-cd "/Users/liangzhiwei/Documents/VIbe Coding/任務管理器"
-git filter-branch --tree-filter 'rm -f .env.local' HEAD --force
-git push --force
-```
-
-**依賴：** 此步驟在 `.env.local.example` 修改之後執行。
-
-**驗證：** `git log --follow .env.local` 無輸出，`.env.local` 不存在於任何 commit。
-
----
-
-## Step 4：`invite/send` Email 長度限制
-
-**檔案：** `src/app/api/invite/send/route.ts`
-
-**變更：** 在第 69-75 行 email regex 驗證後新增長度檢查：
-```typescript
-// 在 emailRegex 驗證後（第 75 行之後）新增：
-if (inviteeEmail.length > 254) {
-  return NextResponse.json({ error: "Email address too long" }, { status: 400 });
-}
-```
-
-**依賴：** 無。獨立修改。
-
-**驗證：** `npm run build` 成功。POST body 傳入 255 字元的 email 時返回 400。
-
----
-
-## Step 5：`feedback` route 改查 DB 取得 userRole
-
-**檔案：** `src/app/api/feedback/route.ts`
-
-**變更：**
-
-1. **移除**對 `body.userRole` 的直接信任（第 36 行）：
-   ```typescript
-   // 原本：
-   const { message, userRole, context } = body ?? {};
-   // 改為：
-   const { message, context } = body ?? {};
-   ```
-
-2. **在**取得 `userId` 之後（第 67 行之後），新增 DB 查詢：
-   ```typescript
-   // 2.5. 從 DB 取得真實 userRole（不再信任 client body）
-   let userRole = "free";
-   const serviceClient = getServiceClient();
-   if (serviceClient && userId) {
-     const { data: profile } = await serviceClient
-       .from("user_profiles")
-       .select("role")
-       .eq("uid", userId)
-       .single();
-     userRole = profile?.role ?? "free";
-   }
-   ```
-
-3. **更新**第 73 行的 `insertPayload`（移除 body 中的 userRole）：
-   ```typescript
-   // 原本：
-   const insertPayload = {
-     user_id: userId,
-     user_email: userEmail ?? null,
-     user_role: userRole ?? "free",
-     message: message.slice(0, 2000),
-     context: context ?? {},
-   };
-   // 改為（userRole 已從 DB 取得）：
-   const insertPayload = {
-     user_id: userId,
-     user_email: userEmail ?? null,
-     user_role: userRole,
-     message: message.slice(0, 2000),
-     context: context ?? {},
-   };
-   ```
-
-**依賴：** 無。
-
-**驗證：** `npm run build` 成功。POST 任意 userRole 值時，寫入 `feedback` 表的 `user_role` 欄位應為 DB 中 `user_profiles.role` 的真實值。
-
----
-
-## Step 6：Gemini API Key 未設定時增加 Sentry 告警
-
-**檔案：** `src/app/api/shred/route.ts`
-
-**變更：** 第 98-100 行改為：
-```typescript
-if (!apiKey) {
-  console.error("[api/shred] GEMINI_API_KEY not configured");
-  // 主動通知 Discord（利用既有 quota-monitor warnDiscord 機制）
-  if (process.env.DISCORD_WEBHOOK_URL_FOR_QUOTA) {
-    await fetch(process.env.DISCORD_WEBHOOK_URL_FOR_QUOTA, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        content: "🚨 **[TaskFlow]** GEMINI_API_KEY 未設定，AI 任務粉碎機已停用",
-      }),
-    }).catch(() => {});
+export async function GET(request: Request) {
+  // 1. Auth — 從 cookie 驗證登入
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return (request as any).cookies?.getAll?.() ?? [];
+        },
+      },
+    }
+  );
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // 2. Rate limit（分散式，key = user.id）
+  const { allowed } = await checkRateLimit(`omnisonic-playlist:${user.id}`, 30, 60_000);
+  if (!allowed) {
+    return NextResponse.json({ error: "Rate limited, try again in a minute" }, { status: 429 });
+  }
+
+  // 3. 原有 fetch 邏輯（不變）
+  const { searchParams } = new URL(request.url);
+  const omnisonicUrl =
+    process.env.NEXT_PUBLIC_OMNISONIC_URL ||
+    "https://music-focus-environment.vercel.app";
+  const targetUrl = new URL(`${omnisonicUrl}/api/zenflow/autodj/playlist`);
+  searchParams.forEach((value, key) => {
+    targetUrl.searchParams.set(key, value);
+  });
+
+  const res = await fetch(targetUrl.toString(), {
+    headers: { Accept: "application/json" },
+    next: { revalidate: 10 },
+  });
+
+  if (!res.ok) {
+    return NextResponse.json({ error: "Failed to fetch playlist" }, { status: res.status });
+  }
+
+  const data = await res.json();
+  return NextResponse.json(data);
+}
+```
+
+**驗證方式**：
+```bash
+# curl 無 auth → 期望 401
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/omnisonic/playlist
+# 期望輸出：401
+
+# 登入後從瀏覽器 DevTools console：
+# fetch('/api/omnisonic/playlist').then(r => r.json()).then(console.log)
+# 期望：正常回傳 playlist JSON
+```
+
+**依賴**：Step 1 完成後執行（避免 build 時 env 未設定問題）
+
+---
+
+## Step 3 — OmniSonic Stream 改用分散式 rate limit（H-3）
+
+**目標檔案**：`src/app/api/omnisonic/stream/[slug]/route.ts`
+
+**變更內容**：
+
+1. **刪除**第 17–32 行的 in-memory Map + `checkStreamRateLimit` 函式：
+```ts
+// 刪除這整段：
+const STREAM_BUCKETS = new Map<string, { count: number; resetAt: number }>();
+const STREAM_LIMIT = 60;
+const STREAM_WINDOW_MS = 60_000;
+
+function checkStreamRateLimit(userId: string): boolean { ... }
+```
+
+2. **檔頭新增 import**：
+```ts
+import { checkRateLimit } from "@/lib/rate-limit";
+```
+
+3. **在 handler 內**，將 `if (!checkStreamRateLimit(user.id))` 整段（約在原第 77 行附近）**替換為**：
+```ts
+const { allowed } = await checkRateLimit(`omnisonic-stream:${user.id}`, 60, 60_000);
+if (!allowed) {
   return NextResponse.json(
-    { error: "AI 服務尚未設定,請聯繫管理員" },
-    { status: 503 }
+    { error: "Stream rate limit exceeded" },
+    { status: 429 }
   );
 }
 ```
 
-**依賴：** 需在 `.env.local` 設定 `DISCORD_WEBHOOK_URL_FOR_QUOTA`。
-
-**驗證：** 移除 `GEMINI_API_KEY` 後，`npm run dev` 並 POST `/api/shred`，Discord 收到告警。
-
----
-
-## Step 7：`webcal` route 增加分頁 cursor 機制
-
-**檔案：** `src/app/api/calendar/webcal/route.ts`
-
-**變更：**
-
-1. **GET 參數新增** `cursor` 支援（`limit` 固定 500）：
-   ```typescript
-   // 第 97 行附近（tasks query 前）新增：
-   const cursor = request.nextUrl.searchParams.get("cursor") ?? undefined;
-   // 查詢時附加 .gte("updatedAt", cursor) 邏輯（需配合 cursor 為 updatedAt 值）
-   ```
-
-2. **tasks query 改為**：
-   ```typescript
-   const { data: tasks, error: tasksError } = await supabase
-     .from("personal_tasks")
-     .select("*")
-     .eq("uid", user.id)
-     .order("updatedAt", { ascending: false })
-     .lte("updatedAt", cursor)
-     .limit(500);
-   ```
-
-3. **response headers 新增** `X-Next-Cursor`（最後一筆的 `updatedAt`）：
-   ```typescript
-   return new NextResponse(ics, {
-     headers: {
-       "Content-Type": "text/calendar; charset=utf-8",
-       "Content-Disposition": "inline; filename=\"vibelist.ics\"",
-       "Cache-Control": "private, max-age=300, stale-while-revalidate=600",
-       "X-Next-Cursor": lastTask?.updatedAt ?? "",
-     },
-   });
-   ```
-
-**依賴：** 無。
-
-**驗證：** 個人任務 > 500 筆時，`curl -I /api/calendar/webcal` 回應頭有 `X-Next-Cursor`，攜帶 cursor 再請求可取得下一批。
-
----
-
-## Step 8：`external-calendar` 支援 `webcal://` Protocol
-
-**檔案：** `src/app/api/external-calendar/route.ts`
-
-**變更：** 第 27-34 行 `ALLOWED_HOSTS` 之前新增 protocol 轉換邏輯：
-```typescript
-// 在 function GET 內、ALLOWED_HOSTS 定義之後（約第 54 行附近）新增：
-const ALLOWED_HOSTS = new Set<string>([...]);
-
-// 處理 webcal:// → https:// 轉換（蘋果日曆用戶常見）
-let url = request.nextUrl.searchParams.get("url");
-if (url?.startsWith("webcal://")) {
-  url = url.replace("webcal://", "https://");
-}
-```
-
-並將後續 `parsed.protocol !== "https:"` 改為：
-```typescript
-if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-```
-
-**依賴：** 無。
-
-**驗證：** `GET /api/external-calendar?url=webcal://p30-calendarws.icloud.com/xxx.ics` 返回 200 且含 ICS 內容。
-
----
-
-## Step 9：確保 Supabase Migration 0026 已部署
-
-**檔案：** `supabase/migrations/0026_rate_limit_buckets.sql`
-
-**驗證方式：**
-
-在 Supabase Dashboard → SQL Editor 執行：
-```sql
-SELECT EXISTS (
-  SELECT 1 FROM information_schema.routines
-  WHERE routine_name = 'rate_limit_increment'
-);
--- 應返回 t (true)
-```
-
-若返回 `f`，手動執行 migration：
+**驗證方式**：
 ```bash
-npx supabase db push
-# 或在 Supabase Dashboard 的 Migration 頁手動執行 SQL
+npm run build 2>&1 | grep -E "(error|warning|success)" | tail -10
+# 期望：clean build，無 TS error
 ```
 
-**依賴：** Step 1 的 `/api/invite/send` 修改依賴此 migration。
-
-**驗證：** 觸發 rate limit 時，`rate_limit_buckets` 表有記錄。
+**依賴**：Step 1 完成後執行
 
 ---
 
-## Step 10：Rate Limit fail-open 改為 fail-closed（可選，謹慎評估）
+## Step 4 — 舊版 `/api/calendar/feed` 移除或 301 轉址（H-4）
 
-**檔案：** `src/lib/rate-limit.ts`
+**目標檔案**：`src/app/api/calendar/feed/route.ts`
 
-**說明：** 此為架構決策。若希望 DB 異常時阻斷請求（犧牲可用性換取安全性），將第 65 行附近的 fail-open 改為：
-```typescript
-// 原本：
-} catch {
-  // DB 錯誤 → fail-open
-  return { allowed: true, remaining: limit, resetAt };
-}
-// 改為：
-} catch {
-  // DB 錯誤 → fail-closed（安全優先）
-  return { allowed: false, remaining: 0, resetAt: now + windowMs };
+**先確認前端無依賴**（不可跳過）：
+```bash
+cd /Users/liangzhiwei/Documents/VIbe\ Coding/任務管理器
+grep -rn "calendar/feed\|/api/calendar/feed\|calendarFeed\|calendar-feed" src/ --include="*.ts" --include="*.tsx" -i
+# 期望：無輸出（0 個引用）
+```
+
+**若 grep 結果為空**，則**全檔刪除** `src/app/api/calendar/feed/route.ts`：
+```bash
+rm src/app/api/calendar/feed/route.ts
+```
+
+**驗證方式**：
+```bash
+npm run build 2>&1 | tail -10
+# 期望：build success，無 missing module error
+git status src/app/api/calendar/feed/
+# 期望：無此檔案（或 git rm 後）
+```
+
+**若 grep 有輸出**：將 `GET` handler 改為：
+```ts
+export async function GET() {
+  return NextResponse.redirect(new URL("/api/calendar/webcal", "https://www.vibelist.work"), 301);
 }
 ```
 
-**依賴：** 無。
-
-**驗證：** 人為造成 DB 無法連線時，所有 rate-limit 端點返回 429。
+**依賴**：無
 
 ---
 
-## 執行順序
+## Step 5 — `/api/auth/health` 移除 FIREBASE_PRIVATE_KEY 長度洩漏（M-1）
 
-| 順序 | Step | 備註 |
+**目標檔案**：`src/app/api/auth/health/route.ts`
+
+**變更內容**：第 14 行
+```ts
+// 舊：
+fbKey: process.env.FIREBASE_PRIVATE_KEY ? `✅ set (${process.env.FIREBASE_PRIVATE_KEY.length} chars)` : "❌ missing",
+
+// 新：
+fbKey: process.env.FIREBASE_PRIVATE_KEY ? "✅ set" : "❌ missing",
+```
+
+**驗證方式**：
+```bash
+curl -s http://localhost:3000/api/auth/health | python3 -m json.tool
+# 確認 fbKey 欄位無長度數字
+```
+
+**依賴**：無
+
+---
+
+## Step 6 — Firestore Rules 限制 Beta 名單讀取權限（M-2）
+
+**目標檔案**：`firestore.rules`
+
+**變更內容**：`match /permissions/betas/emails/{email}` 區塊（約第 33 行）：
+```rules
+// 舊（第 33 行）：
+allow read: if true;
+
+// 新：
+allow read: if isSignedIn();   // 需登入才能讀取自己的 Beta 狀態
+```
+
+完整變更後規則：
+```rules
+match /permissions/betas/emails/{email} {
+  // 需登入才能讀（對齊前端從 auth.token.email 而非 Firestore 讀取的現況）
+  allow read: if isSignedIn();
+  // 只有 Admin 能新增/修改/刪除
+  allow create, update, delete: if isAdmin();
+  // 寫入時驗證資料結構
+  allow create, update: if request.resource.data.keys().hasAll(["email", "addedAt", "addedBy"])
+    && request.resource.data.email == email
+    && request.resource.data.addedBy == request.auth.uid;
+}
+```
+
+**驗證方式**：
+```bash
+# Firebase CLI 模擬（需 firebase-tools 安裝）
+firebase emulators:start --only firestore
+# 或直接在 Firebase Console → Firestore → Rules 上傳新 rules 並測試
+```
+
+**依賴**：無
+
+---
+
+## Step 7 — `/api/diag` 移除硬編碼 email，改吃 query param（M-3）
+
+**目標檔案**：`src/app/api/diag/route.ts`
+
+**變更內容**：
+
+1. 第 11–12 行新增 query param 讀取：
+```ts
+// 在 req 解析後（req: any）新增：
+const queryEmail = req.nextUrl.searchParams.get("email") ?? "";
+```
+
+2. 第 19 行（`users.users.find(...)` 那一行）：
+```ts
+// 舊：
+const wife = users.users.find(u => u.email === 'xdstudiooffice@gmail.com');
+
+// 新：
+const target = users.users.find(u => u.email === (queryEmail || 'xdstudiooffice@gmail.com'));
+```
+
+3. 後續所有 `wife` 變數名改為 `target`
+
+**驗證方式**：
+```bash
+# 有 DIAG_SECRET header + email query：
+curl -s -H "x-diag-token: <DIAG_SECRET>" \
+  "http://localhost:3000/api/diag?email=xdstudiooffice@gmail.com" \
+  | python3 -m json.tool
+
+# 無 email query（fallback 仍有效）：
+curl -s -H "x-diag-token: <DIAG_SECRET>" \
+  http://localhost:3000/api/diag \
+  | python3 -m json.tool
+```
+
+**依賴**：無
+
+---
+
+## Step 8（可選）— 清理 `.env.local.example` 冗餘（L-1）
+
+**目標檔案**：`.env.local.example`（已被 git 追蹤）
+
+**變更內容**：確認與 `.env.example` 完全相同後，執行：
+```bash
+git rm --cached .env.local.example
+# 並在 .gitignore 確認已有 .env.local.example 或 .env*
+```
+
+**驗證方式**：
+```bash
+git status .env.local.example
+# 期望：無輸出（已移除追蹤）
+```
+
+**依賴**：Step 1 完成後執行（確保 `.env.example` 已完整涵蓋所有必要變數）
+
+---
+
+## 執行摘要
+
+| Step | 檔案 | 風險 |
 |------|------|------|
-| 1 | Step 1 | 最高優先（invite/send rate limit 漏洞） |
-| 2 | Step 9 | 確認 migration 已部署（Step 1 的前提） |
-| 3 | Step 2 | 需配合 Vercel 環境變數設定 |
-| 4 | Step 3 | 需 force push，協作者需同步 |
-| 5 | Step 4 | 獨立，簡單 |
-| 6 | Step 5 | 獨立 |
-| 7 | Step 6 | 需設定 DISCORD_WEBHOOK_URL_FOR_QUOTA |
-| 8 | Step 7 | 需前端配合 cursor 參數傳遞 |
-| 9 | Step 8 | 需測試蘋果日曆用戶流程 |
-| 10 | Step 9 | 驗證 migration |
-| 11 | Step 10 | 可選，影響全站 API 可用性 |
+| 1 | `src/lib/firebase.ts` | 低（僅 env 注入） |
+| 2 | `src/app/api/omnisonic/playlist/route.ts` | 低（純加法） |
+| 3 | `src/app/api/omnisonic/stream/[slug]/route.ts` | 低（替換實作） |
+| 4 | `src/app/api/calendar/feed/route.ts` | 中（需先 grep 確認） |
+| 5 | `src/app/api/auth/health/route.ts` | 極低（一行） |
+| 6 | `firestore.rules` | 低（rules 檔，需 Firebase Console 上傳） |
+| 7 | `src/app/api/diag/route.ts` | 極低（一行 + 一參數） |
+| 8 | `.env.local.example` | 極低（git 操作） |
+
+完成所有 Steps 後執行一次全域 build + lint 驗證：
+```bash
+npm run build && npm run lint
+```

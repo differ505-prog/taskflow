@@ -6,14 +6,16 @@ import { getAuth, Auth } from "firebase/auth";
 import { getFirestore, Firestore, enableIndexedDbPersistence, enableMultiTabIndexedDbPersistence } from "firebase/firestore";
 
 // ─── Firebase 設定 ───────────────────────────────────────────
+// 從環境變數注入，與 .env.local.example 對齊
+// 注意：Firebase web config 本身非機密，但移到 env 方便環境分離
 const firebaseConfig = {
-  apiKey: "AIzaSyD2yBIIUzRdwvwr_ApEYjAR4ujF-jaX4cs",
-  authDomain: "taskflow-1fbd3.firebaseapp.com",
-  projectId: "taskflow-1fbd3",
-  storageBucket: "taskflow-1fbd3.firebasestorage.app",
-  messagingSenderId: "942619428359",
-  appId: "1:942619428359:web:5718c6891b624a397b8ca2",
-  measurementId: "G-36ELNFZNZD",
+  apiKey:            process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
+  authDomain:        process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
+  projectId:         process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+  storageBucket:     process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
+  appId:             process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
+  measurementId:     process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID!,
 };
 
 // ─── Singleton 初始化 ────────────────────────────────────────

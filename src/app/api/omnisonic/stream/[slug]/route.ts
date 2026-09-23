@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 /**
  * §Stream proxy — 解決 OmniSonic CORS 只放行 taskflow-v2-pink domain
@@ -15,27 +16,8 @@ import { createServerClient } from "@supabase/ssr";
  *
  * 硬化（§8）：
  *   - 強制登入：無有效 Supabase session → 401
- *   - Rate limit：每 user 每分鐘 60 次（分散式ratelimit 為 P2 目標）
+ *   - Rate limit：每 user 每分鐘 60 次（分散式，Supabase-backed）
  */
-
-// ─── Rate limit (user-based, in-memory, key = user.id:minute) ───
-const STREAM_BUCKETS = new Map<string, { count: number; resetAt: number }>();
-const STREAM_LIMIT = 60;        // 每分鐘 60 次
-const STREAM_WINDOW_MS = 60_000;
-
-function checkStreamRateLimit(userId: string): boolean {
-  const now = Date.now();
-  // 以「分鐘」為窗口 key：同一分鐘內同一 user 共享一個 bucket
-  const key = `${userId}:${Math.floor(now / 60_000)}`;
-  const bucket = STREAM_BUCKETS.get(key);
-  if (!bucket || bucket.resetAt < now) {
-    STREAM_BUCKETS.set(key, { count: 1, resetAt: now + STREAM_WINDOW_MS });
-    return true;
-  }
-  if (bucket.count >= STREAM_LIMIT) return false;
-  bucket.count += 1;
-  return true;
-}
 
 export async function GET(
   request: Request,
@@ -65,8 +47,9 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 2. Rate limit
-    if (!checkStreamRateLimit(user.id)) {
+    // 2. Rate limit（分散式，Supabase-backed）
+    const { allowed } = await checkRateLimit(`omnisonic-stream:${user.id}`, 60, 60_000);
+    if (!allowed) {
       return NextResponse.json(
         { error: "Stream rate limit exceeded" },
         { status: 429 }

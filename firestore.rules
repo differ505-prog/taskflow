@@ -39,7 +39,7 @@ service cloud.firestore {
     // ─── Beta 測試者名單（雲端 RBAC）─────────────────────
     match /permissions/betas/emails/{email} {
       // 所有人（包含未登入）都可以讀取：用戶登入時需要知道自己是不是 Beta
-      allow read: if true;
+      allow read: if isSignedIn();
 
       // 只有 Admin 能新增/修改/刪除
       allow create, update, delete: if isAdmin();

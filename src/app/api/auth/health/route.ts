@@ -18,6 +18,6 @@ export async function GET() {
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? "✅ set" : "❌ missing",
     fbPid: process.env.FIREBASE_PROJECT_ID ? "✅ set" : "❌ missing",
     fbEmail: process.env.FIREBASE_CLIENT_EMAIL ? "✅ set" : "❌ missing",
-    fbKey: process.env.FIREBASE_PRIVATE_KEY ? `✅ set (${process.env.FIREBASE_PRIVATE_KEY.length} chars)` : "❌ missing",
+    fbKey: process.env.FIREBASE_PRIVATE_KEY ? "✅ set" : "❌ missing",
   });
 }
