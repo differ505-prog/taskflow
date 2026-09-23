@@ -17,6 +17,7 @@
  *   - Rate limit 30 / hour(開發者不會 spam,但允許批次)
  */
 import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { notifyFeedback } from "@/lib/discordNotifier";
 
@@ -71,23 +72,30 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. 驗證登入(透過 cookie 讀取 Supabase session)，並從 session 取得真實 email
-    const supabase = getServiceClient();
-    if (!supabase) {
-      return NextResponse.json({ error: "後端未設定" }, { status: 500 });
-    }
+    // 2. 驗證登入(透過 cookie session)，並從 session 取得真實 email
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return req.cookies.getAll(); },
+        },
+      }
+    );
+    const { data: { user } } = await supabase.auth.getUser();
+    const userId: string | null = user?.id ?? null;
+    const userEmail: string | null = user?.email ?? null;
 
-    const authHeader = req.headers.get("authorization") ?? "";
-    const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-    let userId: string | null = null;
-    let userEmail: string | null = null;
-    if (bearerToken) {
-      const { data } = await supabase.auth.getUser(bearerToken);
-      userId = data.user?.id ?? null;
-      userEmail = data.user?.email ?? null;
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // 3. 寫入 Supabase（user_email 強制使用 server-side session email）
+    const dbClient = getServiceClient();
+    if (!dbClient) {
+      return NextResponse.json({ error: "後端未設定" }, { status: 500 });
+    }
+
     const insertPayload = {
       user_id: userId,
       user_email: userEmail ?? null,  // 不再信任 client body.userEmail
@@ -96,7 +104,7 @@ export async function POST(req: NextRequest) {
       context: context ?? {},
     };
 
-    const { data: inserted, error: dbError } = await supabase
+    const { data: inserted, error: dbError } = await dbClient
       .from("feedback")
       .insert(insertPayload)
       .select("id, created_at")

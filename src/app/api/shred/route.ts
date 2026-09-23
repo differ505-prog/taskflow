@@ -22,6 +22,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createServerClient } from "@supabase/ssr";
+import { incrementAndCheckQuota } from "@/lib/quota-monitor";
 
 // ─── 限流 (process-local Map,沿用 discord/notify 模板) ───
 const SHRED_BUCKETS = new Map<string, { count: number; resetAt: number }>();
@@ -134,7 +135,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 5. 呼叫 Gemini 1.5 Flash
+    // 5. 用量監控（超限擋掉，防止成本失控）
+    const { allowed, currentCount, limit } = await incrementAndCheckQuota("gemini");
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "今日 AI 使用次數已達上限，請明天再試" },
+        { status: 429 }
+      );
+    }
+
+    // 6. 呼叫 Gemini 1.5 Flash
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
       model: "gemini-1.5-flash",
@@ -149,7 +159,7 @@ export async function POST(req: NextRequest) {
     const result = await model.generateContent(trimmedTitle);
     const responseText = result.response.text();
 
-    // 6. 解析 JSON (雙保險:即使 model 回傳 Markdown 包裹,也嘗試解析)
+    // 7. 解析 JSON (雙保險:即使 model 回傳 Markdown 包裹,也嘗試解析)
     let steps: string[] = [];
     try {
       const parsed = JSON.parse(responseText);
@@ -177,7 +187,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 7. 驗證至少有 3 個步驟 (防呆)
+    // 8. 驗證至少有 3 個步驟 (防呆)
     if (steps.length < 3) {
       console.warn("[api/shred] Insufficient steps from model:", responseText);
       return NextResponse.json(

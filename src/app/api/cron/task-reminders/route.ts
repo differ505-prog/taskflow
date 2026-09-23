@@ -22,16 +22,26 @@ function getSupabaseAdmin() {
   return createClient(url, key);
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(req: NextRequest) {
   // ── 1. 安全認證 ──
-  const cronSecret = request.nextUrl.searchParams.get("secret");
-  const headerSecret = request.headers.get("x-cron-secret");
+  // Vercel Cron 自動注入 Authorization Bearer header;
+  // query string ?secret= 與 x-cron-secret header 留作 manual trigger 備援
+  const authHeader = req.headers.get("authorization") ?? "";
+  const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const querySecret = req.nextUrl.searchParams.get("secret");
+  const headerSecret = req.headers.get("x-cron-secret");
   const expected = process.env.CRON_SECRET;
+
   if (process.env.NODE_ENV === "production") {
     if (!expected) {
       return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
     }
-    if (cronSecret !== expected && headerSecret !== expected) {
+    // Vercel Cron 自動送 Authorization Bearer；x-cron-secret / ?secret= 留作手動測試
+    if (
+      bearerToken !== expected &&
+      querySecret !== expected &&
+      headerSecret !== expected
+    ) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   }

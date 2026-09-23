@@ -28,6 +28,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
 import { renderAmnestiaEmail, renderWeeklyReportEmail } from "@/emails";
+import { incrementAndCheckQuota } from "@/lib/quota-monitor";
 
 // ─── 環境變數 ────────────────────────────────────────────────────────────
 
@@ -67,9 +68,19 @@ export async function GET(request: NextRequest) {
   // §26 補':對齊 /api/cron/task-reminders (L27-37) 支援 ?secret= query + x-cron-secret header
   // Vercel Cron 預設注入 Authorization Bearer header,query string 容易被 log 留下
   // 統一用 header + query 雙通道:header 優先(prod 安全),query 留作 manual trigger
-  const providedSecret = request.nextUrl.searchParams.get("secret");
+  // ── 1. 安全認證 ──
+  // Vercel Cron 自動注入 Authorization Bearer header；
+  // query string ?secret= 與 x-cron-secret header 留作 manual trigger 備援
+  const authHeader = request.headers.get("authorization") ?? "";
+  const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const querySecret = request.nextUrl.searchParams.get("secret");
   const headerSecret = request.headers.get("x-cron-secret");
-  if (process.env.NODE_ENV === "production" && providedSecret !== CRON_SECRET && headerSecret !== CRON_SECRET) {
+  if (
+    process.env.NODE_ENV === "production" &&
+    bearerToken !== CRON_SECRET &&
+    querySecret !== CRON_SECRET &&
+    headerSecret !== CRON_SECRET
+  ) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -121,6 +132,13 @@ export async function GET(request: NextRequest) {
 // ─── 批次 A：3 天未登入喚回信 ────────────────────────────────────────────
 
 async function sendAmnestiaBatch(supabaseAdmin: ReturnType<typeof getSupabaseAdmin>, resend: Resend) {
+  // Resend 用量監控（超限不阻擋主流程，只 log）
+  const { allowed: resendAllowed } = await incrementAndCheckQuota("resend");
+  if (!resendAllowed) {
+    console.warn("[CS Email] Resend daily quota exceeded, skipping batch");
+    return { sent: 0, skipped: 0, reason: "Resend quota exceeded" };
+  }
+
   const threeDaysAgo = new Date();
   threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
@@ -171,6 +189,13 @@ async function sendAmnestiaBatch(supabaseAdmin: ReturnType<typeof getSupabaseAdm
 // ─── 批次 B：週末戰報（每週五，僅發給當週活躍用戶） ──────────────────────
 
 async function sendWeeklyReportBatch(supabaseAdmin: ReturnType<typeof getSupabaseAdmin>, resend: Resend) {
+  // Resend 用量監控（超限不阻擋主流程，只 log）
+  const { allowed: resendAllowed } = await incrementAndCheckQuota("resend");
+  if (!resendAllowed) {
+    console.warn("[CS Email] Resend daily quota exceeded, skipping weekly batch");
+    return { sent: 0, skipped: 0, reason: "Resend quota exceeded" };
+  }
+
   const weekStart = new Date();
   weekStart.setDate(weekStart.getDate() - weekStart.getDay() - 6); // 本週一
   weekStart.setHours(0, 0, 0, 0);

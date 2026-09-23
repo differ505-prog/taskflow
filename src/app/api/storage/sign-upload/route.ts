@@ -23,6 +23,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 
 // ─── Rate limit (user-based, in-memory) ───
 const userUploadBuckets = new Map<string, { count: number; resetAt: number }>();
@@ -42,8 +43,8 @@ const ALLOWED_MIME_TYPES = new Set([
   "text/csv",
 ]);
 
-// ─── 大小限制 ───
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+// ─── 大小限制（預設值，實際上限依 role 動態調整）───
+const DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_FILENAME_LENGTH = 200;
 
 function checkUploadRateLimit(userId: string): boolean {
@@ -103,7 +104,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. 解析並驗證 body
+    // 3. 驗證 user role（提前擋 free 用戶，省一次 Storage RTT）
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { persistSession: false } }
+    );
+    const { data: profile } = await supabaseAdmin
+      .from("user_profiles")
+      .select("role")
+      .eq("uid", user.id)
+      .single();
+
+    const role = profile?.role ?? "free";
+    if (role === "free") {
+      return NextResponse.json(
+        { error: "請升級到 Beta 以使用附件上傳功能" },
+        { status: 403 }
+      );
+    }
+
+    // 依 role 動態調整 size 上限
+    const MAX_BYTES_BY_ROLE: Record<string, number> = {
+      admin: 50 * 1024 * 1024,  // 50MB
+      pro:   20 * 1024 * 1024,  // 20MB
+      beta:   5 * 1024 * 1024,  //  5MB
+    };
+    const effectiveMaxSize = MAX_BYTES_BY_ROLE[role] ?? 0;
+
+    // 4. 解析並驗證 body
     let body: { filename?: string; mimeType?: string; size?: number };
     try {
       body = await req.json();
@@ -128,19 +157,20 @@ export async function POST(req: NextRequest) {
         { status: 415 }
       );
     }
-    if (typeof size !== "number" || size <= 0 || size > MAX_FILE_SIZE) {
+    if (typeof size !== "number" || size <= 0 || size > effectiveMaxSize) {
+      const mb = Math.round(effectiveMaxSize / 1024 / 1024);
       return NextResponse.json(
-        { error: `檔案大小超出限制（上限 10MB）` },
+        { error: `檔案大小超出限制（上限 ${mb}MB）` },
         { status: 413 }
       );
     }
 
-    // 4. 生成安全路徑（server-side 掌控，client 無法指定）
+    // 5. 生成安全路徑（server-side 掌控，client 無法指定）
     const safeFilename = getSafeFilename(filename);
     const storagePath = generateStoragePath(user.id, safeFilename);
     const bucket = "attachments";
 
-    // 5. 使用 service_role_key 直接呼叫 Supabase Storage REST API 建立 signed upload URL
+    // 6. 使用 service_role_key 直接呼叫 Supabase Storage REST API 建立 signed upload URL
     const expiresAt = Math.floor(Date.now() / 1000) + 3600; // 1 hour
     const signedUrl = `${supabaseUrl}/storage/v1/object/upload/sign/${bucket}/${storagePath}`;
 

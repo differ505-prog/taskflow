@@ -45,6 +45,8 @@ const nextConfig = {
       {
         source: "/:path*",
         headers: [
+          // 不可變靜態資產的一年強緩存（Next.js 自動對靜態檔案套用）
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
           { key: "Content-Security-Policy", value: csp },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
