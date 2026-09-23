@@ -60,6 +60,14 @@ const nextConfig = {
             : [{ key: "Strict-Transport-Security", value: "max-age=0" }]),
         ],
       },
+      // 🔒 /public/* 靜態資源長期快取（icon / sounds / manifest）
+      // 檔名帶 hash 故可安全設 immutable；PWA 重複造訪不再打 ETag round-trip
+      {
+        source: "/:path.(png|jpg|jpeg|gif|webp|svg|mp3|wav|woff2?|ttf|ico|json)",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
     ];
   },
 };

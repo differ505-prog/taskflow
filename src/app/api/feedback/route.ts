@@ -21,9 +21,16 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { notifyFeedback } from "@/lib/discordNotifier";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { z } from "zod";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// ─── Zod Input Schema ───────────────────────────────────────────────────────
+const FeedbackInput = z.object({
+  message: z.string().min(1).max(2000),
+  context: z.record(z.string(), z.unknown()).optional(),
+});
 
 function getServiceClient() {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return null;
@@ -40,22 +47,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "太多次數,請稍後再試" }, { status: 429 });
     }
 
+    // 1. 解析並驗證 body（Zod schema）
     const body = await req.json();
-    const { message, context } = body ?? {};
-
-    // 1. 驗證
-    if (typeof message !== "string") {
-      return NextResponse.json({ error: "message 格式錯誤" }, { status: 400 });
+    const parsed = FeedbackInput.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "格式錯誤" }, { status: 400 });
     }
-    if (message.length > 2000) {
-      return NextResponse.json({ error: "訊息過長(上限 2000 字)" }, { status: 400 });
-    }
-    if (context !== undefined && context !== null) {
-      const contextStr = JSON.stringify(context);
-      if (contextStr.length > 50_000) {
-        return NextResponse.json({ error: "context 過大" }, { status: 400 });
-      }
-    }
+    const { message, context } = parsed.data;
 
     // 2. 驗證登入(透過 cookie session)，並從 session 取得真實 email
     const supabase = createServerClient(
@@ -96,7 +94,7 @@ export async function POST(req: NextRequest) {
       user_id: userId,
       user_email: userEmail ?? null,  // 不再信任 client body.userEmail
       user_role: userRole,
-      message: message.slice(0, 2000),
+      message: message,
       context: context ?? {},
     };
 

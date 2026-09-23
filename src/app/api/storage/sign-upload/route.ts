@@ -25,6 +25,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { z } from "zod";
 
 // ─── 白名單 MIME 類型 ───
 const ALLOWED_MIME_TYPES = new Set([
@@ -38,6 +39,13 @@ const ALLOWED_MIME_TYPES = new Set([
   "text/plain",
   "text/csv",
 ]);
+
+// ─── Zod Input Schema ───────────────────────────────────────────────────────
+const UploadRequestInput = z.object({
+  filename: z.string().trim().min(1).max(200),
+  mimeType: z.string(),
+  size: z.number().positive(),
+});
 
 // ─── 大小限制（預設值，實際上限依 role 動態調整）───
 const DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -117,32 +125,31 @@ export async function POST(req: NextRequest) {
     };
     const effectiveMaxSize = MAX_BYTES_BY_ROLE[role] ?? 0;
 
-    // 4. 解析並驗證 body
-    let body: { filename?: string; mimeType?: string; size?: number };
+    // 4. 解析並驗證 body（Zod schema，基礎欄位驗證）
+    let body: Record<string, unknown>;
     try {
       body = await req.json();
     } catch {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
+    const parsed = UploadRequestInput.safeParse(body);
+    if (!parsed.success) {
+      const issues = parsed.error.issues;
+      const firstIssue = issues[0];
+      let msg = "格式錯誤";
+      if (firstIssue?.path[0] === "filename") msg = "filename 為必填欄位，且不可超過 200 字";
+      if (firstIssue?.path[0] === "size") msg = "size 必須為正數";
+      return NextResponse.json({ error: msg }, { status: 400 });
+    }
+    const { filename, mimeType, size } = parsed.data;
 
-    const { filename, mimeType, size } = body;
+    // 4b. MIME type 白名單（在 Zod 基礎驗證後再做）
+    if (!ALLOWED_MIME_TYPES.has(mimeType)) {
+      return NextResponse.json({ error: "不支援的檔案類型" }, { status: 415 });
+    }
 
-    if (typeof filename !== "string" || !filename.trim()) {
-      return NextResponse.json({ error: "filename 為必填欄位" }, { status: 400 });
-    }
-    if (filename.length > MAX_FILENAME_LENGTH) {
-      return NextResponse.json(
-        { error: `檔案名稱過長（上限 ${MAX_FILENAME_LENGTH} 字元）` },
-        { status: 400 }
-      );
-    }
-    if (typeof mimeType !== "string" || !ALLOWED_MIME_TYPES.has(mimeType)) {
-      return NextResponse.json(
-        { error: "不支援的檔案類型" },
-        { status: 415 }
-      );
-    }
-    if (typeof size !== "number" || size <= 0 || size > effectiveMaxSize) {
+    // 4c. 動態 size 上限（依 role，需在 body 解析後、generateStoragePath 前檢查）
+    if (size > effectiveMaxSize) {
       const mb = Math.round(effectiveMaxSize / 1024 / 1024);
       return NextResponse.json(
         { error: `檔案大小超出限制（上限 ${mb}MB）` },

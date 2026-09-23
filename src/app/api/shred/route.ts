@@ -24,11 +24,15 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createServerClient } from "@supabase/ssr";
 import { incrementAndCheckQuota } from "@/lib/quota-monitor";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { z } from "zod";
 
 // ─── System Prompt (來自需求) ───
 const SYSTEM_PROMPT = `你是一個專為 ADHD 嚴重患者設計的任務拆解助理。你的唯一目標是打破用戶的『啟動癱瘓』。當用戶提供一個任務時，請將其拆解為 3 到 5 個『極度微小、無腦、且具備單向線性順序』的步驟。第一步必須是物理上或畫面上最簡單的動作（例如：打開某個軟體、拿出一支筆）。請只回傳 JSON 格式，不要包含 Markdown 語法或其他廢話。格式如：{ "steps": ["步驟1", "步驟2"] }`;
 
-// ─── 取得 client IP (Next.js 標準) ───
+// ─── Zod Input Schema ───────────────────────────────────────────────────────
+const ShredInput = z.object({
+  title: z.string().trim().min(1).max(200),
+});
 function getClientIp(req: NextRequest): string {
   // Vercel / proxy 環境下 x-forwarded-for 第一個是 client IP
   const forwarded = req.headers.get("x-forwarded-for");
@@ -78,21 +82,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. 解析 body
+    // 3. 解析並驗證 body（Zod schema）
     const body = await req.json();
-    const { title } = body as { title?: string };
-
-    if (!title || typeof title !== "string" || !title.trim()) {
-      return NextResponse.json({ error: "任務標題不可為空" }, { status: 400 });
-    }
-
-    const trimmedTitle = title.trim();
-    if (trimmedTitle.length > 200) {
+    const parsed = ShredInput.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "任務標題過長,請縮短至 200 字以內" },
+        { error: "任務標題不可為空，且不可超過 200 字" },
         { status: 400 }
       );
     }
+    const trimmedTitle = parsed.data.title;
 
     // 4. 檢查 API Key
     const apiKey = process.env.GEMINI_API_KEY;

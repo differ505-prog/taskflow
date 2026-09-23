@@ -3,11 +3,16 @@
  * 最最最簡單的健康檢查，不依賴任何模組。
  * 用來判斷是「Vercel 部署有問題」還是「Firebase Admin SDK 有問題」。
  */
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const token = req.headers.get("x-diag-token");
+  if (token !== process.env.DIAG_SECRET) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   return NextResponse.json({
     ok: true,
     timestamp: new Date().toISOString(),
