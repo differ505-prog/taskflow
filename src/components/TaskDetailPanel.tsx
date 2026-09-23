@@ -788,7 +788,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
         </div>
 
         {/* Status */}
-        <div className="rounded-2xl p-4" style={{ background: "var(--surface-muted)" }}>
+        <div className="rounded-xl p-4" style={{ background: "var(--surface-muted)" }}>
           <div className="flex items-center gap-1.5 mb-3">
             <ListChecks className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
             <label className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
@@ -888,7 +888,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
         </div>
 
         {/* List + Priority + Attachments + Tags — 圖示化高頻區 */}
-        <div className="rounded-2xl p-4 space-y-3" style={{ background: "var(--surface-muted)" }}>
+        <div className="rounded-xl p-4 space-y-3" style={{ background: "var(--surface-muted)" }}>
           {/* 高頻操作列：優先級 + 標籤 + 附件（grid-cols-12 強制比例，避免側欄擠壓） */}
           <div className="grid grid-cols-12 gap-x-3 gap-y-3 items-start relative" style={{ zIndex: 30 }}>
             {/* 優先級：艾森豪四象限（佔 12/7） */}

@@ -157,9 +157,9 @@ export function TaskListItem({
       style={sortableStyle}
       {...(sortable?.attributes ?? {})}
       className={`
-        flex items-start gap-2.5 px-3 py-3 rounded-2xl cursor-pointer
+        flex items-start gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer
         transition-all duration-150 group select-none
-        ${isSelected ? "bg-[var(--brand-tint)] shadow-sm" : "hover:bg-[var(--surface-hover)]"}
+        ${isSelected ? "bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-800/40" : "hover:bg-neutral-50 dark:hover:bg-neutral-900/50"}
         ${batchSelected ? "ring-2 ring-[var(--brand)] bg-[var(--brand-tint)]/40" : ""}
         ${batchMode ? "active:scale-[0.98]" : ""}
         ${isDone ? "opacity-60" : ""}
@@ -198,8 +198,8 @@ export function TaskListItem({
           aria-label={`拖曳任務「${task.title}」`}
           className="
             flex-shrink-0 mt-1 p-1 -ml-1 rounded-lg cursor-grab active:cursor-grabbing touch-target
-            text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100
-            md:opacity-0 md:group-hover:opacity-100
+            text-[var(--text-tertiary)] opacity-40 group-hover:opacity-80
+            md:opacity-40 md:group-hover:opacity-80
             max-md:opacity-60 max-md:group-hover:opacity-100
             transition-opacity duration-150
           "
@@ -226,7 +226,7 @@ export function TaskListItem({
         {/* 標題行：左標題，右上「旗子 + 標籤 + 附件 + 子任務」三件套 */}
         <div className="flex items-start justify-between gap-2">
           <h3
-            className={`text-[14px] font-medium leading-snug min-w-0 flex-1 ${
+            className={`text-[14px] font-medium leading-snug tracking-tight min-w-0 flex-1 ${
               isDone ? "line-through" : ""
             }`}
             style={isDone ? { color: "var(--text-tertiary)" } : { color: "var(--text-primary)" }}
@@ -285,7 +285,7 @@ export function TaskListItem({
               <div>
                 <div className="flex items-center gap-1 mb-1">
                   <ListChecks className="w-3 h-3" style={{ color: "var(--text-tertiary)" }} aria-hidden="true" />
-                  <span className="text-[11px] font-medium" style={{ color: "var(--text-tertiary)" }}>
+                  <span className="text-[11px] font-mono font-medium" style={{ color: "var(--text-tertiary)" }}>
                     子任務 {doneCount}/{subTasks.length}
                   </span>
                   {doneCount === subTasks.length && (
@@ -322,7 +322,7 @@ export function TaskListItem({
                         <Circle className="w-[18px] h-[18px] text-[var(--text-tertiary)] group-hover/sub:text-[var(--text-secondary)]" />
                       </button>
                       <span
-                        className="text-[12px] truncate min-w-0 flex-1 break-words"
+                        className="text-[12px] font-mono truncate min-w-0 flex-1 break-words"
                         style={{
                           color: "var(--text-secondary)",
                           wordBreak: "break-word",
@@ -360,7 +360,7 @@ export function TaskListItem({
                   ) : (
                     <ChevronDown className="w-3 h-3" aria-hidden="true" />
                   )}
-                  <span>已完成 ({doneSubTasks.length})</span>
+                  <span className="text-[11px] font-mono">已完成 ({doneSubTasks.length})</span>
                 </button>
 
                 {!isDoneCollapsed && (
@@ -381,7 +381,7 @@ export function TaskListItem({
                           <CheckCircle2 className="w-[18px] h-[18px] text-[var(--status-success)]" />
                         </button>
                         <span
-                          className="text-[12px] truncate min-w-0 flex-1 break-words"
+                          className="text-[12px] font-mono truncate min-w-0 flex-1 break-words"
                           style={{
                             color: "var(--text-tertiary)",
                             textDecoration: "line-through",

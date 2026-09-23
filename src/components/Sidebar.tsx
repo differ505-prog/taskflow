@@ -148,7 +148,7 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
                 className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-150 group ${isInbox && active ? "inbox-active-glow" : ""}`}
                 style={
                   active
-                    ? { background: "var(--brand-tint)", color: "var(--brand)" }
+                    ? { background: "neutral-100 dark:bg-neutral-800", color: "var(--text-primary)" }
                     : { color: "var(--text-secondary)" }
                 }
               >
@@ -158,8 +158,8 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
                 <span className="flex-1 text-left">{item.label}</span>
                 {item.badge && (
                   <span
-                    className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md flex-shrink-0 mr-1"
-                    style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+                    className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md flex-shrink-0 mr-1 border border-neutral-300 dark:border-neutral-600"
+                    style={{ background: "transparent", color: "var(--text-tertiary)" }}
                     title={item.view === "inbox" ? "Getting Things Done：清空大腦工作記憶，降低認知負載" : undefined}
                   >
                     {item.badge}
@@ -180,7 +180,7 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-150 group"
             style={
               isActive("pinned")
-                ? { background: "var(--brand-tint)", color: "var(--brand)" }
+                ? { background: "neutral-100 dark:bg-neutral-800", color: "var(--text-primary)" }
                 : { color: "var(--text-secondary)" }
             }
             title="跨清單收集所有置頂任務"
@@ -309,7 +309,7 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
                     className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-150"
                     style={
                       isActiveShared
-                        ? { background: "var(--brand-tint)", color: "var(--brand)" }
+                        ? { background: "neutral-100 dark:bg-neutral-800", color: "var(--text-primary)" }
                         : { color: "var(--text-secondary)" }
                     }
                   >
@@ -354,7 +354,7 @@ export function Sidebar({ onOpenSettings, onOpenListForm, editingList, onEditLis
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-150"
               style={
                 isActive(item.view)
-                  ? { background: "var(--brand-tint)", color: "var(--brand)" }
+                  ? { background: "neutral-100 dark:bg-neutral-800", color: "var(--text-primary)" }
                   : { color: "var(--text-secondary)" }
               }
             >
@@ -433,7 +433,7 @@ function SortableListItem({
         className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-[14px] font-medium transition-all duration-150"
         style={
           isActive
-            ? { background: "var(--brand-tint)", color: "var(--brand)" }
+            ? { background: "neutral-100 dark:bg-neutral-800", color: "var(--text-primary)" }
             : { color: "var(--text-secondary)" }
         }
       >
@@ -462,7 +462,7 @@ function SortableListItem({
           {list.sharedId && (
             <span
               className="flex items-center gap-1 flex-shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-medium"
-              style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+              style={{ background: "transparent", color: "var(--brand)", border: "1px solid var(--brand)" }}
               title="共享清單"
               aria-label="共享清單"
             >
@@ -524,7 +524,7 @@ export function ListForm({ isOpen, onClose, onSubmit, initialData, onDelete }: L
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="w-full max-w-sm rounded-2xl p-6 space-y-5"
+        className="w-full max-w-sm rounded-xl p-6 space-y-5"
         style={{ background: "var(--surface-elevated)", boxShadow: "var(--shadow-lg)" }}
       >
         <div className="flex items-center justify-between">
@@ -561,8 +561,8 @@ export function ListForm({ isOpen, onClose, onSubmit, initialData, onDelete }: L
                 className="w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-150"
                 style={
                   icon === iconName
-                    ? { background: "var(--brand-tint)", border: "2px solid var(--brand)" }
-                    : { background: "var(--surface-hover)", border: "2px solid transparent" }
+                    ? { background: "transparent", border: "1px solid var(--brand)" }
+                    : { background: "var(--surface-hover)", border: "1px solid transparent" }
                 }
               >
                 <ListIcon icon={iconName} className="w-5 h-5" />

@@ -21,7 +21,7 @@ import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
  *   - GhostButton      → 假門測試（waitlist 流程）
  */
 
-type ButtonVariant = "primary" | "ghost" | "danger";
+type ButtonVariant = "primary" | "ghost" | "danger" | "outlined";
 type ButtonSize = "sm" | "md" | "lg" | "icon-sm";
 
 interface BaseButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -37,6 +37,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   primary: "btn-primary",
   ghost: "btn-ghost",
   danger: "btn-ghost",
+  outlined: "btn-outlined",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

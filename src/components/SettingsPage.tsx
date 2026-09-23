@@ -122,7 +122,7 @@ function SettingsContent({
       initial={{ scale: 0.95, y: 10 }}
       animate={{ scale: 1, y: 0 }}
       exit={{ scale: 0.95, y: 10 }}
-      className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl"
+      className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-xl"
       style={{ background: "var(--surface-elevated)", boxShadow: "var(--shadow-lg)" }}
     >
       {/* Header */}

@@ -438,7 +438,7 @@ const canDrag = !currentSharedListId && !isMobile;
   return (
     <div className="flex flex-col flex-1">
       {/* Top Header */}
-      <header className="flex-shrink-0 glass sticky top-0 z-30">
+      <header className="flex-shrink-0 glass sticky top-0 z-30 border-b border-neutral-200/60 dark:border-neutral-800/80">
         <div className="px-4 md:px-6 py-4">
           <div className="flex items-center justify-between">
             {/* Title */}
@@ -848,11 +848,11 @@ const canDrag = !currentSharedListId && !isMobile;
                           今天先這樣
                         </button>
                       )}
-                      <div className="flex items-center gap-0.5 p-1 rounded-xl" style={{ background: "rgba(0,0,0,0.04)" }}>
-                        <button onClick={() => setViewMode("list")} className="p-1.5 rounded-lg transition-all duration-150" style={viewMode === "list" ? { background: "var(--surface)", boxShadow: "var(--shadow-xs)", color: "var(--text-primary)" } : { color: "var(--text-tertiary)" }} aria-label="列表檢視">
+                      <div className="flex items-center gap-0.5 p-1 rounded-xl" style={{ background: "neutral-100/80 dark:bg-neutral-800/80" }}>
+                        <button onClick={() => setViewMode("list")} className="p-1.5 rounded-lg transition-all duration-150" style={viewMode === "list" ? { background: "white dark:bg-neutral-900", border: "1px solid rgba(0,0,0,0.10)", color: "var(--text-primary)" } : { color: "var(--text-tertiary)" }} aria-label="列表檢視">
                           <List className="w-4 h-4" />
                         </button>
-                        <button onClick={() => setViewMode("grid")} className="p-1.5 rounded-lg transition-all duration-150" style={viewMode === "grid" ? { background: "var(--surface)", boxShadow: "var(--shadow-xs)", color: "var(--text-primary)" } : { color: "var(--text-tertiary)" }} aria-label="網格檢視">
+                        <button onClick={() => setViewMode("grid")} className="p-1.5 rounded-lg transition-all duration-150" style={viewMode === "grid" ? { background: "white dark:bg-neutral-900", border: "1px solid rgba(0,0,0,0.10)", color: "var(--text-primary)" } : { color: "var(--text-tertiary)" }} aria-label="網格檢視">
                           <LayoutGrid className="w-4 h-4" />
                         </button>
                       </div>
@@ -911,18 +911,18 @@ const canDrag = !currentSharedListId && !isMobile;
                           className="w-full resize-none rounded-2xl px-5 py-4 text-[16px] placeholder:text-[var(--text-tertiary)] focus:outline-none transition-all duration-200"
                           style={{
                             background: "var(--surface-elevated)",
-                            border: "2px solid var(--border)",
-                            boxShadow: "var(--shadow-md)",
+                            border: "1px solid var(--border)",
+                            boxShadow: "var(--shadow-sm)",
                             color: "var(--text-primary)",
                             lineHeight: 1.5,
                           }}
                           onFocus={(e) => {
                             e.target.style.borderColor = "var(--brand)";
-                            e.target.style.boxShadow = "0 0 0 4px rgba(59,130,246,0.12), var(--shadow-md)";
+                            e.target.style.boxShadow = "none";
                           }}
                           onBlur={(e) => {
                             e.target.style.borderColor = "var(--border)";
-                            e.target.style.boxShadow = "var(--shadow-md)";
+                            e.target.style.boxShadow = "var(--shadow-sm)";
                           }}
                         />
                         <div className="mt-3 flex items-center justify-center gap-2">
@@ -1001,7 +1001,7 @@ const canDrag = !currentSharedListId && !isMobile;
                         </SortableContext>
                         <DragOverlay>
                           {activeDragTask && (
-                            <div className="shadow-2xl rounded-2xl ring-2 ring-[var(--brand)] opacity-90">
+                            <div className="border border-neutral-200/60 dark:border-neutral-700/60 rounded-xl opacity-90 shadow-sm">
                               <TaskListItem
                                 task={activeDragTask}
                                 isSelected={false}
@@ -1335,8 +1335,8 @@ function StatusFilterChips({
             aria-pressed={isActive}
             className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-medium transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] sm:px-3.5"
             style={isActive
-              ? { background: "var(--brand)", color: "var(--brand-foreground)" }
-              : { background: "rgba(0,0,0,0.04)", color: "var(--text-secondary)" }}
+              ? { background: "neutral-100 dark:bg-neutral-800", color: "var(--text-primary)", border: "1px solid rgba(0,0,0,0.10)" }
+              : { background: "transparent", color: "var(--text-secondary)" }}
           >
             <span>{label}</span>
             <span aria-label={`${count} 項`} style={{ opacity: 0.5 }}>{count}</span>

@@ -287,7 +287,7 @@ function AppLayoutInner() {
           transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
           className={isMobile ? "fixed inset-0 z-[60] overflow-y-auto overscroll-contain" : "w-full md:w-[480px] flex-shrink-0 border-l overflow-hidden"}
           style={{
-            borderColor: "var(--border)",
+            borderColor: "rgba(0,0,0,0.07)",
             background: "var(--surface)",
             width: isMobile ? "100%" : 480
           }}
@@ -383,9 +383,9 @@ function AppLayoutInner() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
             transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-            className="fixed top-0 right-0 bottom-0 z-40 w-full md:w-[480px] border-l overflow-y-auto overscroll-contain shadow-[-8px_0_24px_rgba(0,0,0,0.08)]"
+            className="fixed top-0 right-0 bottom-0 z-40 w-full md:w-[480px] border-l overflow-y-auto overscroll-contain"
             style={{
-              borderColor: "var(--border)",
+              borderColor: "rgba(0,0,0,0.07)",
               background: "var(--surface)",
             }}
             role="dialog"
