@@ -98,6 +98,17 @@ export async function POST(req: NextRequest) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       console.error("[api/shred] GEMINI_API_KEY not configured");
+      // 主動通知 Discord（利用既有 quota-monitor warnDiscord 機制）
+      const webhookUrl = process.env.DISCORD_WEBHOOK_URL_FOR_QUOTA;
+      if (webhookUrl) {
+        await fetch(webhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: "🚨 **[TaskFlow]** GEMINI_API_KEY 未設定，AI 任務粉碎機已停用",
+          }),
+        }).catch(() => {});
+      }
       return NextResponse.json(
         { error: "AI 服務尚未設定,請聯繫管理員" },
         { status: 503 }

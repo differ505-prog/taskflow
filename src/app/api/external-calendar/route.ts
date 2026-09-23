@@ -36,9 +36,14 @@ const FETCH_TIMEOUT_MS = 10_000;
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const url = request.nextUrl.searchParams.get("url");
+  let url = request.nextUrl.searchParams.get("url");
   if (!url) {
     return NextResponse.json({ error: "缺少 url 參數" }, { status: 400 });
+  }
+
+  // 處理 webcal:// → https:// 轉換（蘋果日曆用戶常見）
+  if (url.startsWith("webcal://")) {
+    url = url.replace("webcal://", "https://");
   }
 
   let parsed: URL;

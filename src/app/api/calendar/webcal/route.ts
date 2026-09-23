@@ -128,13 +128,20 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // 從 Supabase 讀取該用戶的個人任務
-  const { data: tasks, error: tasksError } = await supabase
+  // 從 Supabase 讀取該用戶的個人任務（cursor 分頁：取 updatedAt <= cursor 的最新 500 筆）
+  const cursor = request.nextUrl.searchParams.get("cursor") ?? undefined;
+  let query = supabase
     .from("personal_tasks")
     .select("*")
     .eq("uid", user.id)
     .order("updatedAt", { ascending: false })
     .limit(500);
+
+  if (cursor) {
+    query = query.lte("updatedAt", cursor);
+  }
+
+  const { data: tasks, error: tasksError } = await query;
 
   if (tasksError) {
     return NextResponse.json(
@@ -147,6 +154,8 @@ export async function GET(request: NextRequest) {
   const filteredTasks = (tasks as Task[] ?? []).filter(
     (t) => !t.isArchived && (t.dueDate || t.status !== "done")
   );
+  // 用於 cursor 分頁：取最後一筆（最早更新）的 updatedAt
+  const lastTask = filteredTasks[filteredTasks.length - 1] as Task | undefined;
 
   const header = [
     "BEGIN:VCALENDAR",
@@ -177,6 +186,7 @@ export async function GET(request: NextRequest) {
       "Content-Type": "text/calendar; charset=utf-8",
       "Content-Disposition": "inline; filename=\"vibelist.ics\"",
       "Cache-Control": "private, max-age=300, stale-while-revalidate=600",
+      "X-Next-Cursor": lastTask?.updatedAt ?? "",
     },
   });
 }

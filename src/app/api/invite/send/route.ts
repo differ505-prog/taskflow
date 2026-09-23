@@ -27,6 +27,7 @@ import { createServerClient } from "@supabase/ssr";
 import { Resend } from "resend";
 import { renderInviteEmail } from "@/emails";
 import { incrementAndCheckQuota } from "@/lib/quota-monitor";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.vibelist.work";
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "VibeList <noreply@vibelist.app>";
@@ -47,30 +48,14 @@ function getResend(): Resend | null {
   return key ? new Resend(key) : null;
 }
 
-// Rate limiting: 20 / hour per IP (invite emails are expensive)
-const inviteRequestCounts = new Map<string, { count: number; resetAt: number }>();
-const INVITE_RATE_LIMIT = 20;
-const INVITE_RATE_WINDOW_MS = 60 * 60 * 1000;
-
-function checkInviteRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = inviteRequestCounts.get(ip);
-  if (!entry || now > entry.resetAt) {
-    inviteRequestCounts.set(ip, { count: 1, resetAt: now + INVITE_RATE_WINDOW_MS });
-    return true;
-  }
-  if (entry.count >= INVITE_RATE_LIMIT) return false;
-  entry.count++;
-  return true;
-}
-
 // ─── POST handler ──────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   try {
-    // ── 0. Rate limit ────────────────────────────────────────────────────────
+    // ── 0. Rate limit（分散式，透過 Supabase）───────────────────────────────
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0] ?? "unknown";
-    if (!checkInviteRateLimit(ip)) {
+    const { allowed } = await checkRateLimit(`invite:ip:${ip}`, 20, 60 * 60 * 1000);
+    if (!allowed) {
       return NextResponse.json({ error: "太多次數,請稍後再試" }, { status: 429 });
     }
 
@@ -89,6 +74,9 @@ export async function POST(req: NextRequest) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(inviteeEmail)) {
       return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
+    }
+    if (inviteeEmail.length > 254) {
+      return NextResponse.json({ error: "Email address too long" }, { status: 400 });
     }
 
     // ── 2. 驗證發送者身份 ────────────────────────────────────────────────────

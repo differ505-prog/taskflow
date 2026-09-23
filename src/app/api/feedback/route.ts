@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { message, userRole, context } = body ?? {};
+    const { message, context } = body ?? {};
 
     // 1. 驗證
     if (typeof message !== "string") {
@@ -75,8 +75,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 3. 寫入 Supabase（user_email 強制使用 server-side session email）
+    // 2.5. 從 DB 取得真實 userRole（不再信任 client body）
+    let userRole = "free";
     const dbClient = getServiceClient();
+    if (dbClient) {
+      const { data: profile } = await dbClient
+        .from("user_profiles")
+        .select("role")
+        .eq("uid", userId)
+        .single();
+      userRole = profile?.role ?? "free";
+    }
+
+    // 3. 寫入 Supabase（user_email 強制使用 server-side session email）
     if (!dbClient) {
       return NextResponse.json({ error: "後端未設定" }, { status: 500 });
     }
@@ -84,7 +95,7 @@ export async function POST(req: NextRequest) {
     const insertPayload = {
       user_id: userId,
       user_email: userEmail ?? null,  // 不再信任 client body.userEmail
-      user_role: userRole ?? "free",
+      user_role: userRole,
       message: message.slice(0, 2000),
       context: context ?? {},
     };
