@@ -73,6 +73,8 @@ import {
 import { SharedMember, MemberRole } from "../sharedSync";
 import { parseNaturalLanguage } from "../nlp";
 import { useAuth } from "../AuthContext";
+import { COMPLETED_TASK_RETENTION_MS, RECENT_DELETE_WINDOW_MS, ACTIVE_THROTTLE_MS } from "@/lib/constants";
+import { useWriteGuard } from "@/hooks/useWriteGuard";
 import { updateLastActive } from "@/lib/userProfiles";
 import { triggerWebhook } from "@/lib/useWebhook";
 import { notifyFirstTaskDone } from "@/lib/useDiscordNotifier";
@@ -121,68 +123,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const syncedTaskIdsRef = useRef<Set<string>>(new Set());
   const syncedHabitIdsRef = useRef<Set<string>>(new Set());
   const previousTasksRef = useRef<Task[]>([]);
-  const recentlyWrittenRef = useRef<Map<string, number>>(new Map());
-  const RECENT_WRITE_WINDOW_MS = 5_000;
-  const editingTaskIdsRef = useRef<Set<string>>(new Set());
-  const lastEditActivityRef = useRef<Map<string, number>>(new Map());
-  const EDIT_ACTIVITY_WINDOW_MS = 30_000;
   const firstTasksLoadDone = useRef(false);
   const firstListsLoadDone = useRef(false);
   const firstHabitsLoadDone = useRef(false);
-  const recentlyWrittenHabitsRef = useRef<Map<string, number>>(new Map());
-  const recentlyWrittenListsRef = useRef<Map<string, number>>(new Map());
-  const ACTIVE_THROTTLE_MS = 30_000;
-  const recentDeleteTimestamps = useRef<Map<string, number>>(new Map());
-  const RECENT_DELETE_WINDOW_MS = 10_000;
 
-  const markRecentlyWritten = useCallback((id: string) => {
-    recentlyWrittenRef.current.set(id, Date.now());
-  }, []);
-
-  const markEditingActivity = useCallback((id: string) => {
-    editingTaskIdsRef.current.add(id);
-    lastEditActivityRef.current.set(id, Date.now());
-  }, []);
-
-  const clearEditingActivity = useCallback((id: string) => {
-    editingTaskIdsRef.current.delete(id);
-    lastEditActivityRef.current.delete(id);
-  }, []);
-
-  const isWithinRecentWriteWindow = useCallback((id: string): boolean => {
-    const map = recentlyWrittenRef.current;
-    const now = Date.now();
-    for (const [tid, ts] of map) {
-      if (now - ts >= RECENT_WRITE_WINDOW_MS) map.delete(tid);
-    }
-    const ts = map.get(id);
-    return ts !== undefined && now - ts < RECENT_WRITE_WINDOW_MS;
-  }, []);
-
-  const isWithinRecentWriteWindowHabit = useCallback((id: string): boolean => {
-    const map = recentlyWrittenHabitsRef.current;
-    const now = Date.now();
-    for (const [tid, ts] of map) {
-      if (now - ts >= RECENT_WRITE_WINDOW_MS) map.delete(tid);
-    }
-    const ts = map.get(id);
-    return ts !== undefined && now - ts < RECENT_WRITE_WINDOW_MS;
-  }, []);
-
-  const isWithinEditingActivityWindow = useCallback((id: string): boolean => {
-    if (!editingTaskIdsRef.current.has(id)) return false;
-    const lastActivity = lastEditActivityRef.current.get(id);
-    if (lastActivity === undefined) return false;
-    const now = Date.now();
-    const map = lastEditActivityRef.current;
-    for (const [tid, ts] of map) {
-      if (now - ts >= EDIT_ACTIVITY_WINDOW_MS) {
-        map.delete(tid);
-        editingTaskIdsRef.current.delete(tid);
-      }
-    }
-    return now - lastActivity < EDIT_ACTIVITY_WINDOW_MS;
-  }, []);
+  // ── Write Guard（useWriteGuard hook） ──────────────────────────────
+  // recentlyWrittenRef, editingTaskIdsRef, recentDeleteTimestamps 等已整合進 hook
+  const {
+    recentlyWrittenRef,
+    recentlyWrittenHabitsRef,
+    recentlyWrittenListsRef,
+    editingTaskIdsRef,
+    lastEditActivityRef,
+    recentDeleteTimestamps,
+    markRecentlyWritten,
+    markEditingActivity,
+    clearEditingActivity,
+    isWithinRecentWriteWindow,
+    isWithinRecentWriteWindowHabit,
+    isWithinRecentWriteWindowList,
+    isWithinEditingActivityWindow,
+    markRecentDelete,
+  } = useWriteGuard();
 
   useEffect(() => {
     tasksRef.current = tasks;
@@ -1930,7 +1892,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [currentSharedListId, listSharedMembersFn]);
 
   // ── 自動清理 7 天前已完成任務 ───────────────────────────
-  const COMPLETED_TASK_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+  // COMPLETED_TASK_RETENTION_MS 從 @/lib/constants 讀取
   useEffect(() => {
     if (!tasks.length || !user) return;
     const now = Date.now();
