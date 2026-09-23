@@ -28,6 +28,11 @@ const SHRED_BUCKETS = new Map<string, { count: number; resetAt: number }>();
 const SHRED_LIMIT = 10; // 每 60 秒 10 次 (個人使用綽綽有餘)
 const SHRED_WINDOW_MS = 60_000;
 
+// Per-user daily limit（追加防線，防止同一 user 多IP繞過 IP limit）
+const SHRED_USER_BUCKETS = new Map<string, { count: number; resetAt: number }>();
+const SHRED_USER_LIMIT = 30; // 每 24 小時 30 次
+const SHRED_USER_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 function checkShredRateLimit(ip: string): boolean {
   const now = Date.now();
   const bucket = SHRED_BUCKETS.get(ip);
@@ -36,6 +41,18 @@ function checkShredRateLimit(ip: string): boolean {
     return true;
   }
   if (bucket.count >= SHRED_LIMIT) return false;
+  bucket.count += 1;
+  return true;
+}
+
+function checkShredUserLimit(userId: string): boolean {
+  const now = Date.now();
+  const bucket = SHRED_USER_BUCKETS.get(userId);
+  if (!bucket || bucket.resetAt < now) {
+    SHRED_USER_BUCKETS.set(userId, { count: 1, resetAt: now + SHRED_USER_WINDOW_MS });
+    return true;
+  }
+  if (bucket.count >= SHRED_USER_LIMIT) return false;
   bucket.count += 1;
   return true;
 }
@@ -76,11 +93,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 2. IP rate limit
+    // 2. IP rate limit + User daily limit
     const ip = getClientIp(req);
     if (!checkShredRateLimit(ip)) {
       return NextResponse.json(
         { error: "Rate limit exceeded. 請稍後再試。" },
+        { status: 429 }
+      );
+    }
+    if (!checkShredUserLimit(user.id)) {
+      return NextResponse.json(
+        { error: "今日使用次數已達上限（30次/天），請明天再試。" },
         { status: 429 }
       );
     }

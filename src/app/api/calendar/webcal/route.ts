@@ -132,7 +132,9 @@ export async function GET(request: NextRequest) {
   const { data: tasks, error: tasksError } = await supabase
     .from("personal_tasks")
     .select("*")
-    .eq("uid", user.id);
+    .eq("uid", user.id)
+    .order("updatedAt", { ascending: false })
+    .limit(500);
 
   if (tasksError) {
     return NextResponse.json(

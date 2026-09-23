@@ -2,6 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { format, parseISO } from "date-fns";
 import type { Task } from "@/lib/types";
 
+// ─── Rate limit (IP-based, in-memory) ───
+const feedBuckets = new Map<string, { count: number; resetAt: number }>();
+const FEED_LIMIT = 30;
+const FEED_WINDOW_MS = 60_000;
+
+function checkFeedRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const b = feedBuckets.get(ip);
+  if (!b || b.resetAt < now) {
+    feedBuckets.set(ip, { count: 1, resetAt: now + FEED_WINDOW_MS });
+    return true;
+  }
+  if (b.count >= FEED_LIMIT) return false;
+  b.count += 1;
+  return true;
+}
+
 function escapeICalText(str: string): string {
   return str
     .replace(/\\/g, "\\\\")
@@ -60,8 +77,23 @@ function taskToVEVENT(task: Task): string {
 }
 
 export async function GET(request: NextRequest) {
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    request.headers.get("x-real-ip") ??
+    "unknown";
+
+  if (!checkFeedRateLimit(ip)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   const { searchParams } = request.nextUrl;
   const tasksParam = searchParams.get("tasks");
+
+  // ─── Base64 payload 大小限制（~300KB）───
+  const MAX_TASKS_BASE64 = 300_000;
+  if (tasksParam && tasksParam.length > MAX_TASKS_BASE64) {
+    return NextResponse.json({ error: "資料過大" }, { status: 413 });
+  }
 
   let tasks: Task[] = [];
   if (tasksParam) {

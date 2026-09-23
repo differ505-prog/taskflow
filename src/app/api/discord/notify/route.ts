@@ -8,12 +8,16 @@
  * POST /api/discord/notify
  * {
  *   "type": "new_user" | "first_task_done",
- *   "email": "...",
  *   "taskTitle"?: "...",
  *   "userCount"?: number
  * }
+ *
+ * 硬化（§8）：
+ *   - email 從 Supabase auth session 讀取，不再信任 client body
+ *   - Rate limit: 20/分/IP
  */
 import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 import { notifyNewUser, notifyFirstTaskDone } from "@/lib/discordNotifier";
 
 // Rate limiting: simple in-memory (per-instance)
@@ -42,15 +46,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Rate limited" }, { status: 429 });
     }
 
-    const body = await req.json();
-    const { type, email, taskTitle, userCount } = body;
+    // ─── 從 Supabase session 取得真實 email ───
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    if (!type || !email) {
+    let serverEmail: string | null = null;
+    if (supabaseUrl && supabaseAnonKey) {
+      const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+        cookies: {
+          getAll() {
+            return req.cookies.getAll();
+          },
+        },
+      });
+      const { data: { user } } = await supabase.auth.getUser();
+      serverEmail = user?.email ?? null;
+    }
+
+    const body = await req.json();
+    const { type, taskTitle, userCount } = body;
+
+    if (!type) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     switch (type) {
       case "new_user": {
+        // 強制使用 server-side 讀取的 email，不信任 client body
+        const email = serverEmail ?? "unknown@anonymous.local";
         const provider = body.provider as string | undefined;
         await notifyNewUser(email, provider);
         return NextResponse.json({ success: true });
@@ -60,6 +83,7 @@ export async function POST(req: NextRequest) {
         if (!taskTitle) {
           return NextResponse.json({ error: "taskTitle required" }, { status: 400 });
         }
+        const email = serverEmail ?? "unknown@anonymous.local";
         await notifyFirstTaskDone(email, taskTitle, userCount ?? 0);
         return NextResponse.json({ success: true });
       }

@@ -135,11 +135,16 @@ export async function uploadFile(
 }
 
 /**
- * 用 XHR 上傳以取得進度事件，並透過 Supabase REST endpoint 完成上傳。
+ * 用 XHR 上傳以取得進度事件，並透過 Supabase signed upload URL 完成上傳。
+ *
+ * 流程：
+ * 1. fetch POST /api/storage/sign-upload，拿 { uploadUrl, token, path, publicUrl }
+ * 2. XHR POST 到 uploadUrl（帶 Authorization header）
+ * 3. 成功後回傳 publicUrl
  *
  * 為何不直接用 supabase.storage.from(bucket).upload()：
  *   - 該方法的 onUploadProgress 在瀏覽器端不支援進度回報
- *   - XHR 上傳到 Supabase Storage REST endpoint 才能拿到真實進度
+ *   - XHR 上傳到 signed URL 才能拿到真實進度，同時保持 server-side 驗證
  */
 function uploadWithProgress(
   supabase: ReturnType<typeof getSupabaseClient>,
@@ -157,26 +162,44 @@ function uploadWithProgress(
         data: { session },
       } = await supabase.auth.getSession();
 
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const apiKey =
-        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      // Step 1: 向 server 拿 signed upload URL
+      let signData: { uploadUrl: string; token: string; path: string; publicUrl: string } | null = null;
+      try {
+        const signRes = await fetch("/api/storage/sign-upload", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(session?.access_token
+              ? { Authorization: `Bearer ${session.access_token}` }
+              : {}),
+          },
+          body: JSON.stringify({
+            filename: file.name,
+            mimeType: file.type || "application/octet-stream",
+            size: file.size,
+          }),
+        });
 
-      if (!supabaseUrl || !apiKey) {
-        throw new Error("Supabase 環境變數未設定");
+        if (!signRes.ok) {
+          const errBody = await signRes.json().catch(() => ({}));
+          throw new Error(errBody.error ?? `Server rejected upload (${signRes.status})`);
+        }
+
+        signData = await signRes.json();
+      } catch (signErr: any) {
+        if (signErr instanceof Error) reject(signErr);
+        else reject(new Error(String(signErr)));
+        return;
       }
 
+      // Step 2: 用 XHR 向 signed URL 上傳（帶 Authorization）
       const xhr = new XMLHttpRequest();
-      const url = `${supabaseUrl}/storage/v1/object/${bucket}/${path}`;
+      const uploadUrl = signData!.uploadUrl;
 
-      xhr.open("POST", url, true);
-      xhr.setRequestHeader("apikey", apiKey);
-      xhr.setRequestHeader(
-        "Authorization",
-        `Bearer ${session?.access_token ?? apiKey}`
-      );
+      xhr.open("POST", uploadUrl, true);
       xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
       xhr.setRequestHeader("x-upsert", "true");
+      // signed URL 已含 token 或 query param，不需要額外 Authorization header
 
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable && onProgress) {
@@ -190,13 +213,13 @@ function uploadWithProgress(
 
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          const publicUrl = `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
-          resolve(publicUrl);
+          resolve(signData!.publicUrl);
         } else {
           let msg = `上傳失敗 (${xhr.status})`;
           try {
             const body = JSON.parse(xhr.responseText);
             if (body?.message) msg = body.message;
+            if (body?.error) msg = body.error;
           } catch {
             // response body 不是 JSON,沿用 status code 訊息
           }

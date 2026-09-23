@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { message, userEmail, userRole, context } = body ?? {};
+    const { message, userRole, context } = body ?? {};
 
     // 1. 驗證
     if (typeof message !== "string") {
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. 驗證登入(透過 cookie 讀取 Supabase session)
+    // 2. 驗證登入(透過 cookie 讀取 Supabase session)，並從 session 取得真實 email
     const supabase = getServiceClient();
     if (!supabase) {
       return NextResponse.json({ error: "後端未設定" }, { status: 500 });
@@ -80,15 +80,17 @@ export async function POST(req: NextRequest) {
     const authHeader = req.headers.get("authorization") ?? "";
     const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
     let userId: string | null = null;
+    let userEmail: string | null = null;
     if (bearerToken) {
       const { data } = await supabase.auth.getUser(bearerToken);
       userId = data.user?.id ?? null;
+      userEmail = data.user?.email ?? null;
     }
 
-    // 3. 寫入 Supabase
+    // 3. 寫入 Supabase（user_email 強制使用 server-side session email）
     const insertPayload = {
       user_id: userId,
-      user_email: userEmail ?? null,
+      user_email: userEmail ?? null,  // 不再信任 client body.userEmail
       user_role: userRole ?? "free",
       message: message.slice(0, 2000),
       context: context ?? {},

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 
 /**
  * §Stream proxy — 解決 OmniSonic CORS 只放行 taskflow-v2-pink domain
@@ -11,13 +12,67 @@ import { NextResponse } from "next/server";
  * 解法:Next.js 同源 proxy — 前端請求自己的 /api/omnisonic/stream/[slug],
  * server-side fetch 到 OmniSonic,stream binary body 直接 pipe 回前端,
  * 無 CORS 問題。Range header 也代為轉發,支援 seek 跳播。
+ *
+ * 硬化（§8）：
+ *   - 強制登入：無有效 Supabase session → 401
+ *   - Rate limit：每 user 每分鐘 60 次（分散式ratelimit 為 P2 目標）
  */
+
+// ─── Rate limit (user-based, in-memory, key = user.id:minute) ───
+const STREAM_BUCKETS = new Map<string, { count: number; resetAt: number }>();
+const STREAM_LIMIT = 60;        // 每分鐘 60 次
+const STREAM_WINDOW_MS = 60_000;
+
+function checkStreamRateLimit(userId: string): boolean {
+  const now = Date.now();
+  // 以「分鐘」為窗口 key：同一分鐘內同一 user 共享一個 bucket
+  const key = `${userId}:${Math.floor(now / 60_000)}`;
+  const bucket = STREAM_BUCKETS.get(key);
+  if (!bucket || bucket.resetAt < now) {
+    STREAM_BUCKETS.set(key, { count: 1, resetAt: now + STREAM_WINDOW_MS });
+    return true;
+  }
+  if (bucket.count >= STREAM_LIMIT) return false;
+  bucket.count += 1;
+  return true;
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   try {
+    const req = request as unknown as Request & { headers: Headers; cookies: { getAll: () => { name: string; value: string }[] } };
     const { slug } = await params;
+
+    // 1. 驗證登入（從 cookie 讀取 Supabase session）
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
+    }
+
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        getAll() {
+          return (request as unknown as { headers: Headers; cookies: { getAll: () => { name: string; value: string }[] } }).cookies?.getAll?.() ?? [];
+        },
+      },
+    });
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // 2. Rate limit
+    if (!checkStreamRateLimit(user.id)) {
+      return NextResponse.json(
+        { error: "Stream rate limit exceeded" },
+        { status: 429 }
+      );
+    }
+
     const omnisonicUrl =
       process.env.NEXT_PUBLIC_OMNISONIC_URL ||
       "https://music-focus-environment.vercel.app";
@@ -51,7 +106,6 @@ export async function GET(
           res.headers.get("Content-Length") || "",
         "Accept-Ranges": "bytes",
         "Content-Range": res.headers.get("Content-Range") || "",
-        // §CORS 不需要 — 同源 proxy,但 Safari iOS PWA 仍可能挑剔
         "Cache-Control": "public, max-age=3600",
       },
     });
