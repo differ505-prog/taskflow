@@ -19,30 +19,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { notifyNewUser, notifyFirstTaskDone } from "@/lib/discordNotifier";
-
-// Rate limiting: simple in-memory (per-instance)
-// Production: use Redis or Supabase edge function
-const requestCounts = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT = 20; // 20 requests
-const RATE_WINDOW_MS = 60_000; // per minute
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = requestCounts.get(ip);
-  if (!entry || now > entry.resetAt) {
-    requestCounts.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    return true;
-  }
-  if (entry.count >= RATE_LIMIT) return false;
-  entry.count++;
-  return true;
-}
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
-    // Rate limiting
+    // Rate limiting (distributed via Supabase)
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0] ?? "unknown";
-    if (!checkRateLimit(ip)) {
+    const { allowed } = await checkRateLimit(`discord:notify:ip:${ip}`, 20, 60_000);
+    if (!allowed) {
       return NextResponse.json({ error: "Rate limited" }, { status: 429 });
     }
 
@@ -72,18 +56,23 @@ export async function POST(req: NextRequest) {
 
     switch (type) {
       case "new_user": {
-        // 強制使用 server-side 讀取的 email，不信任 client body
-        const email = serverEmail ?? "unknown@anonymous.local";
+        if (!serverEmail) {
+          return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        const email = serverEmail;
         const provider = body.provider as string | undefined;
         await notifyNewUser(email, provider);
         return NextResponse.json({ success: true });
       }
 
       case "first_task_done": {
+        if (!serverEmail) {
+          return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
         if (!taskTitle) {
           return NextResponse.json({ error: "taskTitle required" }, { status: 400 });
         }
-        const email = serverEmail ?? "unknown@anonymous.local";
+        const email = serverEmail;
         await notifyFirstTaskDone(email, taskTitle, userCount ?? 0);
         return NextResponse.json({ success: true });
       }

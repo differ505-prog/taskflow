@@ -23,40 +23,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createServerClient } from "@supabase/ssr";
 import { incrementAndCheckQuota } from "@/lib/quota-monitor";
-
-// ─── 限流 (process-local Map,沿用 discord/notify 模板) ───
-const SHRED_BUCKETS = new Map<string, { count: number; resetAt: number }>();
-const SHRED_LIMIT = 10; // 每 60 秒 10 次 (個人使用綽綽有餘)
-const SHRED_WINDOW_MS = 60_000;
-
-// Per-user daily limit（追加防線，防止同一 user 多IP繞過 IP limit）
-const SHRED_USER_BUCKETS = new Map<string, { count: number; resetAt: number }>();
-const SHRED_USER_LIMIT = 30; // 每 24 小時 30 次
-const SHRED_USER_WINDOW_MS = 24 * 60 * 60 * 1000;
-
-function checkShredRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const bucket = SHRED_BUCKETS.get(ip);
-  if (!bucket || bucket.resetAt < now) {
-    SHRED_BUCKETS.set(ip, { count: 1, resetAt: now + SHRED_WINDOW_MS });
-    return true;
-  }
-  if (bucket.count >= SHRED_LIMIT) return false;
-  bucket.count += 1;
-  return true;
-}
-
-function checkShredUserLimit(userId: string): boolean {
-  const now = Date.now();
-  const bucket = SHRED_USER_BUCKETS.get(userId);
-  if (!bucket || bucket.resetAt < now) {
-    SHRED_USER_BUCKETS.set(userId, { count: 1, resetAt: now + SHRED_USER_WINDOW_MS });
-    return true;
-  }
-  if (bucket.count >= SHRED_USER_LIMIT) return false;
-  bucket.count += 1;
-  return true;
-}
+import { checkRateLimit } from "@/lib/rate-limit";
 
 // ─── System Prompt (來自需求) ───
 const SYSTEM_PROMPT = `你是一個專為 ADHD 嚴重患者設計的任務拆解助理。你的唯一目標是打破用戶的『啟動癱瘓』。當用戶提供一個任務時，請將其拆解為 3 到 5 個『極度微小、無腦、且具備單向線性順序』的步驟。第一步必須是物理上或畫面上最簡單的動作（例如：打開某個軟體、拿出一支筆）。請只回傳 JSON 格式，不要包含 Markdown 語法或其他廢話。格式如：{ "steps": ["步驟1", "步驟2"] }`;
@@ -94,15 +61,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 2. IP rate limit + User daily limit
+    // 2. IP rate limit (60s window) + User daily limit (24h window)
     const ip = getClientIp(req);
-    if (!checkShredRateLimit(ip)) {
+    const { allowed: ipAllowed } = await checkRateLimit(`shred:ip:${ip}`, 10, 60_000);
+    if (!ipAllowed) {
       return NextResponse.json(
         { error: "Rate limit exceeded. 請稍後再試。" },
         { status: 429 }
       );
     }
-    if (!checkShredUserLimit(user.id)) {
+    const { allowed: userAllowed } = await checkRateLimit(`shred:user:${user.id}`, 30, 24 * 60 * 60 * 1000);
+    if (!userAllowed) {
       return NextResponse.json(
         { error: "今日使用次數已達上限（30次/天），請明天再試。" },
         { status: 429 }

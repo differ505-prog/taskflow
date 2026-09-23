@@ -9,23 +9,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-
-// ─── Rate limit (process-local，但公測期用量低不致撞破) ───
-const buckets = new Map<string, { count: number; resetAt: number }>();
-const LIMIT = 5;
-const WINDOW = 60 * 60 * 1000;
-
-function check(ip: string): boolean {
-  const now = Date.now();
-  const b = buckets.get(ip);
-  if (!b || b.resetAt < now) {
-    buckets.set(ip, { count: 1, resetAt: now + WINDOW });
-    return true;
-  }
-  if (b.count >= LIMIT) return false;
-  b.count += 1;
-  return true;
-}
+import { checkRateLimit } from "@/lib/rate-limit";
 
 function getAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -38,7 +22,8 @@ export async function POST(req: NextRequest) {
   try {
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
 
-    if (!check(ip)) {
+    const { allowed } = await checkRateLimit(`waitlist:ip:${ip}`, 5, 60 * 60 * 1000);
+    if (!allowed) {
       return NextResponse.json({ error: "報名過於頻繁，請稍後再試" }, { status: 429 });
     }
 

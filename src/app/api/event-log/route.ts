@@ -24,25 +24,9 @@
  * 6. Event 白名單：不在白名單內的事件靜默丟棄
  */
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
-
-// ─── Rate limit (IP-based, in-memory) ───
-const evLogBuckets = new Map<string, { count: number; resetAt: number }>();
-const EV_LOG_LIMIT = 60;    // 每 60 秒
-const EV_LOG_WINDOW_MS = 60_000;
-
-function checkEvLogRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const b = evLogBuckets.get(ip);
-  if (!b || b.resetAt < now) {
-    evLogBuckets.set(ip, { count: 1, resetAt: now + EV_LOG_WINDOW_MS });
-    return true;
-  }
-  if (b.count >= EV_LOG_LIMIT) return false;
-  b.count += 1;
-  return true;
-}
 
 // ─── Event 白名單 ───
 const ALLOWED_EVENTS = new Set([
@@ -69,8 +53,8 @@ export async function POST(req: NextRequest) {
       req.headers.get("x-real-ip") ??
       "unknown";
 
-    // Rate limit
-    if (!checkEvLogRateLimit(ip)) {
+    const { allowed } = await checkRateLimit(`event-log:ip:${ip}`, 60, 60_000);
+    if (!allowed) {
       // 靜默超限，不外洩給 client
       return NextResponse.json({ success: false }, { status: 200 });
     }

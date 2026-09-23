@@ -42,11 +42,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Name too long" }, { status: 400 });
     }
 
-    // 取得用戶所有任務
+    // 取得用戶所有任務（上限 500，防止 DoS）
     const { data: tasks, error: fetchError } = await supabaseClient
       .from("personal_tasks")
       .select("data")
-      .eq("owner_uid", user.id);
+      .eq("owner_uid", user.id)
+      .limit(500);
 
     if (fetchError) {
       return NextResponse.json({ error: "Failed to fetch tasks" }, { status: 500 });

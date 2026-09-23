@@ -24,11 +24,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
-
-// ─── Rate limit (user-based, in-memory) ───
-const userUploadBuckets = new Map<string, { count: number; resetAt: number }>();
-const USER_UPLOAD_LIMIT = 30;
-const USER_UPLOAD_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+import { checkRateLimit } from "@/lib/rate-limit";
 
 // ─── 白名單 MIME 類型 ───
 const ALLOWED_MIME_TYPES = new Set([
@@ -46,18 +42,6 @@ const ALLOWED_MIME_TYPES = new Set([
 // ─── 大小限制（預設值，實際上限依 role 動態調整）───
 const DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_FILENAME_LENGTH = 200;
-
-function checkUploadRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const bucket = userUploadBuckets.get(userId);
-  if (!bucket || bucket.resetAt < now) {
-    userUploadBuckets.set(userId, { count: 1, resetAt: now + USER_UPLOAD_WINDOW_MS });
-    return true;
-  }
-  if (bucket.count >= USER_UPLOAD_LIMIT) return false;
-  bucket.count += 1;
-  return true;
-}
 
 function getSafeFilename(originalName: string): string {
   // 移除路徑Traversal風險字元，取最後一個路徑段
@@ -96,8 +80,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 2. Rate limit
-    if (!checkUploadRateLimit(user.id)) {
+    // 2. Rate limit (user-based, distributed via Supabase)
+    const { allowed: uploadAllowed } = await checkRateLimit(`upload:${user.id}`, 30, 60 * 60 * 1000);
+    if (!uploadAllowed) {
       return NextResponse.json(
         { error: "上傳頻率過高，請稍後再試" },
         { status: 429 }

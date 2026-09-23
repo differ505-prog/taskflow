@@ -20,26 +20,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { notifyFeedback } from "@/lib/discordNotifier";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-// Rate limiting: 30 / hour per IP
-const requestCounts = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT = 30;
-const RATE_WINDOW_MS = 60 * 60 * 1000;
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = requestCounts.get(ip);
-  if (!entry || now > entry.resetAt) {
-    requestCounts.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    return true;
-  }
-  if (entry.count >= RATE_LIMIT) return false;
-  entry.count++;
-  return true;
-}
 
 function getServiceClient() {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return null;
@@ -51,7 +35,8 @@ function getServiceClient() {
 export async function POST(req: NextRequest) {
   try {
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0] ?? "unknown";
-    if (!checkRateLimit(ip)) {
+    const { allowed } = await checkRateLimit(`feedback:ip:${ip}`, 30, 60 * 60 * 1000);
+    if (!allowed) {
       return NextResponse.json({ error: "太多次數,請稍後再試" }, { status: 429 });
     }
 

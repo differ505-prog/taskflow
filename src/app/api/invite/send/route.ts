@@ -26,6 +26,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { Resend } from "resend";
 import { renderInviteEmail } from "@/emails";
+import { incrementAndCheckQuota } from "@/lib/quota-monitor";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.vibelist.work";
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "VibeList <noreply@vibelist.app>";
@@ -174,6 +175,15 @@ export async function POST(req: NextRequest) {
     if (!resend) {
       console.warn("[invite/send] RESEND_API_KEY not configured, skipping email");
       return NextResponse.json({ success: true, token, emailSkipped: true }, { status: 200 });
+    }
+
+    // Resend 配額檢查（防打穿免費額度）
+    const { allowed: resendAllowed } = await incrementAndCheckQuota("resend");
+    if (!resendAllowed) {
+      return NextResponse.json(
+        { error: "今日邀請信額度已滿，請明天再試" },
+        { status: 429 }
+      );
     }
 
     const inviteLink = `${APP_URL}/invite/${token}`;

@@ -45,8 +45,9 @@ const nextConfig = {
       {
         source: "/:path*",
         headers: [
-          // 不可變靜態資產的一年強緩存（Next.js 自動對靜態檔案套用）
-          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+          // ⚠️ 不再對所有路由設 immutable Cache-Control
+          // API 路由：应由各 route 自己设 Cache-Control（如 webcal 的 private max-age=300）
+          // 静态资源：Next.js 会自动对 _next/static/* 设 immutable，无需手动重复
           { key: "Content-Security-Policy", value: csp },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
