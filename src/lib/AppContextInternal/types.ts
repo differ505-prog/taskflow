@@ -69,7 +69,10 @@ export interface AppContextValue {
   uncheckHabit: (id: string, date: string) => void;
 
   // ── Quick Add ──────────────────────────────────────────
-  quickAdd: (input: string, currentView?: string) => string | null;
+  quickAdd: (
+    input: string,
+    opts?: { listId?: string; defaultDueDate?: string; currentView?: string }
+  ) => string | null;
 
   // ── 通知 ──────────────────────────────────────────────
   requestNotificationPermission: () => Promise<boolean>;

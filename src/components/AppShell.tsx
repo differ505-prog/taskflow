@@ -187,7 +187,15 @@ export function AppShell({
 
   const handleQuickAdd = useCallback(() => {
     if (!quickAddInput.trim()) return;
-    quickAdd(quickAddInput, currentView);
+    // §FIX: 帶 listId 進 addTask,確保在「修繕清單」等自建清單頁面使用 Quick Add
+    // 時,任務會落到當前清單,而不是回到收集箱。currentListId 從 useApp() 取最新值。
+    // currentView === "today" 時,把今天日期作為預設 dueDate(NLP 沒解析到日期才套)。
+    const todayISO = new Date().toISOString().split("T")[0];
+    quickAdd(quickAddInput, {
+      listId: currentListId,
+      defaultDueDate: currentView === "today" ? todayISO : undefined,
+      currentView,
+    });
     setQuickAddInput("");
     // L3.5「無摩擦連擊輸入」：Enter 建立任務後，游標留在輸入框，可盲打連續新增
     // 收集箱空狀態時 focus textarea，其他狀態 focus input
@@ -197,7 +205,7 @@ export function AppShell({
     } else {
       quickAddRef.current?.focus();
     }
-  }, [quickAdd, quickAddInput, currentView]);
+  }, [quickAdd, quickAddInput, currentView, currentListId]);
 
   const handleSharedQuickAdd = useCallback(() => {
     if (!sharedQuickAddInput.trim() || !currentSharedListId) return;

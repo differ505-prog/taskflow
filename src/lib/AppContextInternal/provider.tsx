@@ -604,22 +604,31 @@ export function useApp(): AppContextValue {
   const { user } = useAuth();
   const { selectedTaskId, setSelectedTaskId } = useSelectedTaskIdContext();
 
-  const quickAdd = useCallback((input: string): string | null => {
-    const parsed = parseNaturalLanguage(input);
-    if (!parsed || !parsed.title) return null;
-    return tasksCtx.addTask({
-      title: parsed.title,
-      status: "todo",
-      priority: parsed.priority ?? "none",
-      dueDate: parsed.dueDate,
-      tags: parsed.tags ?? [],
-      subTasks: [],
-      attachments: [],
-      recurrence: parsed.recurrence,
-      description: "",
-      ownerUid: user?.uid,
-    });
-  }, [tasksCtx, user]);
+  const quickAdd = useCallback(
+    (input: string, opts?: { listId?: string; defaultDueDate?: string; currentView?: string }): string | null => {
+      const parsed = parseNaturalLanguage(input);
+      if (!parsed || !parsed.title) return null;
+      // §FIX: listId routing — 若 caller 提供 listId(或從 currentView 推導出 currentListId),帶入 addTask;
+      // 否則保留舊行為(listId: undefined → 進收集箱)。這樣 §26-A 5 秒保護窗 + AppShell currentListId 來源一致。
+      // currentView 保留向後相容(仍接受 string),但只作為 defaultDueDate 推導的提示(currentView === "today" → 預設今天)。
+      const defaultDueDate =
+        opts?.defaultDueDate ?? (opts?.currentView === "today" ? new Date().toISOString().split("T")[0] : undefined);
+      return tasksCtx.addTask({
+        title: parsed.title,
+        status: "todo",
+        priority: parsed.priority ?? "none",
+        dueDate: parsed.dueDate ?? defaultDueDate,
+        listId: opts?.listId,
+        tags: parsed.tags ?? [],
+        subTasks: [],
+        attachments: [],
+        recurrence: parsed.recurrence,
+        description: "",
+        ownerUid: user?.uid,
+      });
+    },
+    [tasksCtx, user]
+  );
 
   const getFilteredTasks = useCallback(() => {
     return tasksCtx.getFilteredTasks({

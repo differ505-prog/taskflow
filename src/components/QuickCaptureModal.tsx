@@ -100,8 +100,10 @@ export function QuickCaptureModal({ open, onOpenChange }: QuickCaptureModalProps
   const handleSubmitToToday = useCallback(() => {
     const trimmed = value.trim();
     if (!trimmed) return;
-    // quickAdd 自動解析自然語言日期；若無日期則預設 today
-    quickAdd(trimmed, "today");
+    // quickAdd 自動解析自然語言日期；若無日期則預設今天(用 defaultDueDate 帶入)。
+    // 仍走收集箱路徑(listId: undefined)— 與原 QuickCapture 行為一致,只是把被忽略的
+    // currentView="today" 翻譯成 defaultDueDate,真正把今天日期套用。
+    quickAdd(trimmed, { defaultDueDate: getLocalToday() });
     setValue("");
     setShowSuccess(true);
     if (successTimerRef.current) window.clearTimeout(successTimerRef.current);
