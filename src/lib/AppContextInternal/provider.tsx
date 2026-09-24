@@ -92,7 +92,7 @@ import type { AppContextValue } from "./types";
 import { AppRouterProvider, useAppRouter } from "./AppRouterProvider";
 import { TasksProvider } from "./TasksProvider";
 import { ListsProvider } from "./ListsProvider";
-import { HabitsProvider } from "./HabitsProvider";
+import { HabitsProvider, useHabitsContext } from "./HabitsProvider";
 import { SharedListsProvider, useSharedListsContext } from "./SharedListsProvider";
 import { useTasksContext } from "./TasksProvider";
 import { useListsContext } from "./ListsProvider";
@@ -599,6 +599,7 @@ export function useApp(): AppContextValue {
   const router = useAppRouter();
   const tasksCtx = useTasksContext();
   const listsCtx = useListsContext();
+  const habitsCtx = useHabitsContext();
   const sharedCtx = useSharedListsContext();
   const { user } = useAuth();
   const { selectedTaskId, setSelectedTaskId } = useSelectedTaskIdContext();
@@ -641,7 +642,7 @@ export function useApp(): AppContextValue {
     const appValue: AppContextValue = {
       tasks: tasksCtx.tasks,
       lists: listsCtx.lists,
-      habits: [] as Habit[],
+      habits: habitsCtx.habits,
       todayFocusMinutes: 0,
       isAppReady: true,
       tasksInitialized: true,
@@ -697,12 +698,12 @@ export function useApp(): AppContextValue {
       viewCounts: tasksCtx.viewCounts,
       getListTaskCount: tasksCtx.getListTaskCount,
       getTagCounts: tasksCtx.getTagCounts,
-      addHabit: () => {},
-      updateHabit: () => {},
-      archiveHabit: () => {},
-      unarchiveHabit: () => {},
-      checkinHabit: () => {},
-      uncheckHabit: () => {},
+      addHabit: habitsCtx.addHabit,
+      updateHabit: habitsCtx.updateHabit,
+      archiveHabit: habitsCtx.archiveHabit,
+      unarchiveHabit: habitsCtx.unarchiveHabit,
+      checkinHabit: habitsCtx.checkinHabit,
+      uncheckHabit: habitsCtx.uncheckHabit,
 
       // Quick Add
       quickAdd,
@@ -735,5 +736,5 @@ export function useApp(): AppContextValue {
       selectTask: setSelectedTaskId,
     };
     return appValue;
-  }, [router, tasksCtx, listsCtx, sharedCtx, user, setCurrentView, quickAdd, selectedTaskId, setSelectedTaskId]);
+  }, [router, tasksCtx, listsCtx, habitsCtx, sharedCtx, user, setCurrentView, quickAdd, selectedTaskId, setSelectedTaskId]);
 }
