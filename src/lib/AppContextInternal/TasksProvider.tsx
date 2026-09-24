@@ -26,6 +26,7 @@ import {
   SharedListData,
 } from "../storage";
 import { toLocalDateString } from "../dateUtils";
+import { deleteTask as deleteTaskFirebase } from "../personalTaskSync";
 import { getNextRecurrenceDate } from "./utils";
 import { COMPLETED_TASK_RETENTION_MS, RECENT_DELETE_WINDOW_MS } from "@/lib/constants";
 
@@ -525,11 +526,22 @@ export function TasksProvider({
       setTasks(updated);
       saveTasks(updated);
 
+      // §FIX-REAPPEAR: 必須同步刪除雲端 row,否則下一次 realtime 推送(5s fallback /
+      // 3s periodic poll / visibilitychange / pageshow)會從 loadTasks() 撈回任務並 merge 回 state。
+      // 之前 only 標 deletedTaskIdsRef + 10s recentDeleteTimestamps 是治標不治本:
+      // 視窗一過就復活。deleteTaskFirebase 才是真正把雲端那筆 row 拿掉的手段。
+      // 無 userUid(離線/匿名)時跳過,交由下次登入後的 migrateLocalToSupabase 自然同步狀態。
+      if (userUid) {
+        deleteTaskFirebase(userUid, id).catch((err) =>
+          console.warn(`[TasksProvider] deleteTaskFirebase 失敗 ${id}`, err)
+        );
+      }
+
       // Mark as recently deleted for undo-window guards
       recentDeleteTimestamps.current.set(id, Date.now());
       setTimeout(() => recentDeleteTimestamps.current.delete(id), RECENT_DELETE_WINDOW_MS);
     },
-    [tasks, recentDeleteTimestamps]
+    [tasks, recentDeleteTimestamps, userUid]
   );
 
   // ── toggleTaskStatus ─────────────────────────────────────────
