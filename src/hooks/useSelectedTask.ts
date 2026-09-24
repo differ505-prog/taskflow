@@ -3,7 +3,7 @@ import { useApp } from "@/lib/AppContext";
 import { Task } from "@/lib/types";
 import type { SharedListData } from "@/lib/storage";
 
-function findTaskById(
+export function findTaskById(
   id: string | null,
   tasks: Task[],
   sharedLists: Record<string, SharedListData>
@@ -21,12 +21,14 @@ function findTaskById(
 /**
  * Hook that returns the currently selected task, always fresh from the store.
  * Prefer this over passing `task: Task` as a prop, which can become stale.
+ * If taskId is provided, returns that specific task; otherwise uses app.selectedTaskId.
  */
-export function useSelectedTask(): Task | null {
+export function useSelectedTask(taskId?: string | null): Task | null {
   const app = useApp();
+  const targetId = taskId !== undefined ? taskId : app.selectedTaskId;
   return useMemo(
-    () => findTaskById(app.selectedTaskId ?? null, app.tasks, app.sharedLists ?? {}),
+    () => findTaskById(targetId ?? null, app.tasks, app.sharedLists ?? {}),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [app.selectedTaskId, app.tasks, app.sharedLists]
+    [targetId, app.tasks, app.sharedLists]
   );
 }

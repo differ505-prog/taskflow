@@ -97,7 +97,7 @@ interface TaskDetailPanelProps {
 const SELECT_ARROW = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23999' strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E";
 
 export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
-  const task = useSelectedTask(); // Bug 2 fix：永遠拿 store 裡的最新任務
+  const task = useSelectedTask(taskId); // Bug 2 fix：永遠拿 store 裡的最新任務
 
   // Guard：taskId 空或任務已刪除時不渲染
   if (!taskId || !task) return null;

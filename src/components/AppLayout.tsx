@@ -38,7 +38,7 @@ import { Calendar, Clock, Eye, Flame } from "lucide-react";
 
 // ─── Inner app (has access to useApp) ───────────────────────
 function AppLayoutInner() {
-  const { currentView, currentListId, currentSharedListId, addList, updateList, deleteList, setCurrentView, setCurrentSharedList, removeAcceptedSharedList, viewCounts, tasks, checkIncomingShareLink, lists, toggleTaskStatus, completeTask, deleteTask, forceReload, sharedLists } = useApp();
+  const { currentView, currentListId, currentSharedListId, addList, updateList, deleteList, setCurrentView, setCurrentSharedList, removeAcceptedSharedList, viewCounts, tasks, checkIncomingShareLink, lists, toggleTaskStatus, completeTask, deleteTask, forceReload, sharedLists, selectedTaskId, selectTask } = useApp();
   const { user } = useAuth();
   const confirm = useConfirm();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -49,13 +49,13 @@ function AppLayoutInner() {
   const [shareModalList, setShareModalList] = useState<{ list: TaskList; tasks: import("@/lib/types").Task[] } | null>(null);
   const [showSharedLists, setShowSharedLists] = useState(false);
   const [incomingShareData, setIncomingShareData] = useState<{ sharedListId: string; snapshot: SharedListSnapshot } | null>(null);
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   // Bug 2 fix：日曆選中的任務改用 ID（快照 → 指標）
   const [calendarSelectedTaskId, setCalendarSelectedTaskId] = useState<string | null>(null);
   // [Fix] 從 CalendarView 提升上來,讓 ESC handler 能統一清掉,避免 sheet 死鎖
   // (§26 O' 雙 hook 獨立 state 死鎖 — useBottomSheet 的 ESC listener 把 internalLevel 設為 closed,
   // 但 selectedDate 沒被清 → 下次點同一日期不會重開 sheet → 任務再也點不開)
   const [calendarSelectedDate, setCalendarSelectedDate] = useState<string | null>(null);
+  const selectedTask = useSelectedTask(selectedTaskId); // Bug 2 fix：永遠拿 store 裡的最新任務
   const getBfcacheKey = useBfcacheKey();
   // ── 批次多選模式───────────────────────
   const [batchMode, setBatchMode] = useState(false);
@@ -112,10 +112,10 @@ function AppLayoutInner() {
 
   // Bug fix: clear task selection when switching lists or views
   useEffect(() => {
-    setSelectedTaskId(null);
+    selectTask(null);
     setCalendarSelectedTaskId(null);
     setCalendarSelectedDate(null); // 切換視圖時也清,避免殘留在別的視圖被打開
-  }, [currentView, currentListId, currentSharedListId]);
+  }, [currentView, currentListId, currentSharedListId, selectTask]);
 
   // 切換清單/視圖時自動退出批次模式,避免殘留
   useEffect(() => {
@@ -134,7 +134,7 @@ function AppLayoutInner() {
         if (isSettingsOpen) { setIsSettingsOpen(false); return; }
         if (isFlowTimerOpen) { setIsFlowTimerOpen(false); return; }
         if (selectedTask || calendarSelectedTaskId) {
-          setSelectedTaskId(null);
+          selectTask(null);
           setCalendarSelectedTaskId(null);
           // [Fix] ESC 也清掉 calendar selectedDate,讓 sheet 回到「未選日期」狀態 —
           // 下次點日期時 useBottomSheet 重新 mount,internalLevel 重置為 "default",sheet 正常彈出
@@ -157,7 +157,7 @@ function AppLayoutInner() {
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [isSettingsOpen, isFlowTimerOpen, selectedTaskId, calendarSelectedTaskId, calendarSelectedDate, isMobileSidebarOpen, batchMode, batchSelectedIds, handleBatchComplete, handleBatchDelete, exitBatchMode]);
+  }, [isSettingsOpen, isFlowTimerOpen, selectedTaskId, selectTask, calendarSelectedTaskId, calendarSelectedDate, isMobileSidebarOpen, batchMode, batchSelectedIds, handleBatchComplete, handleBatchDelete, exitBatchMode, selectedTask]);
 
   // Detect mobile viewport
   useEffect(() => {
@@ -209,7 +209,6 @@ function AppLayoutInner() {
     setCurrentView(view);
   };
 
-  const selectedTask = useSelectedTask(); // Bug 2 fix：永遠拿 store 裡的最新任務
   const calendarTaskId = currentView === 'calendar' ? calendarSelectedTaskId : null;
   const detailTaskId = calendarTaskId ?? selectedTask?.id ?? null;
 
@@ -222,7 +221,7 @@ function AppLayoutInner() {
           selectedDate={calendarSelectedDate}
           onSelectDate={setCalendarSelectedDate}
           selectedTaskId={calendarSelectedTaskId}
-          onSelectTaskId={(id) => { setCalendarSelectedTaskId(id); }}
+          onSelectTaskId={(id) => { setCalendarSelectedTaskId(id); selectTask(id); }}
           isMobile={isMobile}
           onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
         />
@@ -234,7 +233,7 @@ function AppLayoutInner() {
       case "stats":
         return <StatsClient />;
       case "quadrant":
-        return <QuadrantRadarView onTaskSelect={(id) => setSelectedTaskId(id)} />;
+        return <QuadrantRadarView onTaskSelect={(id) => selectTask(id)} />;
       case "command-center":
         return (
           <CommandCenter
@@ -245,7 +244,7 @@ function AppLayoutInner() {
         return (
           <AppShell
             selectedTaskId={selectedTaskId}
-            onSelectTask={(id) => setSelectedTaskId((prev) => (prev === id ? null : id))}
+            onSelectTask={(id) => selectTask((prev) => (prev === id ? null : id))}
             onOpenSettings={() => setIsSettingsOpen(true)}
             onOpenListForm={handleOpenListForm}
             onEditList={handleEditList}
@@ -291,7 +290,7 @@ function AppLayoutInner() {
         >
           <TaskDetailPanel
             taskId={detailTaskId ?? ""}
-            onClose={() => { setSelectedTaskId(null); setCalendarSelectedTaskId(null); }}
+            onClose={() => { selectTask(null); setCalendarSelectedTaskId(null); }}
           />
         </motion.div>
       )}
@@ -346,7 +345,7 @@ function AppLayoutInner() {
       <div className="flex-1 min-w-0 flex flex-col pb-[calc(60px+env(safe-area-inset-bottom,0px)+12px)] md:pb-0">
         {/* Global Search Bar — rendered above all views so calendar/habits/tags/stats can search too */}
         <div className="hidden sm:flex justify-end px-4 md:px-6 pt-3 pb-1 flex-shrink-0">
-          <GlobalSearchBar onSelectTask={(id) => setSelectedTaskId(id)} />
+          <GlobalSearchBar onSelectTask={(id) => selectTask(id)} />
         </div>
         {isMobile ? (
           <PullToRefresh onRefresh={forceReload} className="flex-1 min-w-0 flex flex-col min-h-0">
@@ -391,7 +390,7 @@ function AppLayoutInner() {
           >
             <TaskDetailPanel
               taskId={detailTaskId ?? ""}
-              onClose={() => { setSelectedTaskId(null); setCalendarSelectedTaskId(null); }}
+              onClose={() => { selectTask(null); setCalendarSelectedTaskId(null); }}
             />
           </motion.div>
         </AnimatePresence>

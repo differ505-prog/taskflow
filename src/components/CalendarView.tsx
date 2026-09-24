@@ -28,7 +28,7 @@ interface CalendarViewProps {
   /** Bug 2 fix：日曆選中任務改用 ID（由 AppLayout local state 管理） */
   selectedTaskId: string | null;
   /** Bug 2 fix：日曆選中任務時更新 context（同步 detail panel） */
-  onSelectTaskId: (id: string) => void;
+  onSelectTaskId: (id: string | null) => void;
   /** 從 AppLayout 傳入,區分 desktop/mobile 渲染策略 */
   isMobile: boolean;
   /** 由 AppLayout 傳入的 mobile 漢堡觸發器(§13 最小變更:不把 sidebar state 上抬到 context) */
@@ -507,7 +507,7 @@ interface DesktopCalendarLayoutProps {
   tasks: Task[];
   selectedTaskId: string | null;
   onSelectDate: (d: string | null) => void;
-  onSelectTaskId: (id: string) => void;
+  onSelectTaskId: (id: string | null) => void;
   onSelectTask: (id: string) => void; // Bug 2 fix：同步到 context
   onToggleStatus: (id: string) => void;
   onDelete: (id: string) => void;
@@ -943,7 +943,7 @@ function DesktopCalendarLayout({
           <div className="h-full overflow-y-auto overscroll-contain">
             <TaskDetailPanel
               taskId={selectedTaskId ?? ""}
-              onClose={() => onSelectTaskId(selectedTaskId ?? "")}
+              onClose={() => onSelectTaskId(null)}
             />
           </div>
         </div>

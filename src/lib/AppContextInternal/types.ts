@@ -108,5 +108,5 @@ export interface AppContextValue {
   /** 目前選中的任務 ID（用 useSelectedTask hook 取最新物件） */
   selectedTaskId: string | null;
   /** 設定選中任務 */
-  selectTask: (id: string | null) => void;
+  selectTask: (id: string | null | ((prev: string | null) => string | null)) => void;
 }
