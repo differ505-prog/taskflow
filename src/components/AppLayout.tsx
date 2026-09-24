@@ -8,6 +8,7 @@ import { SharedListData } from "@/lib/storage";
 import { Sidebar, ListForm } from "@/components/Sidebar";
 import { AppShell } from "@/components/AppShell";
 import { TaskDetailPanel } from "@/components/TaskDetailPanel";
+import { useSelectedTask } from "@/hooks/useSelectedTask";
 import { SettingsPage } from "@/components/SettingsPage";
 import { CalendarView } from "@/components/CalendarView";
 import { HabitsPage } from "@/components/HabitsPage";
@@ -49,7 +50,8 @@ function AppLayoutInner() {
   const [showSharedLists, setShowSharedLists] = useState(false);
   const [incomingShareData, setIncomingShareData] = useState<{ sharedListId: string; snapshot: SharedListSnapshot } | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [calendarSelectedTask, setCalendarSelectedTask] = useState<Task | null>(null);
+  // Bug 2 fix：日曆選中的任務改用 ID（快照 → 指標）
+  const [calendarSelectedTaskId, setCalendarSelectedTaskId] = useState<string | null>(null);
   // [Fix] 從 CalendarView 提升上來,讓 ESC handler 能統一清掉,避免 sheet 死鎖
   // (§26 O' 雙 hook 獨立 state 死鎖 — useBottomSheet 的 ESC listener 把 internalLevel 設為 closed,
   // 但 selectedDate 沒被清 → 下次點同一日期不會重開 sheet → 任務再也點不開)
@@ -111,6 +113,7 @@ function AppLayoutInner() {
   // Bug fix: clear task selection when switching lists or views
   useEffect(() => {
     setSelectedTaskId(null);
+    setCalendarSelectedTaskId(null);
     setCalendarSelectedDate(null); // 切換視圖時也清,避免殘留在別的視圖被打開
   }, [currentView, currentListId, currentSharedListId]);
 
@@ -130,9 +133,9 @@ function AppLayoutInner() {
       if (e.key === "Escape") {
         if (isSettingsOpen) { setIsSettingsOpen(false); return; }
         if (isFlowTimerOpen) { setIsFlowTimerOpen(false); return; }
-        if (selectedTaskId || calendarSelectedTask) {
+        if (selectedTask || calendarSelectedTaskId) {
           setSelectedTaskId(null);
-          setCalendarSelectedTask(null);
+          setCalendarSelectedTaskId(null);
           // [Fix] ESC 也清掉 calendar selectedDate,讓 sheet 回到「未選日期」狀態 —
           // 下次點日期時 useBottomSheet 重新 mount,internalLevel 重置為 "default",sheet 正常彈出
           // (根因:之前 useBottomSheet 的 ESC 把 internalLevel 設為 closed,但 selectedDate 沒清,
@@ -154,7 +157,7 @@ function AppLayoutInner() {
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [isSettingsOpen, isFlowTimerOpen, selectedTaskId, calendarSelectedTask, calendarSelectedDate, isMobileSidebarOpen, batchMode, batchSelectedIds, handleBatchComplete, handleBatchDelete, exitBatchMode]);
+  }, [isSettingsOpen, isFlowTimerOpen, selectedTaskId, calendarSelectedTaskId, calendarSelectedDate, isMobileSidebarOpen, batchMode, batchSelectedIds, handleBatchComplete, handleBatchDelete, exitBatchMode]);
 
   // Detect mobile viewport
   useEffect(() => {
@@ -206,13 +209,9 @@ function AppLayoutInner() {
     setCurrentView(view);
   };
 
-  const selectedTask = selectedTaskId ? (
-    tasks.find((t) => t.id === selectedTaskId) ||
-    Object.values(sharedLists as Record<string, SharedListData>).flatMap(listData => listData.tasks).find((t) => t.id === selectedTaskId) ||
-    null
-  ) : null;
-  const calendarTask = currentView === 'calendar' ? calendarSelectedTask : null;
-  const detailTask = calendarTask || selectedTask;
+  const selectedTask = useSelectedTask(); // Bug 2 fix：永遠拿 store 裡的最新任務
+  const calendarTaskId = currentView === 'calendar' ? calendarSelectedTaskId : null;
+  const detailTaskId = calendarTaskId ?? selectedTask?.id ?? null;
 
   const renderView = () => {
     switch (currentView) {
@@ -222,10 +221,8 @@ function AppLayoutInner() {
           key={getBfcacheKey()}
           selectedDate={calendarSelectedDate}
           onSelectDate={setCalendarSelectedDate}
-          selectedTask={calendarSelectedTask}
-          onSelectTask={(task) => {
-            setCalendarSelectedTask(task);
-          }}
+          selectedTaskId={calendarSelectedTaskId}
+          onSelectTaskId={(id) => { setCalendarSelectedTaskId(id); }}
           isMobile={isMobile}
           onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
         />
@@ -278,7 +275,7 @@ function AppLayoutInner() {
 
   const renderDetailPanel = () => (
     <AnimatePresence>
-      {detailTask && (
+      {detailTaskId && (
         <motion.div
           key="detail-panel"
           initial={{ opacity: 0, x: isMobile ? "100%" : 20 }}
@@ -293,8 +290,8 @@ function AppLayoutInner() {
           }}
         >
           <TaskDetailPanel
-            task={detailTask}
-            onClose={() => { setSelectedTaskId(null); setCalendarSelectedTask(null); }}
+            taskId={detailTaskId ?? ""}
+            onClose={() => { setSelectedTaskId(null); setCalendarSelectedTaskId(null); }}
           />
         </motion.div>
       )}
@@ -375,7 +372,7 @@ function AppLayoutInner() {
           改 fixed 後 detail panel 獨立 z-stack(z-40),永遠壓過 header(z-30)。
           但加 backdrop 有副作用(會把整個畫面變暗),所以「禪/蕃茄/新增」仍可見但不可點。
           Mobile 仍維持原 fixed inset-0(z-60,純 full-screen overlay)。 */}
-      {detailTask && !isMobile && currentView !== 'calendar' && (
+      {detailTaskId && !isMobile && currentView !== 'calendar' && (
         <AnimatePresence>
           <motion.div
             key="detail-panel-desktop"
@@ -393,14 +390,14 @@ function AppLayoutInner() {
             aria-label="任務詳情面板"
           >
             <TaskDetailPanel
-              task={detailTask}
-              onClose={() => { setSelectedTaskId(null); setCalendarSelectedTask(null); }}
+              taskId={detailTaskId ?? ""}
+              onClose={() => { setSelectedTaskId(null); setCalendarSelectedTaskId(null); }}
             />
           </motion.div>
         </AnimatePresence>
       )}
       {/* Mobile: full-screen overlay when task selected */}
-      {detailTask && isMobile && renderDetailPanel()}
+      {detailTaskId && isMobile && renderDetailPanel()}
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50">

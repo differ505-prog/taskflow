@@ -21,6 +21,16 @@ import React, {
   useRef,
   useMemo,
 } from "react";
+
+// Bug 2 fix：獨立 context 存放 selectedTaskId（useApp() 內的 useMemo 無法直接取 AppProvider 的 local state）
+const SelectedTaskIdContext = createContext<{
+  selectedTaskId: string | null;
+  setSelectedTaskId: React.Dispatch<React.SetStateAction<string | null>>;
+}>({ selectedTaskId: null, setSelectedTaskId: () => {} });
+
+export function useSelectedTaskIdContext() {
+  return useContext(SelectedTaskIdContext);
+}
 import {
   Task,
   TaskList,
@@ -108,6 +118,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "default">("default");
   const [isLoaded, setIsLoaded] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  // Bug 2 fix：selectedTaskId 由 SelectedTaskIdContext 統一管理（讓子元件可從 useApp() 取到）
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const lastEmittedSizesRef = useRef({ tasks: 0, habits: 0, lists: 0 });
 
@@ -567,7 +579,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               setTasks={setTasks}
               userUid={user?.uid}
             >
-              {isLoaded ? children : <AppShellSkeleton />}
+              <SelectedTaskIdContext.Provider value={{ selectedTaskId, setSelectedTaskId }}>
+                {isLoaded ? children : <AppShellSkeleton />}
+              </SelectedTaskIdContext.Provider>
             </SharedListsProvider>
           </HabitsProvider>
         </TasksProvider>
@@ -587,6 +601,7 @@ export function useApp(): AppContextValue {
   const listsCtx = useListsContext();
   const sharedCtx = useSharedListsContext();
   const { user } = useAuth();
+  const { selectedTaskId, setSelectedTaskId } = useSelectedTaskIdContext();
 
   const quickAdd = useCallback((input: string): string | null => {
     const parsed = parseNaturalLanguage(input);
@@ -714,7 +729,11 @@ export function useApp(): AppContextValue {
       changeSharedMemberRole: sharedCtx.changeSharedMemberRole,
       getMyRole: sharedCtx.getMyRole,
       membersBySharedList: sharedCtx.membersBySharedList,
+
+      // Bug 2 fix：選中任務（ID 而非快照）
+      selectedTaskId,
+      selectTask: setSelectedTaskId,
     };
     return appValue;
-  }, [router, tasksCtx, listsCtx, sharedCtx, user, setCurrentView, quickAdd]);
+  }, [router, tasksCtx, listsCtx, sharedCtx, user, setCurrentView, quickAdd, selectedTaskId, setSelectedTaskId]);
 }

@@ -41,6 +41,7 @@ import { deleteFile } from "@/lib/storageUpload";
 import { useVoiceRecognition } from "@/lib/useVoiceRecognition";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
+import { useSelectedTask } from "@/hooks/useSelectedTask";
 
 const DEBOUNCE_MS = 300; // 詳情面板欄位 debounce 寫入（TickTick 直覺：輸入即回饋、300ms 內不重複寫入）
 
@@ -88,13 +89,18 @@ function describeRecurrence(
 }
 
 interface TaskDetailPanelProps {
-  task: Task;
+  /** Bug 2 fix：傳 ID 而非 Task 物件，避免 snapshot 過時 */
+  taskId: string;
   onClose?: () => void;
 }
 
 const SELECT_ARROW = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23999' strokeLinecap='round' strokeLinejoin='round' strokeWidth='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E";
 
-export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
+export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
+  const task = useSelectedTask(); // Bug 2 fix：永遠拿 store 裡的最新任務
+
+  // Guard：taskId 空或任務已刪除時不渲染
+  if (!taskId || !task) return null;
   const { updateTask, deleteTask, moveTaskToShared, updateSharedTask, deleteSharedTask, sharedLists, lists, getTagCounts, markEditingActivity, clearEditingActivity, reorderSubTasks } = useApp();
   const { user } = useAuth();
   const confirm = useConfirm();
@@ -1095,7 +1101,14 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
                 <Calendar className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
                 <label className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>開始日期</label>
               </div>
-              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="input cursor-pointer" />
+              <input type="date" value={startDate} onChange={(e) => {
+                const newStart = e.target.value;
+                setStartDate(newStart);
+                // Bug 1 fix：若新開始日 > 既有結束日，自動將結束日順移至開始日
+                if (dueDate && newStart > dueDate) {
+                  setDueDate(newStart);
+                }
+              }} className="input cursor-pointer" />
             </div>
             <div>
               <div className="flex items-center gap-1.5 mb-2">

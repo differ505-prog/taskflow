@@ -103,4 +103,10 @@ export interface AppContextValue {
   viewCounts: { inbox: number; today: number; next7days: number; q1: number; q2: number; q3: number; q4: number };
   getListTaskCount: (listId: string) => number;
   getTagCounts: () => Record<string, number>;
+
+  // ── 選中任務（Bug 2 fix：ID 而非快照） ───────────────
+  /** 目前選中的任務 ID（用 useSelectedTask hook 取最新物件） */
+  selectedTaskId: string | null;
+  /** 設定選中任務 */
+  selectTask: (id: string | null) => void;
 }

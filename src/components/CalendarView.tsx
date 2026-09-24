@@ -25,8 +25,10 @@ interface CalendarViewProps {
   selectedDate: string | null;
   /** 點日期時呼叫,由 AppLayout 提供 setter(狀態提升,避免與 useBottomSheet 雙 state 死鎖) */
   onSelectDate: (dateStr: string | null) => void;
-  selectedTask: Task | null;
-  onSelectTask: (task: Task) => void;
+  /** Bug 2 fix：日曆選中任務改用 ID（由 AppLayout local state 管理） */
+  selectedTaskId: string | null;
+  /** Bug 2 fix：日曆選中任務時更新 context（同步 detail panel） */
+  onSelectTaskId: (id: string) => void;
   /** 從 AppLayout 傳入,區分 desktop/mobile 渲染策略 */
   isMobile: boolean;
   /** 由 AppLayout 傳入的 mobile 漢堡觸發器(§13 最小變更:不把 sidebar state 上抬到 context) */
@@ -43,16 +45,21 @@ interface CalendarViewCallbacks {
 export function CalendarView({
   selectedDate,
   onSelectDate,
-  selectedTask,
-  onSelectTask,
+  selectedTaskId,
+  onSelectTaskId,
   isMobile,
   onOpenMobileSidebar,
 }: CalendarViewProps) {
-  const { tasks, sharedLists, updateTask, updateSharedTask, toggleTaskStatus, completeTask, addTask, deleteTask, searchQuery } = useApp();
+  const { tasks, sharedLists, updateTask, updateSharedTask, toggleTaskStatus, completeTask, addTask, deleteTask, searchQuery, selectTask } = useApp();
   const allTasks = useMemo(() => {
     const sharedTasks = Object.values(sharedLists || {}).flatMap((listData) => listData.tasks);
     return [...tasks, ...sharedTasks];
   }, [tasks, sharedLists]);
+  // Bug 2 fix：從 ID 派生出 task（避免 snapshot 過時問題）
+  const selectedTask = useMemo(
+    () => allTasks.find((t) => t.id === selectedTaskId) ?? null,
+    [selectedTaskId, allTasks]
+  );
   const [mounted, setMounted] = useState(false);
 
   // ─── 月視圖邏輯抽出 useMonthGrid(§A1 整合:共用元件+hook)───
@@ -209,9 +216,10 @@ export function CalendarView({
         currentMonth={currentMonth}
         selectedDate={selectedDate}
         tasks={allTasks}
-        selectedTask={selectedTask}
+        selectedTaskId={selectedTaskId}
         onSelectDate={onSelectDate}
-        onSelectTask={onSelectTask}
+        onSelectTaskId={(id) => { onSelectTaskId(id); selectTask(id); }}
+        onSelectTask={selectTask}
         onToggleStatus={completeTask}
         onDelete={deleteTask}
         onQuickAdd={submitQuickAdd}
@@ -469,8 +477,9 @@ export function CalendarView({
       <CalendarTaskSheetMobile
         selectedDate={mounted ? selectedDate : null}
         onClose={() => onSelectDate(null)}
-        selectedTask={selectedTask}
-        onSelectTask={onSelectTask}
+        tasks={allTasks}
+        selectedTaskId={selectedTaskId}
+        onSelectTaskId={(id) => { onSelectTaskId(id); selectTask(id); }}
         onQuickAdd={submitQuickAdd}
         externalDateTitleMap={externalCal.dateTitleMap}
       />
@@ -496,9 +505,10 @@ interface DesktopCalendarLayoutProps {
   currentMonth: Date;
   selectedDate: string | null;
   tasks: Task[];
-  selectedTask: Task | null;
+  selectedTaskId: string | null;
   onSelectDate: (d: string | null) => void;
-  onSelectTask: (task: Task) => void;
+  onSelectTaskId: (id: string) => void;
+  onSelectTask: (id: string) => void; // Bug 2 fix：同步到 context
   onToggleStatus: (id: string) => void;
   onDelete: (id: string) => void;
   onQuickAdd: (dateStr: string, title: string) => void;
@@ -523,8 +533,10 @@ function DesktopCalendarLayout({
   days,
   currentMonth,
   selectedDate,
-  selectedTask,
+  tasks,
+  selectedTaskId,
   onSelectDate,
+  onSelectTaskId,
   onSelectTask,
   onToggleStatus,
   onDelete,
@@ -541,6 +553,11 @@ function DesktopCalendarLayout({
   isTaiwanSubscribed,
   onAddTaiwanHolidays,
 }: DesktopCalendarLayoutProps) {
+  // Bug 2 fix：從 ID 派生出 selectedTask（避免 snapshot 過時）
+  const selectedTask = useMemo(
+    () => tasks.find((t) => t.id === selectedTaskId) ?? null,
+    [selectedTaskId, tasks]
+  );
 
   const selectedDateTasks = useMemo(() => {
     if (!selectedDate) return [];
@@ -877,7 +894,7 @@ function DesktopCalendarLayout({
                   <CalendarTaskItem
                     task={task}
                     isSelected={selectedTask?.id === task.id}
-                    onClick={() => onSelectTask(task)}
+                    onClick={() => { onSelectTaskId(task.id); onSelectTask(task.id); }}
                     onToggleStatus={() => onToggleStatus(task.id)}
                     onDelete={() => onDelete(task.id)}
                   />
@@ -905,7 +922,7 @@ function DesktopCalendarLayout({
                           <CalendarTaskItem
                             task={task}
                             isSelected={selectedTask?.id === task.id}
-                            onClick={() => onSelectTask(task)}
+                            onClick={() => onSelectTaskId(task.id)}
                             onToggleStatus={() => onToggleStatus(task.id)}
                             onDelete={() => onDelete(task.id)}
                           />
@@ -925,8 +942,8 @@ function DesktopCalendarLayout({
         <div className="w-[480px] flex-shrink-0 border-l overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
           <div className="h-full overflow-y-auto overscroll-contain">
             <TaskDetailPanel
-              task={selectedTask}
-              onClose={() => onSelectTask(selectedTask)}
+              taskId={selectedTaskId ?? ""}
+              onClose={() => onSelectTaskId(selectedTaskId ?? "")}
             />
           </div>
         </div>
@@ -939,19 +956,26 @@ function DesktopCalendarLayout({
 function CalendarTaskSheetMobile({
   selectedDate,
   onClose,
-  selectedTask,
-  onSelectTask,
+  tasks,
+  selectedTaskId,
+  onSelectTaskId,
   onQuickAdd,
   externalDateTitleMap,
 }: {
   selectedDate: string | null;
   onClose: () => void;
-  selectedTask: Task | null;
-  onSelectTask: (task: Task) => void;
+  tasks: Task[];
+  selectedTaskId: string | null;
+  onSelectTaskId: (id: string) => void;
   onQuickAdd: (dateStr: string, title: string) => void;
   externalDateTitleMap?: Record<string, string[]>;
 }) {
-  const { tasks, completeTask, deleteTask } = useApp();
+  // Bug 2 fix：從 ID 派生出 selectedTask（避免 snapshot 過時）；tasks 由外部傳入避免重複計算
+  const selectedTask = useMemo(
+    () => tasks.find((t) => t.id === selectedTaskId) ?? null,
+    [selectedTaskId, tasks]
+  );
+  const { completeTask, deleteTask } = useApp();
   const [quickAddTitle, setQuickAddTitle] = useState("");
   const [doneExpanded, setDoneExpanded] = useState<Record<string, boolean>>({});
   const [isOpen, setIsOpen] = useState(false);
@@ -1147,7 +1171,7 @@ function CalendarTaskSheetMobile({
                   <CalendarTaskItem
                     task={task}
                     isSelected={selectedTask?.id === task.id}
-                    onClick={() => { onSelectTask(task); onClose(); }}
+                    onClick={() => { onSelectTaskId(task.id); onClose(); }}
                     onToggleStatus={() => completeTask(task.id)}
                     onDelete={() => deleteTask(task.id)}
                   />
@@ -1171,7 +1195,7 @@ function CalendarTaskSheetMobile({
                           <CalendarTaskItem
                             task={task}
                             isSelected={selectedTask?.id === task.id}
-                            onClick={() => { onSelectTask(task); onClose(); }}
+                            onClick={() => { onSelectTaskId(task.id); onClose(); }}
                             onToggleStatus={() => completeTask(task.id)}
                             onDelete={() => deleteTask(task.id)}
                           />
