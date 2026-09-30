@@ -9,7 +9,7 @@
  *   {
  *     "event": "click_ghost_button_timebar",        // 事件名 (snake_case)
  *     "buttonId": "timebar" | "unlimited_shred",    // 哪個按鈕
- *     "metadata": { ... }                            // 選填附帶資訊
+ *     "metadata": { ... }                            // 選填附帶資訊（上限 5KB）
  *   }
  *
  * Response：
@@ -22,11 +22,25 @@
  * 4. 錯誤一律 200(事件追蹤失敗不該影響主流程 UX)
  * 5. Rate limit: 60次/分/IP，防止濫發
  * 6. Event 白名單：不在白名單內的事件靜默丟棄
+ * 7. Zod schema：metadata 上限 5KB，防止 DB / log injection DoS
  */
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { z } from "zod";
 
 export const dynamic = "force-dynamic";
+
+// ─── Zod Input Schema ───────────────────────────────────────────────────────
+const EventLogInput = z
+  .object({
+    event: z.string().min(1).max(100),
+    buttonId: z.string().max(100).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
+  })
+  .refine(
+    (data) => JSON.stringify(data.metadata ?? {}).length < 5000,
+    { message: "metadata exceeds 5KB limit" }
+  );
 
 // ─── Event 白名單 ───
 const ALLOWED_EVENTS = new Set([
@@ -40,12 +54,6 @@ const ALLOWED_EVENTS = new Set([
   "painted_door_clicked",
 ]);
 
-interface EventPayload {
-  event: string;
-  buttonId?: string;
-  metadata?: Record<string, unknown>;
-}
-
 export async function POST(req: NextRequest) {
   try {
     const ip =
@@ -55,25 +63,34 @@ export async function POST(req: NextRequest) {
 
     const { allowed } = await checkRateLimit(`event-log:ip:${ip}`, 60, 60_000);
     if (!allowed) {
-      // 靜默超限，不外洩給 client
       return NextResponse.json({ success: false }, { status: 200 });
     }
 
-    const body = (await req.json()) as EventPayload;
-
-    if (!body.event || typeof body.event !== "string") {
+    // ── 解析並驗證 body（Zod schema）───────────────────────────
+    let parsed: z.infer<typeof EventLogInput>;
+    try {
+      const raw = await req.json();
+      const result = EventLogInput.safeParse(raw);
+      if (!result.success) {
+        // 格式錯誤 → 靜默回 200（設計如此，不外洩細節）
+        return NextResponse.json({ success: false }, { status: 200 });
+      }
+      parsed = result.data;
+    } catch {
       return NextResponse.json({ success: false }, { status: 200 });
     }
 
-    // 白名單檢查
-    if (!ALLOWED_EVENTS.has(body.event)) {
+    // 白名單檢查（parsed.event 已由 Zod 推斷為 non-null string）
+    if (!ALLOWED_EVENTS.has(parsed.event)) {
       return NextResponse.json({ success: false }, { status: 200 });
     }
 
     // SSR-safe timestamp
     const timestamp = new Date().toISOString();
     const enriched = {
-      ...body,
+      event: parsed.event,
+      buttonId: parsed.buttonId ?? undefined,
+      metadata: parsed.metadata ?? {},
       timestamp,
       ip,
     };

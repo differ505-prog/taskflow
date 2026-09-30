@@ -15,6 +15,7 @@
  *   - message 長度限制 2000 字(對齊前端 maxLength)
  *   - context JSON 大小限制 50KB
  *   - Rate limit 30 / hour(開發者不會 spam,但允許批次)
+ *   - Cloudflare Turnstile 人機驗證（防 bot 無限灌 feedback）
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
@@ -30,7 +31,35 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const FeedbackInput = z.object({
   message: z.string().min(1).max(2000),
   context: z.record(z.string(), z.unknown()).optional(),
+  cfTurnstile: z.string().min(1),
 });
+
+// ─── Cloudflare Turnstile 驗證 ───────────────────────────────────────────────
+async function verifyTurnstile(token: string, ip: string): Promise<boolean> {
+  const secretKey = process.env.TURNSTILE_SECRET_KEY;
+  if (!secretKey) {
+    console.warn("[feedback] TURNSTILE_SECRET_KEY not configured, skipping verification");
+    return true;
+  }
+  try {
+    const res = await fetch(
+      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          secret: secretKey,
+          response: token,
+          remoteip: ip,
+        }),
+      }
+    );
+    const data = await res.json();
+    return data.success === true;
+  } catch {
+    return false;
+  }
+}
 
 function getServiceClient() {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return null;
@@ -42,20 +71,28 @@ function getServiceClient() {
 export async function POST(req: NextRequest) {
   try {
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0] ?? "unknown";
+
+    // 1. Rate limit
     const { allowed } = await checkRateLimit(`feedback:ip:${ip}`, 30, 60 * 60 * 1000);
     if (!allowed) {
       return NextResponse.json({ error: "太多次數,請稍後再試" }, { status: 429 });
     }
 
-    // 1. 解析並驗證 body（Zod schema）
+    // 2. 解析並驗證 body（Zod schema）
     const body = await req.json();
     const parsed = FeedbackInput.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: "格式錯誤" }, { status: 400 });
     }
-    const { message, context } = parsed.data;
+    const { message, context, cfTurnstile } = parsed.data;
 
-    // 2. 驗證登入(透過 cookie session)，並從 session 取得真實 email
+    // 3. Turnstile 驗證
+    const verified = await verifyTurnstile(cfTurnstile, ip);
+    if (!verified) {
+      return NextResponse.json({ error: "人機驗證失敗，請稍後重試" }, { status: 403 });
+    }
+
+    // 4. 驗證登入(透過 cookie session)，並從 session 取得真實 email
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -73,7 +110,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 2.5. 從 DB 取得真實 userRole（不再信任 client body）
+    // 4.5. 從 DB 取得真實 userRole（不再信任 client body）
     let userRole = "free";
     const dbClient = getServiceClient();
     if (dbClient) {
@@ -85,16 +122,16 @@ export async function POST(req: NextRequest) {
       userRole = profile?.role ?? "free";
     }
 
-    // 3. 寫入 Supabase（user_email 強制使用 server-side session email）
+    // 5. 寫入 Supabase（user_email 強制使用 server-side session email）
     if (!dbClient) {
       return NextResponse.json({ error: "後端未設定" }, { status: 500 });
     }
 
     const insertPayload = {
       user_id: userId,
-      user_email: userEmail ?? null,  // 不再信任 client body.userEmail
+      user_email: userEmail ?? null,
       user_role: userRole,
-      message: message,
+      message,
       context: context ?? {},
     };
 
@@ -112,7 +149,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. 觸發 Discord 通知(§8 失敗靜默)
+    // 6. 觸發 Discord 通知(§8 失敗靜默)
     const previewText = (message || "(無訊息,僅 metadata)").slice(0, 200);
     void notifyFeedback({
       userEmail: userEmail ?? null,

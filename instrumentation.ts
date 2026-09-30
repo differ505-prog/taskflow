@@ -5,6 +5,12 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === "edge") {
     await import("./sentry.edge.config");
   }
+
+  // Production 環境變數強制檢查：DIAG_SECRET / CRON_SECRET 長度
+  if (process.env.NODE_ENV === "production") {
+    const { runEnvAssertions } = await import("@/lib/assert-env");
+    runEnvAssertions();
+  }
 }
 
 export async function onRequestError(

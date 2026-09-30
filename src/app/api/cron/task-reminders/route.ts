@@ -8,7 +8,9 @@
  *   2. 對每列呼叫 /api/push/send 內部 fan-out
  *   3. 標記 processed_at
  *
- * 安全：CRON_SECRET header 由 Vercel 自動注入
+ * 安全：
+ *   - CRON_SECRET header 由 Vercel 自動注入
+ *   - production 只接受 Bearer header 與 x-cron-secret header（禁用 query string ?secret=）
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -24,11 +26,11 @@ function getSupabaseAdmin() {
 
 export async function GET(req: NextRequest) {
   // ── 1. 安全認證 ──
-  // Vercel Cron 自動注入 Authorization Bearer header;
-  // query string ?secret= 與 x-cron-secret header 留作 manual trigger 備援
+  // Vercel Cron 自動注入 Authorization Bearer header；
+  // x-cron-secret header 留作 manual trigger 備援。
+  // ⚠️ 禁用 ?secret= query string，避免出現在 Vercel log / CDN / 瀏覽器歷史
   const authHeader = req.headers.get("authorization") ?? "";
   const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  const querySecret = req.nextUrl.searchParams.get("secret");
   const headerSecret = req.headers.get("x-cron-secret");
   const expected = process.env.CRON_SECRET;
 
@@ -36,7 +38,13 @@ export async function GET(req: NextRequest) {
     if (!expected) {
       return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
     }
-    // Vercel Cron 自動送 Authorization Bearer；x-cron-secret / ?secret= 留作手動測試
+    // production：只接受 Bearer header 與 x-cron-secret header
+    if (bearerToken !== expected && headerSecret !== expected) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  } else {
+    // dev / preview：保留三通道（bearer + query + header）方便本地測試
+    const querySecret = req.nextUrl.searchParams.get("secret");
     if (
       bearerToken !== expected &&
       querySecret !== expected &&

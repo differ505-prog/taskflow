@@ -11,10 +11,13 @@
  * Response: { sent: number, failed: number, expired: number }
  *
  * 實作：呼叫 src/lib/push/sendPush.ts 共用函式，認證 + 授權在此層。
+ *
+ * 硬化：Zod schema 限制 title <= 200 / body <= 2000 / url <= 500，防止 payload DoS。
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendPush } from "@/lib/push/sendPush";
+import { z } from "zod";
 
 function getBrowserSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -29,13 +32,14 @@ function getBrowserSupabase() {
   });
 }
 
-interface SendBody {
-  owner_uid: string;
-  title: string;
-  body: string;
-  url?: string;
-  task_id?: string;
-}
+// ─── Zod Input Schema ───────────────────────────────────────────────────────
+const PushSendInput = z.object({
+  owner_uid: z.string().uuid(),
+  title: z.string().min(1).max(200),
+  body: z.string().min(1).max(2000),
+  url: z.string().url().max(500).optional(),
+  task_id: z.string().max(100).optional(),
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,12 +50,10 @@ export async function POST(request: NextRequest) {
 
     let callerUid: string | null = null;
     if (internalSecret && expectedInternal && internalSecret === expectedInternal) {
-      // 內部呼叫：owner_uid 從 body 拿
       callerUid = null;
     } else if (cronSecret && expectedInternal && cronSecret === expectedInternal) {
       callerUid = null;
     } else {
-      // 使用者自測：需登入
       const browser = getBrowserSupabase();
       const { data: sessionData } = await browser.auth.getSession();
       callerUid = sessionData.session?.user?.id ?? null;
@@ -60,13 +62,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ── 2. 解析 body ──
-    const body = (await request.json()) as SendBody;
-    if (!body.owner_uid || !body.title || !body.body) {
-      return NextResponse.json(
-        { error: "Missing owner_uid / title / body" },
-        { status: 400 }
-      );
+    // ── 2. 解析並驗證 body（Zod schema）───────────────────────────
+    let body: z.infer<typeof PushSendInput>;
+    try {
+      const raw = await request.json();
+      const parsed = PushSendInput.safeParse(raw);
+      if (!parsed.success) {
+        return NextResponse.json(
+          { error: "Invalid request body", detail: parsed.error.issues },
+          { status: 400 }
+        );
+      }
+      body = parsed.data;
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
     // 使用者自測時，不能送給別人

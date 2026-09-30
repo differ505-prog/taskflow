@@ -15,11 +15,26 @@
  * 硬化（§8）：
  *   - email 從 Supabase auth session 讀取，不再信任 client body
  *   - Rate limit: 20/分/IP
+ *   - Zod schema：嚴格限制所有欄位長度，防止 DoS
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { notifyNewUser, notifyFirstTaskDone } from "@/lib/discordNotifier";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { z } from "zod";
+
+// ─── Zod Input Schema ───────────────────────────────────────────────────────
+const DiscordNotifyInput = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("new_user"),
+    provider: z.string().max(50).optional(),
+  }),
+  z.object({
+    type: z.literal("first_task_done"),
+    taskTitle: z.string().min(1).max(200),
+    userCount: z.number().int().min(0).max(1_000_000).optional(),
+  }),
+]);
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,6 +44,15 @@ export async function POST(req: NextRequest) {
     if (!allowed) {
       return NextResponse.json({ error: "Rate limited" }, { status: 429 });
     }
+
+    // ─── 解析並驗證 body（Zod schema）───────────────────────────
+    const body = await req.json();
+    const parsed = DiscordNotifyInput.safeParse(body);
+    if (!parsed.success) {
+      console.warn("[discord/notify] Invalid body:", parsed.error.issues);
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+    const { type } = parsed.data;
 
     // ─── 從 Supabase session 取得真實 email ───
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -47,21 +71,12 @@ export async function POST(req: NextRequest) {
       serverEmail = user?.email ?? null;
     }
 
-    const body = await req.json();
-    const { type, taskTitle, userCount } = body;
-
-    if (!type) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-    }
-
     switch (type) {
       case "new_user": {
         if (!serverEmail) {
           return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-        const email = serverEmail;
-        const provider = body.provider as string | undefined;
-        await notifyNewUser(email, provider);
+        await notifyNewUser(serverEmail, parsed.data.provider);
         return NextResponse.json({ success: true });
       }
 
@@ -69,11 +84,8 @@ export async function POST(req: NextRequest) {
         if (!serverEmail) {
           return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-        if (!taskTitle) {
-          return NextResponse.json({ error: "taskTitle required" }, { status: 400 });
-        }
-        const email = serverEmail;
-        await notifyFirstTaskDone(email, taskTitle, userCount ?? 0);
+        const { taskTitle, userCount } = parsed.data;
+        await notifyFirstTaskDone(serverEmail, taskTitle, userCount ?? 0);
         return NextResponse.json({ success: true });
       }
 

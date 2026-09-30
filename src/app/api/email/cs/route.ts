@@ -17,11 +17,10 @@
  *   ]
  * }
  *
- * 安全：需附上 CRON_SECRET Header（由 Vercel 自動注入）對外防護
- * 環境變數：
- *   RESEND_API_KEY        — Resend API Key
- *   RESEND_FROM_EMAIL     — 寄件人地址（如 noreply@vibelist.app）
- *   RESEND_FROM_NAME      — 寄件人名稱（如 VibeList Guild）
+ * 安全：
+ *   - CRON_SECRET header 由 Vercel 自動注入
+ *   - production 只接受 Bearer header 與 x-cron-secret header（禁用 query string ?secret=）
+ *   - RESEND_API_KEY、RESEND_FROM_EMAIL 純 server-side
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -35,17 +34,10 @@ import { incrementAndCheckQuota } from "@/lib/quota-monitor";
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "VibeList <noreply@vibelist.app>";
 const RESEND_FROM_NAME = process.env.RESEND_FROM_NAME ?? "VibeList Guild";
 
-// Vercel Cron 自動注入的 secret；本地測試可用 ?secret=xxx 蓋過
+// Vercel Cron 自動注入的 secret；本地測試可用 x-cron-secret header
 const CRON_SECRET = process.env.CRON_SECRET;
 
 // ─── Lazy client factory ──────────────────────────────────────────────────
-//
-// §26 命中類別 H (Build 失敗導致改動「隱形上線」陷阱)：
-// 原本 supabaseAdmin / resend 在 module top-level 就 create,
-// Next.js build 階段 collect page data 會 evaluate 此模組,
-// 若 SUPABASE_SERVICE_ROLE_KEY 缺 → throw "supabaseKey is required" → build 失敗。
-// 改為函式內 lazy init：module load 不評估 env,只在 cron 實際觸發時才檢查,
-// 不影響 build,但 runtime 時缺 env 仍會回 500(行為不變)。
 
 function getSupabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -64,24 +56,31 @@ function getResend(): Resend | null {
 // ─── GET handler ──────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
-  // ── 1. 安全認證 ────────────────────────────────────────────
-  // §26 補':對齊 /api/cron/task-reminders (L27-37) 支援 ?secret= query + x-cron-secret header
-  // Vercel Cron 預設注入 Authorization Bearer header,query string 容易被 log 留下
-  // 統一用 header + query 雙通道:header 優先(prod 安全),query 留作 manual trigger
   // ── 1. 安全認證 ──
   // Vercel Cron 自動注入 Authorization Bearer header；
-  // query string ?secret= 與 x-cron-secret header 留作 manual trigger 備援
+  // x-cron-secret header 留作 manual trigger 備援。
+  // ⚠️ 禁用 ?secret= query string，避免出現在 Vercel log / CDN / 瀏覽器歷史
   const authHeader = request.headers.get("authorization") ?? "";
   const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  const querySecret = request.nextUrl.searchParams.get("secret");
   const headerSecret = request.headers.get("x-cron-secret");
-  if (
-    process.env.NODE_ENV === "production" &&
-    bearerToken !== CRON_SECRET &&
-    querySecret !== CRON_SECRET &&
-    headerSecret !== CRON_SECRET
-  ) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  if (process.env.NODE_ENV === "production") {
+    if (
+      bearerToken !== CRON_SECRET &&
+      headerSecret !== CRON_SECRET
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  } else {
+    // dev / preview：保留三通道（bearer + query + header）方便本地測試
+    const querySecret = request.nextUrl.searchParams.get("secret");
+    if (
+      bearerToken !== CRON_SECRET &&
+      querySecret !== CRON_SECRET &&
+      headerSecret !== CRON_SECRET
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
   // ── 2. 解析 type ────────────────────────────────────────────
@@ -132,7 +131,6 @@ export async function GET(request: NextRequest) {
 // ─── 批次 A：3 天未登入喚回信 ────────────────────────────────────────────
 
 async function sendAmnestiaBatch(supabaseAdmin: ReturnType<typeof getSupabaseAdmin>, resend: Resend) {
-  // Resend 用量監控（超限不阻擋主流程，只 log）
   const { allowed: resendAllowed } = await incrementAndCheckQuota("resend");
   if (!resendAllowed) {
     console.warn("[CS Email] Resend daily quota exceeded, skipping batch");
@@ -142,16 +140,13 @@ async function sendAmnestiaBatch(supabaseAdmin: ReturnType<typeof getSupabaseAdm
   const threeDaysAgo = new Date();
   threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
-  // 抓 3 天內完全沒登入、但帳號存在且有 email 的用戶
-  // 假設用戶資料存在 profiles 表
   const { data: users, error } = await supabaseAdmin
     .from("profiles")
     .select("id, display_name, email")
     .not("email", "is", null)
     .not("email", "eq", "")
-    // last_login_at 在 3 天前之前（意味著 3 天沒上）
     .lt("last_login_at", threeDaysAgo.toISOString())
-    .limit(100); // 每批次最多 100 封，防 API rate limit
+    .limit(100);
 
   if (error) throw error;
   if (!users || users.length === 0) {
@@ -165,7 +160,7 @@ async function sendAmnestiaBatch(supabaseAdmin: ReturnType<typeof getSupabaseAdm
         lastActiveDays: 3,
       });
 
-      await resend!.emails.send({
+      await resend.emails.send({
         from: RESEND_FROM_EMAIL,
         to: user.email!,
         subject: "沒打開 VibeList 也是一種休息 🍃",
@@ -178,18 +173,12 @@ async function sendAmnestiaBatch(supabaseAdmin: ReturnType<typeof getSupabaseAdm
   const sent = results.filter((r) => r.status === "fulfilled").length;
   const failed = results.filter((r) => r.status === "rejected").length;
 
-  return {
-    type: "amnestia",
-    batch_size: users.length,
-    sent,
-    failed,
-  };
+  return { type: "amnestia", batch_size: users.length, sent, failed };
 }
 
 // ─── 批次 B：週末戰報（每週五，僅發給當週活躍用戶） ──────────────────────
 
 async function sendWeeklyReportBatch(supabaseAdmin: ReturnType<typeof getSupabaseAdmin>, resend: Resend) {
-  // Resend 用量監控（超限不阻擋主流程，只 log）
   const { allowed: resendAllowed } = await incrementAndCheckQuota("resend");
   if (!resendAllowed) {
     console.warn("[CS Email] Resend daily quota exceeded, skipping weekly batch");
@@ -197,21 +186,17 @@ async function sendWeeklyReportBatch(supabaseAdmin: ReturnType<typeof getSupabas
   }
 
   const weekStart = new Date();
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay() - 6); // 本週一
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay() - 6);
   weekStart.setHours(0, 0, 0, 0);
 
-  const weekEnd = new Date(); // 今天（週五）
+  const weekEnd = new Date();
   weekEnd.setHours(23, 59, 59, 999);
 
-  // 抓本週有任務更新的用戶（profiles + 任務表跨查）
-  // 假設有一張 task_logs 或 task_history 表記錄活動
-  // 若無此表，可改查 tasks.updated_at 或 profiles.last_active_at
   const { data: activeUsers, error } = await supabaseAdmin
     .from("profiles")
     .select("id, display_name, email")
     .not("email", "is", null)
     .not("email", "eq", "")
-    // last_active_at 在本週內
     .gte("last_active_at", weekStart.toISOString())
     .limit(200);
 
@@ -220,15 +205,12 @@ async function sendWeeklyReportBatch(supabaseAdmin: ReturnType<typeof getSupabas
     return { sent: 0, skipped: 0, reason: "No active users this week" };
   }
 
-  // 批次查每個用戶的本週 EXP（從 task_history 累計）
-  // 這裡提供 skeleton；若無 task_history 可直接傳 weekExp=0
   const results = await Promise.allSettled(
     activeUsers.map(async (user) => {
       // TODO: 串接 task_history 表，計算 user.id 的本週 PP
-      // const weekExp = await getWeekExp(user.id, weekStart, weekEnd);
-      const weekExp = 0; // 暫時填 0，完成 task_history schema 後替換
-      const completedCount = 0; // 同上
-      const usedAiCrusher = false; // 同上
+      const weekExp = 0;
+      const completedCount = 0;
+      const usedAiCrusher = false;
 
       const { html, text } = await renderWeeklyReportEmail({
         userName: user.display_name || "辛苦了！",
@@ -237,7 +219,7 @@ async function sendWeeklyReportBatch(supabaseAdmin: ReturnType<typeof getSupabas
         usedAiCrusher,
       });
 
-      await resend!.emails.send({
+      await resend.emails.send({
         from: RESEND_FROM_EMAIL,
         to: user.email!,
         subject: "✨ 你的本週專注戰報來了",
@@ -250,10 +232,5 @@ async function sendWeeklyReportBatch(supabaseAdmin: ReturnType<typeof getSupabas
   const sent = results.filter((r) => r.status === "fulfilled").length;
   const failed = results.filter((r) => r.status === "rejected").length;
 
-  return {
-    type: "weekly_report",
-    batch_size: activeUsers.length,
-    sent,
-    failed,
-  };
+  return { type: "weekly_report", batch_size: activeUsers.length, sent, failed };
 }

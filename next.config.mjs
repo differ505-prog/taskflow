@@ -39,6 +39,8 @@ const nextConfig = {
       "base-uri 'self'",
       "form-action 'self'",
       "object-src 'none'",
+      // report-uri: 接收 CSP 違規報告（XSS 嘗試失敗時觸發）
+      "report-uri /api/csp-report",
     ].join("; ");
 
     return [

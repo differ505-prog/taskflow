@@ -1,17 +1,86 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Rocket, CheckCircle, Sparkles, Swords, Brain, Moon } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { track } from "@/lib/analytics";
 
+// ─── Turnstile 全域型別 ─────────────────────────────────────────────────────
+declare global {
+  interface Window {
+    turnstile?: {
+      render(
+        container: HTMLElement,
+        options: {
+          sitekey: string;
+          callback: (token: string) => void;
+          "error-callback"?: () => void;
+          "expired-callback"?: () => void;
+          theme?: "light" | "dark" | "auto";
+        }
+      ): string;
+      remove(widgetId?: string): void;
+      reset(widgetId?: string): void;
+    };
+  }
+}
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
+
 export default function WaitlistPage() {
   const { signInWithGoogle } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileRef = useRef<HTMLDivElement>(null);
+  const turnstileWidgetId = useRef<string>("");
+
+  // ── Turnstile 初始化 ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY || !turnstileRef.current) return;
+
+    const render = () => {
+      if (window.turnstile && turnstileRef.current) {
+        if (turnstileWidgetId.current) {
+          try { window.turnstile.remove(turnstileWidgetId.current); } catch {}
+        }
+        setTurnstileToken("");
+        turnstileWidgetId.current = window.turnstile.render(turnstileRef.current, {
+          sitekey: TURNSTILE_SITE_KEY,
+          callback: (token: string) => setTurnstileToken(token),
+          "error-callback": () => setTurnstileToken(""),
+          "expired-callback": () => setTurnstileToken(""),
+          theme: "light",
+        });
+      }
+    };
+
+    if (window.turnstile) {
+      render();
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+      script.async = true;
+      script.onload = render;
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      if (turnstileWidgetId.current && window.turnstile) {
+        try { window.turnstile.remove(turnstileWidgetId.current); } catch {}
+      }
+    };
+  }, []);
 
   const handleGoogleLogin = async () => {
     if (loading) return;
+
+    // Turnstile 未通過驗證
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      alert("人機驗證中，請稍候後再試");
+      return;
+    }
+
     setLoading(true);
     track("waitlist_login_click");
     try {
@@ -245,11 +314,18 @@ export default function WaitlistPage() {
             </p>
           </motion.div>
 
+          {/* Turnstile 人機驗證 */}
+          {TURNSTILE_SITE_KEY && (
+            <motion.div {...fadeUpDelay(0.05)} className="mb-4 flex justify-center">
+              <div ref={turnstileRef} style={{ minWidth: "300px", minHeight: "65px" }} />
+            </motion.div>
+          )}
+
           {/* Google OAuth 按鈕 */}
           <motion.div {...fadeUpDelay(0.1)}>
             <button
               onClick={handleGoogleLogin}
-              disabled={loading}
+              disabled={loading || (!!TURNSTILE_SITE_KEY && !turnstileToken)}
               className="w-full py-4 px-6 rounded-2xl text-[15px] font-semibold transition-all duration-200 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 active:scale-[0.98] cursor-pointer"
               style={{
                 background: loading ? "var(--surface-muted)" : "var(--surface-elevated)",

@@ -19,6 +19,8 @@
  *   RESEND_API_KEY
  *   RESEND_FROM_EMAIL
  *   NEXT_PUBLIC_APP_URL（如 https://vibelist.app）
+ *
+ * 硬化：Zod schema 一次到位（UUID / email / role enum），取代手寫 regex。
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -28,9 +30,21 @@ import { Resend } from "resend";
 import { renderInviteEmail } from "@/emails";
 import { incrementAndCheckQuota } from "@/lib/quota-monitor";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { z } from "zod";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.vibelist.work";
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "VibeList <noreply@vibelist.app>";
+
+// ─── Zod Input Schema ───────────────────────────────────────────────────────
+const InviteSendInput = z.object({
+  sharedListId: z.string().uuid({ message: "sharedListId 必須是有效的 UUID" }),
+  inviteeEmail: z
+    .string()
+    .email({ message: "請輸入有效的 Email" })
+    .max(254)
+    .transform((s) => s.toLowerCase()),
+  role: z.enum(["editor", "viewer"], { message: "role 只能是 editor 或 viewer" }),
+});
 
 // ─── Lazy client factory ────────────────────────────────────────────────────
 
@@ -59,25 +73,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "太多次數,請稍後再試" }, { status: 429 });
     }
 
-    // ── 1. 解析 body ────────────────────────────────────────────────────────
+    // ── 1. 解析並驗證 body（Zod schema）───────────────────────────
     const body = await req.json();
-    const { sharedListId, inviteeEmail, role } = body;
-
-    if (!sharedListId || !inviteeEmail || !role) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    const parsed = InviteSendInput.safeParse(body);
+    if (!parsed.success) {
+      const issues = parsed.error.issues;
+      const firstMsg = issues[0]?.message ?? "格式錯誤";
+      return NextResponse.json(
+        { error: firstMsg, detail: issues },
+        { status: 400 }
+      );
     }
-
-    if (!["editor", "viewer"].includes(role)) {
-      return NextResponse.json({ error: "Invalid role" }, { status: 400 });
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(inviteeEmail)) {
-      return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
-    }
-    if (inviteeEmail.length > 254) {
-      return NextResponse.json({ error: "Email address too long" }, { status: 400 });
-    }
+    const { sharedListId, inviteeEmail, role } = parsed.data;
 
     // ── 2. 驗證發送者身份 ────────────────────────────────────────────────────
     let senderUid: string;
@@ -126,7 +133,7 @@ export async function POST(req: NextRequest) {
       .from("shared_invites")
       .select("id, token")
       .eq("shared_list_id", sharedListId)
-      .eq("invitee_email", inviteeEmail.toLowerCase())
+      .eq("invitee_email", inviteeEmail)
       .is("used_at", null)
       .gt("expires_at", new Date().toISOString())
       .limit(1);
@@ -142,7 +149,7 @@ export async function POST(req: NextRequest) {
         .insert({
           token,
           shared_list_id: sharedListId,
-          invitee_email: inviteeEmail.toLowerCase(),
+          invitee_email: inviteeEmail,
           inviter_uid: senderUid,
           inviter_name: list.owner_name ?? senderEmail.split("@")[0],
           role,

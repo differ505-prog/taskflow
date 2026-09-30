@@ -34,15 +34,36 @@ import {
   type FeedbackContextPayload,
 } from "@/lib/feedbackContext";
 
-const Z_INDEX = 200; // 對齊 ConfirmDialog
+const Z_INDEX = 200;
+
+// ─── Turnstile 全域型別 ─────────────────────────────────────────────────────
+declare global {
+  interface Window {
+    turnstile?: {
+      render(
+        container: HTMLElement,
+        options: {
+          sitekey: string;
+          callback: (token: string) => void;
+          "error-callback"?: () => void;
+          "expired-callback"?: () => void;
+          theme?: "light" | "dark" | "auto";
+        }
+      ): string;
+      remove(widgetId?: string): void;
+      reset(widgetId?: string): void;
+    };
+  }
+}
+
+const TURNSTILE_SITE_KEY =
+  process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
 export function FeedbackButton({ isZenMode = false }: { isZenMode?: boolean }) {
   const { isAdmin, isPro, isBeta, user } = useAuth();
-  // 權限 gate:只有 beta / pro / admin 看得到(免費使用者看不到反饋按鈕)
   const canShow = isAdmin || isPro || isBeta;
   const [open, setOpen] = useState(false);
 
-  // 安裝 interceptor:module-level 旗自動守護只安裝一次
   useEffect(() => {
     installFeedbackInterceptors();
   }, []);
@@ -58,8 +79,6 @@ export function FeedbackButton({ isZenMode = false }: { isZenMode?: boolean }) {
         title="📣 任何想法 / bug / 優化建議都歡迎"
         className={`fixed ${isZenMode ? "right-4" : "left-4"} bottom-24 z-[150] flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-all duration-200 ease-out hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none ${isZenMode ? "opacity-40 hover:opacity-100" : ""}`}
         style={{
-          // §26 降噪:禪模式預設 bg-slate-100/80 + text-slate-400(融入背景),
-          // hover/focus 顯示品牌色(沿用 var(--brand) — 開發者 muscle memory 不丟)
           background: isZenMode ? "rgba(241, 245, 249, 0.85)" : "var(--brand)",
           color: isZenMode ? "#94a3b8" : "var(--brand-foreground, white)",
           boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
@@ -100,11 +119,60 @@ function FeedbackModal({ open, onClose, userEmail, userRole }: FeedbackModalProp
   const [message, setMessage] = useState("");
   const [context, setContext] = useState<FeedbackContextPayload | null>(null);
   const [sending, setSending] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string>("");
+
   const dialogRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const previousActiveRef = useRef<HTMLElement | null>(null);
+  const turnstileContainerRef = useRef<HTMLDivElement>(null);
+  const turnstileWidgetIdRef = useRef<string>("");
 
-  // 開啟時:collect context + focus textarea + 鎖滾動 + ESC 監聽
+  // ── Turnstile 渲染 ─────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!open) return;
+
+    // 初始化 Turnstile widget（非互動模式，用戶無需點擊）
+    const container = turnstileContainerRef.current;
+    if (!container || !TURNSTILE_SITE_KEY) return;
+
+    const renderWidget = () => {
+      if (window.turnstile && container) {
+        // 先移除舊的 widget
+        if (turnstileWidgetIdRef.current) {
+          try { window.turnstile.remove(turnstileWidgetIdRef.current); } catch {}
+        }
+        setTurnstileToken("");
+        turnstileWidgetIdRef.current = window.turnstile.render(container, {
+          sitekey: TURNSTILE_SITE_KEY,
+          callback: (token: string) => setTurnstileToken(token),
+          "error-callback": () => setTurnstileToken(""),
+          "expired-callback": () => setTurnstileToken(""),
+          theme: "light",
+        });
+      }
+    };
+
+    // 確保 Turnstile script 已載入
+    if (window.turnstile) {
+      renderWidget();
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+      script.async = true;
+      script.onload = renderWidget;
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      if (turnstileWidgetIdRef.current && window.turnstile) {
+        try { window.turnstile.remove(turnstileWidgetIdRef.current); } catch {}
+        turnstileWidgetIdRef.current = "";
+      }
+      setTurnstileToken("");
+    };
+  }, [open]);
+
+  // ── 開啟時：collect context + focus textarea ───────────────────────────
   useEffect(() => {
     if (!open) return;
 
@@ -149,7 +217,7 @@ function FeedbackModal({ open, onClose, userEmail, userRole }: FeedbackModalProp
     };
   }, [open, onClose]);
 
-  // 關閉時重置(下次再開乾淨)
+  // ── 關閉時重置 ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!open) {
       setMessage("");
@@ -169,6 +237,7 @@ function FeedbackModal({ open, onClose, userEmail, userRole }: FeedbackModalProp
           userEmail,
           userRole,
           context,
+          cfTurnstile: turnstileToken,
         }),
       });
       if (!res.ok) {
@@ -265,6 +334,15 @@ function FeedbackModal({ open, onClose, userEmail, userRole }: FeedbackModalProp
                 )}
               </div>
 
+              {/* Turnstile 人機驗證（隱藏在 modal 內，視覺上不明顯） */}
+              {TURNSTILE_SITE_KEY && (
+                <div
+                  ref={turnstileContainerRef}
+                  className="flex justify-center"
+                  style={{ minHeight: "65px" }}
+                />
+              )}
+
               {/* 訊息輸入 */}
               <div>
                 <label
@@ -310,7 +388,7 @@ function FeedbackModal({ open, onClose, userEmail, userRole }: FeedbackModalProp
               <button
                 type="button"
                 onClick={handleSend}
-                disabled={sending}
+                disabled={sending || (!!TURNSTILE_SITE_KEY && !turnstileToken)}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12.5px] font-medium transition-all duration-200 hover:opacity-90 active:scale-95 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50"
                 style={{
                   background: "var(--brand)",
