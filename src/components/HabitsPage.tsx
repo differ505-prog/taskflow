@@ -23,7 +23,7 @@ import { getLocalToday, toLocalDateString } from "@/lib/dateUtils";
 
 const HABIT_COLORS = [
   "#4F6AF5",
-  "#8B5CF6",
+  "#4F6AF5",
   "#EC4899",
   "#EF4444",
   "#F97316",

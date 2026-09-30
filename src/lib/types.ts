@@ -108,7 +108,7 @@ export const ROLE_CONFIGS: Record<UserRole, RoleConfig> = {
     description: "可上傳，最大 5MB/單檔",
     canUpload: true,
     maxFileSizeMB: 5,
-    badgeColor: "#8B5CF6",
+    badgeColor: "#4F6AF5",
     badgeBg: "rgba(139, 92, 246, 0.12)",
   },
   free: {
@@ -365,7 +365,7 @@ export interface SharedListSnapshot {
 }
 
 export const TAG_COLORS = [
-  "#3B82F6", "#8B5CF6", "#EC4899", "#EF4444",
+  "#3B82F6", "#4F6AF5", "#EC4899", "#EF4444",
   "#F97316", "#EAB308", "#22C55E", "#14B8A6",
   "#06B6D4", "#6366F1",
 ];

@@ -56,7 +56,7 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"];
+const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#4F6AF5", "#EC4899"];
 
 /**
  * 播放清脆完成音效（Web Audio API 即時合成，無需外部音檔）

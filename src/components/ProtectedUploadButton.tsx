@@ -183,8 +183,8 @@ export function ProtectedUploadButton({
         disabled={isUploading}
         className={`inline-flex items-center gap-2 rounded-xl text-[14px] font-medium transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${buttonIcon ? "p-2" : "px-4 py-2"}`}
         style={{
-          background: isAdmin ? "var(--brand)" : "rgba(139,92,246,0.12)",
-          color: isAdmin ? "white" : "#8B5CF6",
+          background: isAdmin ? "var(--brand)" : "rgba(79,106,245,0.12)",
+          color: isAdmin ? "white" : "#4F6AF5",
         }}
       >
         {isUploading ? (
@@ -400,7 +400,7 @@ export function UploadPermissionBadge() {
   if (isBeta) {
     return (
       <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px]"
-        style={{ background: "rgba(139,92,246,0.12)", color: "#8B5CF6" }}>
+        style={{ background: "rgba(79,106,245,0.12)", color: "#4F6AF5" }}>
         <Upload className="w-3 h-3" />
         5MB 限制
       </div>

@@ -575,7 +575,7 @@ export function ListForm({ isOpen, onClose, onSubmit, initialData, onDelete }: L
         <div>
           <label className="block mb-2 text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>顏色</label>
           <div className="flex gap-2">
-            {["#636366", "#3B82F6", "#8B5CF6", "#EC4899", "#EF4444", "#F97316", "#EAB308", "#22C55E", "#14B8A6", "#06B6D4"].map((c) => (
+            {["#636366", "#3B82F6", "#4F6AF5", "#EC4899", "#EF4444", "#F97316", "#EAB308", "#22C55E", "#14B8A6", "#06B6D4"].map((c) => (
               <button
                 key={c}
                 onClick={() => setColor(c)}
