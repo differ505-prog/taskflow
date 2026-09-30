@@ -160,7 +160,7 @@ export function DataSection({ tasks, habits, lists, addTask, addHabit, addList }
       <div
         className="mb-3 px-4 py-3 rounded-xl flex items-center gap-3"
         style={{
-          background: isWarning ? "rgba(255,149,0,0.08)" : isNever ? "rgba(59,130,246,0.08)" : "rgba(52,199,89,0.08)",
+          background: isWarning ? "var(--status-warning-tint)" : isNever ? "var(--brand-tint)" : "var(--status-success-tint)",
           border: `1px solid ${isWarning ? "rgba(255,149,0,0.25)" : isNever ? "rgba(59,130,246,0.25)" : "rgba(52,199,89,0.25)"}`,
         }}
         role="status"
@@ -191,7 +191,7 @@ export function DataSection({ tasks, habits, lists, addTask, addHabit, addList }
         </div>
 
         {exportMsg && (
-          <p className="text-[12px] px-3 py-2 rounded-xl" style={{ background: "rgba(52,199,89,0.08)", color: "var(--status-success)" }}>
+          <p className="text-[12px] px-3 py-2 rounded-xl" style={{ background: "var(--status-success-tint)", color: "var(--status-success)" }}>
             ✓ {exportMsg}
           </p>
         )}
@@ -227,7 +227,7 @@ export function DataSection({ tasks, habits, lists, addTask, addHabit, addList }
             <div
               className="mt-2 px-3 py-2.5 rounded-xl text-[13px]"
               style={{
-                background: importErrors.length > 0 ? "rgba(255,149,0,0.08)" : "rgba(52,199,89,0.08)",
+                background: importErrors.length > 0 ? "var(--status-warning-tint)" : "var(--status-success-tint)",
                 color: importErrors.length > 0 ? "var(--status-warning)" : "var(--status-success)",
               }}
             >

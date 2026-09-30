@@ -19,9 +19,6 @@ const config: Config = {
           muted: "var(--surface-muted)",
           elevated: "var(--surface-elevated)",
         },
-        border: {
-          subtle: "var(--border-subtle)",
-        },
         status: {
           success: "var(--status-success)",
           warning: "var(--status-warning)",

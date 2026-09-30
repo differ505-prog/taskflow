@@ -190,7 +190,7 @@ export function AccountSection() {
               </p>
               <span
                 className="text-[10px] font-medium px-2 py-0.5 rounded-full ml-1"
-                style={{ background: "rgba(52,199,89,0.12)", color: "var(--status-success)" }}
+                style={{ background: "var(--status-success-tint)", color: "var(--status-success)" }}
               >
                 所有裝置即時同步
               </span>
@@ -263,7 +263,7 @@ export function AccountSection() {
                 style={{
                   background: betaMsg.includes("無效") || betaMsg.includes("已在") || betaMsg.includes("失敗")
                     ? "rgba(255,149,0,0.08)"
-                    : "rgba(52,199,89,0.08)",
+                    : "var(--status-success-tint)",
                   color: betaMsg.includes("無效") || betaMsg.includes("已在") || betaMsg.includes("失敗")
                     ? "var(--status-warning)"
                     : "var(--status-success)",

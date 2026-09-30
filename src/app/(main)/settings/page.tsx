@@ -384,7 +384,7 @@ export default function SettingsPage() {
                     <span
                       className="text-[12px] font-medium flex-shrink-0 px-3 py-1.5 rounded-xl transition-all"
                       style={calCopied
-                        ? { background: "rgba(52,199,89,0.1)", color: "var(--status-success)" }
+                        ? { background: "var(--status-success-tint)", color: "var(--status-success)" }
                         : { background: "var(--brand-tint)", color: "var(--brand)" }}
                     >
                       {calCopied ? "已複製 ✓" : "複製連結"}
@@ -555,7 +555,7 @@ export default function SettingsPage() {
                       >
                         <div
                           className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                          style={{ background: "rgba(255,59,48,0.08)" }}
+                          style={{ background: "var(--status-danger-tint)" }}
                         >
                           <Icon className="w-4 h-4" style={{ color: "var(--status-danger)" }} aria-hidden="true" />
                         </div>
@@ -635,7 +635,7 @@ export default function SettingsPage() {
             style={{ background: "var(--surface)", boxShadow: "var(--shadow-lg)" }}
           >
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,59,48,0.08)" }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "var(--status-danger-tint)" }}>
                 <Trash2 className="w-5 h-5" style={{ color: "var(--status-danger)" }} aria-hidden="true" />
               </div>
               <h2 id="clear-data-title" className="text-[16px] font-semibold text-[var(--text-primary)]">

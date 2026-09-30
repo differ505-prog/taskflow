@@ -191,7 +191,7 @@ export default function InvitePage() {
           className="w-full max-w-sm rounded-2xl p-8 text-center"
           style={{ background: "var(--surface)", boxShadow: "var(--shadow-lg)" }}
         >
-          <div className="w-14 h-14 mx-auto rounded-full flex items-center justify-center mb-4" style={{ background: "rgba(255,59,48,0.1)" }}>
+          <div className="w-14 h-14 mx-auto rounded-full flex items-center justify-center mb-4" style={{ background: "var(--status-danger-tint)" }}>
             <AlertCircle className="w-7 h-7" style={{ color: "var(--status-danger)" }} />
           </div>
           <h1 className="text-[18px] font-semibold mb-2" style={{ color: "var(--text-primary)" }}>邀請無效</h1>
@@ -344,7 +344,7 @@ export default function InvitePage() {
         </div>
 
         {errorMsg && (
-          <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-xl text-[13px]" style={{ background: "rgba(255,59,48,0.08)", color: "var(--status-danger)" }}>
+          <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-xl text-[13px]" style={{ background: "var(--status-danger-tint)", color: "var(--status-danger)" }}>
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             {errorMsg}
           </div>

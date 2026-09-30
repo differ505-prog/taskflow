@@ -55,17 +55,14 @@ export function LandingPage({ onGuestMode }: LandingPageProps) {
       className="min-h-screen flex flex-col items-center justify-center px-5 overflow-hidden"
       style={{ background: "var(--surface-muted)" }}
     >
-      {/* Ambient background blobs */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-        <div
-          className="absolute -top-48 -right-48 w-[28rem] h-[28rem] rounded-full opacity-10 blur-3xl"
-          style={{ background: "var(--brand)" }}
-        />
-        <div
-          className="absolute -bottom-48 -left-48 w-[28rem] h-[28rem] rounded-full opacity-8 blur-3xl"
-          style={{ background: "var(--accent-warm-end)" }}
-        />
-      </div>
+      {/* 單一頂部超微漸層 — 與 AuthPage 視覺一致 */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        aria-hidden="true"
+        style={{
+          background: "radial-gradient(circle at 50% 0%, var(--brand-tint) 0%, transparent 60%)",
+        }}
+      />
 
       <div className="relative w-full max-w-xs flex flex-col items-center">
 
@@ -181,7 +178,7 @@ export function LandingPage({ onGuestMode }: LandingPageProps) {
             animate={{ opacity: 1, y: 0 }}
             className="mb-4 px-4 py-3 rounded-xl text-[13px] text-center w-full max-w-xs"
             style={{
-              background: "rgba(255,59,48,0.08)",
+              background: "var(--status-danger-tint)",
               color: "var(--status-danger)",
             }}
           >

@@ -16,7 +16,7 @@ export default function GlobalError({
         <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center bg-[var(--surface-muted)]">
           <div
             className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6"
-            style={{ background: "rgba(255,59,48,0.08)" }}
+            style={{ background: "var(--status-danger-tint)" }}
             aria-hidden="true"
           >
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true">

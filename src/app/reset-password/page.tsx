@@ -126,7 +126,7 @@ export default function ResetPasswordPage() {
           {error && (
             <div
               className="mb-4 flex items-center gap-2 px-4 py-3 rounded-xl text-[13px]"
-              style={{ background: "rgba(255,59,48,0.08)", color: "var(--status-danger)" }}
+              style={{ background: "var(--status-danger-tint)", color: "var(--status-danger)" }}
             >
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               {error}

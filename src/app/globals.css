@@ -50,6 +50,11 @@
   --status-warning: #FF9500;
   --status-danger: #FF3B30;
 
+  /* Status tint backgrounds — 8% 飽和度，dark mode 自動加深 */
+  --status-danger-tint: rgba(255, 59, 48, 0.08);
+  --status-success-tint: rgba(52, 199, 89, 0.10);
+  --status-warning-tint: rgba(255, 149, 0, 0.08);
+
   /* 邊框 — 極細、分離感強 */
   --border: rgba(0, 0, 0, 0.08);
   --border-hover: rgba(0, 0, 0, 0.14);
@@ -153,6 +158,11 @@
   --status-success: #86EFAC;
   --status-warning: #FDBA74;
   --status-danger: #FCA5A5;
+
+  /* Status tint backgrounds — dark mode 自動加深 */
+  --status-danger-tint: rgba(252, 165, 165, 0.12);
+  --status-success-tint: rgba(134, 239, 172, 0.12);
+  --status-warning-tint: rgba(253, 186, 116, 0.12);
 
   /* 暖色強調 — 深色模式加亮 */
   --accent-warm-start: #A8C4FA;
@@ -281,7 +291,7 @@
   .btn-primary:hover {
     background: var(--brand-hover);
     transform: translateY(-1px);
-    box-shadow: none;
+    box-shadow: 0 4px 12px rgba(var(--brand-rgb), 0.20);
   }
 
   /* Zen 模式暖色 Primary CTA */
@@ -306,7 +316,7 @@
   .btn-primary-zen.btn-primary-zen:hover {
     background: var(--accent-warm-end);
     transform: translateY(-1px);
-    box-shadow: none;
+    box-shadow: 0 4px 12px rgba(var(--accent-warm-start-rgb), 0.20);
   }
 
   .btn-primary-zen.btn-primary-zen:active {

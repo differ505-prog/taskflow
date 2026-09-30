@@ -189,7 +189,7 @@ export function ExternalCalendarSection({
       </div>
 
       {externalCal.error && (
-        <p className="text-[11px] px-3 py-2 rounded-xl" style={{ background: "rgba(255,59,48,0.08)", color: "var(--status-danger)" }}>
+        <p className="text-[11px] px-3 py-2 rounded-xl" style={{ background: "var(--status-danger-tint)", color: "var(--status-danger)" }}>
           {externalCal.error}
         </p>
       )}

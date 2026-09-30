@@ -202,7 +202,7 @@ export function ProtectedUploadButton({
       {/* Error Message */}
       {error && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-[12px]"
-          style={{ background: "rgba(255,59,48,0.08)", color: "var(--status-danger)" }}>
+          style={{ background: "var(--status-danger-tint)", color: "var(--status-danger)" }}>
           <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
           {error}
         </div>

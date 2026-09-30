@@ -597,7 +597,7 @@ export function ListForm({ isOpen, onClose, onSubmit, initialData, onDelete }: L
             <button
               onClick={() => { onDelete(initialData!.id); onClose(); }}
               className="px-4 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-150"
-              style={{ background: "rgba(255,59,48,0.1)", color: "var(--status-danger)" }}
+              style={{ background: "var(--status-danger-tint)", color: "var(--status-danger)" }}
             >
               刪除
             </button>

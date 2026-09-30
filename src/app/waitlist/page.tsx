@@ -156,7 +156,7 @@ export default function WaitlistPage() {
               <div className="flex items-center gap-3 mb-4">
                 <div
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: "rgba(52,199,89,0.12)" }}
+                  style={{ background: "var(--status-success-tint)" }}
                 >
                   <CheckCircle className="w-5 h-5" style={{ color: "var(--status-success)" }} aria-hidden="true" />
                 </div>
@@ -366,7 +366,7 @@ export default function WaitlistPage() {
 
       {/* Footer */}
       <footer className="py-8 text-center relative z-10">
-        <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+        <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
           © 2026 VibeList · 為你的大腦設計
         </p>
       </footer>
