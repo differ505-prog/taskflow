@@ -188,7 +188,7 @@ export function WarmupFlow({ open, onClose, onComplete }: WarmupFlowProps) {
               type="button"
               onClick={onClose}
               aria-label="關閉暖身"
-              className="rounded-full p-2 transition-colors duration-200 hover:bg-white/60 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+              className="rounded-full p-2 transition-colors duration-200 hover:bg-white/60 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
               style={{ color: "var(--text-tertiary)" }}
             >
               <X className="h-5 w-5" aria-hidden />
@@ -209,11 +209,11 @@ export function WarmupFlow({ open, onClose, onComplete }: WarmupFlowProps) {
                   aria-label={`跳到 ${h.title}`}
                   className={`h-1 rounded-full transition-all duration-300 ${
                     state === "completed"
-                      ? "w-5 bg-rose-400"
+                      ? "w-5 bg-violet-400"
                       : state === "skipped"
                       ? "w-5 bg-slate-300"
                       : i === index
-                      ? "w-8 bg-rose-500"
+                      ? "w-8 bg-violet-500"
                       : "w-5 bg-slate-200"
                   }`}
                 />
@@ -244,10 +244,10 @@ export function WarmupFlow({ open, onClose, onComplete }: WarmupFlowProps) {
                     aria-label={`完成：${current.title}`}
                     className={`relative flex h-48 w-full max-w-xs items-center justify-center rounded-3xl bg-white shadow-lg ring-1 transition-all duration-200 sm:h-56 ${
                       completedIds.has(current.id)
-                        ? "ring-2 ring-rose-300 bg-rose-50/50 cursor-default"
+                        ? "ring-2 ring-violet-300 bg-violet-50/50 cursor-default"
                         : skippedIds.has(current.id)
                         ? "ring-1 ring-slate-200/40 opacity-50 cursor-default"
-                        : "ring-rose-200/60 hover:-translate-y-1 hover:shadow-xl active:scale-95"
+                        : "ring-violet-200/60 hover:-translate-y-1 hover:shadow-xl active:scale-95"
                     }`}
                   >
                     {/* 完成打勾疊加層 */}
@@ -256,9 +256,9 @@ export function WarmupFlow({ open, onClose, onComplete }: WarmupFlowProps) {
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                        className="absolute inset-0 flex items-center justify-center rounded-3xl bg-rose-400/10"
+                        className="absolute inset-0 flex items-center justify-center rounded-3xl bg-violet-400/10"
                       >
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-400 shadow-sm">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-400 shadow-sm">
                           <Check className="h-6 w-6 text-white" aria-hidden />
                         </div>
                       </motion.div>
@@ -285,13 +285,13 @@ export function WarmupFlow({ open, onClose, onComplete }: WarmupFlowProps) {
                     )}
                     {/* 正常卡片內容 */}
                     {!completedIds.has(current.id) && !skippedIds.has(current.id) && (
-                      <span className="text-6xl font-light text-rose-400 sm:text-7xl">
+                      <span className="text-6xl font-light text-violet-400 sm:text-7xl">
                         {current.title.slice(0, 1)}
                       </span>
                     )}
                     {/* 底部狀態標籤 */}
                     {completedIds.has(current.id) && (
-                      <div className="absolute bottom-3 rounded-full bg-rose-400 px-3 py-1 text-[10px] font-medium uppercase tracking-widest text-white">
+                      <div className="absolute bottom-3 rounded-full bg-violet-400 px-3 py-1 text-[10px] font-medium uppercase tracking-widest text-white">
                         已完成
                       </div>
                     )}
@@ -332,7 +332,7 @@ export function WarmupFlow({ open, onClose, onComplete }: WarmupFlowProps) {
                       <button
                         type="button"
                         onClick={handleCompleteCurrent}
-                        className="flex flex-1 items-center justify-center gap-2 rounded-full bg-rose-400 py-3 text-sm font-medium text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-rose-500 hover:shadow-lg active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2"
+                        className="flex flex-1 items-center justify-center gap-2 rounded-full bg-violet-400 py-3 text-sm font-medium text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-violet-500 hover:shadow-lg active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
                       >
                         <Heart className="h-4 w-4" aria-hidden />
                         完成
@@ -421,7 +421,7 @@ export function WarmupFlow({ open, onClose, onComplete }: WarmupFlowProps) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.9, duration: 0.5 }}
                   onClick={handleLaunch}
-                  className="mt-4 flex items-center gap-2 rounded-full bg-rose-400 px-8 py-3 text-sm font-medium uppercase tracking-widest text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-rose-500 hover:shadow-lg active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2"
+                  className="mt-4 flex items-center gap-2 rounded-full bg-violet-400 px-8 py-3 text-sm font-medium uppercase tracking-widest text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-violet-500 hover:shadow-lg active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
                 >
                   進入今天
                   <ChevronRight className="h-4 w-4" aria-hidden />
@@ -451,7 +451,7 @@ export function WarmupFlow({ open, onClose, onComplete }: WarmupFlowProps) {
                   }
                   className={`relative flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl text-2xl font-light shadow-sm transition-all duration-200 ${
                     isCurrent
-                      ? "ring-2 ring-rose-400 scale-105"
+                      ? "ring-2 ring-violet-400 scale-105"
                       : "ring-1 ring-slate-200/60 hover:scale-105"
                   } ${
                     state === "completed"

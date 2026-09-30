@@ -123,10 +123,10 @@ export function AuthPage({ onGuestMode }: AuthPageProps) {
               <path d="M8 16L14 22L24 10" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
+          <h1 className="text-5xl font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
             VibeList
           </h1>
-          <p className="text-sm mt-1" style={{ color: "var(--text-tertiary)" }}>
+          <p className="text-base mt-1" style={{ color: "var(--text-tertiary)" }}>
             你的任務管理夥伴
           </p>
         </motion.div>

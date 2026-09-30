@@ -8,9 +8,9 @@
    ============================================================ */
 :root {
   /* 品牌色 — 僅用於 CTA 按鈕、focus ring、hover 高亮 */
-  --brand: #4F6AF5;
-  --brand-rgb: 79 106 245;
-  --brand-hover: #3D56E0;
+  --brand: #5E74D6;
+  --brand-rgb: 94 116 214;
+  --brand-hover: #4D5FC0;
   --brand-foreground: #ffffff;
 
   /* 品牌色調 — 輕量級背景，用於 Pill / Badge / 微弱提示 */
@@ -98,9 +98,9 @@
   --hover-bg: rgba(255, 255, 255, 0.08);
   --hover-success: rgba(34, 197, 94, 0.12);
   --hover-danger: rgba(239, 68, 68, 0.12);
-  --brand: #6B8AFF;
-  --brand-rgb: 107 138 255;
-  --brand-hover: #8BA3FF;
+  --brand: #8BA4FF;
+  --brand-rgb: 139 164 255;
+  --brand-hover: #A0B5FF;
   --brand-foreground: #ffffff;
   --brand-tint: rgba(107, 138, 255, 0.12);
 
@@ -184,6 +184,11 @@
     letter-spacing: -0.01em;
   }
 
+  /* 中文 — 稍微收緊字間距，避免全形字元過度拉開 */
+  :lang(zh), :lang(zh-Hans), :lang(zh-Hant) {
+    letter-spacing: -0.02em;
+  }
+
   /* 移除全域實線邊框，使用間距而非線條分隔 */
   * {
     border-color: transparent;
@@ -229,9 +234,10 @@
 
   /* Focus ring — 品牌色柔焦 */
   :focus-visible {
-    outline: 2px solid var(--brand);
+    outline: 1px solid var(--brand);
     outline-offset: 2px;
     border-radius: 4px;
+    opacity: 0.7;
   }
 }
 

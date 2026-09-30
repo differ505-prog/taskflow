@@ -193,7 +193,7 @@ export default function WaitlistPage() {
               initial={{ opacity: 0, scale: 0.5, x: 40, y: -20 }}
               animate={{ opacity: 1, scale: 1, x: 40, y: -20 }}
               transition={{ duration: 0.6, delay: 0.8, type: "spring", stiffness: 200 }}
-              className="absolute -top-2 -right-8 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold"
+              className="absolute -top-2 -right-8 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold max-w-24 truncate"
               style={{
                 background: "linear-gradient(135deg, #f59e0b 0%, #eab308 100%)",
                 color: "#000",
@@ -208,7 +208,7 @@ export default function WaitlistPage() {
       </section>
 
       {/* ===== Section 2: Features ===== */}
-      <section className="relative z-10 px-4 py-24 md:py-32">
+      <section className="relative z-10 px-4 py-16 md:py-20">
         <div className="max-w-4xl mx-auto">
           <motion.div
             {...fadeUpDelay(0)}
@@ -300,7 +300,7 @@ export default function WaitlistPage() {
       </section>
 
       {/* ===== Section 3: CTA & Google OAuth ===== */}
-      <section className="relative z-10 px-4 py-24 md:py-32">
+      <section className="relative z-10 px-4 py-16 md:py-20">
         <div className="max-w-md mx-auto text-center">
           <motion.div
             {...fadeUpDelay(0)}
