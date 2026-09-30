@@ -63,7 +63,7 @@ export function LandingPage({ onGuestMode }: LandingPageProps) {
         />
         <div
           className="absolute -bottom-48 -left-48 w-[28rem] h-[28rem] rounded-full opacity-8 blur-3xl"
-          style={{ background: "#818CF8" }}
+          style={{ background: "var(--accent-warm-end)" }}
         />
       </div>
 

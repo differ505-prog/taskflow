@@ -96,17 +96,14 @@ export function AuthPage({ onGuestMode }: AuthPageProps) {
       className="min-h-screen flex flex-col items-center justify-center px-4"
       style={{ background: "var(--surface-muted)" }}
     >
-      {/* Background blobs */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-        <div
-          className="absolute -top-40 -right-40 w-96 h-96 rounded-full opacity-20 blur-3xl"
-          style={{ background: "var(--brand)" }}
-        />
-        <div
-          className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full opacity-15 blur-3xl"
-          style={{ background: "var(--status-success)" }}
-        />
-      </div>
+      {/* 超微漸層背景 */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        aria-hidden="true"
+        style={{
+          background: "radial-gradient(circle at 50% 0%, var(--brand-tint, rgba(79,106,245,0.06)) 0%, transparent 60%)",
+        }}
+      />
 
       <div className="relative w-full max-w-sm">
         {/* Logo */}
@@ -116,17 +113,17 @@ export function AuthPage({ onGuestMode }: AuthPageProps) {
           className="text-center mb-8"
         >
           <div
-            className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4"
+            className="w-12 h-12 mx-auto rounded-2xl flex items-center justify-center mb-5"
             style={{ background: "var(--brand)" }}
           >
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true">
               <path d="M8 16L14 22L24 10" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <h1 className="text-5xl font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
+          <h1 className="text-3xl font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
             VibeList
           </h1>
-          <p className="text-base mt-1" style={{ color: "var(--text-tertiary)" }}>
+          <p className="text-[13px] mt-2" style={{ color: "var(--text-tertiary)" }}>
             你的任務管理夥伴
           </p>
         </motion.div>

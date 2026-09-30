@@ -195,9 +195,9 @@ export default function WaitlistPage() {
               transition={{ duration: 0.6, delay: 0.8, type: "spring", stiffness: 200 }}
               className="absolute -top-2 -right-8 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold max-w-24 truncate"
               style={{
-                background: "linear-gradient(135deg, #f59e0b 0%, #eab308 100%)",
-                color: "#000",
-                boxShadow: "0 0 20px rgba(245,158,11,0.4), 0 4px 12px rgba(0,0,0,0.15)",
+                background: "linear-gradient(135deg, var(--accent-warm-start), var(--accent-warm-end))",
+                color: "#fff",
+                boxShadow: "0 0 20px rgba(var(--accent-warm-start-rgb), 0.40), 0 4px 12px rgba(0,0,0,0.15)",
               }}
             >
               <Sparkles className="w-3 h-3" aria-hidden="true" />
@@ -222,23 +222,23 @@ export default function WaitlistPage() {
             </p>
           </motion.div>
 
-          {/* 3 張玻璃擬物卡片 */}
+          {/* 3 張實體卡片 */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* 卡片 1: 獨自升級 */}
             <motion.div
               {...fadeUpDelay(0.1)}
-              className="group relative rounded-2xl p-6 backdrop-blur-xl border"
+              className="group relative rounded-2xl p-6 border transition-shadow duration-300 hover:shadow-lg"
               style={{
-                background: "rgba(255,255,255,0.03)",
-                borderColor: "rgba(255,255,255,0.08)",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
+                background: "var(--surface)",
+                borderColor: "var(--border)",
+                boxShadow: "var(--shadow-xs)",
               }}
             >
               <div
                 className="w-12 h-12 rounded-xl flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110"
-                style={{ background: "rgba(245,158,11,0.12)" }}
+                style={{ background: "var(--accent-warm-tint)" }}
               >
-                <Swords className="w-6 h-6" style={{ color: "#f59e0b" }} aria-hidden="true" />
+                <Swords className="w-6 h-6" style={{ color: "var(--accent-warm-start)" }} aria-hidden="true" />
               </div>
               <h3 className="text-[16px] font-semibold mb-3" style={{ color: "var(--text-primary)" }}>
                 獨自升級的快感
@@ -251,18 +251,18 @@ export default function WaitlistPage() {
             {/* 卡片 2: 禪模式 */}
             <motion.div
               {...fadeUpDelay(0.2)}
-              className="group relative rounded-2xl p-6 backdrop-blur-xl border"
+              className="group relative rounded-2xl p-6 border transition-shadow duration-300 hover:shadow-lg"
               style={{
-                background: "rgba(255,255,255,0.03)",
-                borderColor: "rgba(255,255,255,0.08)",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
+                background: "var(--surface)",
+                borderColor: "var(--border)",
+                boxShadow: "var(--shadow-xs)",
               }}
             >
               <div
                 className="w-12 h-12 rounded-xl flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110"
-                style={{ background: "rgba(59,130,246,0.12)" }}
+                style={{ background: "var(--accent-warm-tint)" }}
               >
-                <Brain className="w-6 h-6" style={{ color: "var(--brand)" }} aria-hidden="true" />
+                <Brain className="w-6 h-6" style={{ color: "var(--accent-warm-start)" }} aria-hidden="true" />
               </div>
               <h3 className="text-[16px] font-semibold mb-3" style={{ color: "var(--text-primary)" }}>
                 絕對防禦的禪模式
@@ -275,18 +275,18 @@ export default function WaitlistPage() {
             {/* 卡片 3: 溫柔退場 */}
             <motion.div
               {...fadeUpDelay(0.3)}
-              className="group relative rounded-2xl p-6 backdrop-blur-xl border"
+              className="group relative rounded-2xl p-6 border transition-shadow duration-300 hover:shadow-lg"
               style={{
-                background: "rgba(255,255,255,0.03)",
-                borderColor: "rgba(255,255,255,0.08)",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
+                background: "var(--surface)",
+                borderColor: "var(--border)",
+                boxShadow: "var(--shadow-xs)",
               }}
             >
               <div
                 className="w-12 h-12 rounded-xl flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110"
-                style={{ background: "rgba(167,139,250,0.12)" }}
+                style={{ background: "var(--accent-warm-tint)" }}
               >
-                <Moon className="w-6 h-6" style={{ color: "#a78bfa" }} aria-hidden="true" />
+                <Moon className="w-6 h-6" style={{ color: "var(--accent-warm-start)" }} aria-hidden="true" />
               </div>
               <h3 className="text-[16px] font-semibold mb-3" style={{ color: "var(--text-primary)" }}>
                 溫柔的退場機制

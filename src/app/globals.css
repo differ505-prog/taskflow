@@ -65,19 +65,19 @@
   /* --accent-warm-start/end: Hex for reference only
    * --accent-warm-start-rgb/end-rgb: RGB values (comma-separated) for CSS color interpolation in keyframes
    */
-  --accent-warm-start: #A78BFA;  /* 紫羅蘭 */
-  --accent-warm-end: #818CF8;     /* 靛藍 */
-  --accent-warm-start-rgb: 167, 139, 250;
-  --accent-warm-end-rgb: 129, 140, 248;
+  --accent-warm-start: #7BA8F5;  /* 精品藍 */
+  --accent-warm-end: #5E8FE8;     /* 深海藍 */
+  --accent-warm-start-rgb: 123, 168, 245;
+  --accent-warm-end-rgb: 94, 143, 232;
   --accent-warm-pink: #EC4899;
   --accent-warm-pink-rgb: 236, 72, 153;
-  --accent-warm-tint: rgba(79 106 245 / 0.10);
-  --accent-warm-glow: rgba(79 106 245 / 0.25);
+  --accent-warm-tint: rgba(123 168 245 / 0.10);
+  --accent-warm-glow: rgba(123 168 245 / 0.25);
 
   /* Chip 用 accent 色（日期預覽 chip） */
-  --chip-accent-bg: rgba(167 139 250 / 0.12);
-  --chip-accent-text: #A78BFA;
-  --chip-accent-ring: rgba(167 139 250 / 0.30);
+  --chip-accent-bg: rgba(123 168 245 / 0.12);
+  --chip-accent-text: #7BA8F5;
+  --chip-accent-ring: rgba(123 168 245 / 0.30);
 
   /* 優先級 chip */
   --priority-high-bg: rgba(239, 68, 68, 0.08);
@@ -108,8 +108,8 @@
   --tag-default-rgb: 107 138 255;
   --tag-default-tint: rgba(107 138 255 / 0.15);
 
-  --chip-accent-bg: rgba(167 139 250 / 0.15);
-  --chip-accent-text: #A78BFA;
+  --chip-accent-bg: rgba(123 168 245 / 0.15);
+  --chip-accent-text: #A8C4FA;
   --chip-accent-ring: rgba(167 139 250 / 0.35);
 
   --priority-high-bg: rgba(248, 113, 113, 0.15);
@@ -155,14 +155,14 @@
   --status-danger: #FCA5A5;
 
   /* 暖色強調 — 深色模式加亮 */
-  --accent-warm-start: #C4B5FD;
-  --accent-warm-end: #A5B4FC;
-  --accent-warm-start-rgb: 196, 181, 253;
-  --accent-warm-end-rgb: 165, 180, 252;
+  --accent-warm-start: #A8C4FA;
+  --accent-warm-end: #93B8F8;
+  --accent-warm-start-rgb: 168, 196, 250;
+  --accent-warm-end-rgb: 147, 184, 248;
   --accent-warm-pink: #F0ABFC;
   --accent-warm-pink-rgb: 240, 171, 252;
-  --accent-warm-tint: rgba(196 181 253 / 0.10);
-  --accent-warm-glow: rgba(165 180 252 / 0.20);
+  --accent-warm-tint: rgba(168 196 250 / 0.10);
+  --accent-warm-glow: rgba(147 184 248 / 0.20);
 }
 
 /* ============================================================
@@ -234,10 +234,9 @@
 
   /* Focus ring — 品牌色柔焦 */
   :focus-visible {
-    outline: 1px solid var(--brand);
+    outline: 2px solid var(--brand);
     outline-offset: 2px;
     border-radius: 4px;
-    opacity: 0.7;
   }
 }
 
@@ -292,7 +291,7 @@
     justify-content: center;
     gap: 6px;
     padding: 10px 20px;
-    background: #A78BFA;
+    background: var(--accent-warm-start);
     color: #fff;
     font-size: 14px;
     font-weight: 500;
@@ -305,7 +304,7 @@
   }
 
   .btn-primary-zen.btn-primary-zen:hover {
-    background: #9171F5;
+    background: var(--accent-warm-end);
     transform: translateY(-1px);
     box-shadow: none;
   }
@@ -663,7 +662,7 @@
     width: 56px;
     height: 56px;
     border-radius: 50%;
-    background: #A78BFA;
+    background: var(--accent-warm-start);
     color: #fff;
     border: none;
     cursor: pointer;
@@ -681,15 +680,15 @@
   }
 
   .fab-zen:hover {
-    background: #9171F5;
+    background: var(--accent-warm-end);
     transform: scale(1.08) translateY(-2px);
-    box-shadow: 0 8px 24px rgba(167, 139, 250, 0.60), 0 4px 12px rgba(0,0,0,0.16);
+    box-shadow: 0 8px 24px rgba(var(--accent-warm-start-rgb), 0.60), 0 4px 12px rgba(0,0,0,0.16);
   }
 
   .fab-zen:active {
-    background: #7C3AED;
+    background: #4A7BD4;
     transform: scale(0.94);
-    box-shadow: 0 2px 8px rgba(167, 139, 250, 0.40);
+    box-shadow: 0 2px 8px rgba(var(--accent-warm-start-rgb), 0.40);
   }
 
   /* Bottom Navigation */
