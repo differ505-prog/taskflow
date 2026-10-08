@@ -52,7 +52,10 @@ export function TextWithLinks({
   []);
 
   return (
-    <span className={className} style={{ ...style, whiteSpace: "pre-wrap" }}>
+    <span
+      className={className}
+      style={{ ...style, whiteSpace: "pre-wrap", lineHeight: "1.6" }}
+    >
       {segments.map((seg, i) =>
         seg.type === "link" ? (
           <a

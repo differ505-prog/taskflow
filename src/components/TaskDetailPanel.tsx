@@ -14,7 +14,7 @@ import {
   X, Repeat, Calendar, Mic, MicOff, Hash,
   Trash2, Check, CheckCircle2, Circle, Tag as TagIcon,
   AlignLeft, Clock, Timer, ListChecks, Paperclip,
-  AlertCircle, Flag, ChevronDown, ChevronRight, Pin, ExternalLink, Pencil,
+  AlertCircle, Flag, ChevronDown, ChevronRight, Pin, ExternalLink, Pencil, Plus,
 } from "lucide-react";
 import { sortSubTasks } from "@/utils/subtaskSort";
 import { useSubTaskCollapse } from "@/utils/useSubTaskCollapse";
@@ -129,6 +129,7 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
 
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || "");
+  const [isDescExpanded, setIsDescExpanded] = useState(false);
   const [priority, setPriority] = useState<Priority>(task.priority);
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [startDate, setStartDate] = useState(task.startDate || "");
@@ -261,6 +262,7 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
   useEffect(() => {
     setTitle(task.title);
     setDescription(task.description || "");
+    setIsDescExpanded(false);
     setPriority(task.priority);
     setStatus(task.status);
     setStartDate(task.startDate || "");
@@ -736,7 +738,7 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
               placeholder="任務標題"
               className="w-full text-[16px] font-medium bg-transparent border-none placeholder:text-[var(--text-tertiary)] focus-visible:outline-none"
               style={{ color: "var(--text-primary)" }}
-              maxLength={200}
+              maxLength={300}
               autoComplete="off"
             />
             {interimText && (
@@ -1046,46 +1048,84 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
             <div className="flex items-center gap-1.5">
               <AlignLeft className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
               <label className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>描述</label>
+              {description.length > 500 && !isEditingDesc && (
+                <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+                  {description.length} / 10000
+                </span>
+              )}
             </div>
-            {!isEditingDesc && (
+            {!isEditingDesc && description === "" && (
               <button
                 type="button"
                 onClick={() => setIsEditingDesc(true)}
                 className="flex items-center gap-1 px-2 py-1 rounded-md text-[12px] font-medium transition-all duration-200 ease-out hover:bg-black/5 active:scale-[0.98]"
                 style={{ color: "var(--text-secondary)" }}
-                aria-label="編輯描述"
+                aria-label="新增描述"
               >
-                <Pencil className="w-3 h-3" />
-                編輯
+                <Plus className="w-3 h-3" />
+                新增
               </button>
             )}
           </div>
           {isEditingDesc ? (
+            <>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               onBlur={() => setIsEditingDesc(false)}
               placeholder="任務描述（貼網址會自動變連結）"
               rows={6}
-              className="input resize-none"
+              className="input resize-y"
               style={{ minHeight: 160 }}
-              maxLength={1000}
+              maxLength={10000}
               autoFocus
             />
+            <div className="text-right text-[11px] mt-1" style={{ color: "var(--text-tertiary)" }}>
+              {description.length} / 10000
+            </div>
+            </>
           ) : (
             <div
-              onClick={() => setIsEditingDesc(true)}
-              className="rounded-md px-3 py-2.5 text-[14px] cursor-text transition-all duration-200 ease-out min-h-[160px]"
+              onClick={() => { setIsEditingDesc(true); setIsDescExpanded(true); }}
+              className="rounded-md px-3 py-2.5 text-[14px] cursor-text transition-all duration-200 ease-out"
               style={{
                 background: "var(--surface-elevated)",
                 color: description ? "var(--text-primary)" : "var(--text-tertiary)",
                 border: "1px solid var(--border)",
                 whiteSpace: "pre-wrap",
                 wordBreak: "break-word",
+                minHeight: 160,
               }}
             >
               {description ? (
-                <TextWithLinks text={description} linkClassName="text-blue-500 hover:underline underline-offset-2 transition-colors duration-150" />
+                <>
+                  <TextWithLinks
+                    text={description.length > 800 && !isDescExpanded
+                      ? description.slice(0, 800)
+                      : description}
+                    linkClassName="text-blue-500 bg-blue-50/60 px-1 rounded underline underline-offset-2 transition-colors duration-150"
+                  />
+                  {description.length > 800 && !isDescExpanded && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setIsDescExpanded(true); }}
+                      className="block mt-2 text-[12px] font-medium transition-colors duration-150"
+                      style={{ color: "var(--brand)" }}
+                    >
+                      ...展開（剩 {description.length - 800} 字）
+                    </button>
+                  )}
+                  {description.length > 800 && isDescExpanded && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setIsDescExpanded(false); }}
+                      className="block mt-2 text-[12px] font-medium transition-colors duration-150"
+                      style={{ color: "var(--brand)" }}
+                    >
+                      收合
+                    </button>
+                  )}
+                </>
               ) : (
                 <span>任務描述（貼網址會自動變連結）</span>
               )}
