@@ -67,6 +67,8 @@ export interface AppContextValue {
   unarchiveHabit: (id: string) => void;
   checkinHabit: (id: string, date: string, count?: number, note?: string) => void;
   uncheckHabit: (id: string, date: string) => void;
+  incrementHabitPomodoro: (id: string, date: string, minutes?: number) => void;
+  decrementHabitPomodoro: (id: string, date: string) => void;
 
   // ── Quick Add ──────────────────────────────────────────
   quickAdd: (

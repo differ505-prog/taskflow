@@ -33,6 +33,7 @@ export interface HabitsContextValue {
   checkinHabit: (id: string, date: string, count?: number, note?: string) => void;
   uncheckHabit: (id: string, date: string) => void;
   incrementHabitPomodoro: (id: string, date: string, minutes?: number) => void;
+  decrementHabitPomodoro: (id: string, date: string) => void;
 }
 
 // ── Context ─────────────────────────────────────────────────────
@@ -279,6 +280,53 @@ export function HabitsProvider({
     [habits, setHabits, userUid, markRecentlyWrittenHabit]
   );
 
+  const decrementHabitPomodoro = useCallback(
+    (id: string, date: string) => {
+      const habit = habits.find((h) => h.id === id);
+      if (!habit) return;
+
+      const existing = habit.checkins.find((c) => c.date === date);
+      if (!existing || (existing.pomodoros ?? 0) <= 0) return; // 沒有可減的
+
+      const updatedCheckins = habit.checkins.map((c) =>
+        c.date === date ? { ...c, pomodoros: Math.max(0, (c.pomodoros ?? 0) - 1) } : c
+      );
+
+      // D5：若減到 0 且原本有 autoCheckin，需重新計算 completed
+      const wasAutoCheckedIn = existing.completed &&
+        (habit.targetPomodoros ?? 0) > 0 &&
+        (existing.pomodoros ?? 0) === (habit.targetPomodoros ?? 0);
+
+      const finalCheckins = wasAutoCheckedIn
+        ? updatedCheckins.map((c) =>
+            c.date === date ? { ...c, completed: false } : c
+          )
+        : updatedCheckins;
+
+      const streak = computeHabitStreak(habit, finalCheckins);
+      const longestStreak = Math.max(habit.longestStreak, streak);
+
+      const updated = habits.map((h) =>
+        h.id === id
+          ? { ...h, checkins: finalCheckins, streak, longestStreak, updatedAt: new Date().toISOString() }
+          : h
+      );
+
+      setHabits(updated);
+      saveHabits(updated);
+      markRecentlyWrittenHabit(id);
+      if (userUid) {
+        const changed = updated.find((h) => h.id === id);
+        if (changed) {
+          batchSaveHabits(userUid, [changed]).catch((err) =>
+            log.error("decrementHabitPomodoro 寫入失敗", err)
+          );
+        }
+      }
+    },
+    [habits, setHabits, userUid, markRecentlyWrittenHabit]
+  );
+
   // ── Habit Sync ──────────────────────────────────────────────
   useEffect(() => {
     if (!userUid) return;
@@ -354,6 +402,7 @@ export function HabitsProvider({
     checkinHabit,
     uncheckHabit,
     incrementHabitPomodoro,
+    decrementHabitPomodoro,
   };
 
   return <HabitsContext.Provider value={value}>{children}</HabitsContext.Provider>;

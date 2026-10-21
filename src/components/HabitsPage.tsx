@@ -246,6 +246,8 @@ function HabitRow({
   onStartPomodoro,
   onPausePomodoro,
   onStopPomodoro,
+  onIncrementPomodoro,
+  onDecrementPomodoro,
 }: {
   habit: Habit;
   date: string;
@@ -259,6 +261,8 @@ function HabitRow({
   onStartPomodoro: (minutes: number) => void;
   onPausePomodoro: () => void;
   onStopPomodoro: () => void;
+  onIncrementPomodoro: () => void;
+  onDecrementPomodoro: () => void;
 }) {
   const [showHeatmap, setShowHeatmap] = useState(false);
   const isArchived = !!habit.archivedAt;
@@ -437,6 +441,46 @@ function HabitRow({
                 </button>
               </div>
             )}
+
+            {/* ── 手動登錄計數器 ──────────────────────────── */}
+            <div
+              className="flex items-center gap-1 ml-auto"
+              role="group"
+              aria-label="手動調整番茄計數"
+            >
+              {/* 減一按鈕：≥1 時才顯示 */}
+              {todayPoms > 0 && (
+                <button
+                  type="button"
+                  onClick={onDecrementPomodoro}
+                  disabled={!!activePomodoro && activePomodoro.secondsLeft > 0}
+                  className="w-6 h-6 flex items-center justify-center rounded-md text-[13px] font-medium transition-all duration-150 disabled:cursor-not-allowed hover:bg-[var(--hover-bg)]"
+                  style={{
+                    color: "var(--text-tertiary)",
+                    opacity: activePomodoro && activePomodoro.secondsLeft > 0 ? 0.4 : 1,
+                  }}
+                  aria-label={`移除 1 個番茄（目前 ${todayPoms} 個）`}
+                >
+                  −
+                </button>
+              )}
+
+              {/* 加一按鈕 */}
+              <button
+                type="button"
+                onClick={onIncrementPomodoro}
+                disabled={!!activePomodoro && activePomodoro.secondsLeft > 0}
+                className="w-6 h-6 flex items-center justify-center rounded-md text-[14px] font-medium transition-all duration-150 disabled:cursor-not-allowed"
+                style={{
+                  color: "var(--brand)",
+                  background: "var(--brand-tint)",
+                  opacity: activePomodoro && activePomodoro.secondsLeft > 0 ? 0.4 : 1,
+                }}
+                aria-label={`記錄 1 個番茄（目前 ${todayPoms} 個）`}
+              >
+                +
+              </button>
+            </div>
           </div>
 
           {/* Heatmap */}
@@ -491,7 +535,7 @@ function HabitRow({
 }
 
 export function HabitsPage() {
-  const { habits, addHabit, updateHabit, checkinHabit, uncheckHabit, archiveHabit, unarchiveHabit } = useApp();
+  const { habits, addHabit, updateHabit, checkinHabit, uncheckHabit, archiveHabit, unarchiveHabit, incrementHabitPomodoro, decrementHabitPomodoro } = useApp();
   const confirm = useConfirm();
   const today = getLocalToday();
   const [selectedDate, setSelectedDate] = useState<string>(today);
@@ -548,6 +592,20 @@ export function HabitsPage() {
     setActiveHabitTimer(null);
   }, [flowTimer]);
 
+  const handleIncrementPomodoro = useCallback(
+    (habitId: string) => {
+      incrementHabitPomodoro(habitId, selectedDate);
+    },
+    [incrementHabitPomodoro, selectedDate]
+  );
+
+  const handleDecrementPomodoro = useCallback(
+    (habitId: string) => {
+      decrementHabitPomodoro(habitId, selectedDate);
+    },
+    [decrementHabitPomodoro, selectedDate]
+  );
+
   const handleSubmit = () => {
     if (!form.title.trim()) return;
     if (editingHabitId) {
@@ -598,12 +656,40 @@ export function HabitsPage() {
   const selectedDateDone = activeHabits.filter((h) => h.checkins.some((c) => c.date === selectedDate && c.completed)).length;
   const displayHabits = showArchived ? archivedHabits : activeHabits;
 
+  // ── 投資量格式化 ────────────────────────────────────────
+  /**
+   * 把分鐘數轉換成「X 小時 Y 分鐘」或「Y 分鐘」
+   * 目標：視覺重量鎖定在 2 個 token 以內
+   */
+  const formatMinutes = (mins: number): { primary: string; secondary: string } => {
+    if (mins >= 60) {
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return {
+        primary: `${h} 小時${m > 0 ? ` ${m} 分鐘` : ""}`,
+        secondary: `${mins} 分鐘`,
+      };
+    }
+    return { primary: `${mins} 分鐘`, secondary: `${mins} 分鐘` };
+  };
+
+  // 計算「今日總番茄時長（分鐘）」= 每個習慣的 pomodoros × 其 pomodoroMinutes
+  const totalTodayMinutes = useMemo(() => {
+    return activeHabits.reduce((sum, h) => {
+      const entry = h.checkins.find((c) => c.date === selectedDate);
+      return sum + (entry?.pomodoros ?? 0) * (h.pomodoroMinutes ?? 25);
+    }, 0);
+  }, [activeHabits, selectedDate]);
+
   const totalTodayPomodoros = useMemo(() => {
     return activeHabits.reduce((sum, h) => {
       const entry = h.checkins.find((c) => c.date === selectedDate);
       return sum + (entry?.pomodoros ?? 0);
     }, 0);
   }, [activeHabits, selectedDate]);
+
+  // 格式化結果
+  const timeDisplay = formatMinutes(totalTodayMinutes);
 
   return (
     <div className="max-w-2xl mx-auto p-6 space-y-5 overflow-y-auto overscroll-contain pb-[calc(60px+env(safe-area-inset-bottom,0px)+12px)]"
@@ -612,17 +698,33 @@ export function HabitsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-[18px] font-semibold" style={{ color: "var(--text-primary)" }}>習慣打卡</h1>
-          <p className="text-[12px] mt-1.5" style={{ color: "var(--text-tertiary)" }}>
-            {selectedDate === today ? "今日" : selectedDate.replace(/^\d{4}-/, "").replace("-", "/")} 完成 {selectedDateDone}/{activeHabits.length} 個習慣
-            {totalTodayPomodoros > 0 && (
-              <span className="ml-1">· 🍅 {totalTodayPomodoros} 個番茄</span>
-            )}
-            {archivedHabits.length > 0 && !showArchived && (
-              <span className="ml-2">
-                · 已封存 {archivedHabits.length} 個
-              </span>
-            )}
-          </p>
+          {/* ── 投資量宣告 ─────────────────────────────────────── */}
+          {totalTodayMinutes > 0 ? (
+            /* 有投資時：大字說時間，次要行說番茄 */
+            <div className="space-y-0.5">
+              <p className="text-[20px] font-semibold leading-tight" style={{ color: "var(--text-primary)" }}>
+                {timeDisplay.primary}
+              </p>
+              <p className="text-[12px]" style={{ color: "var(--text-tertiary)", opacity: 0.6 }}>
+                🍅 {totalTodayPomodoros} 個番茄 · 今日已推進
+              </p>
+            </div>
+          ) : (
+            /* 無投資時：柔性備忘，不說 0 */
+            <div className="space-y-0.5 mt-1">
+              <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+                {selectedDate === today ? "今日" : selectedDate.replace(/^\d{4}-/, "").replace("-", "/")} 完成 {selectedDateDone}/{activeHabits.length} 個習慣
+              </p>
+              <p className="text-[12px]" style={{ color: "var(--text-tertiary)", opacity: 0.5 }}>
+                隨時可以按 🍅 5 分鐘起步
+              </p>
+            </div>
+          )}
+          {archivedHabits.length > 0 && !showArchived && (
+            <span className="ml-2 block mt-1 text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+              · 已封存 {archivedHabits.length} 個
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {archivedHabits.length > 0 && (
@@ -817,6 +919,8 @@ export function HabitsPage() {
                   onStartPomodoro={(mins) => handleStartPomodoro(habit.id, mins)}
                   onPausePomodoro={handlePausePomodoro}
                   onStopPomodoro={handleStopPomodoro}
+                  onIncrementPomodoro={() => handleIncrementPomodoro(habit.id)}
+                  onDecrementPomodoro={() => handleDecrementPomodoro(habit.id)}
                 />
               </motion.div>
             ))}

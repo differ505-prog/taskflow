@@ -713,6 +713,8 @@ export function useApp(): AppContextValue {
       unarchiveHabit: habitsCtx.unarchiveHabit,
       checkinHabit: habitsCtx.checkinHabit,
       uncheckHabit: habitsCtx.uncheckHabit,
+      incrementHabitPomodoro: habitsCtx.incrementHabitPomodoro,
+      decrementHabitPomodoro: habitsCtx.decrementHabitPomodoro,
 
       // Quick Add
       quickAdd,

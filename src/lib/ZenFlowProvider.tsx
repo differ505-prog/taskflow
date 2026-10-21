@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
+import { Howl, Howler } from "howler";
 import {
   ZenFlowContext,
   FlowTimerContext,
@@ -94,6 +95,18 @@ function HabitPomodoroBridge({
       onPomodoroComplete(habitId, today, minutes);
       // 清除 boundHabitId，防止下一個無關 session 被誤記
       flowTimer.setBoundHabit(undefined);
+      // ── 播放完成提示音 ────────────────────────────────
+      try {
+        const completionSound = new Howl({
+          src: ["/sounds/alarm.mp3"],
+          volume: 0.7,
+          html5: true, // 提升 iOS / PWA 環境的播放可靠性
+        });
+        completionSound.play();
+      } catch (err) {
+        // 啞巴 fail：音效失敗不影響核心功能
+        console.warn("[HabitPomodoroBridge] 播放提示音失敗", err);
+      }
     });
     return unsubscribe;
   }, [flowTimer, onPomodoroComplete, today]);
