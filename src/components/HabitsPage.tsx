@@ -248,6 +248,7 @@ function HabitRow({
   onStopPomodoro,
   onIncrementPomodoro,
   onDecrementPomodoro,
+  onLogTime,
 }: {
   habit: Habit;
   date: string;
@@ -263,8 +264,11 @@ function HabitRow({
   onStopPomodoro: () => void;
   onIncrementPomodoro: () => void;
   onDecrementPomodoro: () => void;
+  onLogTime?: (minutes: number) => void;
 }) {
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [showTimeLogger, setShowTimeLogger] = useState(false);
+  const [customMinutesInput, setCustomMinutesInput] = useState("");
   const isArchived = !!habit.archivedAt;
   const currentCheckin = habit.checkins.find((c) => c.date === date);
   const isChecked = !!currentCheckin?.completed;
@@ -280,12 +284,12 @@ function HabitRow({
   const unitMinutes = habit.pomodoroMinutes ?? 25;
 
   // ── 雙維度時長：今日專注 + 歷史累計 ──────────────────────────────
-  // 今日專注分鐘 = 本日番茄數 × 番茄單位時長
-  const todayMinutes = todayPoms * unitMinutes;
-  // 歷史累計總時長 = Σ(各日番茄數 × 番茄單位時長)
+  // 今日專注分鐘：優先使用真實 minutes，若無則依番茄數乘算
+  const todayMinutes = currentCheckin?.minutes ?? (todayPoms * unitMinutes);
+  // 歷史累計總時長：各日真實 minutes 加總（無 minutes 則以番茄數推算）
   const totalHistoryMinutes = useMemo(() => {
     return habit.checkins.reduce(
-      (sum, c) => sum + (c.pomodoros ?? 0) * (habit.pomodoroMinutes ?? 25),
+      (sum, c) => sum + (c.minutes ?? ((c.pomodoros ?? 0) * (habit.pomodoroMinutes ?? 25))),
       0,
     );
   }, [habit.checkins, habit.pomodoroMinutes]);
@@ -529,27 +533,143 @@ function HabitRow({
             </div>
           </div>
 
-          {/* ── 雙維度時長徽章：今日專注 · 歷史累計 ─────────────── */}
-          {(todayMinutes > 0 || totalHistoryMinutes > 0) && (
-            <div
-              className="flex items-center gap-2 mt-1.5 text-[10px] tabular-nums whitespace-nowrap"
-              style={{ color: "var(--text-tertiary)" }}
+          {/* ── 雙維度時長徽章：今日專注 · 歷史累計 · 補登入口 ─────────────── */}
+          <div
+            className="flex items-center gap-2 mt-1.5 text-[10px] tabular-nums whitespace-nowrap flex-wrap"
+            style={{ color: "var(--text-tertiary)" }}
+          >
+            <span
+              style={{ opacity: todayMinutes > 0 ? 0.9 : 0.55 }}
+              title={`${durationLabel}專注時長（本日投入 ${todayMinutes} 分鐘）`}
             >
-              <span
-                style={{ opacity: todayMinutes > 0 ? 0.9 : 0.45 }}
-                title={`${durationLabel}專注時長（本日 ${todayPoms} 個番茄 × ${unitMinutes} 分）`}
+              {durationLabel} {formatDuration(todayMinutes)}
+            </span>
+            <span style={{ opacity: 0.4 }}>·</span>
+            <span
+              style={{ opacity: totalHistoryMinutes > 0 ? 0.9 : 0.55 }}
+              title={`歷史累計專注時長（${totalHistoryMinutes} 分鐘）`}
+            >
+              累計 {formatDuration(totalHistoryMinutes)}
+            </span>
+
+            {/* 補登入口按鈕 */}
+            {!isArchived && onLogTime && (
+              <>
+                <span style={{ opacity: 0.4 }}>·</span>
+                <button
+                  type="button"
+                  onClick={() => setShowTimeLogger((v) => !v)}
+                  className="px-1.5 py-0.5 rounded text-[10px] font-medium transition-all hover:bg-[var(--brand-tint)] hover:text-[var(--brand)]"
+                  style={{
+                    color: showTimeLogger ? "var(--brand)" : "var(--text-tertiary)",
+                    background: showTimeLogger ? "var(--brand-tint)" : "transparent",
+                  }}
+                  aria-label="補登專注時長"
+                  title="手動記錄剛剛執行了多少時間"
+                >
+                  ⏱️ 補登時長
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* ── 補登時長面板（快捷膠囊 + 自訂輸入）──────────────── */}
+          <AnimatePresence>
+            {showTimeLogger && !isArchived && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="overflow-hidden mt-2 p-2.5 rounded-xl border"
+                style={{
+                  background: "var(--surface-hover)",
+                  borderColor: "var(--border)",
+                }}
               >
-                {durationLabel} {formatDuration(todayMinutes)}
-              </span>
-              <span style={{ opacity: 0.4 }}>·</span>
-              <span
-                style={{ opacity: totalHistoryMinutes > 0 ? 0.9 : 0.45 }}
-                title={`歷史累計專注時長（${totalHistoryMinutes} 分鐘）`}
-              >
-                累計 {formatDuration(totalHistoryMinutes)}
-              </span>
-            </div>
-          )}
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                    ⏱️ 補登執行時間（直接累加至今日）
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowTimeLogger(false)}
+                    className="text-[11px] hover:opacity-100 opacity-60 transition-opacity"
+                    style={{ color: "var(--text-tertiary)" }}
+                  >
+                    關閉
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {([15, 25, 30, 45, 60] as const).map((mins) => (
+                    <button
+                      key={mins}
+                      type="button"
+                      onClick={() => {
+                        onLogTime?.(mins);
+                        setShowTimeLogger(false);
+                      }}
+                      className="px-2 py-1 rounded-lg text-[11px] font-medium transition-transform hover:scale-105 active:scale-95"
+                      style={{
+                        background: "var(--brand-tint)",
+                        color: "var(--brand)",
+                      }}
+                    >
+                      +{mins}分
+                    </button>
+                  ))}
+
+                  {/* 自訂數字輸入 */}
+                  <div className="flex items-center gap-1 ml-auto">
+                    <input
+                      type="number"
+                      min="1"
+                      max="720"
+                      value={customMinutesInput}
+                      onChange={(e) => setCustomMinutesInput(e.target.value)}
+                      placeholder="自訂"
+                      className="w-14 px-2 py-1 rounded-lg text-[11px] border bg-[var(--surface)] text-center outline-none focus:border-[var(--brand)] font-mono"
+                      style={{
+                        color: "var(--text-primary)",
+                        borderColor: "var(--border)",
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && customMinutesInput) {
+                          const n = parseInt(customMinutesInput, 10);
+                          if (n > 0) {
+                            onLogTime?.(n);
+                            setCustomMinutesInput("");
+                            setShowTimeLogger(false);
+                          }
+                        }
+                      }}
+                    />
+                    <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>分</span>
+                    <button
+                      type="button"
+                      disabled={!customMinutesInput || parseInt(customMinutesInput, 10) <= 0}
+                      onClick={() => {
+                        const n = parseInt(customMinutesInput, 10);
+                        if (n > 0) {
+                          onLogTime?.(n);
+                          setCustomMinutesInput("");
+                          setShowTimeLogger(false);
+                        }
+                      }}
+                      className="px-2.5 py-1 rounded-lg text-[11px] font-medium disabled:opacity-40 transition-colors"
+                      style={{
+                        background: "var(--brand)",
+                        color: "#fff",
+                      }}
+                    >
+                      登錄
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Heatmap */}
           <AnimatePresence>
@@ -603,7 +723,7 @@ function HabitRow({
 }
 
 export function HabitsPage() {
-  const { habits, addHabit, updateHabit, checkinHabit, uncheckHabit, archiveHabit, unarchiveHabit, incrementHabitPomodoro, decrementHabitPomodoro } = useApp();
+  const { habits, addHabit, updateHabit, checkinHabit, uncheckHabit, archiveHabit, unarchiveHabit, incrementHabitPomodoro, decrementHabitPomodoro, logHabitTime } = useApp();
   const confirm = useConfirm();
   const today = getLocalToday();
   const [selectedDate, setSelectedDate] = useState<string>(today);
@@ -674,6 +794,13 @@ export function HabitsPage() {
     [decrementHabitPomodoro, selectedDate]
   );
 
+  const handleLogTime = useCallback(
+    (habitId: string, minutes: number) => {
+      logHabitTime(habitId, selectedDate, minutes);
+    },
+    [logHabitTime, selectedDate]
+  );
+
   const handleSubmit = () => {
     if (!form.title.trim()) return;
     if (editingHabitId) {
@@ -741,11 +868,11 @@ export function HabitsPage() {
     return { primary: `${mins} 分鐘`, secondary: `${mins} 分鐘` };
   };
 
-  // 計算「今日總番茄時長（分鐘）」= 每個習慣的 pomodoros × 其 pomodoroMinutes
+  // 計算「今日總番茄時長（分鐘）」= 優先使用實際登記的 minutes，無則退回 pomodoros × pomodoroMinutes
   const totalTodayMinutes = useMemo(() => {
     return activeHabits.reduce((sum, h) => {
       const entry = h.checkins.find((c) => c.date === selectedDate);
-      return sum + (entry?.pomodoros ?? 0) * (h.pomodoroMinutes ?? 25);
+      return sum + (entry?.minutes ?? ((entry?.pomodoros ?? 0) * (h.pomodoroMinutes ?? 25)));
     }, 0);
   }, [activeHabits, selectedDate]);
 
@@ -989,6 +1116,7 @@ export function HabitsPage() {
                   onStopPomodoro={handleStopPomodoro}
                   onIncrementPomodoro={() => handleIncrementPomodoro(habit.id)}
                   onDecrementPomodoro={() => handleDecrementPomodoro(habit.id)}
+                  onLogTime={(mins) => handleLogTime(habit.id, mins)}
                 />
               </motion.div>
             ))}

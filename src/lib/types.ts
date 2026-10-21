@@ -243,6 +243,7 @@ export interface HabitCheckin {
   count: number; // how many times checked in that day
   note?: string;
   pomodoros?: number; // 該日累積的番茄計數
+  minutes?: number; // 該日累積的專注分鐘數（真實投入時間）
 }
 
 export interface FlowTimerSession {

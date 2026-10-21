@@ -715,6 +715,7 @@ export function useApp(): AppContextValue {
       uncheckHabit: habitsCtx.uncheckHabit,
       incrementHabitPomodoro: habitsCtx.incrementHabitPomodoro,
       decrementHabitPomodoro: habitsCtx.decrementHabitPomodoro,
+      logHabitTime: habitsCtx.logHabitTime,
 
       // Quick Add
       quickAdd,

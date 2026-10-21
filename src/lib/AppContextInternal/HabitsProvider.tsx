@@ -34,6 +34,7 @@ export interface HabitsContextValue {
   uncheckHabit: (id: string, date: string) => void;
   incrementHabitPomodoro: (id: string, date: string, minutes?: number) => void;
   decrementHabitPomodoro: (id: string, date: string) => void;
+  logHabitTime: (id: string, date: string, minutes: number) => void;
 }
 
 // ── Context ─────────────────────────────────────────────────────
@@ -232,15 +233,23 @@ export function HabitsProvider({
         updates.pomodoroMinutes = minutes;
       }
 
+      const sessionMins = minutes ?? habit.pomodoroMinutes ?? 25;
       const existing = habit.checkins.find((c) => c.date === date);
       let checkins: Habit["checkins"];
       if (existing) {
+        const curMins = existing.minutes ?? ((existing.pomodoros ?? 0) * (habit.pomodoroMinutes ?? 25));
         checkins = habit.checkins.map((c) =>
-          c.date === date ? { ...c, pomodoros: (c.pomodoros ?? 0) + 1 } : c
+          c.date === date
+            ? {
+                ...c,
+                pomodoros: (c.pomodoros ?? 0) + 1,
+                minutes: curMins + sessionMins,
+              }
+            : c
         );
       } else {
         // 若當日還沒有任何 checkin entry，先建立一個
-        checkins = [...habit.checkins, { date, completed: false, count: 0, pomodoros: 1 }];
+        checkins = [...habit.checkins, { date, completed: false, count: 0, pomodoros: 1, minutes: sessionMins }];
       }
 
       // D4：若設定了 targetPomodoros 且尚未打卡，自動打卡
@@ -286,11 +295,16 @@ export function HabitsProvider({
       if (!habit) return;
 
       const existing = habit.checkins.find((c) => c.date === date);
-      if (!existing || (existing.pomodoros ?? 0) <= 0) return; // 沒有可減的
+      if (!existing || ((existing.pomodoros ?? 0) <= 0 && (existing.minutes ?? 0) <= 0)) return; // 沒有可減的
 
-      const updatedCheckins = habit.checkins.map((c) =>
-        c.date === date ? { ...c, pomodoros: Math.max(0, (c.pomodoros ?? 0) - 1) } : c
-      );
+      const unitMins = habit.pomodoroMinutes ?? 25;
+      const updatedCheckins = habit.checkins.map((c) => {
+        if (c.date !== date) return c;
+        const curMins = c.minutes ?? ((c.pomodoros ?? 0) * unitMins);
+        const nextMins = Math.max(0, curMins - unitMins);
+        const nextPoms = Math.max(0, (c.pomodoros ?? 0) - 1);
+        return { ...c, pomodoros: nextPoms, minutes: nextMins };
+      });
 
       // D5：若減到 0 且原本有 autoCheckin，需重新計算 completed
       const wasAutoCheckedIn = existing.completed &&
@@ -320,6 +334,81 @@ export function HabitsProvider({
         if (changed) {
           batchSaveHabits(userUid, [changed]).catch((err) =>
             log.error("decrementHabitPomodoro 寫入失敗", err)
+          );
+        }
+      }
+    },
+    [habits, setHabits, userUid, markRecentlyWrittenHabit]
+  );
+
+  // ── 手動補登專注時長（直接累加分鐘數）────────────────────────
+  const logHabitTime = useCallback(
+    (id: string, date: string, minutesToAdd: number) => {
+      if (minutesToAdd <= 0) return;
+      const habit = habits.find((h) => h.id === id);
+      if (!habit) return;
+
+      const unitMinutes = habit.pomodoroMinutes ?? 25;
+      const existing = habit.checkins.find((c) => c.date === date);
+      let checkins: Habit["checkins"];
+
+      if (existing) {
+        const currentMinutes = existing.minutes ?? ((existing.pomodoros ?? 0) * unitMinutes);
+        const newMinutes = currentMinutes + minutesToAdd;
+        const addedPoms = Math.max(1, Math.round(minutesToAdd / unitMinutes));
+        checkins = habit.checkins.map((c) =>
+          c.date === date
+            ? {
+                ...c,
+                minutes: newMinutes,
+                pomodoros: (c.pomodoros ?? 0) + addedPoms,
+              }
+            : c
+        );
+      } else {
+        const addedPoms = Math.max(1, Math.round(minutesToAdd / unitMinutes));
+        checkins = [
+          ...habit.checkins,
+          {
+            date,
+            completed: false,
+            count: 0,
+            minutes: minutesToAdd,
+            pomodoros: addedPoms,
+          },
+        ];
+      }
+
+      // 自動打卡判斷（若達標）
+      const targetPom = habit.targetPomodoros ?? 0;
+      const todayPomodoros = checkins.find((c) => c.date === date)?.pomodoros ?? 0;
+      const todayCompleted = checkins.find((c) => c.date === date)?.completed ?? false;
+      const shouldAutoCheckin =
+        targetPom > 0 && !todayCompleted && todayPomodoros >= targetPom;
+
+      if (shouldAutoCheckin) {
+        checkins = checkins.map((c) =>
+          c.date === date ? { ...c, completed: true } : c
+        );
+      }
+
+      const streak = computeHabitStreak(habit, checkins);
+      const longestStreak = Math.max(habit.longestStreak, streak);
+
+      const updated = habits.map((h) =>
+        h.id === id
+          ? { ...h, checkins, streak, longestStreak, updatedAt: new Date().toISOString() }
+          : h
+      );
+
+      setHabits(updated);
+      saveHabits(updated);
+      markRecentlyWrittenHabit(id);
+      if (userUid) {
+        const changed = updated.find((h) => h.id === id);
+        if (changed) {
+          batchSaveHabits(userUid, [changed]).catch((err) =>
+            log.error("logHabitTime 寫入失敗", err)
           );
         }
       }
@@ -403,6 +492,7 @@ export function HabitsProvider({
     uncheckHabit,
     incrementHabitPomodoro,
     decrementHabitPomodoro,
+    logHabitTime,
   };
 
   return <HabitsContext.Provider value={value}>{children}</HabitsContext.Provider>;
