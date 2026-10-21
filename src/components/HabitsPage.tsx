@@ -275,6 +275,10 @@ function HabitRow({
   // 計算本日番茄數
   const todayPoms = habit.checkins.find((c) => c.date === date)?.pomodoros ?? 0;
 
+  // 番茄單位時長：手動「+」每按一顆代表的分鐘數
+  // = 該習慣「上次使用」的時長（pomodoroMinutes），未設定時預設 25（標準番茄）
+  const unitMinutes = habit.pomodoroMinutes ?? 25;
+
   // 計時器格式化
   const formatSeconds = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -392,24 +396,25 @@ function HabitRow({
                     background: activePomodoro && activePomodoro.secondsLeft > 0 ? "var(--surface-hover)" : "var(--brand-tint)",
                     color: activePomodoro && activePomodoro.secondsLeft > 0 ? "var(--text-quaternary)" : "var(--brand)",
                     opacity: activePomodoro && activePomodoro.secondsLeft > 0 ? 0.5 : 1,
+                    // 當前番茄單位長度（手動「+」每顆代表的分鐘數）用內圈標示，
+                    // 讓用戶看得出「按這個 🍅 就會改掉手動登錄的單位時長」
+                    boxShadow: unitMinutes === mins ? "inset 0 0 0 1.5px var(--brand)" : undefined,
                   }}
-                  aria-label={`開始 ${mins} 分鐘專注`}
+                  title={
+                    unitMinutes === mins
+                      ? `目前每顆番茄 = ${mins} 分（點此改單位）`
+                      : `開始 ${mins} 分鐘專注（會把手動登錄單位改為 ${mins} 分）`
+                  }
+                  aria-label={
+                    unitMinutes === mins
+                      ? `開始 ${mins} 分鐘專注（目前番茄單位）`
+                      : `開始 ${mins} 分鐘專注`
+                  }
                 >
                   🍅 {mins}
                 </button>
               ))}
             </div>
-
-            {/* 本日番茄計數 */}
-            {todayPoms > 0 && (
-              <span
-                className="text-[11px] font-medium px-2 py-0.5 rounded-full"
-                style={{ background: habit.color + "22", color: habit.color }}
-                aria-label={`本日 ${todayPoms} 個番茄`}
-              >
-                ×{todayPoms}
-              </span>
-            )}
 
             {/* 就地倒數顯示（僅運行中該列顯示） */}
             {activePomodoro && activePomodoro.secondsLeft > 0 && (
@@ -459,10 +464,22 @@ function HabitRow({
                     color: "var(--text-tertiary)",
                     opacity: activePomodoro && activePomodoro.secondsLeft > 0 ? 0.4 : 1,
                   }}
-                  aria-label={`移除 1 個番茄（目前 ${todayPoms} 個）`}
+                  aria-label={`移除 1 個番茄（目前 ${todayPoms} 個，每顆 ${unitMinutes} 分）`}
+                  title={`移除 1 個番茄（−${unitMinutes} 分）`}
                 >
                   −
                 </button>
+              )}
+
+              {/* 本日番茄計數（置於 − / + 之間，湊成 [−] [×N] [+] 三件式）*/}
+              {todayPoms > 0 && (
+                <span
+                  className="text-[11px] font-medium px-2 py-0.5 rounded-full tabular-nums"
+                  style={{ background: habit.color + "22", color: habit.color }}
+                  aria-label={`本日 ${todayPoms} 個番茄`}
+                >
+                  ×{todayPoms}
+                </span>
               )}
 
               {/* 加一按鈕 */}
@@ -476,10 +493,20 @@ function HabitRow({
                   background: "var(--brand-tint)",
                   opacity: activePomodoro && activePomodoro.secondsLeft > 0 ? 0.4 : 1,
                 }}
-                aria-label={`記錄 1 個番茄（目前 ${todayPoms} 個）`}
+                aria-label={`記錄 1 個番茄（目前 ${todayPoms} 個，每顆 ${unitMinutes} 分）`}
+                title={`手動記錄 1 個番茄（+${unitMinutes} 分）`}
               >
                 +
               </button>
+
+              {/* 番茄單位時長 — 讓「+ 會加多少分鐘」隨時可見、可預期 */}
+              <span
+                className="ml-0.5 text-[10px] tabular-nums whitespace-nowrap"
+                style={{ color: "var(--text-tertiary)", opacity: 0.6 }}
+                title={`每顆番茄代表 ${unitMinutes} 分鐘（點上方 🍅 晶片可調整單位）`}
+              >
+                每顆 {unitMinutes} 分
+              </span>
             </div>
           </div>
 
@@ -700,13 +727,13 @@ export function HabitsPage() {
           <h1 className="text-[18px] font-semibold" style={{ color: "var(--text-primary)" }}>習慣打卡</h1>
           {/* ── 投資量宣告 ─────────────────────────────────────── */}
           {totalTodayMinutes > 0 ? (
-            /* 有投資時：大字說時間，次要行說番茄 */
+            /* 有投資時：大字說時間，次要行說番茄 + 完成數（完成數不因有投資而消失）*/
             <div className="space-y-0.5">
               <p className="text-[20px] font-semibold leading-tight" style={{ color: "var(--text-primary)" }}>
                 {timeDisplay.primary}
               </p>
               <p className="text-[12px]" style={{ color: "var(--text-tertiary)", opacity: 0.6 }}>
-                🍅 {totalTodayPomodoros} 個番茄 · 今日已推進
+                🍅 {totalTodayPomodoros} 個番茄 · 今日已推進 · 完成 {selectedDateDone}/{activeHabits.length} 個習慣
               </p>
             </div>
           ) : (
@@ -721,9 +748,9 @@ export function HabitsPage() {
             </div>
           )}
           {archivedHabits.length > 0 && !showArchived && (
-            <span className="ml-2 block mt-1 text-[12px]" style={{ color: "var(--text-tertiary)" }}>
-              · 已封存 {archivedHabits.length} 個
-            </span>
+            <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)", opacity: 0.5 }}>
+              已封存 {archivedHabits.length} 個
+            </p>
           )}
         </div>
         <div className="flex items-center gap-2">
