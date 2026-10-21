@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import { Howl, Howler } from "howler";
 import {
   ZenFlowContext,
   FlowTimerContext,
 } from "./ZenFlowContext";
 import { useZenFlow } from "./useZenFlow";
 import { useFlowTimer } from "./usePomodoro";
+import { notifyTimerComplete } from "./completionSound";
 import { useHabitsContext } from "@/lib/AppContextInternal/HabitsProvider";
 import { getLocalToday } from "@/lib/dateUtils";
 
@@ -64,6 +64,28 @@ function FlowTimerMusicBridge({
 }
 
 /**
+ * 計時完成提示（聲音 + 震動）
+ *
+ * 掛在 Provider 層，永遠存活：
+ * - 只在這裡播放提示音，避免 FlowTimerModal 與 HabitPomodoroBridge 各播一次造成疊音
+ * - 音量 100%、雙音合成鐘聲 + mp3 取樣 + 震動（詳見 lib/completionSound.ts）
+ */
+function TimerCompletionFeedbackBridge({
+  flowTimer,
+}: {
+  flowTimer: ReturnType<typeof useFlowTimer>;
+}) {
+  useEffect(() => {
+    const unsubscribe = flowTimer.onComplete(() => {
+      notifyTimerComplete();
+    });
+    return unsubscribe;
+  }, [flowTimer]);
+
+  return null;
+}
+
+/**
  * 習慣番茄橋接器
  *
  * 負責：focus session 完成時，自動寫入對應習慣的 pomodoros。
@@ -72,6 +94,7 @@ function FlowTimerMusicBridge({
  * 設計邊界：
  * - 只在 focus session 完成時寫入；break/long-break 不寫入習慣
  * - 寫入後清除 boundHabitId，防止下一個無關 focus session 被誤記
+ * - 提示音由 TimerCompletionFeedbackBridge 統一播放，此處不再重複出聲
  */
 function HabitPomodoroBridge({
   flowTimer,
@@ -95,18 +118,6 @@ function HabitPomodoroBridge({
       onPomodoroComplete(habitId, today, minutes);
       // 清除 boundHabitId，防止下一個無關 session 被誤記
       flowTimer.setBoundHabit(undefined);
-      // ── 播放完成提示音 ────────────────────────────────
-      try {
-        const completionSound = new Howl({
-          src: ["/sounds/alarm.mp3"],
-          volume: 0.7,
-          html5: true, // 提升 iOS / PWA 環境的播放可靠性
-        });
-        completionSound.play();
-      } catch (err) {
-        // 啞巴 fail：音效失敗不影響核心功能
-        console.warn("[HabitPomodoroBridge] 播放提示音失敗", err);
-      }
     });
     return unsubscribe;
   }, [flowTimer, onPomodoroComplete, today]);
@@ -150,6 +161,7 @@ export function ZenFlowProvider({ children, omnisonicBaseUrl }: { children: Reac
           zenIsPlaying={controller.state.isPlaying}
           zenPause={controller.pause}
         />
+        <TimerCompletionFeedbackBridge flowTimer={flowTimer} />
         <HabitPomodoroBridgeWithContext flowTimer={flowTimer} />
         {children}
       </FlowTimerContext.Provider>

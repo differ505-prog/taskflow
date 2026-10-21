@@ -104,7 +104,7 @@ export function FlowTimer() {
             viewBox="0 0 12 12"
             fill="none"
             aria-hidden
-            className={`mr-0.5 transition-colors duration-300 ${isRunning ? "text-purple-500" : "text-zinc-400"}`}
+            className={`mr-0.5 transition-colors duration-300 ${isRunning ? "text-[var(--brand)]" : "text-zinc-400"}`}
           >
             <path d="M10.5 8.5v-7A1.5 1.5 0 0 0 9 0H1.5A1.5 1.5 0 0 0 0 1.5v9A1.5 1.5 0 0 0 1.5 12h7.5A1.5 1.5 0 0 0 10.5 10.5V8.5z" fill="currentColor" opacity="0.3" />
             <rect x="2" y="2" width="8" height="8" rx="1.5" fill="currentColor" />
@@ -138,7 +138,7 @@ export function FlowTimer() {
         <button
           type="button"
           onClick={infiniteFlowGhost.handleClick}
-          className="ml-2 text-[11px] font-medium text-purple-400/80 transition-colors duration-150 hover:text-purple-500 focus-visible:outline-none focus-visible:underline"
+          className="ml-2 text-[11px] font-medium text-[var(--brand)]/80 transition-colors duration-150 hover:text-[var(--brand)] focus-visible:outline-none focus-visible:underline"
           aria-label="解鎖 25 分鐘限制（Pro 版專屬）"
         >
           ✨ 無限心流
@@ -167,11 +167,11 @@ export function FlowTimer() {
           }}
           aria-label={zenFlow.state.isPlaying ? "心流音樂播放中 🎵" : "點這裡播放心流音樂 🎵"}
           title={zenFlow.state.isPlaying ? "心流音樂暫停 🎵" : (isRunning ? "點這裡播放心流音樂 🎵" : "請先開啟心流計時器")}
-          className={`group/omnibox relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-purple-500/30 bg-purple-50/50 shadow-[0_0_12px_rgba(var(--flow-glow-color,192,38,211),0.25)] transition-all ${
+          className={`group/omnibox relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-[var(--brand)]/30 bg-[var(--brand-tint)] shadow-[0_0_12px_rgba(var(--flow-glow-color,var(--brand-rgb)),0.25)] transition-all ${
             isRunning ? "hover:scale-105 active:scale-95 cursor-pointer" : "cursor-not-allowed opacity-60"
           }`}
         >
-          <MusicNoteIcon className={`h-3 w-3 ${zenFlow.state.isPlaying ? "text-purple-500 animate-pulse" : (isRunning ? "text-purple-500" : "text-zinc-400")}`} />
+          <MusicNoteIcon className={`h-3 w-3 ${zenFlow.state.isPlaying ? "text-[var(--brand)] animate-pulse" : (isRunning ? "text-[var(--brand)]" : "text-zinc-400")}`} />
         </button>
       </div>
 

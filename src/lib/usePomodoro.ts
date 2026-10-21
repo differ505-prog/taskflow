@@ -64,6 +64,15 @@ const typeToMinutes = (type: FlowTimerType, cfg: FlowTimerConfig): number => {
  * — render just computes `Math.max(0, endAt - Date.now())`.
  *
  * A 250ms ticker only triggers re-renders; it does NOT own the countdown.
+ *
+ * §閉包陷阱（番茄入帳失敗的根因）：
+ * `startTicker()` 建立的 `setInterval` 回呼會存活整個 session。若回呼透過
+ * React state 讀取 `boundHabitId` / `totalMs` / `type`，它抓到的是「interval
+ * 建立當下」的快照——`start()` 裡的 `setBoundHabitId(opts.habitId)` 是非同步
+ * 更新，React state 尚未提交，回呼永遠讀到 `undefined`，導致完成時
+ * `HabitPomodoroBridge` 直接略過寫入。
+ *
+ * 因此所有「計時進行中必須保持正確」的值一律存於 ref，state 僅供渲染。
  */
 export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTimerController {
   const config: FlowTimerConfig = { ...DEFAULT_CONFIG, ...(configOverride ?? {}) };
@@ -82,6 +91,55 @@ export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTim
   const completedFiredRef = useRef<boolean>(false);
   const completeListenersRef = useRef<Set<(s: FlowTimerSnapshot) => void>>(new Set());
 
+  // ── Ref 鏡像：計時器內部真相（不依賴 React render 提交）──────────────
+  const typeRef = useRef<FlowTimerType>("focus");
+  const phaseRef = useRef<FlowTimerPhase>("idle");
+  const endAtRef = useRef<number | null>(null);
+  const remainingMsRef = useRef<number | null>(null);
+  const totalMsRef = useRef<number>(config.focusMinutes * 60 * 1000);
+  const completedSessionsRef = useRef<number>(0);
+  const boundTaskIdRef = useRef<string | undefined>(undefined);
+  const boundHabitIdRef = useRef<string | undefined>(undefined);
+  /** pause() 暫存的習慣綁定；resume() 時還原，否則暫停後續跑會遺失入帳對象 */
+  const pausedHabitIdRef = useRef<string | undefined>(undefined);
+
+  const configRef = useRef<FlowTimerConfig>(config);
+  configRef.current = config;
+
+  // state + ref 同步寫入器（保證兩者永不分歧）
+  const syncType = useCallback((t: FlowTimerType) => {
+    typeRef.current = t;
+    setType(t);
+  }, []);
+  const syncPhase = useCallback((p: FlowTimerPhase) => {
+    phaseRef.current = p;
+    setPhase(p);
+  }, []);
+  const syncEndAt = useCallback((v: number | null) => {
+    endAtRef.current = v;
+    setEndAt(v);
+  }, []);
+  const syncRemainingMs = useCallback((v: number | null) => {
+    remainingMsRef.current = v;
+    setRemainingMs(v);
+  }, []);
+  const syncTotalMs = useCallback((v: number) => {
+    totalMsRef.current = v;
+    setTotalMs(v);
+  }, []);
+  const syncCompletedSessions = useCallback((v: number) => {
+    completedSessionsRef.current = v;
+    setCompletedSessions(v);
+  }, []);
+  const syncBoundTaskId = useCallback((v: string | undefined) => {
+    boundTaskIdRef.current = v;
+    setBoundTaskId(v);
+  }, []);
+  const syncBoundHabitId = useCallback((v: string | undefined) => {
+    boundHabitIdRef.current = v;
+    setBoundHabitId(v);
+  }, []);
+
   // Public snapshot for subscribers
   const snapshot: FlowTimerSnapshot = {
     type,
@@ -95,64 +153,9 @@ export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTim
     customMinutes: undefined,
   };
 
-  const totalMsForType = useCallback(
-    (t: FlowTimerType) => typeToMinutes(t, config) * 60 * 1000,
-    [config],
-  );
-
-  const startTicker = useCallback(() => {
-    if (tickerRef.current) return;
-    tickerRef.current = setInterval(() => {
-      // Force re-render so secondsLeft is recomputed from endAt
-      force((n) => n + 1);
-
-      // Detect completion via wall clock — survives unmount/remount
-      setEndAt((current) => {
-        if (current == null) return current;
-        if (!completedFiredRef.current && Date.now() >= current) {
-          completedFiredRef.current = true;
-          // Use microtask to avoid setState-during-render
-          queueMicrotask(() => {
-            const finalSnapshot: FlowTimerSnapshot = {
-              type,
-              phase: "completed",
-              endAt: null,
-              remainingMs: 0,
-              totalMs,
-              completedSessions,
-              boundTaskId,
-              boundHabitId,
-            };
-            completeListenersRef.current.forEach((cb) => {
-              try { cb(finalSnapshot); } catch { /* listener error swallowed */ }
-            });
-
-            // Auto-advance: focus → break/long-break, break → focus
-            if (type === "focus") {
-              setCompletedSessions((s) => {
-                const next_ = s + 1;
-                setType(next_ % config.sessionsBeforeLongBreak === 0 ? "long-break" : "break");
-                return next_;
-              });
-            } else {
-              setType("focus");
-            }
-            setPhase("idle");
-            setEndAt(null);
-            setRemainingMs(null);
-            if (type === "focus") {
-              setTotalMs(config.focusMinutes * 60 * 1000);
-            } else if (type === "break") {
-              setTotalMs(config.shortBreakMinutes * 60 * 1000);
-            } else {
-              setTotalMs(config.longBreakMinutes * 60 * 1000);
-            }
-          });
-        }
-        return current;
-      });
-    }, 250);
-  }, [type, totalMs, completedSessions, boundTaskId]);
+  const totalMsForType = useCallback((t: FlowTimerType) => {
+    return typeToMinutes(t, configRef.current) * 60 * 1000;
+  }, []);
 
   const stopTicker = useCallback(() => {
     if (tickerRef.current) {
@@ -160,6 +163,58 @@ export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTim
       tickerRef.current = null;
     }
   }, []);
+
+  const startTicker = useCallback(() => {
+    if (tickerRef.current) return;
+    tickerRef.current = setInterval(() => {
+      // Force re-render so secondsLeft is recomputed from endAt
+      force((n) => n + 1);
+
+      const current = endAtRef.current;
+      if (current == null) return;
+      if (completedFiredRef.current) return;
+      if (Date.now() < current) return;
+
+      completedFiredRef.current = true;
+      stopTicker();
+
+      const finalType = typeRef.current;
+      const finalSnapshot: FlowTimerSnapshot = {
+        type: finalType,
+        phase: "completed",
+        endAt: null,
+        remainingMs: 0,
+        totalMs: totalMsRef.current,
+        completedSessions: completedSessionsRef.current,
+        boundTaskId: boundTaskIdRef.current,
+        boundHabitId: boundHabitIdRef.current,
+      };
+      completeListenersRef.current.forEach((cb) => {
+        try { cb(finalSnapshot); } catch { /* listener error swallowed */ }
+      });
+
+      // Auto-advance: focus → break/long-break, break → focus
+      if (finalType === "focus") {
+        const next = completedSessionsRef.current + 1;
+        syncCompletedSessions(next);
+        syncType(next % configRef.current.sessionsBeforeLongBreak === 0 ? "long-break" : "break");
+      } else {
+        syncType("focus");
+      }
+      syncPhase("idle");
+      syncEndAt(null);
+      syncRemainingMs(null);
+
+      // 沿用原語意：totalMs 依「剛完成的類型」重設（閒置時顯示的是上一輪長度）
+      if (finalType === "focus") {
+        syncTotalMs(configRef.current.focusMinutes * 60 * 1000);
+      } else if (finalType === "break") {
+        syncTotalMs(configRef.current.shortBreakMinutes * 60 * 1000);
+      } else {
+        syncTotalMs(configRef.current.longBreakMinutes * 60 * 1000);
+      }
+    }, 250);
+  }, [stopTicker, syncCompletedSessions, syncEndAt, syncPhase, syncRemainingMs, syncTotalMs, syncType, totalMsForType]);
 
   // Cleanup on full unmount (Provider itself)
   useEffect(() => {
@@ -170,73 +225,82 @@ export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTim
 
   const start = useCallback(
     (opts?: { type?: FlowTimerType; taskId?: string; habitId?: string; customMinutes?: number }) => {
-      const targetType = opts?.type ?? type;
+      const targetType = opts?.type ?? typeRef.current;
       // 優先用 customMinutes，否則用 config 預設
       const ms =
         opts?.customMinutes != null
           ? opts.customMinutes * 60 * 1000
           : totalMsForType(targetType);
       completedFiredRef.current = false;
-      setType(targetType);
-      setPhase("running");
-      setTotalMs(ms);
-      setEndAt(Date.now() + ms);
-      setRemainingMs(null);
-      if (opts?.taskId !== undefined) setBoundTaskId(opts.taskId);
-      if (opts?.habitId !== undefined) setBoundHabitId(opts.habitId);
+      syncType(targetType);
+      syncPhase("running");
+      syncTotalMs(ms);
+      syncEndAt(Date.now() + ms);
+      syncRemainingMs(null);
+      if (opts?.taskId !== undefined) syncBoundTaskId(opts.taskId);
+      if (opts?.habitId !== undefined) syncBoundHabitId(opts.habitId);
+      pausedHabitIdRef.current = undefined;
       startTicker();
     },
-    [type, totalMsForType, startTicker],
+    [startTicker, syncBoundHabitId, syncBoundTaskId, syncEndAt, syncPhase, syncRemainingMs, syncTotalMs, syncType, totalMsForType],
   );
 
   const pause = useCallback(() => {
-    if (phase !== "running" || endAt == null) return;
-    const remaining = Math.max(0, endAt - Date.now());
+    if (phaseRef.current !== "running" || endAtRef.current == null) return;
+    const remaining = Math.max(0, endAtRef.current - Date.now());
     completedFiredRef.current = false;
-    setPhase("paused");
-    setEndAt(null);
-    setRemainingMs(remaining);
-    setBoundHabitId(undefined);
+    syncPhase("paused");
+    syncEndAt(null);
+    syncRemainingMs(remaining);
+    // 暫存習慣綁定（resume 會還原），並清除目前綁定避免計時中切換被誤記
+    pausedHabitIdRef.current = boundHabitIdRef.current;
+    syncBoundHabitId(undefined);
     stopTicker();
-  }, [phase, endAt, stopTicker]);
+  }, [stopTicker, syncBoundHabitId, syncEndAt, syncPhase, syncRemainingMs]);
 
   const resume = useCallback(() => {
-    if (phase !== "paused" || remainingMs == null) return;
+    if (phaseRef.current !== "paused" || remainingMsRef.current == null) return;
     completedFiredRef.current = false;
-    setPhase("running");
-    setEndAt(Date.now() + remainingMs);
-    setRemainingMs(null);
+    syncPhase("running");
+    syncEndAt(Date.now() + remainingMsRef.current);
+    syncRemainingMs(null);
+    // 還原 pause() 暫存的習慣綁定，確保續跑結束仍會入帳
+    if (pausedHabitIdRef.current) {
+      syncBoundHabitId(pausedHabitIdRef.current);
+      pausedHabitIdRef.current = undefined;
+    }
     startTicker();
-  }, [phase, remainingMs, startTicker]);
+  }, [startTicker, syncBoundHabitId, syncEndAt, syncPhase, syncRemainingMs]);
 
   const reset = useCallback(
     (opts?: { type?: FlowTimerType }) => {
-      const targetType = opts?.type ?? type;
+      const targetType = opts?.type ?? typeRef.current;
       const ms = totalMsForType(targetType);
       completedFiredRef.current = false;
-      setType(targetType);
-      setPhase("idle");
-      setEndAt(null);
-      setRemainingMs(null);
-      setTotalMs(ms);
-      setBoundHabitId(undefined);
+      syncType(targetType);
+      syncPhase("idle");
+      syncEndAt(null);
+      syncRemainingMs(null);
+      syncTotalMs(ms);
+      syncBoundHabitId(undefined);
+      pausedHabitIdRef.current = undefined;
       stopTicker();
     },
-    [type, totalMsForType, stopTicker],
+    [stopTicker, syncBoundHabitId, syncEndAt, syncPhase, syncRemainingMs, syncTotalMs, syncType, totalMsForType],
   );
 
   const cycleType = useCallback(
     (newType: FlowTimerType) => {
       const ms = totalMsForType(newType);
       completedFiredRef.current = false;
-      setType(newType);
-      setPhase("idle");
-      setEndAt(null);
-      setRemainingMs(null);
-      setTotalMs(ms);
+      syncType(newType);
+      syncPhase("idle");
+      syncEndAt(null);
+      syncRemainingMs(null);
+      syncTotalMs(ms);
       stopTicker();
     },
-    [totalMsForType, stopTicker],
+    [stopTicker, syncEndAt, syncPhase, syncRemainingMs, syncTotalMs, syncType, totalMsForType],
   );
 
   const onComplete = useCallback(
@@ -264,8 +328,8 @@ export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTim
     resume,
     reset,
     cycleType,
-    setBoundTask: setBoundTaskId,
-    setBoundHabit: setBoundHabitId,
+    setBoundTask: syncBoundTaskId,
+    setBoundHabit: syncBoundHabitId,
     onComplete,
     config,
   };

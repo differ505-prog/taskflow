@@ -279,6 +279,25 @@ function HabitRow({
   // = 該習慣「上次使用」的時長（pomodoroMinutes），未設定時預設 25（標準番茄）
   const unitMinutes = habit.pomodoroMinutes ?? 25;
 
+  // ── 雙維度時長：今日專注 + 歷史累計 ──────────────────────────────
+  // 今日專注分鐘 = 本日番茄數 × 番茄單位時長
+  const todayMinutes = todayPoms * unitMinutes;
+  // 歷史累計總時長 = Σ(各日番茄數 × 番茄單位時長)
+  const totalHistoryMinutes = useMemo(() => {
+    return habit.checkins.reduce(
+      (sum, c) => sum + (c.pomodoros ?? 0) * (habit.pomodoroMinutes ?? 25),
+      0,
+    );
+  }, [habit.checkins, habit.pomodoroMinutes]);
+
+  // < 60 分 → "X 分"；≥ 60 分 → "Y.Y 小時"
+  const formatDuration = (minutes: number) =>
+    minutes < 60 ? `${minutes} 分` : `${(minutes / 60).toFixed(1)} 小時`;
+
+  // 選取的不是今天時，用日期前綴避免誤導
+  const isToday = date === getLocalToday();
+  const durationLabel = isToday ? "今日" : `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}`;
+
   // 計時器格式化
   const formatSeconds = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -509,6 +528,28 @@ function HabitRow({
               </span>
             </div>
           </div>
+
+          {/* ── 雙維度時長徽章：今日專注 · 歷史累計 ─────────────── */}
+          {(todayMinutes > 0 || totalHistoryMinutes > 0) && (
+            <div
+              className="flex items-center gap-2 mt-1.5 text-[10px] tabular-nums whitespace-nowrap"
+              style={{ color: "var(--text-tertiary)" }}
+            >
+              <span
+                style={{ opacity: todayMinutes > 0 ? 0.9 : 0.45 }}
+                title={`${durationLabel}專注時長（本日 ${todayPoms} 個番茄 × ${unitMinutes} 分）`}
+              >
+                {durationLabel} {formatDuration(todayMinutes)}
+              </span>
+              <span style={{ opacity: 0.4 }}>·</span>
+              <span
+                style={{ opacity: totalHistoryMinutes > 0 ? 0.9 : 0.45 }}
+                title={`歷史累計專注時長（${totalHistoryMinutes} 分鐘）`}
+              >
+                累計 {formatDuration(totalHistoryMinutes)}
+              </span>
+            </div>
+          )}
 
           {/* Heatmap */}
           <AnimatePresence>

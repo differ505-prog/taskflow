@@ -68,14 +68,11 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
   // Alarm + Notification when a session completes
   // §phase → idle / paused / completed → 停止音樂 的橋接已統一在 ZenFlowProvider
   // (FlowTimerMusicBridge) 處理,本元件不再重複訂閱,以符合 DRY §6
+  // §提示音（雙音合成鐘聲 + mp3 + 震動,音量 100%）已統一由 Provider 層的
+  // TimerCompletionFeedbackBridge 播放,此處只保留通知與 PWA 提示,避免疊音。
   useEffect(() => {
     const unsubscribe = flowTimer.onComplete((finalSnapshot) => {
       const isFocus = finalSnapshot.type === "focus";
-      try {
-        const audio = new Audio("/sounds/alarm.mp3");
-        audio.volume = 0.7;
-        audio.play().catch(() => {});
-      } catch {}
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
         try {
           new Notification("VibeList 心流計時器", {
@@ -240,13 +237,13 @@ export function FlowTimerModal({ isOpen, onClose }: FlowTimerModalProps) {
           {snapshot.type === "focus" && (
             <div className="flex flex-col items-center gap-2">
               <div
-                className="group/omnibox-modal relative w-20 h-20 rounded-full overflow-hidden border transition-all flex items-center justify-center bg-purple-50"
-                style={{ borderColor: "rgba(192,38,211,0.3)", boxShadow: "0 0 24px rgba(192,38,211,0.25)" }}
+                className="group/omnibox-modal relative w-20 h-20 rounded-full overflow-hidden border transition-all flex items-center justify-center bg-[var(--brand-tint)]"
+                style={{ borderColor: "rgba(var(--brand-rgb), 0.3)", boxShadow: "0 0 24px rgba(var(--brand-rgb), 0.25)" }}
               >
-                {zenFlow.state.isPlaying ? <Pause className="w-8 h-8 text-purple-500" /> : <Play className="w-8 h-8 text-purple-500 ml-1" />}
+                {zenFlow.state.isPlaying ? <Pause className="w-8 h-8 text-[var(--brand)]" /> : <Play className="w-8 h-8 text-[var(--brand)] ml-1" />}
                 
                 <div 
-                  className={`absolute inset-0 z-20 transition-colors ${snapshot.phase === "running" ? "cursor-pointer hover:bg-purple-500/10 active:bg-purple-500/20" : "cursor-not-allowed"}`}
+                  className={`absolute inset-0 z-20 transition-colors ${snapshot.phase === "running" ? "cursor-pointer hover:bg-[var(--brand)]/10 active:bg-[var(--brand)]/20" : "cursor-not-allowed"}`}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();

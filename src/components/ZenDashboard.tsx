@@ -823,7 +823,7 @@ function EmptyState() {
           strokeWidth="1.5"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="relative text-violet-400"
+          className="relative text-[var(--accent-warm)]"
         >
           <path d="M12 2v20" />
           <path d="M5 9c2 0 4-1 4-4" />
