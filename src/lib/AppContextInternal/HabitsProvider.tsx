@@ -32,6 +32,7 @@ export interface HabitsContextValue {
   unarchiveHabit: (id: string) => void;
   checkinHabit: (id: string, date: string, count?: number, note?: string) => void;
   uncheckHabit: (id: string, date: string) => void;
+  incrementHabitPomodoro: (id: string, date: string, minutes?: number) => void;
 }
 
 // ── Context ─────────────────────────────────────────────────────
@@ -158,7 +159,7 @@ export function HabitsProvider({
           c.date === date ? { ...c, count: c.count + count, note: note ?? c.note } : c
         );
       } else {
-        checkins = [...habit.checkins, { date, completed: true, count, note }];
+        checkins = [...habit.checkins, { date, completed: true, count, note, pomodoros: 0 }];
       }
       const sortedCheckins = checkins.sort((a, b) => b.date.localeCompare(a.date));
       const streak = computeHabitStreak(habit, sortedCheckins);
@@ -187,13 +188,21 @@ export function HabitsProvider({
     (id: string, date: string) => {
       const habit = habits.find((h) => h.id === id);
       if (!habit) return;
-      const remaining = habit.checkins.filter((c) => c.date !== date);
-      if (remaining.length === habit.checkins.length) return;
-      const streak = computeHabitStreak(habit, remaining);
+      // 保留 entry（不改為刪除），只把 completed 設 false，番茄數保留
+      const updatedCheckins = habit.checkins.map((c) =>
+        c.date === date ? { ...c, completed: false } : c
+      );
+      if (
+        updatedCheckins.length === habit.checkins.length &&
+        updatedCheckins.every((c, i) => c.completed === habit.checkins[i].completed)
+      ) {
+        return; // 沒有任何變化，直接跳過
+      }
+      const streak = computeHabitStreak(habit, updatedCheckins);
       const longestStreak = Math.max(habit.longestStreak, streak);
       const updated = habits.map((h) =>
         h.id === id
-          ? { ...h, checkins: remaining, streak, longestStreak, updatedAt: new Date().toISOString() }
+          ? { ...h, checkins: updatedCheckins, streak, longestStreak, updatedAt: new Date().toISOString() }
           : h
       );
       setHabits(updated);
@@ -204,6 +213,65 @@ export function HabitsProvider({
         if (changed) {
           batchSaveHabits(userUid, [changed]).catch((err) =>
             log.error("uncheckHabit 寫入失敗", err)
+          );
+        }
+      }
+    },
+    [habits, setHabits, userUid, markRecentlyWrittenHabit]
+  );
+
+  // ── Habit Pomodoro ──────────────────────────────────────────
+  const incrementHabitPomodoro = useCallback(
+    (id: string, date: string, minutes?: number) => {
+      const habit = habits.find((h) => h.id === id);
+      if (!habit) return;
+
+      const updates: Partial<Habit> = {};
+      if (minutes) {
+        updates.pomodoroMinutes = minutes;
+      }
+
+      const existing = habit.checkins.find((c) => c.date === date);
+      let checkins: Habit["checkins"];
+      if (existing) {
+        checkins = habit.checkins.map((c) =>
+          c.date === date ? { ...c, pomodoros: (c.pomodoros ?? 0) + 1 } : c
+        );
+      } else {
+        // 若當日還沒有任何 checkin entry，先建立一個
+        checkins = [...habit.checkins, { date, completed: false, count: 0, pomodoros: 1 }];
+      }
+
+      // D4：若設定了 targetPomodoros 且尚未打卡，自動打卡
+      const targetPom = habit.targetPomodoros ?? 0;
+      const todayPomodoros = checkins.find((c) => c.date === date)?.pomodoros ?? 0;
+      const todayCompleted = checkins.find((c) => c.date === date)?.completed ?? false;
+      const shouldAutoCheckin =
+        targetPom > 0 && !todayCompleted && todayPomodoros >= targetPom;
+
+      if (shouldAutoCheckin) {
+        checkins = checkins.map((c) =>
+          c.date === date ? { ...c, completed: true } : c
+        );
+      }
+
+      const streak = computeHabitStreak(habit, checkins);
+      const longestStreak = Math.max(habit.longestStreak, streak);
+
+      const updated = habits.map((h) =>
+        h.id === id
+          ? { ...h, checkins, streak, longestStreak, ...updates, updatedAt: new Date().toISOString() }
+          : h
+      );
+
+      setHabits(updated);
+      saveHabits(updated);
+      markRecentlyWrittenHabit(id);
+      if (userUid) {
+        const changed = updated.find((h) => h.id === id);
+        if (changed) {
+          batchSaveHabits(userUid, [changed]).catch((err) =>
+            log.error("incrementHabitPomodoro 寫入失敗", err)
           );
         }
       }
@@ -285,6 +353,7 @@ export function HabitsProvider({
     unarchiveHabit,
     checkinHabit,
     uncheckHabit,
+    incrementHabitPomodoro,
   };
 
   return <HabitsContext.Provider value={value}>{children}</HabitsContext.Provider>;

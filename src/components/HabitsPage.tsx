@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/Button";
 import { useApp } from "@/lib/AppContext";
 import { Habit } from "@/lib/types";
@@ -17,9 +17,12 @@ import {
   ChevronLeft,
   ChevronRight,
   CalendarDays,
+  Pause,
+  Play,
 } from "lucide-react";
 import { useConfirm } from "@/hooks/useConfirm";
 import { getLocalToday, toLocalDateString } from "@/lib/dateUtils";
+import { useFlowTimerContext } from "@/lib/ZenFlowContext";
 
 const HABIT_COLORS = [
   "#4F6AF5",
@@ -231,7 +234,19 @@ function getLast30Days(): string[] {
   return days;
 }
 
-function HabitRow({ habit, date, onCheckin, onDelete, onUpdate, onRestore, onEdit }: {
+function HabitRow({
+  habit,
+  date,
+  onCheckin,
+  onDelete,
+  onUpdate,
+  onRestore,
+  onEdit,
+  activePomodoro,
+  onStartPomodoro,
+  onPausePomodoro,
+  onStopPomodoro,
+}: {
   habit: Habit;
   date: string;
   onCheckin: () => void;
@@ -239,6 +254,11 @@ function HabitRow({ habit, date, onCheckin, onDelete, onUpdate, onRestore, onEdi
   onUpdate: (updates: Partial<Habit>) => void;
   onRestore?: () => void;
   onEdit: () => void;
+  /** 若此 habit 正有計時器在跑，傳入 { secondsLeft, totalSeconds }；否則 null */
+  activePomodoro?: { secondsLeft: number; totalSeconds: number } | null;
+  onStartPomodoro: (minutes: number) => void;
+  onPausePomodoro: () => void;
+  onStopPomodoro: () => void;
 }) {
   const [showHeatmap, setShowHeatmap] = useState(false);
   const isArchived = !!habit.archivedAt;
@@ -246,8 +266,14 @@ function HabitRow({ habit, date, onCheckin, onDelete, onUpdate, onRestore, onEdi
   const isChecked = !!currentCheckin?.completed;
   const last30Days = getLast30Days();
   const completedDays = new Set(habit.checkins.filter((c) => c.completed).map((c) => c.date));
-  
   const [desc, setDesc] = useState(habit.description || "");
+
+  // 計算本日番茄數
+  const todayPoms = habit.checkins.find((c) => c.date === date)?.pomodoros ?? 0;
+
+  // 計時器格式化
+  const formatSeconds = (s: number) =>
+    `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   useEffect(() => {
     setDesc(habit.description || "");
@@ -256,10 +282,12 @@ function HabitRow({ habit, date, onCheckin, onDelete, onUpdate, onRestore, onEdi
   const heatmapColors = (date: string) => {
     if (!completedDays.has(date)) return "var(--surface-hover)";
     const checkin = habit.checkins.find((c) => c.date === date);
-    const count = checkin?.count || 1;
-    if (count >= 3) return habit.color;
-    if (count === 2) return habit.color + "CC";
-    return habit.color + "88";
+    const poms = checkin?.pomodoros ?? 0;
+    if (poms >= 3) return habit.color;
+    if (poms === 2) return habit.color + "CC";
+    if (poms === 1) return habit.color + "88";
+    // 已打卡但無番茄：最淡
+    return habit.color + "55";
   };
 
   return (
@@ -345,6 +373,72 @@ function HabitRow({ habit, date, onCheckin, onDelete, onUpdate, onRestore, onEdi
             </div>
           </div>
 
+          {/* 🍅 Pomodoro chip 排 */}
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
+            {/* 時長按鈕群組 */}
+            <div className="flex items-center gap-1" role="group" aria-label="選擇專注時長">
+              {([5, 10, 25] as const).map((mins) => (
+                <button
+                  key={mins}
+                  type="button"
+                  disabled={!!activePomodoro && activePomodoro.secondsLeft > 0}
+                  onClick={() => onStartPomodoro(mins)}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-150 disabled:cursor-not-allowed"
+                  style={{
+                    background: activePomodoro && activePomodoro.secondsLeft > 0 ? "var(--surface-hover)" : "var(--brand-tint)",
+                    color: activePomodoro && activePomodoro.secondsLeft > 0 ? "var(--text-quaternary)" : "var(--brand)",
+                    opacity: activePomodoro && activePomodoro.secondsLeft > 0 ? 0.5 : 1,
+                  }}
+                  aria-label={`開始 ${mins} 分鐘專注`}
+                >
+                  🍅 {mins}
+                </button>
+              ))}
+            </div>
+
+            {/* 本日番茄計數 */}
+            {todayPoms > 0 && (
+              <span
+                className="text-[11px] font-medium px-2 py-0.5 rounded-full"
+                style={{ background: habit.color + "22", color: habit.color }}
+                aria-label={`本日 ${todayPoms} 個番茄`}
+              >
+                ×{todayPoms}
+              </span>
+            )}
+
+            {/* 就地倒數顯示（僅運行中該列顯示） */}
+            {activePomodoro && activePomodoro.secondsLeft > 0 && (
+              <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-left-1 duration-200">
+                <span
+                  className="font-mono text-[13px] tabular-nums font-medium"
+                  style={{ color: "var(--text-primary)" }}
+                  aria-live="polite"
+                >
+                  {formatSeconds(activePomodoro.secondsLeft)}
+                </span>
+                <button
+                  type="button"
+                  onClick={onPausePomodoro}
+                  className="p-1 rounded-md hover:bg-[var(--hover-bg)] transition-colors"
+                  style={{ color: "var(--text-tertiary)" }}
+                  aria-label="暫停"
+                >
+                  <Pause className="w-3 h-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={onStopPomodoro}
+                  className="px-1.5 py-0.5 rounded-md text-[10px] font-medium transition-colors hover:bg-[var(--hover-bg)]"
+                  style={{ color: "var(--text-tertiary)" }}
+                  aria-label="收工（結束本次專注）"
+                >
+                  收工
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Heatmap */}
           <AnimatePresence>
             {showHeatmap && (
@@ -379,8 +473,12 @@ function HabitRow({ habit, date, onCheckin, onDelete, onUpdate, onRestore, onEdi
                     <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>未達成</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 rounded-sm" style={{ opacity: 0.5, background: habit.color }} />
+                    <div className="w-3 h-3 rounded-sm" style={{ background: habit.color }} />
                     <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>已達成</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-sm" style={{ background: habit.color + "88" }} />
+                    <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>🍅 ×1</span>
                   </div>
                 </div>
               </motion.div>
@@ -401,6 +499,11 @@ export function HabitsPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
+  const [activeHabitTimer, setActiveHabitTimer] = useState<{
+    habitId: string;
+    secondsLeft: number;
+    totalSeconds: number;
+  } | null>(null);
   const [form, setForm] = useState<HabitFormData>({
     title: "",
     frequency: "daily",
@@ -409,6 +512,41 @@ export function HabitsPage() {
     targetCount: 1,
     description: "",
   });
+
+  // ── Pomodoro ↔ Habit 同步 ────────────────────────────────────
+  const flowTimer = useFlowTimerContext();
+
+  useEffect(() => {
+    const { boundHabitId, phase, totalMs } = flowTimer.snapshot;
+    const { secondsLeft } = flowTimer;
+    if (phase === "running" && boundHabitId) {
+      setActiveHabitTimer({
+        habitId: boundHabitId,
+        secondsLeft,
+        totalSeconds: Math.floor(totalMs / 1000),
+      });
+    } else if (phase !== "running") {
+      setActiveHabitTimer(null);
+    }
+  }, [flowTimer, flowTimer.snapshot, flowTimer.secondsLeft]);
+
+  const handleStartPomodoro = useCallback(
+    (habitId: string, minutes: number) => {
+      flowTimer.start({ type: "focus", habitId, customMinutes: minutes });
+      // 更新習慣記住的時長
+      updateHabit(habitId, { pomodoroMinutes: minutes });
+    },
+    [flowTimer, updateHabit]
+  );
+
+  const handlePausePomodoro = useCallback(() => {
+    flowTimer.pause();
+  }, [flowTimer]);
+
+  const handleStopPomodoro = useCallback(() => {
+    flowTimer.reset({ type: "focus" });
+    setActiveHabitTimer(null);
+  }, [flowTimer]);
 
   const handleSubmit = () => {
     if (!form.title.trim()) return;
@@ -460,6 +598,13 @@ export function HabitsPage() {
   const selectedDateDone = activeHabits.filter((h) => h.checkins.some((c) => c.date === selectedDate && c.completed)).length;
   const displayHabits = showArchived ? archivedHabits : activeHabits;
 
+  const totalTodayPomodoros = useMemo(() => {
+    return activeHabits.reduce((sum, h) => {
+      const entry = h.checkins.find((c) => c.date === selectedDate);
+      return sum + (entry?.pomodoros ?? 0);
+    }, 0);
+  }, [activeHabits, selectedDate]);
+
   return (
     <div className="max-w-2xl mx-auto p-6 space-y-5 overflow-y-auto overscroll-contain pb-[calc(60px+env(safe-area-inset-bottom,0px)+12px)]"
       style={{ minHeight: 0 }}>
@@ -469,6 +614,9 @@ export function HabitsPage() {
           <h1 className="text-[18px] font-semibold" style={{ color: "var(--text-primary)" }}>習慣打卡</h1>
           <p className="text-[12px] mt-1.5" style={{ color: "var(--text-tertiary)" }}>
             {selectedDate === today ? "今日" : selectedDate.replace(/^\d{4}-/, "").replace("-", "/")} 完成 {selectedDateDone}/{activeHabits.length} 個習慣
+            {totalTodayPomodoros > 0 && (
+              <span className="ml-1">· 🍅 {totalTodayPomodoros} 個番茄</span>
+            )}
             {archivedHabits.length > 0 && !showArchived && (
               <span className="ml-2">
                 · 已封存 {archivedHabits.length} 個
@@ -661,6 +809,14 @@ export function HabitsPage() {
                   onUpdate={(updates) => updateHabit(habit.id, updates)}
                   onRestore={showArchived ? () => unarchiveHabit(habit.id) : undefined}
                   onEdit={() => openEditForm(habit)}
+                  activePomodoro={
+                    activeHabitTimer?.habitId === habit.id
+                      ? { secondsLeft: activeHabitTimer.secondsLeft, totalSeconds: activeHabitTimer.totalSeconds }
+                      : null
+                  }
+                  onStartPomodoro={(mins) => handleStartPomodoro(habit.id, mins)}
+                  onPausePomodoro={handlePausePomodoro}
+                  onStopPomodoro={handleStopPomodoro}
                 />
               </motion.div>
             ))}

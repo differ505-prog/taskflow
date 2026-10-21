@@ -233,6 +233,8 @@ export interface Habit {
   streak: number;
   longestStreak: number;
   archivedAt?: string;
+  targetPomodoros?: number; // 達到此數自動打卡（0=不啟用）
+  pomodoroMinutes?: number; // 記住上次使用的時長（分鐘）
 }
 
 export interface HabitCheckin {
@@ -240,6 +242,7 @@ export interface HabitCheckin {
   completed: boolean;
   count: number; // how many times checked in that day
   note?: string;
+  pomodoros?: number; // 該日累積的番茄計數
 }
 
 export interface FlowTimerSession {

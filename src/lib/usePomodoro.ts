@@ -23,18 +23,21 @@ export type FlowTimerSnapshot = {
   totalMs: number;
   completedSessions: number;
   boundTaskId: string | undefined;
+  boundHabitId: string | undefined;
+  customMinutes?: number; // 自訂時長（分鐘），存在時覆寫 config 的 focusMinutes
 };
 
 export type FlowTimerController = {
   snapshot: FlowTimerSnapshot;
   /** Seconds remaining derived from endAt. Recomputed every render. */
   secondsLeft: number;
-  start: (opts?: { type?: FlowTimerType; taskId?: string }) => void;
+  start: (opts?: { type?: FlowTimerType; taskId?: string; habitId?: string; customMinutes?: number }) => void;
   pause: () => void;
   resume: () => void;
   reset: (opts?: { type?: FlowTimerType }) => void;
   cycleType: (newType: FlowTimerType) => void;
   setBoundTask: (taskId: string | undefined) => void;
+  setBoundHabit: (habitId: string | undefined) => void;
   /** Subscribe to "session completed" events. Returns unsubscribe. */
   onComplete: (cb: (snapshot: FlowTimerSnapshot) => void) => () => void;
   config: FlowTimerConfig;
@@ -72,6 +75,7 @@ export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTim
   const [totalMs, setTotalMs] = useState<number>(config.focusMinutes * 60 * 1000);
   const [completedSessions, setCompletedSessions] = useState(0);
   const [boundTaskId, setBoundTaskId] = useState<string | undefined>(undefined);
+  const [boundHabitId, setBoundHabitId] = useState<string | undefined>(undefined);
   const [, force] = useState(0);
 
   const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -87,6 +91,8 @@ export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTim
     totalMs,
     completedSessions,
     boundTaskId,
+    boundHabitId,
+    customMinutes: undefined,
   };
 
   const totalMsForType = useCallback(
@@ -115,6 +121,7 @@ export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTim
               totalMs,
               completedSessions,
               boundTaskId,
+              boundHabitId,
             };
             completeListenersRef.current.forEach((cb) => {
               try { cb(finalSnapshot); } catch { /* listener error swallowed */ }
@@ -162,9 +169,13 @@ export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTim
   }, [stopTicker]);
 
   const start = useCallback(
-    (opts?: { type?: FlowTimerType; taskId?: string }) => {
+    (opts?: { type?: FlowTimerType; taskId?: string; habitId?: string; customMinutes?: number }) => {
       const targetType = opts?.type ?? type;
-      const ms = totalMsForType(targetType);
+      // 優先用 customMinutes，否則用 config 預設
+      const ms =
+        opts?.customMinutes != null
+          ? opts.customMinutes * 60 * 1000
+          : totalMsForType(targetType);
       completedFiredRef.current = false;
       setType(targetType);
       setPhase("running");
@@ -172,6 +183,7 @@ export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTim
       setEndAt(Date.now() + ms);
       setRemainingMs(null);
       if (opts?.taskId !== undefined) setBoundTaskId(opts.taskId);
+      if (opts?.habitId !== undefined) setBoundHabitId(opts.habitId);
       startTicker();
     },
     [type, totalMsForType, startTicker],
@@ -184,6 +196,7 @@ export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTim
     setPhase("paused");
     setEndAt(null);
     setRemainingMs(remaining);
+    setBoundHabitId(undefined);
     stopTicker();
   }, [phase, endAt, stopTicker]);
 
@@ -206,6 +219,7 @@ export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTim
       setEndAt(null);
       setRemainingMs(null);
       setTotalMs(ms);
+      setBoundHabitId(undefined);
       stopTicker();
     },
     [type, totalMsForType, stopTicker],
@@ -251,6 +265,7 @@ export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTim
     reset,
     cycleType,
     setBoundTask: setBoundTaskId,
+    setBoundHabit: setBoundHabitId,
     onComplete,
     config,
   };

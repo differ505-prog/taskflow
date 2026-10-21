@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import {
   ZenFlowContext,
   FlowTimerContext,
 } from "./ZenFlowContext";
 import { useZenFlow } from "./useZenFlow";
 import { useFlowTimer } from "./usePomodoro";
+import { useHabitsContext } from "@/lib/AppContextInternal/HabitsProvider";
+import { getLocalToday } from "@/lib/dateUtils";
 
 /**
  * §計時器 ↔ 音樂 集中式橋接 (§6 DRY):
@@ -60,6 +62,69 @@ function FlowTimerMusicBridge({
   return null;
 }
 
+/**
+ * 習慣番茄橋接器
+ *
+ * 負責：focus session 完成時，自動寫入對應習慣的 pomodoros。
+ * 掛在 Provider 層，跨頁面持續生效（不因切頁 unmount）。
+ *
+ * 設計邊界：
+ * - 只在 focus session 完成時寫入；break/long-break 不寫入習慣
+ * - 寫入後清除 boundHabitId，防止下一個無關 focus session 被誤記
+ */
+function HabitPomodoroBridge({
+  flowTimer,
+  onPomodoroComplete,
+  today,
+}: {
+  flowTimer: ReturnType<typeof useFlowTimer>;
+  onPomodoroComplete: (habitId: string, date: string, minutes: number) => void;
+  today: string;
+}) {
+  useEffect(() => {
+    const unsubscribe = flowTimer.onComplete((snapshot) => {
+      // 只處理 focus session；break/long-break 不寫入習慣
+      if (snapshot.type !== "focus") return;
+      const habitId = snapshot.boundHabitId;
+      if (!habitId) return;
+      // 從 totalMs 反推時長（session 完成時 totalMs 已被重置，
+      // 但 onComplete 在 reset 之前觸發，totalMs 仍是 session 開始時設定的值）
+      const elapsedMs = snapshot.totalMs;
+      const minutes = Math.round(elapsedMs / 60000);
+      onPomodoroComplete(habitId, today, minutes);
+      // 清除 boundHabitId，防止下一個無關 session 被誤記
+      flowTimer.setBoundHabit(undefined);
+    });
+    return unsubscribe;
+  }, [flowTimer, onPomodoroComplete, today]);
+
+  return null;
+}
+
+function HabitPomodoroBridgeWithContext({
+  flowTimer,
+}: {
+  flowTimer: ReturnType<typeof useFlowTimer>;
+}) {
+  const { incrementHabitPomodoro } = useHabitsContext();
+  const today = getLocalToday();
+
+  const onPomodoroComplete = useCallback(
+    (habitId: string, date: string, minutes: number) => {
+      incrementHabitPomodoro(habitId, date, minutes);
+    },
+    [incrementHabitPomodoro]
+  );
+
+  return (
+    <HabitPomodoroBridge
+      flowTimer={flowTimer}
+      onPomodoroComplete={onPomodoroComplete}
+      today={today}
+    />
+  );
+}
+
 export function ZenFlowProvider({ children, omnisonicBaseUrl }: { children: React.ReactNode; omnisonicBaseUrl: string }) {
   const controller = useZenFlow(omnisonicBaseUrl);
   const flowTimer = useFlowTimer();
@@ -67,14 +132,13 @@ export function ZenFlowProvider({ children, omnisonicBaseUrl }: { children: Reac
   return (
     <ZenFlowContext.Provider value={controller}>
       <FlowTimerContext.Provider value={flowTimer}>
-        
-          <FlowTimerMusicBridge
-            flowTimer={flowTimer}
-            zenIsPlaying={controller.state.isPlaying}
-            zenPause={controller.pause}
-          />
-          {children}
-        
+        <FlowTimerMusicBridge
+          flowTimer={flowTimer}
+          zenIsPlaying={controller.state.isPlaying}
+          zenPause={controller.pause}
+        />
+        <HabitPomodoroBridgeWithContext flowTimer={flowTimer} />
+        {children}
       </FlowTimerContext.Provider>
     </ZenFlowContext.Provider>
   );
