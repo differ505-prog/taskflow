@@ -99,11 +99,9 @@ function TimerCompletionFeedbackBridge({
 function HabitPomodoroBridge({
   flowTimer,
   onPomodoroComplete,
-  today,
 }: {
   flowTimer: ReturnType<typeof useFlowTimer>;
   onPomodoroComplete: (habitId: string, date: string, minutes: number) => void;
-  today: string;
 }) {
   useEffect(() => {
     const unsubscribe = flowTimer.onComplete((snapshot) => {
@@ -115,12 +113,14 @@ function HabitPomodoroBridge({
       // 但 onComplete 在 reset 之前觸發，totalMs 仍是 session 開始時設定的值）
       const elapsedMs = snapshot.totalMs;
       const minutes = Math.round(elapsedMs / 60000);
-      onPomodoroComplete(habitId, today, minutes);
+      // 動態取得完成時的當前本地日期，避免長時間維持分頁未重載導致寫入舊日期
+      const currentDate = getLocalToday();
+      onPomodoroComplete(habitId, currentDate, minutes);
       // 清除 boundHabitId，防止下一個無關 session 被誤記
       flowTimer.setBoundHabit(undefined);
     });
     return unsubscribe;
-  }, [flowTimer, onPomodoroComplete, today]);
+  }, [flowTimer, onPomodoroComplete]);
 
   return null;
 }
@@ -131,7 +131,6 @@ function HabitPomodoroBridgeWithContext({
   flowTimer: ReturnType<typeof useFlowTimer>;
 }) {
   const { incrementHabitPomodoro } = useHabitsContext();
-  const today = getLocalToday();
 
   const onPomodoroComplete = useCallback(
     (habitId: string, date: string, minutes: number) => {
@@ -144,7 +143,6 @@ function HabitPomodoroBridgeWithContext({
     <HabitPomodoroBridge
       flowTimer={flowTimer}
       onPomodoroComplete={onPomodoroComplete}
-      today={today}
     />
   );
 }

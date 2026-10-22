@@ -549,7 +549,7 @@ function HabitRow({
               style={{ opacity: totalHistoryMinutes > 0 ? 0.9 : 0.55 }}
               title={`歷史累計專注時長（${totalHistoryMinutes} 分鐘）`}
             >
-              累計 {formatDuration(totalHistoryMinutes)}
+              歷史累計 {formatDuration(totalHistoryMinutes)}
             </span>
 
             {/* 補登入口按鈕 */}
@@ -725,8 +725,36 @@ function HabitRow({
 export function HabitsPage() {
   const { habits, addHabit, updateHabit, checkinHabit, uncheckHabit, archiveHabit, unarchiveHabit, incrementHabitPomodoro, decrementHabitPomodoro, logHabitTime } = useApp();
   const confirm = useConfirm();
-  const today = getLocalToday();
-  const [selectedDate, setSelectedDate] = useState<string>(today);
+  const [today, setToday] = useState<string>(getLocalToday);
+  const [selectedDate, setSelectedDate] = useState<string>(getLocalToday);
+
+  // ── 跨日自動換日監聽（分頁醒來、定時檢查、窗口焦點）──────────────
+  useEffect(() => {
+    const checkDateRollover = () => {
+      const nowToday = getLocalToday();
+      setToday((prevToday) => {
+        if (nowToday !== prevToday) {
+          // 若原本選取的是舊的「今天」，自動換日推進到新的「今天」
+          setSelectedDate((prevSelected) =>
+            prevSelected === prevToday ? nowToday : prevSelected
+          );
+          return nowToday;
+        }
+        return prevToday;
+      });
+    };
+
+    // 每 30 秒定期檢查、視窗 focus 時檢查、分頁 visibilitychange 時檢查
+    const timer = setInterval(checkDateRollover, 30_000);
+    window.addEventListener("focus", checkDateRollover);
+    document.addEventListener("visibilitychange", checkDateRollover);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", checkDateRollover);
+      document.removeEventListener("visibilitychange", checkDateRollover);
+    };
+  }, []);
   const [showForm, setShowForm] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -897,19 +925,45 @@ export function HabitsPage() {
           {totalTodayMinutes > 0 ? (
             /* 有投資時：大字說時間，次要行說番茄 + 完成數（完成數不因有投資而消失）*/
             <div className="space-y-0.5">
-              <p className="text-[20px] font-semibold leading-tight" style={{ color: "var(--text-primary)" }}>
-                {timeDisplay.primary}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-[20px] font-semibold leading-tight" style={{ color: "var(--text-primary)" }}>
+                  {timeDisplay.primary}
+                </p>
+                {selectedDate !== today && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDate(today)}
+                    className="px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors hover:opacity-80"
+                    style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+                    title="切換回今日"
+                  >
+                    回到今天 →
+                  </button>
+                )}
+              </div>
               <p className="text-[12px]" style={{ color: "var(--text-tertiary)", opacity: 0.6 }}>
-                🍅 {totalTodayPomodoros} 個番茄 · 今日已推進 · 完成 {selectedDateDone}/{activeHabits.length} 個習慣
+                🍅 {totalTodayPomodoros} 個番茄 · {selectedDate === today ? "今日已推進" : `${selectedDate.replace(/^\d{4}-/, "").replace("-", "/")} 紀錄`} · 完成 {selectedDateDone}/{activeHabits.length} 個習慣
               </p>
             </div>
           ) : (
             /* 無投資時：柔性備忘，不說 0 */
             <div className="space-y-0.5 mt-1">
-              <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>
-                {selectedDate === today ? "今日" : selectedDate.replace(/^\d{4}-/, "").replace("-", "/")} 完成 {selectedDateDone}/{activeHabits.length} 個習慣
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+                  {selectedDate === today ? "今日" : selectedDate.replace(/^\d{4}-/, "").replace("-", "/")} 完成 {selectedDateDone}/{activeHabits.length} 個習慣
+                </p>
+                {selectedDate !== today && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDate(today)}
+                    className="px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors hover:opacity-80"
+                    style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+                    title="切換回今日"
+                  >
+                    回到今天 →
+                  </button>
+                )}
+              </div>
               <p className="text-[12px]" style={{ color: "var(--text-tertiary)", opacity: 0.5 }}>
                 隨時可以按 🍅 5 分鐘起步
               </p>
