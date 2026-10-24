@@ -193,7 +193,7 @@ export function checkinHabit(id: string, date: string, count = 1, note?: string)
     let checkins: Habit["checkins"];
     if (existing) {
       checkins = h.checkins.map((c) =>
-        c.date === date ? { ...c, count: c.count + count, note: note ?? c.note } : c
+        c.date === date ? { ...c, completed: true, count: (c.count || 0) + count, note: note ?? c.note } : c
       );
     } else {
       checkins = [...h.checkins, { date, completed: true, count, note }];

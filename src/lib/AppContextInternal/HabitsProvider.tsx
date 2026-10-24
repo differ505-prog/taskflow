@@ -158,7 +158,9 @@ export function HabitsProvider({
       let checkins: Habit["checkins"];
       if (existing) {
         checkins = habit.checkins.map((c) =>
-          c.date === date ? { ...c, count: c.count + count, note: note ?? c.note } : c
+          c.date === date
+            ? { ...c, completed: true, count: (c.count || 0) + count, note: note ?? c.note }
+            : c
         );
       } else {
         checkins = [...habit.checkins, { date, completed: true, count, note, pomodoros: 0 }];

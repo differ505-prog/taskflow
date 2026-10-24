@@ -23,6 +23,7 @@ import {
 import { useConfirm } from "@/hooks/useConfirm";
 import { getLocalToday, toLocalDateString } from "@/lib/dateUtils";
 import { useFlowTimerContext } from "@/lib/ZenFlowContext";
+import { playTaskDoneSound } from "@/lib/confetti";
 
 const HABIT_COLORS = [
   "#4F6AF5",
@@ -326,15 +327,37 @@ function HabitRow({
       <div className="flex items-start gap-4">
         {/* Check button */}
         <button
-          onClick={onCheckin}
+          onClick={() => {
+            if (typeof navigator !== "undefined" && navigator?.vibrate) {
+              try { navigator.vibrate(15); } catch {}
+            }
+            onCheckin();
+          }}
           disabled={isArchived}
-          className="flex-shrink-0 mt-0.5 transition-transform hover:scale-110 disabled:hover:scale-100 disabled:cursor-not-allowed"
-          aria-label={isArchived ? "已封存" : isChecked ? "取消打卡" : "打卡"}
+          className="flex-shrink-0 mt-0.5 transition-transform hover:scale-110 active:scale-90 disabled:hover:scale-100 disabled:cursor-not-allowed group"
+          aria-label={
+            isArchived
+              ? "已封存"
+              : isChecked
+              ? `取消打卡（${todayMinutes > 0 ? `本日投入 ${todayMinutes} 分鐘` : "已完成"}）`
+              : `完成打卡（${todayMinutes > 0 ? `已投入 ${todayMinutes} 分鐘` : "點擊完成"}）`
+          }
+          title={
+            isChecked
+              ? `已完成打卡${todayMinutes > 0 ? ` · 本日已投入 ${todayMinutes} 分鐘` : ""} · 點擊取消`
+              : `點擊打卡${todayMinutes > 0 ? `（目前已累積 ${todayMinutes} 分鐘）` : ""}`
+          }
         >
           {isChecked ? (
-            <CheckCircle2 className="w-6 h-6" style={{ color: habit.color }} />
+            <motion.div
+              initial={{ scale: 0.7 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 600, damping: 25 }}
+            >
+              <CheckCircle2 className="w-6 h-6" style={{ color: habit.color }} />
+            </motion.div>
           ) : (
-            <Circle className="w-6 h-6" style={{ color: "var(--text-tertiary)" }} />
+            <Circle className="w-6 h-6 group-hover:opacity-80 transition-opacity" style={{ color: "var(--text-tertiary)" }} />
           )}
         </button>
 
@@ -1144,8 +1167,14 @@ export function HabitsPage() {
                   date={selectedDate}
                   onCheckin={() => {
                     const isDone = habit.checkins.some((c) => c.date === selectedDate && c.completed);
-                    if (isDone) uncheckHabit(habit.id, selectedDate);
-                    else checkinHabit(habit.id, selectedDate);
+                    if (isDone) {
+                      uncheckHabit(habit.id, selectedDate);
+                    } else {
+                      try {
+                        playTaskDoneSound();
+                      } catch {}
+                      checkinHabit(habit.id, selectedDate);
+                    }
                   }}
                   onDelete={async () => {
                   const ok = await confirm({
