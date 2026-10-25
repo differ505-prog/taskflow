@@ -295,9 +295,14 @@ function HabitRow({
     );
   }, [habit.checkins, habit.pomodoroMinutes]);
 
-  // < 60 分 → "X 分"；≥ 60 分 → "Y.Y 小時"
-  const formatDuration = (minutes: number) =>
-    minutes < 60 ? `${minutes} 分` : `${(minutes / 60).toFixed(1)} 小時`;
+  // 雙維度時長格式化：< 60 分顯示「X 分」；≥ 60 分顯示「H 小時 M 分 (共 X 分)」，避免小數點小時的心算負擔
+  const formatDuration = (minutes: number) => {
+    if (minutes <= 0) return "0 分";
+    if (minutes < 60) return `${minutes} 分`;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return `${h} 小時${m > 0 ? ` ${m} 分` : ""} (共 ${minutes} 分)`;
+  };
 
   // 選取的不是今天時，用日期前綴避免誤導
   const isToday = date === getLocalToday();
@@ -625,7 +630,7 @@ function HabitRow({
                 </div>
 
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  {([15, 25, 30, 45, 60] as const).map((mins) => (
+                  {([10, 15, 25, 30, 45, 60] as const).map((mins) => (
                     <button
                       key={mins}
                       type="button"
@@ -633,11 +638,12 @@ function HabitRow({
                         onLogTime?.(mins);
                         setShowTimeLogger(false);
                       }}
-                      className="px-2 py-1 rounded-lg text-[11px] font-medium transition-transform hover:scale-105 active:scale-95"
+                      className="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all hover:scale-105 active:scale-95 cursor-pointer"
                       style={{
                         background: "var(--brand-tint)",
                         color: "var(--brand)",
                       }}
+                      title={`補登 ${mins} 分鐘`}
                     >
                       +{mins}分
                     </button>
@@ -946,12 +952,25 @@ export function HabitsPage() {
           <h1 className="text-[18px] font-semibold" style={{ color: "var(--text-primary)" }}>習慣打卡</h1>
           {/* ── 投資量宣告 ─────────────────────────────────────── */}
           {totalTodayMinutes > 0 ? (
-            /* 有投資時：大字說時間，次要行說番茄 + 完成數（完成數不因有投資而消失）*/
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <p className="text-[20px] font-semibold leading-tight" style={{ color: "var(--text-primary)" }}>
+            /* 有投資時：大字說時間，清晰標記總分鐘數（無須心算），次要行說番茄 + 完成數 */
+            <div className="space-y-1">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <p className="text-[20px] font-semibold leading-tight tabular-nums" style={{ color: "var(--text-primary)" }}>
                   {timeDisplay.primary}
                 </p>
+                {totalTodayMinutes >= 60 && (
+                  <span
+                    className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium tabular-nums"
+                    style={{
+                      background: "var(--brand-tint)",
+                      color: "var(--brand)",
+                      border: "1px solid color-mix(in srgb, var(--brand) 20%, transparent)",
+                    }}
+                    title={`今日累計投入 ${totalTodayMinutes} 分鐘`}
+                  >
+                    共 {totalTodayMinutes} 分鐘
+                  </span>
+                )}
                 {selectedDate !== today && (
                   <button
                     type="button"
@@ -964,8 +983,8 @@ export function HabitsPage() {
                   </button>
                 )}
               </div>
-              <p className="text-[12px]" style={{ color: "var(--text-tertiary)", opacity: 0.6 }}>
-                🍅 {totalTodayPomodoros} 個番茄 · {selectedDate === today ? "今日已推進" : `${selectedDate.replace(/^\d{4}-/, "").replace("-", "/")} 紀錄`} · 完成 {selectedDateDone}/{activeHabits.length} 個習慣
+              <p className="text-[12px]" style={{ color: "var(--text-tertiary)", opacity: 0.7 }}>
+                🍅 {totalTodayPomodoros} 個番茄 · 共 {totalTodayMinutes} 分鐘 · {selectedDate === today ? "今日已推進" : `${selectedDate.replace(/^\d{4}-/, "").replace("-", "/")} 紀錄`} · 完成 {selectedDateDone}/{activeHabits.length} 個習慣
               </p>
             </div>
           ) : (

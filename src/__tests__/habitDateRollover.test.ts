@@ -17,6 +17,7 @@ describe("跨日習慣時長隔離與日期滾動測試", () => {
       streak: 1,
       longestStreak: 1,
       createdAt: "2026-10-20T00:00:00.000Z",
+      updatedAt: "2026-10-20T00:00:00.000Z",
       checkins: [
         {
           date: yesterday,
@@ -55,6 +56,7 @@ describe("跨日習慣時長隔離與日期滾動測試", () => {
       streak: 1,
       longestStreak: 1,
       createdAt: "2026-10-20T00:00:00.000Z",
+      updatedAt: "2026-10-20T00:00:00.000Z",
       checkins: [
         {
           date: yesterday,

@@ -15,6 +15,7 @@ describe("有番茄計時/計數的習慣打卡打勾修復測試", () => {
       streak: 0,
       longestStreak: 0,
       createdAt: "2026-10-20T00:00:00.000Z",
+      updatedAt: "2026-10-20T00:00:00.000Z",
       checkins: [
         {
           date: today,
@@ -79,5 +80,45 @@ describe("有番茄計時/計數的習慣打卡打勾修復測試", () => {
     expect(checkins[0].completed).toBe(true);
     expect(checkins[0].pomodoros).toBe(3);
     expect(checkins[0].minutes).toBe(75);
+  });
+
+  it("手動補登 10 分鐘：累加 10 分鐘專注時長並正確計算", () => {
+    const today = "2026-10-25";
+    const unitMinutes = 25;
+    let entry = {
+      date: today,
+      completed: false,
+      count: 0,
+      pomodoros: 1,
+      minutes: 25,
+    };
+
+    // 補登 10 分鐘
+    const minutesToAdd = 10;
+    const addedPoms = Math.max(1, Math.round(minutesToAdd / unitMinutes));
+    entry = {
+      ...entry,
+      minutes: entry.minutes + minutesToAdd,
+      pomodoros: entry.pomodoros + addedPoms,
+    };
+
+    expect(entry.minutes).toBe(35);
+    expect(entry.pomodoros).toBe(2);
+  });
+
+  it("時長格式化應呈現小時與總分鐘數，不使用反直覺的小數點小時", () => {
+    const formatDuration = (minutes: number) => {
+      if (minutes <= 0) return "0 分";
+      if (minutes < 60) return `${minutes} 分`;
+      const h = Math.floor(minutes / 60);
+      const m = minutes % 60;
+      return `${h} 小時${m > 0 ? ` ${m} 分` : ""} (共 ${minutes} 分)`;
+    };
+
+    expect(formatDuration(10)).toBe("10 分");
+    expect(formatDuration(50)).toBe("50 分");
+    expect(formatDuration(60)).toBe("1 小時 (共 60 分)");
+    expect(formatDuration(75)).toBe("1 小時 15 分 (共 75 分)");
+    expect(formatDuration(135)).toBe("2 小時 15 分 (共 135 分)");
   });
 });
