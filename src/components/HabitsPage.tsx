@@ -1204,11 +1204,20 @@ export function HabitsPage() {
             </div>
 
             {/* ── 每日目標投入（累積目標池）────────────────────────── */}
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
                 <span className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
                   每日目標投入
                 </span>
+                {form.dailyTargetMinutes >= 60 && (
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>
+                    ⚡ {Math.floor(form.dailyTargetMinutes / 60)} 小時{form.dailyTargetMinutes % 60 > 0 ? ` ${form.dailyTargetMinutes % 60} 分鐘` : ""} / 天
+                  </span>
+                )}
+              </div>
+
+              {/* 快速晶片：涵蓋深層專注時數（含 150 分鐘一鍵選取） */}
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <button
                   type="button"
                   onClick={() => setForm({ ...form, dailyTargetMinutes: 0 })}
@@ -1221,7 +1230,7 @@ export function HabitsPage() {
                 >
                   不設定
                 </button>
-                {([15, 25, 30, 45, 60] as const).map((mins) => (
+                {([30, 60, 90, 120, 150] as const).map((mins) => (
                   <button
                     key={mins}
                     type="button"
@@ -1233,31 +1242,59 @@ export function HabitsPage() {
                         : { background: "var(--surface-hover)", color: "var(--text-secondary)" }
                     }
                   >
-                    {mins} 分
+                    {mins >= 60 ? `${mins / 60}h (${mins}分)` : `${mins} 分`}
                   </button>
                 ))}
-                <input
-                  type="number"
-                  min="1"
-                  max="720"
-                  value={
-                    [15, 25, 30, 45, 60].includes(form.dailyTargetMinutes)
-                      ? ""
-                      : form.dailyTargetMinutes || ""
-                  }
-                  onChange={(e) => {
-                    const n = parseInt(e.target.value, 10);
-                    setForm({
-                      ...form,
-                      dailyTargetMinutes: Number.isFinite(n) && n > 0 ? n : 0,
-                    });
-                  }}
-                  placeholder="自訂"
-                  className="w-20 px-2 py-1 rounded-lg text-[12px] border bg-[var(--surface)] text-center outline-none focus:border-[var(--brand)] font-mono"
-                  style={{ color: "var(--text-primary)", borderColor: "var(--border)" }}
-                />
               </div>
-              <p className="text-[11px] mt-1.5" style={{ color: "var(--text-tertiary)" }}>
+
+              {/* 自訂數字輸入 + 微調步進器 */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, dailyTargetMinutes: Math.max(0, form.dailyTargetMinutes - 15) })}
+                  className="px-2 py-1 rounded-lg text-[11px] border bg-[var(--surface-hover)] hover:bg-[var(--hover-bg)]"
+                  style={{ color: "var(--text-secondary)", borderColor: "var(--border)" }}
+                  title="減少 15 分鐘"
+                >
+                  -15分
+                </button>
+                <div className="relative flex items-center">
+                  <input
+                    type="number"
+                    min="1"
+                    max="720"
+                    value={form.dailyTargetMinutes > 0 ? form.dailyTargetMinutes : ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "") {
+                        setForm({ ...form, dailyTargetMinutes: 0 });
+                        return;
+                      }
+                      const n = parseInt(val, 10);
+                      if (Number.isFinite(n)) {
+                        setForm({ ...form, dailyTargetMinutes: Math.min(720, Math.max(0, n)) });
+                      }
+                    }}
+                    placeholder="自訂"
+                    className="w-24 px-2 py-1 pr-6 rounded-lg text-[12px] border bg-[var(--surface)] text-center outline-none focus:border-[var(--brand)] font-mono"
+                    style={{ color: "var(--text-primary)", borderColor: "var(--border)" }}
+                  />
+                  <span className="absolute right-2 text-[10px]" style={{ color: "var(--text-tertiary)" }}>分</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, dailyTargetMinutes: Math.min(720, (form.dailyTargetMinutes || 0) + 15) })}
+                  className="px-2 py-1 rounded-lg text-[11px] border bg-[var(--surface-hover)] hover:bg-[var(--hover-bg)]"
+                  style={{ color: "var(--text-secondary)", borderColor: "var(--border)" }}
+                  title="增加 15 分鐘"
+                >
+                  +15分
+                </button>
+                <span className="text-[10px] ml-1" style={{ color: "var(--text-tertiary)" }}>
+                  上限 720 分 (12h)
+                </span>
+              </div>
+              <p className="text-[11px] mt-1" style={{ color: "var(--text-tertiary)" }}>
                 設定後，未補滿的天數可由之後多投入的分鐘數補回
               </p>
             </div>
