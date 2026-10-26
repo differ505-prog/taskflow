@@ -22,6 +22,12 @@ import {
 } from "lucide-react";
 import { useConfirm } from "@/hooks/useConfirm";
 import { getLocalToday, toLocalDateString } from "@/lib/dateUtils";
+import {
+  computeHabitBalance,
+  formatBalanceChip,
+  getCheckinMinutes,
+  getHeatmapFill,
+} from "@/lib/habitBalance";
 import { useFlowTimerContext } from "@/lib/ZenFlowContext";
 import { playTaskDoneSound } from "@/lib/confetti";
 
@@ -224,6 +230,8 @@ interface HabitFormData {
   daysOfWeek: number[];
   targetCount: number;
   description: string;
+  /** 每日投入目標（分鐘），0 = 不啟用累積目標池 */
+  dailyTargetMinutes: number;
 }
 
 function getLast30Days(): string[] {
@@ -238,6 +246,7 @@ function getLast30Days(): string[] {
 function HabitRow({
   habit,
   date,
+  today,
   onCheckin,
   onDelete,
   onUpdate,
@@ -253,6 +262,8 @@ function HabitRow({
 }: {
   habit: Habit;
   date: string;
+  /** 真實今天（用於累積目標池結餘計算，跨日時會更新） */
+  today: string;
   onCheckin: () => void;
   onDelete: () => void;
   onUpdate: (updates: Partial<Habit>) => void;
@@ -286,14 +297,22 @@ function HabitRow({
 
   // ── 雙維度時長：今日專注 + 歷史累計 ──────────────────────────────
   // 今日專注分鐘：優先使用真實 minutes，若無則依番茄數乘算
-  const todayMinutes = currentCheckin?.minutes ?? (todayPoms * unitMinutes);
+  const todayMinutes = currentCheckin ? getCheckinMinutes(currentCheckin, unitMinutes) : 0;
   // 歷史累計總時長：各日真實 minutes 加總（無 minutes 則以番茄數推算）
   const totalHistoryMinutes = useMemo(() => {
     return habit.checkins.reduce(
-      (sum, c) => sum + (c.minutes ?? ((c.pomodoros ?? 0) * (habit.pomodoroMinutes ?? 25))),
+      (sum, c) => sum + getCheckinMinutes(c, habit.pomodoroMinutes ?? 25),
       0,
     );
   }, [habit.checkins, habit.pomodoroMinutes]);
+
+  // ── 累積目標池：結餘 = 累計投入 − 累計目標 ────────────────────────
+  // 恆以「今天」為終點（切換日曆日期不會讓結餘亂跳；跨日自動重算）
+  const balanceInfo = useMemo(
+    () => computeHabitBalance(habit, today),
+    [habit, today]
+  );
+  const balance = balanceInfo?.balance ?? 0;
 
   // 雙維度時長格式化：< 60 分顯示「X 分」；≥ 60 分顯示「H 小時 M 分 (共 X 分)」，避免小數點小時的心算負擔
   const formatDuration = (minutes: number) => {
@@ -317,6 +336,9 @@ function HabitRow({
   }, [habit.description]);
 
   const heatmapColors = (date: string) => {
+    // 有每日目標 → 用「當日投入 ÷ 目標」比例色階（能看出哪些天靠後面的天補回來）
+    const fill = getHeatmapFill(habit, date);
+    if (fill !== null) return fill;
     if (!completedDays.has(date)) return "var(--surface-hover)";
     const checkin = habit.checkins.find((c) => c.date === date);
     const poms = checkin?.pomodoros ?? 0;
@@ -599,6 +621,42 @@ function HabitRow({
                 </button>
               </>
             )}
+
+            {/* ── 累積目標池結餘膠囊 ─────────────────────────────────── */}
+            {balanceInfo && (
+              <>
+                <span style={{ opacity: 0.4 }}>·</span>
+                {balance >= 0 ? (
+                  <span
+                    className="px-1.5 py-0.5 rounded text-[10px] font-medium tabular-nums whitespace-nowrap"
+                    style={{
+                      color: habit.color,
+                      background: "var(--brand-tint)",
+                    }}
+                    aria-label={`累積目標結餘 ${balance} 分鐘`}
+                    title={`累計投入 ${balanceInfo.invested} 分 − 目標 ${balanceInfo.target} 分（起算 ${balanceInfo.days} 天）`}
+                  >
+                    {formatBalanceChip(balance)}
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowTimeLogger(true)}
+                    disabled={isArchived}
+                    className="px-1.5 py-0.5 rounded text-[10px] font-medium tabular-nums whitespace-nowrap transition-all hover:bg-[var(--brand-tint)] hover:text-[var(--brand)] disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                    style={{
+                      color: "var(--text-tertiary)",
+                      background: "transparent",
+                      border: "1px dashed var(--border)",
+                    }}
+                    aria-label={`還差 ${Math.abs(balance)} 分鐘達標，點擊補登時長`}
+                    title={`累計投入 ${balanceInfo.invested} 分 − 目標 ${balanceInfo.target} 分（起算 ${balanceInfo.days} 天）· 點擊補登`}
+                  >
+                    {formatBalanceChip(balance)}
+                  </button>
+                )}
+              </>
+            )}
           </div>
 
           {/* ── 補登時長面板（快捷膠囊 + 自訂輸入）──────────────── */}
@@ -722,7 +780,11 @@ function HabitRow({
                           background: heatmapColors(date),
                           opacity: dayOfWeek === 0 || dayOfWeek === 6 ? 0.5 : 1,
                         }}
-                        title={`${date}${completedDays.has(date) ? " ✓" : ""}`}
+                        title={
+                          balanceInfo
+                            ? `${date} · 投入 ${getCheckinMinutes(habit.checkins.find((c) => c.date === date), habit.pomodoroMinutes ?? 25)} 分 / 目標 ${balanceInfo.minutes} 分`
+                            : `${date}${completedDays.has(date) ? " ✓" : ""}`
+                        }
                       />
                     );
                   })}
@@ -800,6 +862,7 @@ export function HabitsPage() {
     daysOfWeek: [],
     targetCount: 1,
     description: "",
+    dailyTargetMinutes: 0,
   });
 
   // ── Pomodoro ↔ Habit 同步 ────────────────────────────────────
@@ -860,6 +923,15 @@ export function HabitsPage() {
 
   const handleSubmit = () => {
     if (!form.title.trim()) return;
+    // 編輯時保留原本的累計起算日（否則每次改目標都會把已累積的缺額抹掉）
+    const oldHabit = editingHabitId ? habits.find((h) => h.id === editingHabitId) : undefined;
+    const dailyTarget =
+      form.dailyTargetMinutes > 0
+        ? {
+            minutes: form.dailyTargetMinutes,
+            minutesSetAt: oldHabit?.dailyTarget?.minutesSetAt ?? getLocalToday(),
+          }
+        : undefined;
     if (editingHabitId) {
       updateHabit(editingHabitId, {
         title: form.title.trim(),
@@ -868,6 +940,7 @@ export function HabitsPage() {
         color: form.color,
         daysOfWeek: form.frequency === "weekly" ? form.daysOfWeek : undefined,
         targetCount: form.targetCount,
+        dailyTarget,
       });
       setEditingHabitId(null);
     } else {
@@ -878,9 +951,10 @@ export function HabitsPage() {
         color: form.color,
         daysOfWeek: form.frequency === "weekly" ? form.daysOfWeek : undefined,
         targetCount: form.targetCount,
+        dailyTarget,
       });
     }
-    setForm({ title: "", frequency: "daily", color: HABIT_COLORS[0], daysOfWeek: [], targetCount: 1, description: "" });
+    setForm({ title: "", frequency: "daily", color: HABIT_COLORS[0], daysOfWeek: [], targetCount: 1, description: "", dailyTargetMinutes: 0 });
     setShowForm(false);
   };
 
@@ -893,13 +967,14 @@ export function HabitsPage() {
       daysOfWeek: habit.daysOfWeek || [],
       targetCount: habit.targetCount,
       description: habit.description || "",
+      dailyTargetMinutes: habit.dailyTarget?.minutes ?? 0,
     });
     setShowForm(true);
   };
 
   const cancelEdit = () => {
     setEditingHabitId(null);
-    setForm({ title: "", frequency: "daily", color: HABIT_COLORS[0], daysOfWeek: [], targetCount: 1, description: "" });
+    setForm({ title: "", frequency: "daily", color: HABIT_COLORS[0], daysOfWeek: [], targetCount: 1, description: "", dailyTargetMinutes: 0 });
     setShowForm(false);
   };
 
@@ -929,7 +1004,7 @@ export function HabitsPage() {
   const totalTodayMinutes = useMemo(() => {
     return activeHabits.reduce((sum, h) => {
       const entry = h.checkins.find((c) => c.date === selectedDate);
-      return sum + (entry?.minutes ?? ((entry?.pomodoros ?? 0) * (h.pomodoroMinutes ?? 25)));
+      return sum + getCheckinMinutes(entry, h.pomodoroMinutes ?? 25);
     }, 0);
   }, [activeHabits, selectedDate]);
 
@@ -1128,6 +1203,65 @@ export function HabitsPage() {
               ))}
             </div>
 
+            {/* ── 每日目標投入（累積目標池）────────────────────────── */}
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                  每日目標投入
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, dailyTargetMinutes: 0 })}
+                  className="px-2.5 py-1 rounded-lg text-[12px] font-medium transition-all"
+                  style={
+                    form.dailyTargetMinutes === 0
+                      ? { background: "var(--brand-tint)", color: "var(--brand)" }
+                      : { background: "var(--surface-hover)", color: "var(--text-secondary)" }
+                  }
+                >
+                  不設定
+                </button>
+                {([15, 25, 30, 45, 60] as const).map((mins) => (
+                  <button
+                    key={mins}
+                    type="button"
+                    onClick={() => setForm({ ...form, dailyTargetMinutes: mins })}
+                    className="px-2.5 py-1 rounded-lg text-[12px] font-medium transition-all"
+                    style={
+                      form.dailyTargetMinutes === mins
+                        ? { background: "var(--brand-tint)", color: "var(--brand)" }
+                        : { background: "var(--surface-hover)", color: "var(--text-secondary)" }
+                    }
+                  >
+                    {mins} 分
+                  </button>
+                ))}
+                <input
+                  type="number"
+                  min="1"
+                  max="720"
+                  value={
+                    [15, 25, 30, 45, 60].includes(form.dailyTargetMinutes)
+                      ? ""
+                      : form.dailyTargetMinutes || ""
+                  }
+                  onChange={(e) => {
+                    const n = parseInt(e.target.value, 10);
+                    setForm({
+                      ...form,
+                      dailyTargetMinutes: Number.isFinite(n) && n > 0 ? n : 0,
+                    });
+                  }}
+                  placeholder="自訂"
+                  className="w-20 px-2 py-1 rounded-lg text-[12px] border bg-[var(--surface)] text-center outline-none focus:border-[var(--brand)] font-mono"
+                  style={{ color: "var(--text-primary)", borderColor: "var(--border)" }}
+                />
+              </div>
+              <p className="text-[11px] mt-1.5" style={{ color: "var(--text-tertiary)" }}>
+                設定後，未補滿的天數可由之後多投入的分鐘數補回
+              </p>
+            </div>
+
             <textarea
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -1184,6 +1318,7 @@ export function HabitsPage() {
                 <HabitRow
                   habit={habit}
                   date={selectedDate}
+                  today={today}
                   onCheckin={() => {
                     const isDone = habit.checkins.some((c) => c.date === selectedDate && c.completed);
                     if (isDone) {

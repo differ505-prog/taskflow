@@ -11,6 +11,8 @@ import { Habit } from "../types";
 import { saveHabits, generateId } from "../storage";
 import { subscribeHabits, batchSaveHabits } from "../personalHabitSync";
 import { computeHabitStreak, appContextLog } from "./utils";
+import { getLocalToday } from "../dateUtils";
+import { getCheckinMinutes } from "../habitBalance";
 import { useWriteGuard } from "@/hooks/useWriteGuard";
 
 const log = appContextLog("HabitsProvider");
@@ -68,6 +70,14 @@ export function HabitsProvider({
     (data: Omit<Habit, "id" | "createdAt" | "updatedAt" | "checkins" | "streak" | "longestStreak">) => {
       const newHabit: Habit = {
         ...data,
+        ...(data.dailyTarget && !data.dailyTarget.minutesSetAt
+          ? {
+              dailyTarget: {
+                ...data.dailyTarget,
+                minutesSetAt: getLocalToday(),
+              },
+            }
+          : {}),
         id: generateId(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -90,8 +100,16 @@ export function HabitsProvider({
 
   const updateHabit = useCallback(
     (id: string, updates: Partial<Habit>) => {
+      // 設定「每日目標」時，若呼叫端沒帶 minutesSetAt，自動蓋上本地今天（累計起算日）
+      const finalUpdates: Partial<Habit> =
+        updates.dailyTarget && !updates.dailyTarget.minutesSetAt
+          ? {
+              ...updates,
+              dailyTarget: { ...updates.dailyTarget, minutesSetAt: getLocalToday() },
+            }
+          : updates;
       const updated = habits.map((h) =>
-        h.id === id ? { ...h, ...updates, updatedAt: new Date().toISOString() } : h
+        h.id === id ? { ...h, ...finalUpdates, updatedAt: new Date().toISOString() } : h
       );
       setHabits(updated);
       saveHabits(updated);
@@ -239,7 +257,7 @@ export function HabitsProvider({
       const existing = habit.checkins.find((c) => c.date === date);
       let checkins: Habit["checkins"];
       if (existing) {
-        const curMins = existing.minutes ?? ((existing.pomodoros ?? 0) * (habit.pomodoroMinutes ?? 25));
+        const curMins = getCheckinMinutes(existing, habit.pomodoroMinutes ?? 25);
         checkins = habit.checkins.map((c) =>
           c.date === date
             ? {
@@ -302,7 +320,7 @@ export function HabitsProvider({
       const unitMins = habit.pomodoroMinutes ?? 25;
       const updatedCheckins = habit.checkins.map((c) => {
         if (c.date !== date) return c;
-        const curMins = c.minutes ?? ((c.pomodoros ?? 0) * unitMins);
+        const curMins = getCheckinMinutes(c, unitMins);
         const nextMins = Math.max(0, curMins - unitMins);
         const nextPoms = Math.max(0, (c.pomodoros ?? 0) - 1);
         return { ...c, pomodoros: nextPoms, minutes: nextMins };
@@ -355,7 +373,7 @@ export function HabitsProvider({
       let checkins: Habit["checkins"];
 
       if (existing) {
-        const currentMinutes = existing.minutes ?? ((existing.pomodoros ?? 0) * unitMinutes);
+        const currentMinutes = getCheckinMinutes(existing, unitMinutes);
         const newMinutes = currentMinutes + minutesToAdd;
         const addedPoms = Math.max(1, Math.round(minutesToAdd / unitMinutes));
         checkins = habit.checkins.map((c) =>

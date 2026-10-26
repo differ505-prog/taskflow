@@ -235,6 +235,11 @@ export interface Habit {
   archivedAt?: string;
   targetPomodoros?: number; // 達到此數自動打卡（0=不啟用）
   pomodoroMinutes?: number; // 記住上次使用的時長（分鐘）
+  /** 每日投入目標（累積目標池）。minutes>0 才啟用；minutesSetAt = 設定當天本地日期 = 累計起算日 */
+  dailyTarget?: {
+    minutes: number;
+    minutesSetAt: string; // YYYY-MM-DD
+  };
 }
 
 export interface HabitCheckin {
