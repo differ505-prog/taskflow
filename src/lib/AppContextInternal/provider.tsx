@@ -508,6 +508,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [isLoaded, tasks, habits, lists, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Agent State Mirror (供 Antigravity AI 輔助與多端同步) ────────
+  useEffect(() => {
+    if (!isLoaded || !user?.uid) return;
+    const timer = setTimeout(() => {
+      fetch("/api/agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "mirror",
+          uid: user.uid,
+          email: user.email,
+          habits,
+          tasks,
+        }),
+      }).catch(() => {});
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [isLoaded, user?.uid, user?.email, habits, tasks]);
+
   // ── Owned Shared List IDs from lists ────────────────────
   useEffect(() => {
     if (!isLoaded || !user) return;

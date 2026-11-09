@@ -52,6 +52,7 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/api/push/") ||
     request.nextUrl.pathname.startsWith("/api/cron/") ||
     request.nextUrl.pathname.startsWith("/api/email/") ||
+    request.nextUrl.pathname.startsWith("/api/agent") ||
     request.nextUrl.pathname === "/" ||
     request.nextUrl.pathname.startsWith("/terms") ||
     request.nextUrl.pathname.startsWith("/privacy") ||

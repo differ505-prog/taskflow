@@ -54,11 +54,11 @@ describe("logger (結構化輸出 wrapper)", () => {
     const originalEnv = process.env.NODE_ENV;
 
     beforeEach(() => {
-      process.env.NODE_ENV = "development";
+      (process.env as any).NODE_ENV = "development";
     });
 
     afterEach(() => {
-      process.env.NODE_ENV = originalEnv;
+      (process.env as any).NODE_ENV = originalEnv;
     });
 
     it("info(message) → console.log called with [namespace] message", () => {
@@ -103,11 +103,11 @@ describe("logger (結構化輸出 wrapper)", () => {
     const originalEnv = process.env.NODE_ENV;
 
     beforeEach(() => {
-      process.env.NODE_ENV = "production";
+      (process.env as any).NODE_ENV = "production";
     });
 
     afterEach(() => {
-      process.env.NODE_ENV = originalEnv;
+      (process.env as any).NODE_ENV = originalEnv;
     });
 
     it("info(message) → console.log called with JSON.stringify { level, ns, message, ts }", () => {
