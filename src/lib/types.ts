@@ -240,6 +240,10 @@ export interface Habit {
     minutes: number;
     minutesSetAt: string; // YYYY-MM-DD
   };
+  /** 最近一次打卡或時間累計記錄時間（ISO datetime） */
+  lastRecordedAt?: string;
+  /** 最近一次記錄的分鐘數（例如 25、30） */
+  lastLoggedMinutes?: number;
 }
 
 export interface HabitCheckin {
@@ -249,6 +253,10 @@ export interface HabitCheckin {
   note?: string;
   pomodoros?: number; // 該日累積的番茄計數
   minutes?: number; // 該日累積的專注分鐘數（真實投入時間）
+  /** 該日最近一次打卡或時間記錄時間（ISO datetime） */
+  lastRecordedAt?: string;
+  /** 該日最近一次記錄的分鐘數 */
+  lastLoggedMinutes?: number;
 }
 
 export interface FlowTimerSession {

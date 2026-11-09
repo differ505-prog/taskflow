@@ -172,23 +172,24 @@ export function HabitsProvider({
     (id: string, date: string, count = 1, note?: string) => {
       const habit = habits.find((h) => h.id === id);
       if (!habit) return;
+      const nowIso = new Date().toISOString();
       const existing = habit.checkins.find((c) => c.date === date);
       let checkins: Habit["checkins"];
       if (existing) {
         checkins = habit.checkins.map((c) =>
           c.date === date
-            ? { ...c, completed: true, count: (c.count || 0) + count, note: note ?? c.note }
+            ? { ...c, completed: true, count: (c.count || 0) + count, note: note ?? c.note, lastRecordedAt: nowIso }
             : c
         );
       } else {
-        checkins = [...habit.checkins, { date, completed: true, count, note, pomodoros: 0 }];
+        checkins = [...habit.checkins, { date, completed: true, count, note, pomodoros: 0, lastRecordedAt: nowIso }];
       }
       const sortedCheckins = checkins.sort((a, b) => b.date.localeCompare(a.date));
       const streak = computeHabitStreak(habit, sortedCheckins);
       const longestStreak = Math.max(habit.longestStreak, streak);
       const updated = habits.map((h) =>
         h.id === id
-          ? { ...h, checkins: sortedCheckins, streak, longestStreak, updatedAt: new Date().toISOString() }
+          ? { ...h, checkins: sortedCheckins, streak, longestStreak, lastRecordedAt: nowIso, updatedAt: nowIso }
           : h
       );
       setHabits(updated);
@@ -248,6 +249,7 @@ export function HabitsProvider({
       const habit = habits.find((h) => h.id === id);
       if (!habit) return;
 
+      const nowIso = new Date().toISOString();
       const updates: Partial<Habit> = {};
       if (minutes) {
         updates.pomodoroMinutes = minutes;
@@ -264,12 +266,14 @@ export function HabitsProvider({
                 ...c,
                 pomodoros: (c.pomodoros ?? 0) + 1,
                 minutes: curMins + sessionMins,
+                lastRecordedAt: nowIso,
+                lastLoggedMinutes: sessionMins,
               }
             : c
         );
       } else {
         // 若當日還沒有任何 checkin entry，先建立一個
-        checkins = [...habit.checkins, { date, completed: false, count: 0, pomodoros: 1, minutes: sessionMins }];
+        checkins = [...habit.checkins, { date, completed: false, count: 0, pomodoros: 1, minutes: sessionMins, lastRecordedAt: nowIso, lastLoggedMinutes: sessionMins }];
       }
 
       // D4：若設定了 targetPomodoros 且尚未打卡，自動打卡
@@ -290,7 +294,7 @@ export function HabitsProvider({
 
       const updated = habits.map((h) =>
         h.id === id
-          ? { ...h, checkins, streak, longestStreak, ...updates, updatedAt: new Date().toISOString() }
+          ? { ...h, checkins, streak, longestStreak, ...updates, lastRecordedAt: nowIso, lastLoggedMinutes: sessionMins, updatedAt: nowIso }
           : h
       );
 
@@ -368,6 +372,7 @@ export function HabitsProvider({
       const habit = habits.find((h) => h.id === id);
       if (!habit) return;
 
+      const nowIso = new Date().toISOString();
       const unitMinutes = habit.pomodoroMinutes ?? 25;
       const existing = habit.checkins.find((c) => c.date === date);
       let checkins: Habit["checkins"];
@@ -382,6 +387,8 @@ export function HabitsProvider({
                 ...c,
                 minutes: newMinutes,
                 pomodoros: (c.pomodoros ?? 0) + addedPoms,
+                lastRecordedAt: nowIso,
+                lastLoggedMinutes: minutesToAdd,
               }
             : c
         );
@@ -395,6 +402,8 @@ export function HabitsProvider({
             count: 0,
             minutes: minutesToAdd,
             pomodoros: addedPoms,
+            lastRecordedAt: nowIso,
+            lastLoggedMinutes: minutesToAdd,
           },
         ];
       }
@@ -417,7 +426,7 @@ export function HabitsProvider({
 
       const updated = habits.map((h) =>
         h.id === id
-          ? { ...h, checkins, streak, longestStreak, updatedAt: new Date().toISOString() }
+          ? { ...h, checkins, streak, longestStreak, lastRecordedAt: nowIso, lastLoggedMinutes: minutesToAdd, updatedAt: nowIso }
           : h
       );
 

@@ -189,18 +189,19 @@ export function deleteHabit(id: string): void {
 export function checkinHabit(id: string, date: string, count = 1, note?: string): void {
   const habits = getHabits().map((h) => {
     if (h.id !== id) return h;
+    const nowIso = new Date().toISOString();
     const existing = h.checkins.find((c) => c.date === date);
     let checkins: Habit["checkins"];
     if (existing) {
       checkins = h.checkins.map((c) =>
-        c.date === date ? { ...c, completed: true, count: (c.count || 0) + count, note: note ?? c.note } : c
+        c.date === date ? { ...c, completed: true, count: (c.count || 0) + count, note: note ?? c.note, lastRecordedAt: nowIso } : c
       );
     } else {
-      checkins = [...h.checkins, { date, completed: true, count, note }];
+      checkins = [...h.checkins, { date, completed: true, count, note, lastRecordedAt: nowIso }];
     }
     const streak = computeStreak(h, checkins);
     const longestStreak = Math.max(h.longestStreak, streak);
-    return { ...h, checkins, streak, longestStreak, updatedAt: new Date().toISOString() };
+    return { ...h, checkins, streak, longestStreak, lastRecordedAt: nowIso, updatedAt: nowIso };
   });
   saveHabits(habits);
 }

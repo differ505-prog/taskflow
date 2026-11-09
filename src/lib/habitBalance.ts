@@ -126,3 +126,139 @@ export function formatBalanceChip(balance: number): string {
   const n = Math.abs(Math.round(balance));
   return balance >= 0 ? `結餘 +${n} 分` : `還差 ${n} 分`;
 }
+
+// ── 上次記錄時間結構與格式化 ──────────────────────────────────────────
+export interface LastRecordedInfo {
+  /** ISO 字串 */
+  isoString: string;
+  /** 格式化時間 "HH:mm" (例如 "14:32") */
+  timeStr: string;
+  /** 日期與時間 (例如 "14:32"、"昨天 21:30"、"10/24 15:00") */
+  dateAndTimeString: string;
+  /** 相對時間 (例如 "剛剛"、"15 分鐘前"、"2 小時前"、"昨天") */
+  relativeText: string;
+  /** 距今已過的分鐘數 (>= 0) */
+  elapsedMinutes: number;
+  /** 該次操作記錄的分鐘數（若有） */
+  minutesLogged?: number;
+  /** 緊湊膠囊文案 (例如 "14:32 (+30分 · 15分前)" 或 "昨天 21:30") */
+  badgeText: string;
+  /** 完整提示說明 (供 tooltip 使用) */
+  tooltip: string;
+  /** 是否為指定目標日期的紀錄 */
+  isTargetDate: boolean;
+}
+
+/**
+ * 取得習慣的「上次記錄時間」資訊。
+ * 優先尋找 targetDate 當日的打卡/補登紀錄；若當日尚未記錄且為今天，則尋找最近一筆歷史紀錄以供對照。
+ */
+export function getLastRecordedInfo(
+  habit: Habit,
+  targetDate: string,
+  now: Date = new Date()
+): LastRecordedInfo | null {
+  const currentCheckin = habit.checkins.find((c) => c.date === targetDate);
+  const targetIso = currentCheckin?.lastRecordedAt;
+
+  let recordIso: string | undefined = targetIso;
+  let minutesLogged = currentCheckin?.lastLoggedMinutes;
+  let isTargetDate = true;
+
+  if (!recordIso) {
+    if (habit.lastRecordedAt) {
+      recordIso = habit.lastRecordedAt;
+      minutesLogged = habit.lastLoggedMinutes;
+      const recDate = toLocalDateString(new Date(recordIso));
+      isTargetDate = recDate === targetDate;
+    } else {
+      const withRecord = habit.checkins
+        .filter((c) => !!c.lastRecordedAt)
+        .sort((a, b) => (b.lastRecordedAt || "").localeCompare(a.lastRecordedAt || ""));
+      if (withRecord.length > 0 && withRecord[0].lastRecordedAt) {
+        recordIso = withRecord[0].lastRecordedAt;
+        minutesLogged = withRecord[0].lastLoggedMinutes;
+        isTargetDate = withRecord[0].date === targetDate;
+      }
+    }
+  }
+
+  if (!recordIso) return null;
+
+  const recDateObj = new Date(recordIso);
+  if (isNaN(recDateObj.getTime())) return null;
+
+  const recLocalDate = toLocalDateString(recDateObj);
+  const todayLocalDate = toLocalDateString(now);
+
+  const hours = String(recDateObj.getHours()).padStart(2, "0");
+  const mins = String(recDateObj.getMinutes()).padStart(2, "0");
+  const timeStr = `${hours}:${mins}`;
+
+  // 計算經過分鐘數
+  const diffMs = Math.max(0, now.getTime() - recDateObj.getTime());
+  const elapsedMinutes = Math.floor(diffMs / 60000);
+
+  let dateAndTimeString = timeStr;
+  let relativeText = "";
+
+  const yesterdayDateObj = new Date(now);
+  yesterdayDateObj.setDate(yesterdayDateObj.getDate() - 1);
+  const yesterdayLocalDate = toLocalDateString(yesterdayDateObj);
+
+  if (recLocalDate === todayLocalDate) {
+    if (elapsedMinutes < 1) {
+      relativeText = "剛剛";
+    } else if (elapsedMinutes < 60) {
+      relativeText = `${elapsedMinutes} 分鐘前`;
+    } else if (elapsedMinutes < 1440) {
+      const h = Math.floor(elapsedMinutes / 60);
+      relativeText = `${h} 小時前`;
+    } else {
+      relativeText = "今天";
+    }
+    dateAndTimeString = timeStr;
+  } else if (recLocalDate === yesterdayLocalDate) {
+    relativeText = "昨天";
+    dateAndTimeString = `昨天 ${timeStr}`;
+  } else {
+    const daysAgo = Math.floor(diffMs / 86400000);
+    if (daysAgo <= 7 && daysAgo > 0) {
+      relativeText = `${daysAgo} 天前`;
+    } else {
+      relativeText = recLocalDate.slice(5).replace("-", "/");
+    }
+    dateAndTimeString = `${recLocalDate.slice(5).replace("-", "/")} ${timeStr}`;
+  }
+
+  const minsTag = minutesLogged && minutesLogged > 0 ? `+${minutesLogged}分` : "";
+  let badgeText = "";
+  if (recLocalDate === todayLocalDate) {
+    if (minsTag) {
+      badgeText = `${timeStr} (${minsTag} · ${relativeText})`;
+    } else {
+      badgeText = `${timeStr} (${relativeText})`;
+    }
+  } else {
+    badgeText = minsTag ? `${dateAndTimeString} (${minsTag})` : dateAndTimeString;
+  }
+
+  const tooltipParts = [
+    `上次記錄：${recLocalDate} ${timeStr}`,
+    minsTag ? `本次投入 ${minsTag}` : null,
+    relativeText ? `（${relativeText}）` : null,
+  ].filter(Boolean);
+  const tooltip = tooltipParts.join(" · ");
+
+  return {
+    isoString: recordIso,
+    timeStr,
+    dateAndTimeString,
+    relativeText,
+    elapsedMinutes,
+    minutesLogged,
+    badgeText,
+    tooltip,
+    isTargetDate,
+  };
+}

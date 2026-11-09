@@ -6,6 +6,7 @@ import {
   formatBalanceChip,
   getCheckinMinutes,
   getHeatmapFill,
+  getLastRecordedInfo,
   getTargetStartDate,
 } from "@/lib/habitBalance";
 
@@ -160,5 +161,85 @@ describe("habitBalance — 累積目標池計算", () => {
 
   it("未啟用目標時 getHeatmapFill 回 null（交由呼叫端走舊邏輯）", () => {
     expect(getHeatmapFill(makeHabit(), "2026-10-24")).toBeNull();
+  });
+
+  describe("getLastRecordedInfo — 上次記錄時間", () => {
+    it("無任何打卡或記錄時回 null", () => {
+      const habit = makeHabit();
+      expect(getLastRecordedInfo(habit, "2026-10-26")).toBeNull();
+    });
+
+    it("當日有記錄時正確解析時間、分鐘數與相對時間", () => {
+      const now = new Date("2026-10-26T15:30:00.000Z");
+      const recordIso = new Date("2026-10-26T15:10:00.000Z").toISOString();
+      const habit = makeHabit({
+        checkins: [
+          {
+            date: "2026-10-26",
+            completed: true,
+            count: 1,
+            minutes: 20,
+            lastRecordedAt: recordIso,
+            lastLoggedMinutes: 20,
+          },
+        ],
+      });
+
+      const info = getLastRecordedInfo(habit, "2026-10-26", now);
+      expect(info).not.toBeNull();
+      expect(info!.elapsedMinutes).toBe(20);
+      expect(info!.minutesLogged).toBe(20);
+      expect(info!.relativeText).toBe("20 分鐘前");
+      expect(info!.badgeText).toContain("+20分");
+      expect(info!.isTargetDate).toBe(true);
+    });
+
+    it("剛剛（<1分鐘）記錄時顯示『剛剛』", () => {
+      const now = new Date("2026-10-26T15:30:00.000Z");
+      const recordIso = new Date("2026-10-26T15:29:40.000Z").toISOString();
+      const habit = makeHabit({
+        checkins: [
+          {
+            date: "2026-10-26",
+            completed: true,
+            count: 1,
+            minutes: 30,
+            lastRecordedAt: recordIso,
+            lastLoggedMinutes: 30,
+          },
+        ],
+      });
+
+      const info = getLastRecordedInfo(habit, "2026-10-26", now);
+      expect(info).not.toBeNull();
+      expect(info!.elapsedMinutes).toBe(0);
+      expect(info!.relativeText).toBe("剛剛");
+    });
+
+    it("當天尚未記錄時，若昨天有記錄能退回取得昨天的對照", () => {
+      const now = new Date("2026-10-26T10:00:00.000Z");
+      // 昨天的 ISO (以 UTC 算 26 小時前，在任何時區都是前一天)
+      const yesterday = new Date(now.getTime() - 26 * 3600 * 1000);
+      const habit = makeHabit({
+        lastRecordedAt: yesterday.toISOString(),
+        lastLoggedMinutes: 45,
+        checkins: [
+          {
+            date: "2026-10-25",
+            completed: true,
+            count: 1,
+            minutes: 45,
+            lastRecordedAt: yesterday.toISOString(),
+            lastLoggedMinutes: 45,
+          },
+        ],
+      });
+
+      const info = getLastRecordedInfo(habit, "2026-10-26", now);
+      expect(info).not.toBeNull();
+      expect(info!.isTargetDate).toBe(false);
+      expect(info!.minutesLogged).toBe(45);
+      expect(info!.dateAndTimeString).toContain("昨天");
+    });
   });
 });

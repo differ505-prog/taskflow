@@ -19,6 +19,7 @@ import {
   CalendarDays,
   Pause,
   Play,
+  Clock,
 } from "lucide-react";
 import { useConfirm } from "@/hooks/useConfirm";
 import { getLocalToday, toLocalDateString } from "@/lib/dateUtils";
@@ -27,6 +28,7 @@ import {
   formatBalanceChip,
   getCheckinMinutes,
   getHeatmapFill,
+  getLastRecordedInfo,
 } from "@/lib/habitBalance";
 import { useFlowTimerContext } from "@/lib/ZenFlowContext";
 import { playTaskDoneSound } from "@/lib/confetti";
@@ -313,6 +315,12 @@ function HabitRow({
     [habit, today]
   );
   const balance = balanceInfo?.balance ?? 0;
+
+  // ── 上次記錄時間資訊 ──────────────────────────────────────────────
+  const lastRecordedInfo = useMemo(
+    () => getLastRecordedInfo(habit, date),
+    [habit, date]
+  );
 
   // 雙維度時長格式化：< 60 分顯示「X 分」；≥ 60 分顯示「H 小時 M 分 (共 X 分)」，避免小數點小時的心算負擔
   const formatDuration = (minutes: number) => {
@@ -602,6 +610,24 @@ function HabitRow({
               歷史累計 {formatDuration(totalHistoryMinutes)}
             </span>
 
+            {/* ── 上次記錄時間膠囊 ───────────────────────────────────── */}
+            {lastRecordedInfo && (
+              <>
+                <span style={{ opacity: 0.4 }}>·</span>
+                <span
+                  className="inline-flex items-center gap-1 font-medium transition-colors"
+                  style={{
+                    color: lastRecordedInfo.isTargetDate ? "var(--brand)" : "var(--text-tertiary)",
+                    opacity: lastRecordedInfo.isTargetDate ? 0.9 : 0.7,
+                  }}
+                  title={lastRecordedInfo.tooltip}
+                >
+                  <Clock className="w-2.5 h-2.5 opacity-70" />
+                  上次 {lastRecordedInfo.badgeText}
+                </span>
+              </>
+            )}
+
             {/* 補登入口按鈕 */}
             {!isArchived && onLogTime && (
               <>
@@ -685,6 +711,74 @@ function HabitRow({
                   >
                     關閉
                   </button>
+                </div>
+
+                {/* ── 上次記錄對照條（防止忘記記錄導致累計失準） ── */}
+                <div
+                  className="flex items-center justify-between px-2.5 py-1.5 mb-2.5 rounded-lg text-[11px] border flex-wrap gap-1.5"
+                  style={{
+                    background: "var(--surface)",
+                    borderColor: "var(--border)",
+                  }}
+                >
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <Clock className="w-3.5 h-3.5" style={{ color: "var(--brand)" }} />
+                    <span className="font-medium" style={{ color: "var(--text-secondary)" }}>
+                      上次記錄：
+                    </span>
+                    {lastRecordedInfo ? (
+                      <>
+                        <span className="font-mono tabular-nums font-semibold" style={{ color: "var(--brand)" }}>
+                          {lastRecordedInfo.dateAndTimeString}
+                        </span>
+                        {lastRecordedInfo.minutesLogged && lastRecordedInfo.minutesLogged > 0 ? (
+                          <span
+                            className="px-1.5 py-0.2 rounded text-[10px] font-medium"
+                            style={{
+                              background: "var(--brand-tint)",
+                              color: "var(--brand)",
+                            }}
+                          >
+                            +{lastRecordedInfo.minutesLogged}分
+                          </span>
+                        ) : null}
+                        <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>
+                          ({lastRecordedInfo.relativeText})
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>
+                        今日尚未有記錄
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 text-[10px] ml-auto">
+                    <span style={{ color: "var(--text-tertiary)" }}>
+                      今日累計: <strong className="font-semibold" style={{ color: "var(--text-primary)" }}>{todayMinutes}分</strong>
+                    </span>
+                    {/* ⚡ 智慧填入間隔：若距上次記錄在 5~360 分鐘內，提供一鍵填入 */}
+                    {lastRecordedInfo &&
+                      lastRecordedInfo.isTargetDate &&
+                      lastRecordedInfo.elapsedMinutes >= 5 &&
+                      lastRecordedInfo.elapsedMinutes <= 360 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomMinutesInput(String(lastRecordedInfo.elapsedMinutes));
+                          }}
+                          className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded text-[10px] font-medium transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                          style={{
+                            background: "var(--brand-tint)",
+                            color: "var(--brand)",
+                            border: "1px dashed var(--brand)",
+                          }}
+                          title={`點擊自動將自訂欄填入 ${lastRecordedInfo.elapsedMinutes} 分鐘（距上次記錄時間）`}
+                        >
+                          ⚡ 填入距上次 {lastRecordedInfo.elapsedMinutes} 分
+                        </button>
+                      )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-1.5 flex-wrap">
@@ -1015,6 +1109,27 @@ export function HabitsPage() {
     }, 0);
   }, [activeHabits, selectedDate]);
 
+  // 全體習慣在選取日期的最近一次記錄
+  const latestTodayRecord = useMemo(() => {
+    let latestIso: string | null = null;
+    for (const h of activeHabits) {
+      const c = h.checkins.find((x) => x.date === selectedDate);
+      const iso = c?.lastRecordedAt || (c && toLocalDateString(new Date(h.lastRecordedAt || "")) === selectedDate ? h.lastRecordedAt : null);
+      if (iso && (!latestIso || iso > latestIso)) {
+        latestIso = iso;
+      }
+    }
+    if (!latestIso) return null;
+    const d = new Date(latestIso);
+    if (isNaN(d.getTime())) return null;
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    const diffMs = Math.max(0, Date.now() - d.getTime());
+    const diffMins = Math.floor(diffMs / 60000);
+    const rel = diffMins < 1 ? "剛剛" : diffMins < 60 ? `${diffMins} 分鐘前` : `${Math.floor(diffMins / 60)} 小時前`;
+    return { timeStr: `${hh}:${mm}`, rel };
+  }, [activeHabits, selectedDate]);
+
   // 格式化結果
   const timeDisplay = formatMinutes(totalTodayMinutes);
 
@@ -1058,8 +1173,21 @@ export function HabitsPage() {
                   </button>
                 )}
               </div>
-              <p className="text-[12px]" style={{ color: "var(--text-tertiary)", opacity: 0.7 }}>
-                🍅 {totalTodayPomodoros} 個番茄 · 共 {totalTodayMinutes} 分鐘 · {selectedDate === today ? "今日已推進" : `${selectedDate.replace(/^\d{4}-/, "").replace("-", "/")} 紀錄`} · 完成 {selectedDateDone}/{activeHabits.length} 個習慣
+              <p className="text-[12px] flex items-center gap-1.5 flex-wrap" style={{ color: "var(--text-tertiary)", opacity: 0.7 }}>
+                <span>🍅 {totalTodayPomodoros} 個番茄 · 共 {totalTodayMinutes} 分鐘</span>
+                {latestTodayRecord && (
+                  <>
+                    <span>·</span>
+                    <span className="inline-flex items-center gap-0.5">
+                      <Clock className="w-3 h-3 opacity-70" />
+                      上次記錄 {latestTodayRecord.timeStr} ({latestTodayRecord.rel})
+                    </span>
+                  </>
+                )}
+                <span>·</span>
+                <span>{selectedDate === today ? "今日已推進" : `${selectedDate.replace(/^\d{4}-/, "").replace("-", "/")} 紀錄`}</span>
+                <span>·</span>
+                <span>完成 {selectedDateDone}/{activeHabits.length} 個習慣</span>
               </p>
             </div>
           ) : (
