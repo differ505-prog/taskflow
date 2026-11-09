@@ -16,8 +16,8 @@ import https from "https";
 import fs from "fs";
 import path from "path";
 
-const API_BASE = process.env.AGENT_API_URL || "http://localhost:3000/api/agent";
-const API_KEY = process.env.AGENT_API_KEY || "vibelist-agent-local-secret";
+const API_BASE = process.env.AGENT_API_URL || "https://www.vibelist.work/api/agent";
+const API_KEY = process.env.AGENT_API_KEY || "vibelist-agent-key-2026";
 const STATE_FILE_PATH = path.join(process.cwd(), ".data", "user_state.json");
 
 interface RequestOptions {
