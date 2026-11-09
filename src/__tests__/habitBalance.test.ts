@@ -241,5 +241,28 @@ describe("habitBalance — 累積目標池計算", () => {
       expect(info!.minutesLogged).toBe(45);
       expect(info!.dateAndTimeString).toContain("昨天");
     });
+
+    it("既有舊紀錄無 lastRecordedAt 時，能以 habit.updatedAt 自動回推上次時間", () => {
+      const now = new Date("2026-10-26T10:00:00.000Z");
+      const updatedTime = new Date("2026-10-26T09:30:00.000Z").toISOString();
+      const habit = makeHabit({
+        updatedAt: updatedTime,
+        checkins: [
+          {
+            date: "2026-10-26",
+            completed: false,
+            count: 0,
+            minutes: 100,
+            pomodoros: 4,
+          },
+        ],
+      });
+
+      const info = getLastRecordedInfo(habit, "2026-10-26", now);
+      expect(info).not.toBeNull();
+      expect(info!.isTargetDate).toBe(true);
+      expect(info!.elapsedMinutes).toBe(30);
+      expect(info!.relativeText).toBe("30 分鐘前");
+    });
   });
 });

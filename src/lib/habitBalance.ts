@@ -179,6 +179,15 @@ export function getLastRecordedInfo(
         recordIso = withRecord[0].lastRecordedAt;
         minutesLogged = withRecord[0].lastLoggedMinutes;
         isTargetDate = withRecord[0].date === targetDate;
+      } else if (currentCheckin && (currentCheckin.completed || (currentCheckin.minutes ?? 0) > 0 || (currentCheckin.pomodoros ?? 0) > 0)) {
+        // 既有舊資料備援：若升級前已存在今日紀錄，以 habit.updatedAt 回推上次異動時間
+        if (habit.updatedAt) {
+          const updDate = toLocalDateString(new Date(habit.updatedAt));
+          if (updDate === targetDate) {
+            recordIso = habit.updatedAt;
+            isTargetDate = true;
+          }
+        }
       }
     }
   }
