@@ -159,34 +159,56 @@ export function getLastRecordedInfo(
   now: Date = new Date()
 ): LastRecordedInfo | null {
   const currentCheckin = habit.checkins.find((c) => c.date === targetDate);
-  const targetIso = currentCheckin?.lastRecordedAt;
+  const hasTargetActivity =
+    !!currentCheckin &&
+    (currentCheckin.completed ||
+      (currentCheckin.minutes ?? 0) > 0 ||
+      (currentCheckin.pomodoros ?? 0) > 0 ||
+      (currentCheckin.count ?? 0) > 0);
 
-  let recordIso: string | undefined = targetIso;
+  let recordIso: string | undefined = currentCheckin?.lastRecordedAt;
   let minutesLogged = currentCheckin?.lastLoggedMinutes;
   let isTargetDate = true;
 
-  if (!recordIso) {
-    if (habit.lastRecordedAt) {
-      recordIso = habit.lastRecordedAt;
-      minutesLogged = habit.lastLoggedMinutes;
-      const recDate = toLocalDateString(new Date(recordIso));
-      isTargetDate = recDate === targetDate;
-    } else {
-      const withRecord = habit.checkins
-        .filter((c) => !!c.lastRecordedAt)
-        .sort((a, b) => (b.lastRecordedAt || "").localeCompare(a.lastRecordedAt || ""));
-      if (withRecord.length > 0 && withRecord[0].lastRecordedAt) {
-        recordIso = withRecord[0].lastRecordedAt;
-        minutesLogged = withRecord[0].lastLoggedMinutes;
-        isTargetDate = withRecord[0].date === targetDate;
-      } else if (currentCheckin && (currentCheckin.completed || (currentCheckin.minutes ?? 0) > 0 || (currentCheckin.pomodoros ?? 0) > 0)) {
-        // 既有舊資料備援：若升級前已存在今日紀錄，以 habit.updatedAt 回推上次異動時間
-        if (habit.updatedAt) {
-          const updDate = toLocalDateString(new Date(habit.updatedAt));
-          if (updDate === targetDate) {
-            recordIso = habit.updatedAt;
-            isTargetDate = true;
-          }
+  if (hasTargetActivity) {
+    // 當日已有投入紀錄：優先尋找當日時間標記，絕不跨日倒退顯示昨日
+    if (!recordIso) {
+      if (
+        habit.lastRecordedAt &&
+        toLocalDateString(new Date(habit.lastRecordedAt)) === targetDate
+      ) {
+        recordIso = habit.lastRecordedAt;
+        if (!minutesLogged) minutesLogged = habit.lastLoggedMinutes;
+      } else if (habit.updatedAt) {
+        const updDate = toLocalDateString(new Date(habit.updatedAt));
+        if (updDate === targetDate) {
+          recordIso = habit.updatedAt;
+          if (!minutesLogged) minutesLogged = habit.lastLoggedMinutes;
+        }
+      }
+
+      // 若當日有投入但舊紀錄未帶時間戳記，以 updatedAt 或當前時間備援，絕不誤標昨日
+      if (!recordIso) {
+        recordIso = habit.updatedAt || now.toISOString();
+      }
+    }
+    isTargetDate = true;
+  } else {
+    // 當日尚未打卡/投入：尋找最近一筆歷史紀錄以供對照（例如「上次 昨天 22:38」）
+    if (!recordIso) {
+      if (habit.lastRecordedAt) {
+        recordIso = habit.lastRecordedAt;
+        minutesLogged = habit.lastLoggedMinutes;
+        const recDate = toLocalDateString(new Date(recordIso));
+        isTargetDate = recDate === targetDate;
+      } else {
+        const withRecord = habit.checkins
+          .filter((c) => !!c.lastRecordedAt)
+          .sort((a, b) => (b.lastRecordedAt || "").localeCompare(a.lastRecordedAt || ""));
+        if (withRecord.length > 0 && withRecord[0].lastRecordedAt) {
+          recordIso = withRecord[0].lastRecordedAt;
+          minutesLogged = withRecord[0].lastLoggedMinutes;
+          isTargetDate = withRecord[0].date === targetDate;
         }
       }
     }

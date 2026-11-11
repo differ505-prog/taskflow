@@ -1113,10 +1113,11 @@ export function HabitsPage() {
   const latestTodayRecord = useMemo(() => {
     let latestIso: string | null = null;
     for (const h of activeHabits) {
-      const c = h.checkins.find((x) => x.date === selectedDate);
-      const iso = c?.lastRecordedAt || (c && toLocalDateString(new Date(h.lastRecordedAt || "")) === selectedDate ? h.lastRecordedAt : null);
-      if (iso && (!latestIso || iso > latestIso)) {
-        latestIso = iso;
+      const info = getLastRecordedInfo(h, selectedDate);
+      if (info && info.isTargetDate && info.isoString) {
+        if (!latestIso || info.isoString > latestIso) {
+          latestIso = info.isoString;
+        }
       }
     }
     if (!latestIso) return null;

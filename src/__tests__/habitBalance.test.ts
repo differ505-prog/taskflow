@@ -264,5 +264,43 @@ describe("habitBalance — 累積目標池計算", () => {
       expect(info!.elapsedMinutes).toBe(30);
       expect(info!.relativeText).toBe("30 分鐘前");
     });
+
+    it("當習慣有昨日 lastRecordedAt，但今日已有番茄或投入且今日 checkin 無 lastRecordedAt 時，絕不顯示昨日紀錄", () => {
+      const now = new Date("2026-11-11T06:30:00.000Z");
+      const yesterdayIso = "2026-11-10T14:38:11.037Z";
+      const todayUpdatedIso = "2026-11-11T05:59:56.368Z"; // 30 分鐘前
+
+      const habit = makeHabit({
+        lastRecordedAt: yesterdayIso,
+        lastLoggedMinutes: 25,
+        updatedAt: todayUpdatedIso,
+        checkins: [
+          {
+            date: "2026-11-10",
+            completed: false,
+            count: 0,
+            minutes: 225,
+            pomodoros: 9,
+            lastRecordedAt: yesterdayIso,
+            lastLoggedMinutes: 25,
+          },
+          {
+            date: "2026-11-11",
+            completed: false,
+            count: 0,
+            minutes: 200,
+            pomodoros: 8,
+            // 模擬升級前或無 lastRecordedAt
+          },
+        ],
+      });
+
+      const info = getLastRecordedInfo(habit, "2026-11-11", now);
+      expect(info).not.toBeNull();
+      expect(info!.isTargetDate).toBe(true);
+      expect(info!.badgeText).not.toContain("昨天");
+      expect(info!.elapsedMinutes).toBe(30);
+      expect(info!.relativeText).toBe("30 分鐘前");
+    });
   });
 });
