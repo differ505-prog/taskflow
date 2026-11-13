@@ -299,7 +299,7 @@ export default function ZenDashboard() {
           - 手機:Logo 自動縮成只有色塊,避免擠壓「任務大廳」按鈕
           - 從原本 floating 重構為 inline,不再遮擋內容 */}
       <div
-        className="mx-auto grid h-14 max-w-2xl grid-cols-3 items-center gap-3"
+        className="mx-auto grid min-h-[56px] max-w-2xl grid-cols-[auto_1fr_auto] items-center gap-3"
         style={{ marginTop: "max(0px, env(safe-area-inset-top, 0px))" }}
       >
         {/* 左群組:Logo + Zen Mode 標題(身份歸屬) */}
@@ -344,7 +344,7 @@ export default function ZenDashboard() {
         />
 
         {/* 右群組:等 badge + 無聲專注室 + 任務大廳 */}
-        <div className="flex items-center justify-end gap-3 sm:gap-4">
+        <div className="flex items-center justify-end gap-2 sm:gap-3 shrink-0 whitespace-nowrap">
           <ProgressBadge />
           {/* §26 降噪:無聲營地 — 移除邊框(虛線/實線),改用極低透明度純色背景融入
               GhostButton 用 inline style 設 border,需用 style prop 覆寫 */}
@@ -354,7 +354,7 @@ export default function ZenDashboard() {
             icon={Users}
             featureId="body_doubling"
             dismissed={bodyDoublingGhost.dismissed}
-            className="border-0"
+            className="border-0 whitespace-nowrap shrink-0"
             style={{
               background: "rgba(241, 245, 249, 0.5)", // slate-100/50
               border: "none",
@@ -365,7 +365,7 @@ export default function ZenDashboard() {
           {/* §Safari-test: 移除 touch-manipulation + active:scale, 改用 touch-action:auto + user-select:auto 測試 hit-testing */}
           <Link
             href="/?board=1"
-            className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-slate-500 transition-all duration-200 ease-out hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-200 sm:px-4"
+            className="inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 rounded-full px-3 py-2 text-sm font-medium text-slate-500 transition-all duration-200 ease-out hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-200 sm:px-4"
             style={{ touchAction: "auto", userSelect: "auto" }}
             aria-label="進入任務大廳(收件箱) — 整理任務或快速 Brain Dump"
           >
@@ -390,7 +390,7 @@ export default function ZenDashboard() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto mt-2 max-w-2xl">
         <RhythmBar visibleTasks={visibleTasks} />
       </div>
 

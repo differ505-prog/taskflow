@@ -445,6 +445,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, action: "add_task", task: newTask });
   }
 
+  if (action === "delete_task") {
+    const taskId = payload?.id as string | undefined;
+    if (!taskId) return NextResponse.json({ error: "Missing task id" }, { status: 400 });
+
+    if (supabaseAdmin) {
+      await supabaseAdmin
+        .from("personal_tasks")
+        .delete()
+        .eq("id", taskId)
+        .eq("owner_uid", targetUid);
+    }
+
+    const currentTasks = localState?.tasks || [];
+    writeLocalState({
+      ...localState,
+      tasks: currentTasks.filter((t) => t.id !== taskId),
+      lastSyncedAt: new Date().toISOString(),
+    });
+
+    return NextResponse.json({ ok: true, action: "delete_task", id: taskId });
+  }
+
   // 4. 節奏設定同步 (set_rhythm_profile)
   if (action === "set_rhythm_profile") {
     const rawSettings = (payload?.settings ?? payload ?? {}) as Partial<RhythmSettings>;
