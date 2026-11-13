@@ -38,6 +38,7 @@ import PresenceDot from "@/components/PresenceDot";
 import { FlowTimer } from "@/components/FlowTimer";
 import { BASE_TASK_PP } from "@/lib/progressRank";
 import { QuickCaptureTrigger } from "@/components/QuickCaptureTrigger";
+import { RhythmBar } from "@/components/RhythmBar";
 import { GhostButton } from "@/components/GhostButton";
 import { ProWaitlistModal } from "@/components/ProWaitlistModal";
 import { TodayWrapUpButton } from "@/components/TodayWrapUpButton";
@@ -387,6 +388,10 @@ export default function ZenDashboard() {
             <span className="hidden sm:inline">任務大廳</span>
           </Link>
         </div>
+      </div>
+
+      <div className="mx-auto max-w-2xl">
+        <RhythmBar visibleTasks={visibleTasks} />
       </div>
 
       <div className="mx-auto mt-12 flex max-w-2xl flex-col gap-12 pb-12">

@@ -23,6 +23,7 @@ import {
   InteractionSection,
   KeyboardShortcutsSection,
   NotificationsSection,
+  RhythmSection,
   ProFeaturesSection,
   WebhookSection,
   SettingsProvider,
@@ -177,6 +178,7 @@ function SettingsContent({
         <AccountSection />
         <NotificationsSection />
         <InteractionSection />
+        <RhythmSection />
         <DataSection
           tasks={tasks}
           habits={habits}

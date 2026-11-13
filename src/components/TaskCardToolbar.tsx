@@ -3,6 +3,7 @@
 import { Trash2, Repeat, Timer } from "lucide-react";
 import { TaskQuickActions } from "./TaskQuickActions";
 import { FocusNowButton } from "./FocusNowButton";
+import { formatOutputLabel } from "@/lib/outputCount";
 import type { Task, Priority } from "@/lib/types";
 
 interface TaskCardToolbarProps {
@@ -13,6 +14,7 @@ interface TaskCardToolbarProps {
   onUpdatePriority?: (p: Priority) => void;
   onUpdateTags?: (tags: string[]) => void;
   onFocusNow?: (taskId: string) => void;
+  onIncrementOutput?: () => void;
   allTags?: string[];
 }
 
@@ -24,6 +26,7 @@ export function TaskCardToolbar({
   onUpdatePriority,
   onUpdateTags,
   onFocusNow,
+  onIncrementOutput,
   allTags = [],
 }: TaskCardToolbarProps) {
   const handleDeleteClick = (e: React.MouseEvent) => {
@@ -62,6 +65,30 @@ export function TaskCardToolbar({
         <span className="flex items-center gap-0.5 text-[11px]" style={{ color: "var(--text-tertiary)" }}>
           <Timer className="w-3 h-3" />
           {task.focusMinutes}m
+        </span>
+      )}
+      {task.outputTarget && (
+        <span className="inline-flex items-center gap-1">
+          <span
+            className="text-[11px] tabular-nums"
+            style={{ color: "var(--text-tertiary)" }}
+          >
+            {formatOutputLabel(task.outputCount, task.outputTarget)}
+          </span>
+          {onIncrementOutput && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onIncrementOutput();
+              }}
+              className="px-1.5 py-0.5 rounded-lg text-[11px] font-medium transition-colors hover:bg-[var(--surface-hover)]"
+              style={{ color: "var(--text-secondary)" }}
+              aria-label="產出加一"
+            >
+              ＋1
+            </button>
+          )}
         </span>
       )}
       <TaskQuickActions

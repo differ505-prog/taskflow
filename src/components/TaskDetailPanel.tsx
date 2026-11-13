@@ -33,6 +33,7 @@ import { GripVertical } from "lucide-react";
 import { ListChipPicker } from "./ListChipPicker";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
 import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
+import { formatOutputLabel, incrementOutputCount } from "@/lib/outputCount";
 import { SwipeableSubTask } from "./SwipeableSubTask";
 import TaskCommentsInline from "./TaskCommentsInline";
 import TaskCommentsDrawer from "./TaskCommentsDrawer";
@@ -135,6 +136,10 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
   const [startDate, setStartDate] = useState(task.startDate || "");
   const [dueDate, setDueDate] = useState(task.dueDate || "");
   const [dueTime, setDueTime] = useState(task.dueTime || "");
+  const [outputTargetCount, setOutputTargetCount] = useState(
+    task.outputTarget ? String(task.outputTarget.count) : ""
+  );
+  const [outputTargetUnit, setOutputTargetUnit] = useState(task.outputTarget?.unit || "");
   const [listId, setListId] = useState<string | undefined>(task.listId);
   const [tags, setTags] = useState<string[]>(task.tags || []);
 
@@ -268,6 +273,8 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
     setStartDate(task.startDate || "");
     setDueDate(task.dueDate || "");
     setDueTime(task.dueTime || "");
+    setOutputTargetCount(task.outputTarget ? String(task.outputTarget.count) : "");
+    setOutputTargetUnit(task.outputTarget?.unit || "");
     setListId(task.listId);
     setTags(task.tags || []);
     setRecurrenceType(task.recurrence?.pattern || "none");
@@ -292,6 +299,8 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
       startDate !== (task.startDate || "") ||
       dueDate !== (task.dueDate || "") ||
       dueTime !== (task.dueTime || "") ||
+      outputTargetCount !== (task.outputTarget ? String(task.outputTarget.count) : "") ||
+      outputTargetUnit !== (task.outputTarget?.unit || "") ||
       listId !== task.listId ||
       JSON.stringify(tags) !== JSON.stringify(task.tags) ||
       recurrenceType !== (task.recurrence?.pattern || "none") ||
@@ -302,7 +311,7 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
       JSON.stringify(subTasks) !== JSON.stringify(task.subTasks || []) ||
       JSON.stringify(attachments) !== JSON.stringify(task.attachments || []);
     setHasChanges(changed);
-  }, [title, description, priority, status, startDate, dueDate, dueTime, listId, tags, recurrenceType, recurrenceInterval, recurrenceDaysOfWeek, recurrenceDayOfMonth, recurrenceEndDate, subTasks, attachments, task]);
+  }, [title, description, priority, status, startDate, dueDate, dueTime, outputTargetCount, outputTargetUnit, listId, tags, recurrenceType, recurrenceInterval, recurrenceDaysOfWeek, recurrenceDayOfMonth, recurrenceEndDate, subTasks, attachments, task]);
 
   const counts: Record<string, number> = getTagCounts();
 
@@ -336,6 +345,11 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
         endDate: recurrenceEndDate || undefined,
       };
     }
+    const parsedOutputCount = Number.parseInt(outputTargetCount, 10);
+    const outputTarget =
+      Number.isFinite(parsedOutputCount) && parsedOutputCount > 0
+        ? { count: Math.min(999, parsedOutputCount), unit: outputTargetUnit.trim() || "項" }
+        : undefined;
     const finalDueDate = dueDate || startDate || undefined;
     handleUpdateTask(task.id, {
       title: title.trim(),
@@ -345,6 +359,8 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
       startDate: startDate || undefined,
       dueDate: finalDueDate,
       dueTime: dueTime || undefined,
+      outputTarget,
+      outputCount: task.outputCount ?? 0,
       listId,
       tags,
       subTasks,
@@ -391,6 +407,8 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
     startDate: "",
     dueDate: "",
     dueTime: "",
+    outputTargetCount: "",
+    outputTargetUnit: "",
     listId: undefined as string | undefined,
     tags: [] as string[],
     recurrenceType: "none" as string,
@@ -410,6 +428,8 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
       startDate,
       dueDate,
       dueTime,
+      outputTargetCount,
+      outputTargetUnit,
       listId,
       tags,
       recurrenceType,
@@ -454,6 +474,11 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
           }
           : undefined;
       const finalDueDate = snap.dueDate || snap.startDate || undefined;
+      const snapOutputNum = Number.parseInt(snap.outputTargetCount, 10);
+      const snapOutputTarget =
+        Number.isFinite(snapOutputNum) && snapOutputNum > 0
+          ? { count: Math.min(999, snapOutputNum), unit: snap.outputTargetUnit.trim() || "項" }
+          : undefined;
       handleUpdateTask(task.id, {
         title: snap.title.trim(),
         description: snap.description.trim() || undefined,
@@ -462,6 +487,7 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
         startDate: snap.startDate || undefined,
         dueDate: finalDueDate,
         dueTime: snap.dueTime || undefined,
+        outputTarget: snapOutputTarget,
         listId: snap.listId,
         tags: snap.tags,
         recurrence,
@@ -484,6 +510,8 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
   useDebouncedField({ value: startDate, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
   useDebouncedField({ value: dueDate, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
   useDebouncedField({ value: dueTime, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
+  useDebouncedField({ value: outputTargetCount, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
+  useDebouncedField({ value: outputTargetUnit, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
   useDebouncedField({ value: listId, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
   useDebouncedField({ value: tags, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
   useDebouncedField({ value: recurrenceType, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
@@ -1191,6 +1219,50 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
               <label className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>具體時間</label>
             </div>
             <input type="time" value={dueTime} onChange={(e) => setDueTime(e.target.value)} className="input cursor-pointer" />
+          </div>
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <label className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>產出目標</label>
+              {task.outputTarget && (
+                <div className="inline-flex items-center gap-1.5">
+                  <span className="text-[11px] tabular-nums" style={{ color: "var(--text-tertiary)" }}>
+                    {formatOutputLabel(task.outputCount, task.outputTarget)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleUpdateTask(task.id, {
+                        outputCount: incrementOutputCount(task.outputCount),
+                      })
+                    }
+                    className="px-2 py-0.5 rounded-lg text-[11px] font-medium transition-colors hover:bg-[var(--surface-hover)]"
+                    style={{ color: "var(--text-secondary)" }}
+                    aria-label="產出加一"
+                  >
+                    ＋1
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                type="number"
+                min={1}
+                max={999}
+                value={outputTargetCount}
+                onChange={(e) => setOutputTargetCount(e.target.value)}
+                placeholder="數量（選填）"
+                className="input"
+              />
+              <input
+                type="text"
+                maxLength={8}
+                value={outputTargetUnit}
+                onChange={(e) => setOutputTargetUnit(e.target.value)}
+                placeholder="張 / 行 / 位"
+                className="input"
+              />
+            </div>
           </div>
         </div>
 

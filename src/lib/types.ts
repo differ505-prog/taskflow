@@ -181,6 +181,8 @@ export interface Task {
   isPinned?: boolean; // 置頂（全域排序加權）
   completedAt?: string; // ISO datetime，任務被標記為完成時的時間戳
   focusMinutes: number; // total FlowTimer minutes logged
+  outputTarget?: { count: number; unit: string }; // 產出目標，如 5 張圖；undefined = 未啟用
+  outputCount?: number; // 已累積產出（預設 0）
   order: number; // sort order within view
   createdBy?: string; // uid of the user who created this task (for shared lists)
   attachments?: Attachment[]; // 上傳的附件
@@ -386,3 +388,46 @@ export const TAG_COLORS = [
   "#F97316", "#EAB308", "#22C55E", "#14B8A6",
   "#06B6D4", "#6366F1",
 ];
+
+// ─── Rhythm & MVD Types ─────────────────────────────────────────
+export type RhythmAnchorId = "wake" | "offduty" | "screensoff";
+export type ThemeDayId = string; // 使用者自訂的主題日 key，如 "vibe-coding"
+
+export interface RhythmAnchorConfig {
+  id: RhythmAnchorId;
+  label: string;
+  time: string;   // "HH:mm"
+  enabled: boolean;
+}
+
+export interface ThemeDay {
+  id: ThemeDayId;
+  label: string;      // 例：「Vibe Coding」
+  emoji: string;      // 例：「💻」
+  weekdays: number[]; // 0=Sun..6=Sat，該主題日的星期
+  tag?: string;       // 關聯的任務標籤（選填，用於統計）
+}
+
+export interface RhythmSettings {
+  wakeTime: string;       // "08:00"
+  offDutyTime: string;    // "17:00"
+  screensOffTime: string; // "22:15"
+  enabled: Record<RhythmAnchorId, boolean>;
+  mvdEnabled: boolean;
+  themeDays: ThemeDay[];  // 每日主題日清單（可空）
+}
+
+export const DEFAULT_RHYTHM_SETTINGS: RhythmSettings = {
+  wakeTime: "08:00", offDutyTime: "17:00", screensOffTime: "22:15",
+  enabled: { wake: true, offduty: true, screensoff: true },
+  mvdEnabled: false,
+  themeDays: [],
+};
+
+/** 節奏設定同步載體（存進 personal_habits JSONB，id 固定 rhythm-profile） */
+export interface RhythmProfile {
+  id: "rhythm-profile";
+  kind: "rhythm-profile";
+  settings: RhythmSettings;
+  updatedAt: string;
+}

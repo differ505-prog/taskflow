@@ -32,6 +32,7 @@ interface TaskCardProps {
   onUpdatePriority?: (id: string, p: Priority) => void;
   onUpdateTags?: (id: string, tags: string[]) => void;
   onFocusNow?: (taskId: string) => void;
+  onUpdateOutput?: (id: string) => void;
   allTags?: string[];
   onHoverEnter?: (id: string) => void;
   onHoverLeave?: (id: string) => void;
@@ -49,6 +50,7 @@ export function TaskCard({
   onUpdatePriority,
   onUpdateTags,
   onFocusNow,
+  onUpdateOutput,
   allTags = [],
   onHoverEnter,
   onHoverLeave,
@@ -199,6 +201,7 @@ export function TaskCard({
                 onUpdatePriority={onUpdatePriority ? (p) => onUpdatePriority(task.id, p) : undefined}
                 onUpdateTags={onUpdateTags ? (tags) => onUpdateTags(task.id, tags) : undefined}
                 onFocusNow={onFocusNow}
+                onIncrementOutput={onUpdateOutput ? () => onUpdateOutput(task.id) : undefined}
                 allTags={allTags}
               />
             </div>

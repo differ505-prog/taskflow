@@ -10,6 +10,7 @@ import {
 import { Task } from "@/lib/types";
 import { getTasks } from "@/lib/storage";
 import { useAuth } from "@/lib/AuthContext";
+import { useRhythmSettings } from "@/hooks/useRhythmSettings";
 
 function useTaskStats() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -89,6 +90,7 @@ function formatDate(dateStr: string): string {
 export default function StatsClient() {
   const { isAdmin, isPro, isBeta, isFree } = useAuth();
   const { tasks, isLoaded } = useTaskStats();
+  const { settings: rhythmSettings } = useRhythmSettings();
   const isLocked = isFree;
 
   const stats = useMemo(() => {
@@ -105,8 +107,33 @@ export default function StatsClient() {
       ? Math.round(((weekly.thisWeek - weekly.lastWeek) / weekly.lastWeek) * 100)
       : weekly.thisWeek > 0 ? 100 : 0;
 
-    return { doneCount, todayDone, weekly, milestone, thisWeekPct };
-  }, [tasks, isLoaded]);
+    const outputByUnitMap: Record<string, number> = {};
+    let totalFocusMinutes = 0;
+    for (const t of tasks) {
+      totalFocusMinutes += t.focusMinutes || 0;
+      if (t.outputTarget) {
+        const unit = t.outputTarget.unit || "項";
+        outputByUnitMap[unit] = (outputByUnitMap[unit] || 0) + (t.outputCount ?? 0);
+      }
+    }
+    const outputTotals = Object.entries(outputByUnitMap).map(([unit, count]) => ({ unit, count }));
+
+    const themeStats = rhythmSettings.themeDays
+      .filter((td) => Boolean(td.tag && td.tag.trim()))
+      .map((td) => {
+        const tag = td.tag!.trim();
+        const completed = done.filter((t) => t.tags.includes(tag)).length;
+        return {
+          id: td.id,
+          emoji: td.emoji,
+          label: td.label,
+          tag,
+          completed,
+        };
+      });
+
+    return { doneCount, todayDone, weekly, milestone, thisWeekPct, outputTotals, totalFocusMinutes, themeStats };
+  }, [tasks, isLoaded, rhythmSettings.themeDays]);
 
   if (!isLoaded) {
     return (
@@ -322,6 +349,53 @@ export default function StatsClient() {
             </p>
           </motion.div>
         </div>
+
+        {/* 產出區 */}
+        {stats && (
+          <motion.div
+            className="card px-5 py-5 space-y-3"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.18 }}
+          >
+            <p className="text-[12px] font-medium uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+              產出
+            </p>
+            <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2 tabular-nums">
+              {stats.outputTotals.map((item) => (
+                <div key={item.unit} className="flex items-baseline gap-1.5">
+                  <span className="text-[24px] font-bold leading-none" style={{ color: "var(--text-primary)" }}>
+                    {item.count}
+                  </span>
+                  <span className="text-[13px]" style={{ color: "var(--text-secondary)" }}>
+                    {item.unit}
+                  </span>
+                </div>
+              ))}
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-[13px]" style={{ color: "var(--text-tertiary)" }}>專注</span>
+                <span className="text-[24px] font-bold leading-none" style={{ color: "var(--text-primary)" }}>
+                  {stats.totalFocusMinutes}
+                </span>
+                <span className="text-[13px]" style={{ color: "var(--text-secondary)" }}>分</span>
+              </div>
+            </div>
+
+            {stats.themeStats.length > 0 && (
+              <div className="pt-2 border-t flex flex-wrap gap-x-5 gap-y-2 text-[13px] tabular-nums" style={{ borderColor: "var(--border)" }}>
+                {stats.themeStats.map((ts) => (
+                  <div key={ts.id} className="inline-flex items-center gap-1.5">
+                    {ts.emoji && <span>{ts.emoji}</span>}
+                    <span style={{ color: "var(--text-secondary)" }}>{ts.label}</span>
+                    <span className="font-semibold" style={{ color: "var(--text-primary)" }}>
+                      {ts.completed}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
 
         {/* 本週回顧 / 上週對比 */}
         {stats && stats.weekly.lastWeek > 0 && (

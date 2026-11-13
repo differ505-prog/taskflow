@@ -90,6 +90,8 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
   const [startDate, setStartDate] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [dueTime, setDueTime] = useState("");
+  const [outputTargetCount, setOutputTargetCount] = useState("");
+  const [outputTargetUnit, setOutputTargetUnit] = useState("");
   const [listId, setListId] = useState<string | undefined>(undefined);
   const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
@@ -234,6 +236,8 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
       setDueDate(initialData.dueDate || "");
       setStartDate(initialData.startDate || "");
       setDueTime(initialData.dueTime || "");
+      setOutputTargetCount(initialData.outputTarget ? String(initialData.outputTarget.count) : "");
+      setOutputTargetUnit(initialData.outputTarget?.unit || "");
       setListId(initialData.listId);
       setTags(initialData.tags);
       setSubTaskInputs(initialData.subTasks?.map((s) => s.title) || []);
@@ -245,6 +249,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
     } else {
       setTitle(""); setDescription(""); setPriority(initialPriority ?? "none"); setStatus(initialStatus ?? "todo");
       setDueDate(currentView === "today" ? new Date().toISOString().split("T")[0] : ""); setStartDate(""); setDueTime(""); setListId(currentListId); setTags([]);
+      setOutputTargetCount(""); setOutputTargetUnit("");
       setSubTaskInputs([]);
       setRecurrenceType("none"); setRecurrenceInterval(1);
       setRecurrenceDaysOfWeek([]); setRecurrenceDayOfMonth(undefined); setRecurrenceEndDate("");
@@ -369,6 +374,11 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
     const finalTags = tags.length > 0
       ? tags
       : parsedPreview?.tags && !previewDismissed.tags ? parsedPreview.tags : tags;
+    const parsedOutputCount = Number.parseInt(outputTargetCount, 10);
+    const outputTarget =
+      Number.isFinite(parsedOutputCount) && parsedOutputCount > 0
+        ? { count: Math.min(999, parsedOutputCount), unit: outputTargetUnit.trim() || "項" }
+        : undefined;
     onSubmit({
       title: title.trim(),
       description: description.trim() || undefined,
@@ -381,6 +391,8 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
       subTasks,
       recurrence,
       attachments,
+      outputTarget,
+      outputCount: initialData?.outputCount ?? 0,
     });
     toast.success("任務已建立", { duration: 2000 });
     setTimeout(() => onClose(), 400);
@@ -659,6 +671,28 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                 <div>
                   <label className="block mb-2 text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>具體時間</label>
                   <input type="time" value={dueTime} onChange={(e) => setDueTime(e.target.value)} className="input cursor-pointer" />
+                </div>
+                <div>
+                  <label className="block mb-2 text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>產出目標</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="number"
+                      min={1}
+                      max={999}
+                      value={outputTargetCount}
+                      onChange={(e) => setOutputTargetCount(e.target.value)}
+                      placeholder="數量（選填）"
+                      className="input"
+                    />
+                    <input
+                      type="text"
+                      maxLength={8}
+                      value={outputTargetUnit}
+                      onChange={(e) => setOutputTargetUnit(e.target.value)}
+                      placeholder="張 / 行 / 位"
+                      className="input"
+                    />
+                  </div>
                 </div>
               </div>
 

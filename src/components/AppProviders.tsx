@@ -8,6 +8,7 @@ import { FirebaseDataProvider, SyncWriter } from "@/components/FirebaseDataProvi
 import { ZenFlowProvider } from "@/lib/ZenFlowProvider";
 import { ToastProvider } from "@/components/ToastProvider";
 import { DueDateReminderWatcher } from "@/components/DueDateReminderWatcher";
+import { useRhythmAnchors } from "@/hooks/useRhythmAnchors";
 import { useAuth } from "@/lib/AuthContext";
 
 const OMNISONIC_URL = process.env.NEXT_PUBLIC_OMNISONIC_URL || "https://music-focus-environment.vercel.app";
@@ -31,6 +32,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
             <ToastProvider />
             {/* B1: 到期提醒 watcher — 掃描 tasks,在 3 個時點觸發 toast */}
             <DueDateReminderWatcher />
+            <RhythmAnchorWatcher />
             {children}
         </ZenFlowProvider>
       </AppProvider>
@@ -44,4 +46,9 @@ function SyncWriterGate() {
   const { user } = useAuth();
   if (!user) return null;
   return <SyncWriter userId={user.uid} />;
+}
+
+function RhythmAnchorWatcher() {
+  useRhythmAnchors();
+  return null;
 }

@@ -8,6 +8,7 @@ export { DataSection } from "./DataSection";
 export { InteractionSection } from "./InteractionSection";
 export { KeyboardShortcutsSection } from "./KeyboardShortcutsSection";
 export { NotificationsSection } from "./NotificationsSection";
+export { RhythmSection } from "./RhythmSection";
 export { ProFeaturesSection } from "./ProFeaturesSection";
 export { WebhookSection } from "./WebhookSection";
 export { SettingsProvider, useSettingsContext } from "./SettingsContext";
