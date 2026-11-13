@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import fs from "fs";
 import path from "path";
-import { Habit, Task, HabitCheckin } from "@/lib/types";
+import {
+  DEFAULT_RHYTHM_SETTINGS,
+  Habit,
+  Task,
+  HabitCheckin,
+  RhythmProfile,
+  RhythmSettings,
+} from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -403,9 +410,13 @@ export async function POST(req: NextRequest) {
       description: taskData.description || "",
       priority: taskData.priority || "do-now",
       status: taskData.status || "todo",
+      startDate: taskData.startDate,
       dueDate: taskData.dueDate,
       dueTime: taskData.dueTime,
       tags: taskData.tags || [],
+      recurrence: taskData.recurrence,
+      outputTarget: taskData.outputTarget,
+      outputCount: taskData.outputCount ?? 0,
       isArchived: false,
       order: taskData.order || 0,
       focusMinutes: taskData.focusMinutes || 0,
@@ -432,6 +443,41 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ ok: true, action: "add_task", task: newTask });
+  }
+
+  // 4. 節奏設定同步 (set_rhythm_profile)
+  if (action === "set_rhythm_profile") {
+    const rawSettings = (payload?.settings ?? payload ?? {}) as Partial<RhythmSettings>;
+    const nowIso = new Date().toISOString();
+    const settings: RhythmSettings = {
+      ...DEFAULT_RHYTHM_SETTINGS,
+      ...rawSettings,
+      enabled: {
+        ...DEFAULT_RHYTHM_SETTINGS.enabled,
+        ...(rawSettings.enabled ?? {}),
+      },
+      themeDays: Array.isArray(rawSettings.themeDays)
+        ? rawSettings.themeDays
+        : DEFAULT_RHYTHM_SETTINGS.themeDays,
+    };
+    const profile: RhythmProfile = {
+      id: "rhythm-profile",
+      kind: "rhythm-profile",
+      settings,
+      updatedAt: nowIso,
+    };
+
+    if (supabaseAdmin) {
+      await supabaseAdmin.from("personal_habits").upsert({
+        id: profile.id,
+        owner_uid: targetUid,
+        data: profile,
+        is_archived: false,
+        updated_at: nowIso,
+      });
+    }
+
+    return NextResponse.json({ ok: true, action: "set_rhythm_profile", profile });
   }
 
   return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
