@@ -11,6 +11,7 @@ import { Habit } from "../types";
 import { saveHabits, generateId, isHabitRecord } from "../storage";
 import { subscribeHabits, batchSaveHabits } from "../personalHabitSync";
 import { computeHabitStreak, appContextLog } from "./utils";
+import { archivePlanHabits } from "../sourcePlan";
 import { getLocalToday } from "../dateUtils";
 import { getCheckinMinutes } from "../habitBalance";
 import { useWriteGuard } from "@/hooks/useWriteGuard";
@@ -31,6 +32,7 @@ export interface HabitsContextValue {
   addHabit: (data: Omit<Habit, "id" | "createdAt" | "updatedAt" | "checkins" | "streak" | "longestStreak">) => void;
   updateHabit: (id: string, updates: Partial<Habit>) => void;
   archiveHabit: (id: string) => void;
+  archiveHabitsByPlan: (planId: string) => number;
   unarchiveHabit: (id: string) => void;
   checkinHabit: (id: string, date: string, count?: number, note?: string) => void;
   uncheckHabit: (id: string, date: string) => void;
@@ -142,6 +144,24 @@ export function HabitsProvider({
           );
         }
       }
+    },
+    [habits, setHabits, userUid, markRecentlyWrittenHabit]
+  );
+
+  const archiveHabitsByPlan = useCallback(
+    (planId: string): number => {
+      const nowIso = new Date().toISOString();
+      const { nextHabits, changedHabits } = archivePlanHabits(habits, planId, nowIso);
+      if (changedHabits.length === 0) return 0;
+      setHabits(nextHabits);
+      saveHabits(nextHabits);
+      changedHabits.forEach((h) => markRecentlyWrittenHabit(h.id));
+      if (userUid) {
+        batchSaveHabits(userUid, changedHabits).catch((err) =>
+          log.error("archiveHabitsByPlan 寫入失敗", err)
+        );
+      }
+      return changedHabits.length;
     },
     [habits, setHabits, userUid, markRecentlyWrittenHabit]
   );
@@ -517,6 +537,7 @@ export function HabitsProvider({
     addHabit,
     updateHabit,
     archiveHabit,
+    archiveHabitsByPlan,
     unarchiveHabit,
     checkinHabit,
     uncheckHabit,

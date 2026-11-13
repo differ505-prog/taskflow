@@ -1,8 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { X } from "lucide-react";
+import { toast } from "sonner";
+import { useApp } from "@/lib/AppContext";
+import { useConfirm } from "@/hooks/useConfirm";
 import { useRhythmSettings } from "@/hooks/useRhythmSettings";
+import {
+  archivePlanTasks,
+  collectInstalledPlans,
+  removePlanThemeDays,
+  type PlanSummary,
+} from "@/lib/sourcePlan";
 import type { RhythmAnchorId } from "@/lib/types";
 
 const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"] as const;
@@ -18,14 +27,49 @@ const ANCHOR_ROWS: Array<{
 ];
 
 export function RhythmSection() {
+  const { tasks, habits, saveTasksDirectly, archiveHabitsByPlan } = useApp();
+  const confirm = useConfirm();
   const {
     settings,
     setAnchorTime,
     toggleAnchor,
     toggleMvd,
+    setThemeDays,
     addThemeDay,
     removeThemeDay,
   } = useRhythmSettings();
+
+  const installedPlans = useMemo(
+    () => collectInstalledPlans(tasks, habits, settings.themeDays),
+    [tasks, habits, settings.themeDays]
+  );
+
+  const handleUninstallPlan = async (plan: PlanSummary) => {
+    const ok = await confirm({
+      intent: "remove",
+      tone: "info",
+      title: `整套退場「${plan.name}」`,
+      message: "將封存此方案的待處理任務與習慣，並移除對應主題日；已完成紀錄與產出統計會完整保留。",
+      impactDetail: `${plan.activeTasksCount} 個任務 · ${plan.activeHabitsCount} 個習慣 · ${plan.themeDaysCount} 個主題日`,
+      confirmText: "整套退場",
+    });
+    if (!ok) return;
+
+    const nowIso = new Date().toISOString();
+    const { changedTasks } = archivePlanTasks(tasks, plan.id, nowIso);
+    if (changedTasks.length > 0) {
+      saveTasksDirectly(changedTasks);
+    }
+    const archivedHabitsCount = archiveHabitsByPlan(plan.id);
+    const nextThemeDays = removePlanThemeDays(settings.themeDays, plan.id);
+    if (nextThemeDays.length !== settings.themeDays.length) {
+      setThemeDays(nextThemeDays);
+    }
+
+    toast.success(
+      `「${plan.name}」已退場：封存 ${changedTasks.length} 個任務、${archivedHabitsCount} 個習慣，歷史紀錄已保留`
+    );
+  };
 
   const [themeLabel, setThemeLabel] = useState("");
   const [themeEmoji, setThemeEmoji] = useState("");
@@ -235,6 +279,49 @@ export function RhythmSection() {
             </label>
           </div>
         </div>
+
+        {/* 4. 已套用方案安全退場 */}
+        {installedPlans.length > 0 && (
+          <div className="card p-4 space-y-3">
+            <div>
+              <p className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                已套用方案
+              </p>
+              <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>
+                換新計畫時可整套封存退場，保留歷史紀錄與統計，不誤刪手動建立的項目
+              </p>
+            </div>
+            <div className="space-y-2">
+              {installedPlans.map((plan) => (
+                <div
+                  key={plan.id}
+                  className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5"
+                  style={{ background: "var(--surface-hover)" }}
+                >
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-medium truncate" style={{ color: "var(--text-primary)" }}>
+                      {plan.name}
+                    </p>
+                    <p className="text-[11px] tabular-nums" style={{ color: "var(--text-tertiary)" }}>
+                      {plan.activeTasksCount} 任務 · {plan.activeHabitsCount} 習慣 · {plan.themeDaysCount} 主題日
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void handleUninstallPlan(plan)}
+                    className="shrink-0 rounded-xl px-3 py-1.5 text-[12px] font-medium transition-opacity hover:opacity-80"
+                    style={{
+                      background: "var(--brand-tint)",
+                      color: "var(--brand)",
+                    }}
+                  >
+                    整套退場
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

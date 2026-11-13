@@ -731,6 +731,7 @@ export function useApp(): AppContextValue {
       addHabit: habitsCtx.addHabit,
       updateHabit: habitsCtx.updateHabit,
       archiveHabit: habitsCtx.archiveHabit,
+      archiveHabitsByPlan: habitsCtx.archiveHabitsByPlan,
       unarchiveHabit: habitsCtx.unarchiveHabit,
       checkinHabit: habitsCtx.checkinHabit,
       uncheckHabit: habitsCtx.uncheckHabit,

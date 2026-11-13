@@ -253,6 +253,7 @@ export async function POST(req: NextRequest) {
       dailyTarget: habitData.dailyTargetMinutes
         ? { minutes: habitData.dailyTargetMinutes, minutesSetAt: getLocalToday() }
         : undefined,
+      sourcePlan: habitData.sourcePlan,
     };
 
     if (supabaseAdmin) {
@@ -417,6 +418,7 @@ export async function POST(req: NextRequest) {
       recurrence: taskData.recurrence,
       outputTarget: taskData.outputTarget,
       outputCount: taskData.outputCount ?? 0,
+      sourcePlan: taskData.sourcePlan,
       isArchived: false,
       order: taskData.order || 0,
       focusMinutes: taskData.focusMinutes || 0,

@@ -188,6 +188,8 @@ export interface Task {
   attachments?: Attachment[]; // 上傳的附件
   /** 用戶 UID:每個任務永久 tag 建立者的 uid,切換帳號時用此欄位過濾跨 uid 殘留任務 (§26-J 修復) */
   ownerUid?: string;
+  /** 來源方案標記（供整套方案安全退場，不影響手動建立的任務） */
+  sourcePlan?: SourcePlan;
 }
 
 export interface TaskFilter {
@@ -246,6 +248,8 @@ export interface Habit {
   lastRecordedAt?: string;
   /** 最近一次記錄的分鐘數（例如 25、30） */
   lastLoggedMinutes?: number;
+  /** 來源方案標記（供整套方案安全退場，不影響手動建立的習慣） */
+  sourcePlan?: SourcePlan;
 }
 
 export interface HabitCheckin {
@@ -400,12 +404,18 @@ export interface RhythmAnchorConfig {
   enabled: boolean;
 }
 
+export interface SourcePlan {
+  id: string;
+  name: string;
+}
+
 export interface ThemeDay {
   id: ThemeDayId;
   label: string;      // 例：「Vibe Coding」
   emoji: string;      // 例：「💻」
   weekdays: number[]; // 0=Sun..6=Sat，該主題日的星期
   tag?: string;       // 關聯的任務標籤（選填，用於統計）
+  sourcePlan?: SourcePlan;
 }
 
 export interface RhythmSettings {

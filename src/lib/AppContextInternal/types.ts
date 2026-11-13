@@ -64,6 +64,7 @@ export interface AppContextValue {
   addHabit: (data: Omit<import("../types").Habit, "id" | "createdAt" | "updatedAt" | "checkins" | "streak" | "longestStreak">) => void;
   updateHabit: (id: string, updates: Partial<import("../types").Habit>) => void;
   archiveHabit: (id: string) => void;
+  archiveHabitsByPlan: (planId: string) => number;
   unarchiveHabit: (id: string) => void;
   checkinHabit: (id: string, date: string, count?: number, note?: string) => void;
   uncheckHabit: (id: string, date: string) => void;
