@@ -151,12 +151,20 @@ export function deleteList(id: string): void {
 }
 
 // ─── Habits ──────────────────────────────────────────────────────
+/** Filter out non-habit records (e.g. rhythm-profile) stored in personal_habits. */
+export function isHabitRecord(item: unknown): item is Habit {
+  if (!item || typeof item !== "object") return false;
+  const rec = item as { id?: unknown; kind?: unknown; checkins?: unknown };
+  if (rec.kind === "rhythm-profile" || rec.id === "rhythm-profile") return false;
+  return Array.isArray(rec.checkins);
+}
+
 export function getHabits(): Habit[] {
-  return read<Habit[]>(HABITS_KEY, []);
+  return read<unknown[]>(HABITS_KEY, []).filter(isHabitRecord);
 }
 
 export function saveHabits(habits: Habit[]): void {
-  write(HABITS_KEY, habits);
+  write(HABITS_KEY, habits.filter(isHabitRecord));
 }
 
 export function addHabit(habit: Omit<Habit, "id" | "createdAt" | "updatedAt" | "checkins" | "streak" | "longestStreak">): Habit {

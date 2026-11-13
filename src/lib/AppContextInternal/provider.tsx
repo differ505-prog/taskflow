@@ -50,6 +50,7 @@ import {
   saveLists,
   getHabits,
   saveHabits,
+  isHabitRecord,
   initDefaultLists,
   getTodayFocusMinutes,
   SharedListData,
@@ -353,9 +354,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (!firstHabitsLoadDone.current) { firstHabitsLoadDone.current = true; return; }
         log.sync(`SUP SYNC habits 推送: ${fbHabits.length}`);
         setHabits((prev) => {
-          const localById = new Map(prev.map((h) => [h.id, h]));
+          const validFbHabits = fbHabits.filter(isHabitRecord);
+          const localById = new Map(prev.filter(isHabitRecord).map((h) => [h.id, h]));
           const fbIds = new Set<string>();
-          const merged = fbHabits.map((fbH) => {
+          const merged = validFbHabits.map((fbH) => {
             fbIds.add(fbH.id);
             syncedHabitIdsRef.current.add(fbH.id);
             const local = localById.get(fbH.id);
@@ -365,7 +367,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             }
             return fbH;
           });
-          const localOnly = prev.filter((h) => !fbIds.has(h.id));
+          const localOnly = prev.filter(isHabitRecord).filter((h) => !fbIds.has(h.id));
           const trueLocalOnly = localOnly.filter((h) => !syncedHabitIdsRef.current.has(h.id));
           const result = [...merged, ...trueLocalOnly];
           saveHabits(result);

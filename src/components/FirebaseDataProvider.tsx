@@ -37,6 +37,7 @@ import {
   saveTasks,
   saveLists,
   saveHabits,
+  isHabitRecord,
   saveFlowTimerSessions,
 } from "@/lib/storage";
 import { Task, TaskList, Habit } from "@/lib/types";
@@ -136,17 +137,18 @@ export function FirebaseDataProvider({ children }: FirebaseDataProviderProps) {
       forceReload();
     }).then((unsub) => { unsubs.current.push(unsub); }).catch(() => {});
     subscribeHabits(userId, (fsHabits) => {
+      const validFsHabits = fsHabits.filter(isHabitRecord);
       if (!loadedRef.current) {
         loadedRef.current = true;
         setLoaded(true);
         return;
       }
-      if (fsContainsExpected(fsHabits, pendingExpected.habits)) {
+      if (fsContainsExpected(validFsHabits, pendingExpected.habits)) {
         pendingExpected.habits = null;
         return;
       }
       pendingExpected.habits = null;
-      saveHabits(fsHabits);
+      saveHabits(validFsHabits);
       forceReload();
     }).then((unsub) => { unsubs.current.push(unsub); }).catch(() => {});
     subscribeFlowTimer(userId, (fsSessions) => {

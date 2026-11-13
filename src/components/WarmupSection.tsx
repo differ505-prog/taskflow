@@ -76,7 +76,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
   const today = getLocalToday();
   const pendingHabits = useMemo(() => {
     return habits.filter((h) => {
-      if (h.archivedAt) return false;
+      if (h.archivedAt || !Array.isArray(h.checkins)) return false;
       const todayCheckin = h.checkins.find((c) => c.date === today);
       return !todayCheckin?.completed;
     });
@@ -88,7 +88,7 @@ export function WarmupSection({ onEnterFlow }: WarmupSectionProps = {}) {
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
     const todayDay = parseInt(today.split("-")[2], 10);
-    const activeHabits = habits.filter((h) => !h.archivedAt);
+    const activeHabits = habits.filter((h) => !h.archivedAt && Array.isArray(h.checkins));
     const monthDays = Array.from({ length: todayDay }, (_, i) =>
       toLocalDateString(new Date(currentYear, currentMonth, i + 1))
     );
