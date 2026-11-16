@@ -183,6 +183,7 @@ export interface Task {
   focusMinutes: number; // total FlowTimer minutes logged
   outputTarget?: { count: number; unit: string }; // 產出目標，如 5 張圖；undefined = 未啟用
   outputCount?: number; // 已累積產出（預設 0）
+  durationMinutes?: number; // 時段長度（分鐘）；與 dueTime 搭配形成「幾點到幾點」；undefined = 只知道開始時刻
   order: number; // sort order within view
   createdBy?: string; // uid of the user who created this task (for shared lists)
   attachments?: Attachment[]; // 上傳的附件
@@ -424,6 +425,7 @@ export interface RhythmSettings {
   screensOffTime: string; // "22:15"
   enabled: Record<RhythmAnchorId, boolean>;
   mvdEnabled: boolean;
+  slotGridEnabled: boolean; // 是否在 Zen 顯示「一天的節奏」槽網格
   themeDays: ThemeDay[];  // 每日主題日清單（可空）
 }
 
@@ -431,6 +433,7 @@ export const DEFAULT_RHYTHM_SETTINGS: RhythmSettings = {
   wakeTime: "08:00", offDutyTime: "17:00", screensOffTime: "22:15",
   enabled: { wake: true, offduty: true, screensoff: true },
   mvdEnabled: false,
+  slotGridEnabled: true,
   themeDays: [],
 };
 
@@ -440,4 +443,12 @@ export interface RhythmProfile {
   kind: "rhythm-profile";
   settings: RhythmSettings;
   updatedAt: string;
+}
+
+/** 一天的節奏槽（由作息錨點推導，非使用者手動輸入） */
+export interface DaySlot {
+  id: string;          // 穩定 id，如 "slot-0"
+  label: string;       // 顯示用區段名，如 "上午"
+  startMin: number;    // 自午夜起分鐘數，含
+  endMin: number;      // 自午夜起分鐘數，不含
 }

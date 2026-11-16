@@ -34,6 +34,7 @@ export function RhythmSection() {
     setAnchorTime,
     toggleAnchor,
     toggleMvd,
+    toggleSlotGrid,
     setThemeDays,
     addThemeDay,
     removeThemeDay,
@@ -280,7 +281,32 @@ export function RhythmSection() {
           </div>
         </div>
 
-        {/* 4. 已套用方案安全退場 */}
+        {/* 4. 一天的節奏槽網格 */}
+        <div className="card p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex-1 min-w-0 pr-3">
+              <p className="text-[14px] font-medium" style={{ color: "var(--text-primary)" }}>
+                一天的節奏
+              </p>
+              <p className="text-[12px] mt-0.5" style={{ color: "var(--text-tertiary)" }}>
+                用一天的節奏槽看今天要做什麼
+              </p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={settings.slotGridEnabled}
+                onChange={toggleSlotGrid}
+                aria-label="啟用一天的節奏槽網格"
+              />
+              <div className="w-11 h-6 rounded-full peer peer-checked:bg-brand bg-black/10 transition-colors" />
+              <div className="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5" />
+            </label>
+          </div>
+        </div>
+
+        {/* 5. 已套用方案安全退場 */}
         {installedPlans.length > 0 && (
           <div className="card p-4 space-y-3">
             <div>

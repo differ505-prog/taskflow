@@ -24,6 +24,7 @@ import { logEvent } from "@/lib/eventLog";
 import { toast } from "sonner";
 import { parseNaturalLanguage } from "@/lib/nlp";
 import { NlpPreviewChip, ParsedPreview } from "./NlpPreviewChip";
+import { SLOT_DURATION_LABEL } from "@/lib/slotCopy";
 
 interface TaskFormProps {
   isOpen: boolean;
@@ -92,6 +93,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
   const [dueTime, setDueTime] = useState("");
   const [outputTargetCount, setOutputTargetCount] = useState("");
   const [outputTargetUnit, setOutputTargetUnit] = useState("");
+  const [durationMinutes, setDurationMinutes] = useState("");
   const [listId, setListId] = useState<string | undefined>(undefined);
   const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
@@ -238,6 +240,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
       setDueTime(initialData.dueTime || "");
       setOutputTargetCount(initialData.outputTarget ? String(initialData.outputTarget.count) : "");
       setOutputTargetUnit(initialData.outputTarget?.unit || "");
+      setDurationMinutes(initialData.durationMinutes ? String(initialData.durationMinutes) : "");
       setListId(initialData.listId);
       setTags(initialData.tags);
       setSubTaskInputs(initialData.subTasks?.map((s) => s.title) || []);
@@ -379,6 +382,11 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
       Number.isFinite(parsedOutputCount) && parsedOutputCount > 0
         ? { count: Math.min(999, parsedOutputCount), unit: outputTargetUnit.trim() || "項" }
         : undefined;
+    const parsedDuration = durationMinutes ? Number(durationMinutes) : NaN;
+    const duration =
+      Number.isFinite(parsedDuration) && parsedDuration > 0
+        ? Math.min(1440, Math.round(parsedDuration))
+        : undefined;
     onSubmit({
       title: title.trim(),
       description: description.trim() || undefined,
@@ -393,6 +401,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
       attachments,
       outputTarget,
       outputCount: initialData?.outputCount ?? 0,
+      durationMinutes: duration,
     });
     toast.success("任務已建立", { duration: 2000 });
     setTimeout(() => onClose(), 400);
@@ -692,6 +701,23 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                       placeholder="張 / 行 / 位"
                       className="input"
                     />
+                  </div>
+                </div>
+                <div>
+                  <label className="block mb-2 text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>{SLOT_DURATION_LABEL}</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="number"
+                      min={1}
+                      max={1440}
+                      value={durationMinutes}
+                      onChange={(e) => setDurationMinutes(e.target.value)}
+                      placeholder="分鐘（選填）"
+                      className="input"
+                    />
+                    <div className="flex items-center text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+                      填了才會顯示「幾點到幾點」
+                    </div>
                   </div>
                 </div>
               </div>

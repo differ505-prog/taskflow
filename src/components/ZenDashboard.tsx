@@ -39,10 +39,12 @@ import { FlowTimer } from "@/components/FlowTimer";
 import { BASE_TASK_PP } from "@/lib/progressRank";
 import { QuickCaptureTrigger } from "@/components/QuickCaptureTrigger";
 import { RhythmBar } from "@/components/RhythmBar";
+import { DaySlotGrid } from "@/components/DaySlotGrid";
 import { GhostButton } from "@/components/GhostButton";
 import { ProWaitlistModal } from "@/components/ProWaitlistModal";
 import { TodayWrapUpButton } from "@/components/TodayWrapUpButton";
 import { useGhostButton } from "@/hooks/useGhostButton";
+import { useRhythmSettings } from "@/hooks/useRhythmSettings";
 import { Hourglass, Users } from "lucide-react";
 import Image from "next/image";
 
@@ -76,6 +78,7 @@ function selectZenTasks(tasks: Task[], sharedLists: Record<string, import("@/lib
 
 export default function ZenDashboard() {
   const { tasks, toggleTaskStatus, completeTask, reorderTasks, saveTasksDirectly, updateTask, escapeTask, sharedLists, updateSharedTask } = useApp();
+  const { settings: rhythmSettings } = useRhythmSettings();
   const visibleTasks = useMemo(() => {
     const res = selectZenTasks(tasks, sharedLists);
     return res;
@@ -393,6 +396,15 @@ export default function ZenDashboard() {
       <div className="mx-auto mt-2 max-w-2xl">
         <RhythmBar visibleTasks={visibleTasks} />
       </div>
+
+      {rhythmSettings.slotGridEnabled && (
+        <div className="mx-auto mt-3 max-w-2xl">
+          <DaySlotGrid
+            tasks={visibleTasks}
+            onToggleStatus={(id) => handleToggleTaskStatus(id)}
+          />
+        </div>
+      )}
 
       <div className="mx-auto mt-12 flex max-w-2xl flex-col gap-12 pb-12">
         {/* 焦點區 */}

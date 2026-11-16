@@ -45,6 +45,10 @@ function normalizeSettings(raw: unknown): RhythmSettings {
       screensoff: obj.enabled?.screensoff ?? DEFAULT_RHYTHM_SETTINGS.enabled.screensoff,
     },
     mvdEnabled: typeof obj.mvdEnabled === "boolean" ? obj.mvdEnabled : false,
+    slotGridEnabled:
+      typeof obj.slotGridEnabled === "boolean"
+        ? obj.slotGridEnabled
+        : DEFAULT_RHYTHM_SETTINGS.slotGridEnabled,
     themeDays: Array.isArray(obj.themeDays) ? obj.themeDays : [],
   };
 }
@@ -132,6 +136,7 @@ export interface UseRhythmSettingsReturn {
   isHydrated: boolean;
   update: (patch: Partial<RhythmSettings>) => void;
   toggleMvd: () => void;
+  toggleSlotGrid: () => void;
   setAnchorTime: (id: RhythmAnchorId, hhmm: string) => void;
   toggleAnchor: (id: RhythmAnchorId) => void;
   setThemeDays: (days: ThemeDay[]) => void;
@@ -260,6 +265,10 @@ export function useRhythmSettings(): UseRhythmSettingsReturn {
     commit((prev) => ({ ...prev, mvdEnabled: !prev.mvdEnabled }));
   }, [commit]);
 
+  const toggleSlotGrid = useCallback(() => {
+    commit((prev) => ({ ...prev, slotGridEnabled: !prev.slotGridEnabled }));
+  }, [commit]);
+
   const setAnchorTime = useCallback(
     (id: RhythmAnchorId, hhmm: string) => {
       if (parseHHmm(hhmm) === null) return;
@@ -324,6 +333,7 @@ export function useRhythmSettings(): UseRhythmSettingsReturn {
     isHydrated,
     update,
     toggleMvd,
+    toggleSlotGrid,
     setAnchorTime,
     toggleAnchor,
     setThemeDays,

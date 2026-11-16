@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, addMinutes } from "date-fns";
 import { createServerClient } from "@supabase/ssr";
 import type { Task } from "@/lib/types";
 
@@ -44,9 +44,15 @@ function taskToVEVENT(task: Task): string[] {
   if (task.dueDate) {
     const due = parseISO(task.dueDate);
     if (task.dueTime) {
-      // 有時間 → 時段事件
+      // 有時間 → 時段事件（DTEND 必須晚於 DTSTART，否則外部日曆會視為零長度事件）
       const startDt = `${format(due, "yyyyMMdd'T'")}${task.dueTime.replace(":", "")}00`;
-      const endDt = `${format(due, "yyyyMMdd'T'")}${task.dueTime.replace(":", "")}00`;
+      // 無 durationMinutes 時 fallback 60 分鐘
+      const duration =
+        task.durationMinutes && task.durationMinutes > 0 ? task.durationMinutes : 60;
+      const startDate = new Date(due);
+      startDate.setHours(Number(task.dueTime.slice(0, 2)), Number(task.dueTime.slice(3, 5)), 0, 0);
+      const endDate = addMinutes(startDate, duration);
+      const endDt = format(endDate, "yyyyMMdd'T'HHmmss");
       lines.push(`DTSTART:${startDt}`);
       lines.push(`DTEND:${endDt}`);
     } else {

@@ -34,6 +34,7 @@ import { ListChipPicker } from "./ListChipPicker";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
 import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
 import { formatOutputLabel, incrementOutputCount } from "@/lib/outputCount";
+import { SLOT_DURATION_LABEL } from "@/lib/slotCopy";
 import { SwipeableSubTask } from "./SwipeableSubTask";
 import TaskCommentsInline from "./TaskCommentsInline";
 import TaskCommentsDrawer from "./TaskCommentsDrawer";
@@ -140,6 +141,9 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
     task.outputTarget ? String(task.outputTarget.count) : ""
   );
   const [outputTargetUnit, setOutputTargetUnit] = useState(task.outputTarget?.unit || "");
+  const [durationMinutes, setDurationMinutes] = useState(
+    task.durationMinutes ? String(task.durationMinutes) : ""
+  );
   const [listId, setListId] = useState<string | undefined>(task.listId);
   const [tags, setTags] = useState<string[]>(task.tags || []);
 
@@ -275,6 +279,7 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
     setDueTime(task.dueTime || "");
     setOutputTargetCount(task.outputTarget ? String(task.outputTarget.count) : "");
     setOutputTargetUnit(task.outputTarget?.unit || "");
+    setDurationMinutes(task.durationMinutes ? String(task.durationMinutes) : "");
     setListId(task.listId);
     setTags(task.tags || []);
     setRecurrenceType(task.recurrence?.pattern || "none");
@@ -301,6 +306,7 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
       dueTime !== (task.dueTime || "") ||
       outputTargetCount !== (task.outputTarget ? String(task.outputTarget.count) : "") ||
       outputTargetUnit !== (task.outputTarget?.unit || "") ||
+      durationMinutes !== (task.durationMinutes ? String(task.durationMinutes) : "") ||
       listId !== task.listId ||
       JSON.stringify(tags) !== JSON.stringify(task.tags) ||
       recurrenceType !== (task.recurrence?.pattern || "none") ||
@@ -311,7 +317,7 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
       JSON.stringify(subTasks) !== JSON.stringify(task.subTasks || []) ||
       JSON.stringify(attachments) !== JSON.stringify(task.attachments || []);
     setHasChanges(changed);
-  }, [title, description, priority, status, startDate, dueDate, dueTime, outputTargetCount, outputTargetUnit, listId, tags, recurrenceType, recurrenceInterval, recurrenceDaysOfWeek, recurrenceDayOfMonth, recurrenceEndDate, subTasks, attachments, task]);
+  }, [title, description, priority, status, startDate, dueDate, dueTime, outputTargetCount, outputTargetUnit, durationMinutes, listId, tags, recurrenceType, recurrenceInterval, recurrenceDaysOfWeek, recurrenceDayOfMonth, recurrenceEndDate, subTasks, attachments, task]);
 
   const counts: Record<string, number> = getTagCounts();
 
@@ -350,6 +356,11 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
       Number.isFinite(parsedOutputCount) && parsedOutputCount > 0
         ? { count: Math.min(999, parsedOutputCount), unit: outputTargetUnit.trim() || "項" }
         : undefined;
+    const parsedDuration = Number.parseInt(durationMinutes, 10);
+    const duration =
+      Number.isFinite(parsedDuration) && parsedDuration > 0
+        ? Math.min(1440, parsedDuration)
+        : undefined;
     const finalDueDate = dueDate || startDate || undefined;
     handleUpdateTask(task.id, {
       title: title.trim(),
@@ -361,6 +372,7 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
       dueTime: dueTime || undefined,
       outputTarget,
       outputCount: task.outputCount ?? 0,
+      durationMinutes: duration,
       listId,
       tags,
       subTasks,
@@ -409,6 +421,7 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
     dueTime: "",
     outputTargetCount: "",
     outputTargetUnit: "",
+    durationMinutes: "",
     listId: undefined as string | undefined,
     tags: [] as string[],
     recurrenceType: "none" as string,
@@ -430,6 +443,7 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
       dueTime,
       outputTargetCount,
       outputTargetUnit,
+      durationMinutes,
       listId,
       tags,
       recurrenceType,
@@ -479,6 +493,11 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
         Number.isFinite(snapOutputNum) && snapOutputNum > 0
           ? { count: Math.min(999, snapOutputNum), unit: snap.outputTargetUnit.trim() || "項" }
           : undefined;
+      const snapDurationNum = Number.parseInt(snap.durationMinutes, 10);
+      const snapDuration =
+        Number.isFinite(snapDurationNum) && snapDurationNum > 0
+          ? Math.min(1440, snapDurationNum)
+          : undefined;
       handleUpdateTask(task.id, {
         title: snap.title.trim(),
         description: snap.description.trim() || undefined,
@@ -488,6 +507,7 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
         dueDate: finalDueDate,
         dueTime: snap.dueTime || undefined,
         outputTarget: snapOutputTarget,
+        durationMinutes: snapDuration,
         listId: snap.listId,
         tags: snap.tags,
         recurrence,
@@ -512,6 +532,7 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
   useDebouncedField({ value: dueTime, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
   useDebouncedField({ value: outputTargetCount, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
   useDebouncedField({ value: outputTargetUnit, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
+  useDebouncedField({ value: durationMinutes, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
   useDebouncedField({ value: listId, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
   useDebouncedField({ value: tags, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
   useDebouncedField({ value: recurrenceType, onCommit: bumpDebounced, delay: DEBOUNCE_MS });
@@ -1262,6 +1283,28 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
                 placeholder="張 / 行 / 位"
                 className="input"
               />
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5 mb-2">
+              <Timer className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
+              <label className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                {SLOT_DURATION_LABEL}
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                type="number"
+                min={1}
+                max={1440}
+                value={durationMinutes}
+                onChange={(e) => setDurationMinutes(e.target.value)}
+                placeholder="分鐘（選填）"
+                className="input"
+              />
+              <div className="flex items-center text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+                填了才會顯示「幾點到幾點」
+              </div>
             </div>
           </div>
         </div>
