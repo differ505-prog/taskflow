@@ -252,7 +252,7 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
     } else {
       setTitle(""); setDescription(""); setPriority(initialPriority ?? "none"); setStatus(initialStatus ?? "todo");
       setDueDate(currentView === "today" ? new Date().toISOString().split("T")[0] : ""); setStartDate(""); setDueTime(""); setListId(currentListId); setTags([]);
-      setOutputTargetCount(""); setOutputTargetUnit("");
+      setOutputTargetCount(""); setOutputTargetUnit(""); setDurationMinutes("");
       setSubTaskInputs([]);
       setRecurrenceType("none"); setRecurrenceInterval(1);
       setRecurrenceDaysOfWeek([]); setRecurrenceDayOfMonth(undefined); setRecurrenceEndDate("");

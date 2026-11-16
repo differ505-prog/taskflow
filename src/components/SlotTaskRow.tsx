@@ -20,8 +20,7 @@ interface SlotTaskRowProps {
 export function SlotTaskRow({ task, timeLabel, isDone, onToggleStatus }: SlotTaskRowProps) {
   return (
     <div
-      className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
-      style={{ background: "var(--surface-muted)" }}
+      className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-[var(--surface-muted)] hover:bg-[var(--surface-hover)] transition-colors"
     >
       <button
         type="button"

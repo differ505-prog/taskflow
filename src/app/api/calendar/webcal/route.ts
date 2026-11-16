@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { format, parseISO, addMinutes } from "date-fns";
+import { format, parseISO, parse, addMinutes, isValid } from "date-fns";
 import { createServerClient } from "@supabase/ssr";
 import type { Task } from "@/lib/types";
 
@@ -49,10 +49,14 @@ function taskToVEVENT(task: Task): string[] {
       // 無 durationMinutes 時 fallback 60 分鐘
       const duration =
         task.durationMinutes && task.durationMinutes > 0 ? task.durationMinutes : 60;
-      const startDate = new Date(due);
-      startDate.setHours(Number(task.dueTime.slice(0, 2)), Number(task.dueTime.slice(3, 5)), 0, 0);
-      const endDate = addMinutes(startDate, duration);
-      const endDt = format(endDate, "yyyyMMdd'T'HHmmss");
+      const parsedStart = parse(
+        `${format(due, "yyyyMMdd")}T${task.dueTime}`,
+        "yyyyMMdd'T'HH:mm",
+        new Date()
+      );
+      const endDt = isValid(parsedStart)
+        ? format(addMinutes(parsedStart, duration), "yyyyMMdd'T'HHmmss")
+        : startDt;
       lines.push(`DTSTART:${startDt}`);
       lines.push(`DTEND:${endDt}`);
     } else {
