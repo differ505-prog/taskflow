@@ -1,234 +1,159 @@
 # Task Board — UI/UX 設計總監驗收儀表板
 
-## 品質評分儀表板 (Round 1)
-- **當前輪次**：Round 1 / 4（基準分起算，嚴格扣分制）
-- **最新總分**：**7.0 / 10.0**（未達 9.0 門檻 → 退回 `[!]` 修改）
-- **五維度明細**：
-  1. 視覺克制與色彩質感：**1.4 / 2.0**（`ZenDashboard`、`TaskListItem`、`ErrorBoundary` 硬編碼淺色 Tailwind 色碼或 `dark:`，未對齊 `[data-theme="dark"]` 與 CSS Token；`TaskListItem` 死線徽章底色 `var(--status-danger)15` 為無效 CSS）
-  2. 排版層級與網格韻律：**1.5 / 2.0**（`BottomNavigation` 標籤字級混用 `10px` 與 `11px`；`Skeleton` 卡片圓角混用 `rounded-xl`）
-  3. 元件工藝與微互動：**1.4 / 2.0**（`BottomNavigation` 禪模式按鈕以 `window.location.href` 觸發整頁重載；`ErrorBoundary` 缺乏卡片層次與恢復按鈕）
-  4. 狀態完整與防呆體驗：**1.3 / 2.0**（`AppShellSkeleton` 使用未定義的 `var(--background)`；`TagsPageSkeleton` 卡片底色與背景同為 `--surface-muted`；`Skeleton` 未自動適配深色模式；`ErrorBoundary` 直接傾印紅底堆疊且無重試 CTA）
-  5. 響應式與細節打磨：**1.4 / 2.0**（`BottomNavigation` 7 個 `min-w-[64px]` 合計 `448px` 於 `375px` 手機溢出；`AppShellSkeleton` 側欄於手機斷點未隱藏導致橫向破版；`TaskListItem` Checkbox 觸控區小於 `44×44px`；`ZenDashboard` 使用 inline `<svg>` 未統一用 `lucide-react`）
+## 品質評分儀表板 (Round 2 → Round 3)
+- **當前輪次**：Round 3 / 4（Round 1 五項已驗收並歸檔至 `docs/task-archive.md`；Round 2 三項已修，待複驗）
+- **最新總分**：**8.5 / 10.0**（Round 2 複驗前基準；本輪三項已修完，狀態標 `[?]` 待 UI/UX 總監複驗）
+- **五維度明細（Round 2 基準）**：
+  1. 視覺克制與色彩質感：**1.7 / 2.0**（`ZenDashboard` 空狀態引用未定義 `--accent-warm`；`MorePopover` 殘留 `hover:bg-red-50` 與 `dark:hover:bg-white/10`）
+  2. 排版層級與網格韻律：**1.8 / 2.0**（`ZenDashboard` 卡片圓角混用 `rounded-3xl`/`rounded-2xl` 需對齊設計規範；`跳過` 按鈕缺少明確靜態文字色 Token）
+  3. 元件工藝與微互動：**1.7 / 2.0**（`ZenDashboard` 空狀態「開啟任務大廳」用 `<a>` 硬跳轉；`MorePopover` 「標籤/統計/設定」缺少一致 hover 底色回饋）
+  4. 狀態完整與防呆體驗：**1.7 / 2.0**（達標：`Skeleton` 與 `ErrorBoundary` 狀態完整）
+  5. 響應式與細節打磨：**1.6 / 2.0**（`ZenDashboard` `跳過` 按鈕不足 44px 觸控高度；`ZenDashboard` 與 `BottomNavigation` 仍有 3 處手寫 SVG 及圖示語意重複）
+
+### 本輪修畢摘要（Round 2 → 待複驗）
+- `[?]` 1：`--accent-warm` → `--accent-warm-start`；CTA 改 `<Link>`；`ChevronRight`/`GripVertical`/`Sparkles`/`Zap` 改用 Lucide，刪除手寫 `GripIcon`/`ChevronRightIcon`；`跳過` 按鈕補 `min-h-[44px]` + `var(--text-tertiary)` + `var(--hover-bg)`
+- `[?]` 2：`MoreIcon` → `MoreHorizontal`；`habits` 改 `Flame`、`stats` 改 `BarChart3`；移除 `hover:bg-black/5 dark:hover:bg-white/10` 與 `hover:bg-red-50`，改用 `var(--hover-bg)` / `var(--surface-hover)` / `var(--hover-danger)`
+- `[?]` 3：圓角收斂為設計系統尺度（`rounded-3xl`→`rounded-xl`、`rounded-2xl`→`rounded-lg`）
+
+### Build Gate 結果
+- `npx tsc --noEmit` → exit 0（clean）
+- `npx vitest run` → 19 files / 188 tests 全數通過
+- `npm run build` → exit 0（success）
 
 ---
 
-## 本輪待修清單 (`[!]`)
+## 本輪待修清單 (`[?]` 待複驗)
 
-- [?] **1. 修復 ZenDashboard 色彩 Token 與統一 Lucide Icon（對齊 light/dark 雙主題）**
+- [?] **1. 修復 ZenDashboard 未定義變數 `--accent-warm`、SPA `<Link>` 與統一 Lucide Icon / 44px 觸控**
   - 檔案：`src/components/ZenDashboard.tsx`
-  - 說明：將硬編碼 `bg-slate-50`、`text-slate-*`、`hover:bg-slate-100` 與內聯網格 SVG 改為 `docs/DESIGN_SYSTEM.md` Token 與 `LayoutGrid`。
+  - 說明：補齊 `ChevronRight`, `GripVertical`, `Zap`（或 `Sparkles`）自 `lucide-react` 匯入並移除手寫 SVG；修正 `--accent-warm` 為 `--accent-warm-start`；空狀態 CTA 改 `<Link>`；「跳過」按鈕補齊 `var(--text-tertiary)` 與 `min-h-[44px]`；移除多餘自訂 `GripIcon` / `ChevronRightIcon`。
   - Before -> After：
     ```tsx
-    // Before (line 48, 286, 326, 362, 371, 375-390, 417)
-    import { Hourglass, Users } from "lucide-react";
-    <main className="relative min-h-screen bg-slate-50 px-4 pb-32 pt-10 sm:px-8 sm:pb-28">
-    <span className="hidden text-[16px] font-semibold tracking-tight text-slate-700 sm:inline">VibeList</span>
-    style={{ background: "rgba(241, 245, 249, 0.5)", border: "none" }}
-    className="inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 rounded-full px-3 py-2 text-sm font-medium text-slate-500 transition-all duration-200 ease-out hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-200 sm:px-4"
-    <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" ...>...</svg>
-    className="self-end rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-widest text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-
-    // After
+    // Before (line 48)
     import { Hourglass, LayoutGrid, Users } from "lucide-react";
-    <main className="relative min-h-screen bg-[var(--surface-muted)] text-[var(--text-primary)] px-4 pb-32 pt-10 sm:px-8 sm:pb-28">
-    <span className="hidden text-[16px] font-semibold tracking-tight text-[var(--text-primary)] sm:inline">VibeList</span>
-    style={{ background: "var(--hover-bg)", border: "none" }}
-    className="inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 rounded-full px-3 py-2 text-sm font-medium text-[var(--text-secondary)] transition-all duration-200 ease-out hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] sm:px-4"
-    <LayoutGrid className="w-4 h-4" aria-hidden="true" />
-    className="self-end rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-widest text-[var(--text-tertiary)] transition-colors hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)]"
-    ```
-
-- [?] **2. 修復 TaskListItem 主題 Token、無效 CSS 死線底色與 44px 觸控目標**
-  - 檔案：`src/components/TaskListItem.tsx`
-  - 說明：移除不支援 `data-theme` 的 `dark:*` 寫法，修正 `var(--status-danger)15` 無效 CSS 拼接，並為 Checkbox 補齊 `>= 44×44px` 觸控區。
-  - Before -> After：
-    ```tsx
-    // Before (lines 160-163)
-        flex items-start gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer
-        transition-all duration-150 group select-none
-        ${isSelected ? "bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-800/40" : "hover:bg-neutral-50 dark:hover:bg-neutral-900/50"}
-
     // After
-        flex items-start gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer
-        transition-all duration-150 group select-none
-        ${isSelected ? "bg-[var(--brand-tint)] border border-[var(--brand)]/25" : "hover:bg-[var(--hover-bg)]"}
+    import { ChevronRight, GripVertical, Hourglass, LayoutGrid, Users, Zap } from "lucide-react";
 
-    // Before (lines 212-216)
-      <button
-        onClick={handleCheckboxClick}
-        className="flex-shrink-0 mt-1 transition-transform hover:scale-110 z-10"
-        aria-label={isDone ? "標記未完成" : "標記完成"}
-      >
-
-    // After
-      <button
-        onClick={handleCheckboxClick}
-        className="touch-target -ml-2.5 -mt-2 flex-shrink-0 transition-transform hover:scale-110 active:scale-95 z-10"
-        aria-label={isDone ? "標記未完成" : "標記完成"}
-      >
-
-    // Before (line 246)
-                className="p-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-50 transition-all duration-150 active:scale-90"
-
-    // After
-                className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-[var(--hover-danger)] hover:text-[var(--status-danger)] transition-all duration-150 active:scale-90"
-
-    // Before (line 271)
-            style={{ background: `${deadlineStatus.colorVar}15`, color: deadlineStatus.colorVar }}
-
-    // After
-            style={{ background: `color-mix(in srgb, ${deadlineStatus.colorVar} 12%, transparent)`, color: deadlineStatus.colorVar }}
-    ```
-
-- [?] **3. 修復 BottomNavigation 手機 375px 寬度溢出、字級不一與整頁重載**
-  - 檔案：`src/app/globals.css`、`src/components/BottomNavigation.tsx`
-  - 說明：`.bottom-nav-item` 的 `min-width: 64px` 在 7 個項目下會超出 `375px` 螢幕；統一標籤字級為 `10px`，且禪模式改用 `<Link href="/">` 保持 SPA 轉場。
-  - Before -> After：
-    ```css
-    /* Before: src/app/globals.css (lines 727-737) */
-    padding: 8px 12px;
-    ...
-    min-width: 64px;
-    min-height: 44px;
-
-    /* After: src/app/globals.css */
-    padding: 6px 4px;
-    ...
-    min-width: 0;
-    min-height: 44px;
-    ```
-    ```tsx
-    // Before: src/components/BottomNavigation.tsx (lines 130-142)
-          <Timer className="w-[22px] h-[22px]" />
-          <span className="text-[11px]">心流</span>
-        </button>
-
-        {/* 禪模式 — 手機直接入口 */}
+    // Before (line 742-750)
         <button
-          className="bottom-nav-item"
-          onClick={() => { haptic("selection"); window.location.href = "/"; }}
-          aria-label="禪模式"
+          type="button"
+          onClick={onSkip}
+          disabled={isSlashing || isCrashing || isEditing}
+          className="text-sm transition-colors hover:text-[var(--accent-warm-end)] disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label="跳過此任務 — 區間任務推遲一天、單日任務退回收集箱"
         >
-          <Sparkles className="w-[22px] h-[22px]" />
-          <span className="text-[11px]">禪</span>
+          跳過
+        </button>
+    // After
+        <button
+          type="button"
+          onClick={onSkip}
+          disabled={isSlashing || isCrashing || isEditing}
+          className="inline-flex min-h-[44px] items-center justify-center rounded-full px-4 text-sm text-[var(--text-tertiary)] transition-colors hover:bg-[var(--hover-bg)] hover:text-[var(--accent-warm-end)] disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label="跳過此任務 — 區間任務推遲一天、單日任務退回收集箱"
+        >
+          跳過
         </button>
 
-    // After: src/components/BottomNavigation.tsx
-          <Timer className="w-[22px] h-[22px]" />
-          <span>心流</span>
-        </button>
+    // Before (line 724 & 781)
+          <ChevronRightIcon />
+          ...
+          <GripIcon />
+    // After
+          <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
+          ...
+          <GripVertical className="w-4 h-4" aria-hidden="true" />
 
-        {/* 禪模式 — 手機直接入口 */}
-        <Link
-          href="/"
-          className="bottom-nav-item"
-          onClick={() => haptic("selection")}
-          aria-label="禪模式"
-        >
-          <Sparkles className="w-[22px] h-[22px]" />
-          <span>禪</span>
-        </Link>
+    // Before (line 828 & 847-856)
+          className="relative text-[var(--accent-warm)]"
+      ...
+      <a
+        href="/?board=1"
+        className="mt-1 inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-[13px] font-medium text-white shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]"
+        style={{
+          backgroundImage: "linear-gradient(135deg, var(--accent-warm-start), var(--accent-warm-end))",
+        }}
+      >
+        <span aria-hidden>⚡</span>
+        <span>開啟任務大廳</span>
+      </a>
+    // After
+          className="relative text-[var(--accent-warm-start)]"
+      ...
+      <Link
+        href="/?board=1"
+        className="mt-1 inline-flex min-h-[44px] items-center gap-2 rounded-full px-6 py-2.5 text-[13px] font-medium text-white shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]"
+        style={{
+          backgroundImage: "linear-gradient(135deg, var(--accent-warm-start), var(--accent-warm-end))",
+        }}
+      >
+        <Zap className="w-4 h-4" aria-hidden="true" />
+        <span>開啟任務大廳</span>
+      </Link>
     ```
+    （同步移除 `ZenDashboard.tsx` 底部不再使用的 `GripIcon` 與 `ChevronRightIcon` 函式。）
 
-- [?] **4. 修復 Skeleton 載入態未定義變數、深色自動適配與手機斷點橫向破版**
-  - 檔案：`src/app/globals.css`、`src/components/Skeleton.tsx`
-  - 說明：將無效的 `var(--background)` 改為 `var(--surface-muted)`，手機斷點隱藏左右側欄骨架，並讓 `.skeleton` 自動響應 `[data-theme="dark"]`。
-  - Before -> After：
-    ```css
-    /* After: src/app/globals.css (append right after .skeleton at line 844) */
-    [data-theme="dark"] .skeleton {
-      background: linear-gradient(
-        90deg,
-        rgba(255, 255, 255, 0.06) 25%,
-        rgba(255, 255, 255, 0.10) 50%,
-        rgba(255, 255, 255, 0.06) 75%
-      );
-      background-size: 200% 100%;
-    }
-    ```
-    ```tsx
-    // Before: src/components/Skeleton.tsx (lines 44, 49, 85, 112)
-      style={{ background: "var(--background)" }}
-      <aside className="w-[260px] border-r flex-shrink-0 p-4 space-y-3" style={{ borderColor: "var(--border)" }}>
-      <aside className="w-[360px] border-l flex-shrink-0 p-4 space-y-3" style={{ borderColor: "var(--border)" }}>
-          <div key={i} className="p-4 space-y-2 rounded-xl" style={{ background: "var(--surface-muted)" }}>
-
-    // After: src/components/Skeleton.tsx
-      style={{ background: "var(--surface-muted)" }}
-      <aside className="hidden md:block w-[260px] border-r flex-shrink-0 p-4 space-y-3" style={{ borderColor: "var(--border)" }}>
-      <aside className="hidden lg:block w-[360px] border-l flex-shrink-0 p-4 space-y-3" style={{ borderColor: "var(--border)" }}>
-          <div key={i} className="p-4 space-y-2 rounded-lg" style={{ background: "var(--surface)" }}>
-    ```
-
-- [?] **5. 重構 ErrorBoundary 錯誤防呆體驗，對齊設計系統並提供恢復動作**
-  - 檔案：`src/components/ErrorBoundary.tsx`
-  - 說明：取代原始紅底堆疊傾印，改用 `--surface-muted` / `--surface` 卡片、友善中文提示、`.btn-primary` 重新整理按鈕與可折疊除錯細節。
+- [?] **2. 統一 BottomNavigation `MorePopover` 深色模式 Token、Hover 回饋與 Lucide 圖示**
+  - 檔案：`src/components/BottomNavigation.tsx`
+  - 說明：用 `MoreHorizontal` 取代手寫 `MoreIcon`；「習慣」改用已匯入的 `Flame` 避免與「統計」的 `BarChart3` 撞圖示；修補 `MorePopover` 內遺漏的 `hover:bg-[var(--surface-hover)]`、`hover:bg-[var(--hover-bg)]` 與 `hover:bg-[var(--hover-danger)]`。
   - Before -> After：
     ```tsx
-    // Before: src/components/ErrorBoundary.tsx (lines 32-44)
-    if (this.state.hasError) {
-      return (
-        <div className="fixed inset-0 z-[9999] bg-red-50 p-4 overflow-y-auto">
-          <h1 className="text-xl font-bold text-red-600 mb-4">Something went wrong.</h1>
-          <p className="text-sm font-mono text-red-800 bg-red-100 p-2 rounded whitespace-pre-wrap">
-            {this.state.error?.toString()}
-          </p>
-          <pre className="mt-4 text-xs font-mono text-red-600 bg-red-50 p-2 border border-red-200 overflow-x-auto whitespace-pre-wrap">
-            {this.state.errorInfo?.componentStack}
-          </pre>
-        </div>
-      );
-    }
+    // Before (line 5-8, 30-33, 153, 183-191)
+    import {
+      Inbox, Sun, CalendarDays, Layers, Tag, BarChart3, CalendarRange,
+      Settings, List as LucideList, Timer, Sparkles, Flame, LogOut, MoreVertical
+    } from "lucide-react";
+    const MORE_ITEMS: BottomNavItem[] = [
+      { view: "habits", label: "習慣", icon: <BarChart3 className="w-[22px] h-[22px]" /> },
+      { view: "tags", label: "標籤", icon: <Tag className="w-[22px] h-[22px]" /> },
+      { view: "stats", label: "統計", icon: <Layers className="w-[22px] h-[22px]" /> },
+    ];
+    <MoreIcon />
+    // After
+    import {
+      Inbox, Sun, CalendarDays, Layers, Tag, BarChart3,
+      Settings, Timer, Sparkles, Flame, LogOut, MoreVertical, MoreHorizontal
+    } from "lucide-react";
+    const MORE_ITEMS: BottomNavItem[] = [
+      { view: "habits", label: "習慣", icon: <Flame className="w-[22px] h-[22px]" /> },
+      { view: "tags", label: "標籤", icon: <Tag className="w-[22px] h-[22px]" /> },
+      { view: "stats", label: "統計", icon: <BarChart3 className="w-[22px] h-[22px]" /> },
+    ];
+    <MoreHorizontal className="w-[22px] h-[22px]" aria-hidden="true" />
+    // （並移除多餘的 MoreIcon 函式定義）
 
-    // After: src/components/ErrorBoundary.tsx
-    if (this.state.hasError) {
-      return (
-        <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-y-auto"
-          style={{ background: "var(--surface-muted)", color: "var(--text-primary)" }}
-          role="alert"
-        >
-          <div className="card w-full max-w-md p-6 space-y-4">
-            <div className="space-y-2">
-              <span
-                className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
-                style={{ background: "var(--status-danger-tint)", color: "var(--status-danger)" }}
-              >
-                畫面發生異常
-              </span>
-              <h1 className="text-lg font-semibold text-balance">暫時無法顯示這個畫面</h1>
-              <p className="text-sm text-pretty" style={{ color: "var(--text-secondary)" }}>
-                資料不會遺失，請重新整理頁面；若問題持續發生，可展開下方錯誤資訊回報。
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => window.location.reload()}
-                className="btn-primary min-h-[44px]"
-              >
-                重新載入
-              </button>
-              <button
-                type="button"
-                onClick={() => this.setState({ hasError: false, error: null, errorInfo: null })}
-                className="btn-ghost min-h-[44px]"
-              >
-                嘗試恢復
-              </button>
-            </div>
-            <details className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-              <summary className="cursor-pointer py-1">技術錯誤資訊</summary>
-              <pre
-                className="mt-2 p-3 rounded-md font-mono overflow-x-auto whitespace-pre-wrap"
-                style={{ background: "var(--surface-muted)", color: "var(--text-secondary)" }}
-              >
-                {this.state.error?.toString()}
-                {process.env.NODE_ENV !== "production" && this.state.errorInfo?.componentStack}
-              </pre>
-            </details>
-          </div>
-        </div>
-      );
-    }
+    // Before (lines 298, 331, 342, 352)
+    className="flex-shrink-0 mr-2 p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+    ...
+    className="flex items-center gap-3 px-5 py-3.5 text-[14px] font-medium w-full text-left transition-colors"
+    ...
+    className="flex items-center gap-3 px-5 py-3.5 text-[14px] font-medium w-full text-left"
+    ...
+    className="flex items-center gap-3 px-5 py-3.5 text-[14px] font-medium w-full text-left transition-colors hover:bg-red-50"
+    // After
+    className="flex-shrink-0 mr-2 p-2 rounded-lg transition-colors hover:bg-[var(--hover-bg)]"
+    ...
+    className="flex items-center gap-3 px-5 py-3.5 text-[14px] font-medium w-full text-left transition-colors hover:bg-[var(--surface-hover)]"
+    ...
+    className="flex items-center gap-3 px-5 py-3.5 text-[14px] font-medium w-full text-left transition-colors hover:bg-[var(--surface-hover)]"
+    ...
+    className="flex items-center gap-3 px-5 py-3.5 text-[14px] font-medium w-full text-left transition-colors hover:bg-[var(--hover-danger)]"
+    ```
+
+- [?] **3. 統一 ZenDashboard 卡片圓角尺度至設計系統 `--radius-lg` / `--radius-xl`**
+  - 檔案：`src/components/ZenDashboard.tsx`
+  - 說明：對照 `docs/DESIGN_SYSTEM.md`（卡片 `rounded-lg` `16px`、大型面板 `rounded-xl` `20px`），將 `FocusCard` 與 `EmptyState` 的 `rounded-3xl` 收斂為 `rounded-xl` (`20px`)、`SortableQueueItem` 與 `QueueItemCard` 的 `rounded-2xl` 收斂為 `rounded-lg` (`16px`)。
+  - Before -> After：
+    ```tsx
+    // Before (lines 650, 770, 791, 800)
+    className="focus-card-breathe focus-card-hover group relative w-full rounded-3xl ..."
+    className={`flex items-center gap-3 rounded-2xl ...`}
+    className={`flex-1 truncate ... ${isDragging ? "rounded-2xl ..."`}
+    <div className="flex flex-col items-center gap-4 rounded-3xl ...">
+
+    // After
+    className="focus-card-breathe focus-card-hover group relative w-full rounded-xl ..."
+    className={`flex items-center gap-3 rounded-lg ...`}
+    className={`flex-1 truncate ... ${isDragging ? "rounded-lg ..."`}
+    <div className="flex flex-col items-center gap-4 rounded-xl ...">
     ```

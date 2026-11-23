@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import Link from "next/link";
 import {
   Inbox, Sun, CalendarDays, Layers, Tag, BarChart3, CalendarRange,
-  Settings, List as LucideList, Timer, Sparkles, Flame, LogOut, MoreVertical
+  Settings, List as LucideList, Timer, Sparkles, Flame, LogOut, MoreVertical, MoreHorizontal
 } from "lucide-react";
 import { AppView, TaskList, Task } from "@/lib/types";
 import { haptic } from "@/lib/haptics";
@@ -27,9 +27,9 @@ const NAV_ITEMS: BottomNavItem[] = [
 
 // 「未來 7 天」已合併至「今天」badge — 減少 nav 選項，降低 ADHD 啟動障礙
 const MORE_ITEMS: BottomNavItem[] = [
-  { view: "habits", label: "習慣", icon: <BarChart3 className="w-[22px] h-[22px]" /> },
+  { view: "habits", label: "習慣", icon: <Flame className="w-[22px] h-[22px]" /> },
   { view: "tags", label: "標籤", icon: <Tag className="w-[22px] h-[22px]" /> },
-  { view: "stats", label: "統計", icon: <Layers className="w-[22px] h-[22px]" /> },
+  { view: "stats", label: "統計", icon: <BarChart3 className="w-[22px] h-[22px]" /> },
 ];
 
 interface BottomNavigationProps {
@@ -150,7 +150,7 @@ export function BottomNavigation({ currentView, currentListId, lists, tasks, onN
           aria-expanded={moreOpen}
           aria-haspopup="menu"
         >
-          <MoreIcon />
+          <MoreHorizontal className="w-[22px] h-[22px]" aria-hidden="true" />
           <span>更多</span>
         </button>
       </nav>
@@ -177,16 +177,6 @@ export function BottomNavigation({ currentView, currentListId, lists, tasks, onN
         />
       )}
     </>
-  );
-}
-
-function MoreIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-      <circle cx="5" cy="11" r="1.5" fill="currentColor" />
-      <circle cx="11" cy="11" r="1.5" fill="currentColor" />
-      <circle cx="17" cy="11" r="1.5" fill="currentColor" />
-    </svg>
   );
 }
 
@@ -295,7 +285,7 @@ function MorePopover({
                         type="button"
                         aria-label={`更多操作 ${list.name}`}
                         aria-expanded={isMenuOpen}
-                        className="flex-shrink-0 mr-2 p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+                        className="flex-shrink-0 mr-2 p-2 rounded-lg transition-colors hover:bg-[var(--hover-bg)]"
                         style={{ color: "var(--text-tertiary)" }}
                         onClick={(e) => { e.stopPropagation(); onListMore(list.id); }}
                       >
@@ -328,7 +318,7 @@ function MorePopover({
         {MORE_ITEMS.map((item) => (
           <button
             key={item.view}
-            className="flex items-center gap-3 px-5 py-3.5 text-[14px] font-medium w-full text-left transition-colors"
+            className="flex items-center gap-3 px-5 py-3.5 text-[14px] font-medium w-full text-left transition-colors hover:bg-[var(--surface-hover)]"
             style={{ color: currentView === item.view ? "var(--brand)" : "var(--text-primary)" }}
             onClick={() => onItem(item.view)}
             role="menuitem"
@@ -339,7 +329,7 @@ function MorePopover({
         ))}
         <div style={{ height: "1px", background: "var(--border)" }} />
         <button
-          className="flex items-center gap-3 px-5 py-3.5 text-[14px] font-medium w-full text-left"
+          className="flex items-center gap-3 px-5 py-3.5 text-[14px] font-medium w-full text-left transition-colors hover:bg-[var(--surface-hover)]"
           style={{ color: "var(--text-secondary)" }}
           onClick={onSettings}
           role="menuitem"
@@ -349,7 +339,7 @@ function MorePopover({
         </button>
         <div style={{ height: "1px", background: "var(--border)" }} />
         <button
-          className="flex items-center gap-3 px-5 py-3.5 text-[14px] font-medium w-full text-left transition-colors hover:bg-red-50"
+          className="flex items-center gap-3 px-5 py-3.5 text-[14px] font-medium w-full text-left transition-colors hover:bg-[var(--hover-danger)]"
           style={{ color: "var(--status-danger)" }}
           onClick={handleSignOut}
           role="menuitem"

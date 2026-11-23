@@ -45,7 +45,7 @@ import { ProWaitlistModal } from "@/components/ProWaitlistModal";
 import { TodayWrapUpButton } from "@/components/TodayWrapUpButton";
 import { useGhostButton } from "@/hooks/useGhostButton";
 import { useRhythmSettings } from "@/hooks/useRhythmSettings";
-import { Hourglass, LayoutGrid, Users } from "lucide-react";
+import { ChevronRight, GripVertical, Hourglass, LayoutGrid, Sparkles, Users, Zap } from "lucide-react";
 import Image from "next/image";
 
 import { useApp } from "@/lib/AppContext";
@@ -647,7 +647,7 @@ function FocusCard({
         },
       }}
       exit={{ opacity: 0, scale: 0.92, y: -8, transition: { duration: 0.3 } }}
-      className="focus-card-breathe focus-card-hover group relative w-full rounded-3xl bg-[var(--surface)] px-6 pt-16 pb-8 text-center shadow-sm ring-1 ring-[var(--border)] sm:px-12 sm:pt-20 sm:pb-10"
+      className="focus-card-breathe focus-card-hover group relative w-full rounded-xl bg-[var(--surface)] px-6 pt-16 pb-8 text-center shadow-sm ring-1 ring-[var(--border)] sm:px-12 sm:pt-20 sm:pb-10"
       aria-label={`當前焦點任務: ${task.title}`}
     >
       <SlashOverlay active={isSlashing} />
@@ -721,7 +721,7 @@ function FocusCard({
           title="下一個輪值上來"
           className="inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-hover)] px-4 py-2 text-xs font-medium uppercase tracking-widest ring-1 ring-inset ring-[var(--border)] transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-[color-mix(in_srgb,var(--accent-warm-start)_12%,transparent)] hover:text-[var(--accent-warm-start)] hover:ring-[color-mix(in_srgb,var(--accent-warm-start)_30%,transparent)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-warm-start)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 sm:focus-visible:opacity-100"
         >
-          <ChevronRightIcon />
+          <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
           <span>下一個輪值</span>
         </button>
         <button
@@ -743,7 +743,7 @@ function FocusCard({
           type="button"
           onClick={onSkip}
           disabled={isSlashing || isCrashing || isEditing}
-          className="text-sm transition-colors hover:text-[var(--accent-warm-end)] disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex min-h-[44px] items-center justify-center rounded-full px-4 text-sm text-[var(--text-tertiary)] transition-colors hover:bg-[var(--hover-bg)] hover:text-[var(--accent-warm-end)] disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="跳過此任務 — 區間任務推遲一天、單日任務退回收集箱"
         >
           跳過
@@ -767,7 +767,7 @@ function SortableQueueItem({ task }: { task: Task }) {
     <li
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-3 rounded-2xl bg-[var(--surface)]/40 px-4 py-3 opacity-60 ring-1 ring-[var(--border)] backdrop-blur-sm transition-all duration-300 hover:bg-[var(--surface)]/80 hover:opacity-100 hover:ring-[var(--border-hover)] ${
+      className={`flex items-center gap-3 rounded-lg bg-[var(--surface)]/40 px-4 py-3 opacity-60 ring-1 ring-[var(--border)] backdrop-blur-sm transition-all duration-300 hover:bg-[var(--surface)]/80 hover:opacity-100 hover:ring-[var(--border-hover)] ${
         isDragging ? "!opacity-30" : ""
       }`}
     >
@@ -778,7 +778,7 @@ function SortableQueueItem({ task }: { task: Task }) {
         aria-label={`拖曳任務: ${task.title}`}
         className="flex h-8 w-6 cursor-grab touch-none items-center justify-center text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-secondary)] active:cursor-grabbing"
       >
-        <GripIcon />
+        <GripVertical className="w-4 h-4" aria-hidden="true" />
       </button>
       <QueueItemCard task={task} isDragging={isDragging} />
     </li>
@@ -788,7 +788,7 @@ function SortableQueueItem({ task }: { task: Task }) {
 function QueueItemCard({ task, isDragging = false }: { task: Task; isDragging?: boolean }) {
   return (
     <span
-      className={`flex-1 truncate text-[15px] font-medium text-[var(--text-secondary)] ${isDragging ? "rounded-2xl bg-[var(--surface)] px-4 py-3 shadow-lg ring-1 ring-[var(--border)]" : ""}`}
+      className={`flex-1 truncate text-[15px] font-medium text-[var(--text-secondary)] ${isDragging ? "rounded-lg bg-[var(--surface)] px-4 py-3 shadow-lg ring-1 ring-[var(--border)]" : ""}`}
     >
       {task.title}
     </span>
@@ -797,7 +797,7 @@ function QueueItemCard({ task, isDragging = false }: { task: Task; isDragging?: 
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center gap-4 rounded-3xl bg-[var(--surface)]/50 px-12 py-16 text-center ring-1 ring-[var(--border)]">
+    <div className="flex flex-col items-center gap-4 rounded-xl bg-[var(--surface)]/50 px-12 py-16 text-center ring-1 ring-[var(--border)]">
       <div className="relative flex h-20 w-20 items-center justify-center">
         <div
           className="absolute inset-0 rounded-full"
@@ -815,24 +815,13 @@ function EmptyState() {
           }}
           aria-hidden
         />
-        <svg
+        <Sparkles
           aria-hidden
-          width="32"
-          height="32"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="relative text-[var(--accent-warm)]"
-        >
-          <path d="M12 2v20" />
-          <path d="M5 9c2 0 4-1 4-4" />
-          <path d="M19 9c-2 0-4-1-4-4" />
-          <path d="M5 15c2 0 4 1 4 4" />
-          <path d="M19 15c-2 0-4 1-4 4" />
-        </svg>
+          width={32}
+          height={32}
+          strokeWidth={1.5}
+          className="relative text-[var(--accent-warm-start)]"
+        />
       </div>
 
       <div className="flex flex-col items-center gap-2 text-center">
@@ -844,59 +833,16 @@ function EmptyState() {
         </p>
       </div>
 
-      <a
+      <Link
         href="/?board=1"
-        className="mt-1 inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-[13px] font-medium text-white shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]"
+        className="mt-1 inline-flex min-h-[44px] items-center gap-2 rounded-full px-6 py-2.5 text-[13px] font-medium text-white shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]"
         style={{
           backgroundImage: "linear-gradient(135deg, var(--accent-warm-start), var(--accent-warm-end))",
         }}
       >
-        <span aria-hidden>⚡</span>
+        <Zap className="w-4 h-4" aria-hidden="true" />
         <span>開啟任務大廳</span>
-      </a>
+      </Link>
     </div>
-  );
-}
-
-function GripIcon() {
-  return (
-    <svg
-      aria-hidden
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="9" cy="6" r="1" />
-      <circle cx="9" cy="12" r="1" />
-      <circle cx="9" cy="18" r="1" />
-      <circle cx="15" cy="6" r="1" />
-      <circle cx="15" cy="12" r="1" />
-      <circle cx="15" cy="18" r="1" />
-    </svg>
-  );
-}
-
-// §A1 焦點輪值按鈕用的 chevron icon(沿用 lucide 風格 24x24 stroke=1.75,
-// 跟既有 GripIcon 視覺權重一致)
-function ChevronRightIcon() {
-  return (
-    <svg
-      aria-hidden
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M9 6l6 6-6 6" />
-    </svg>
   );
 }
