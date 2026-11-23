@@ -128,18 +128,19 @@ export function BottomNavigation({ currentView, currentListId, lists, tasks, onN
           aria-label="心流計時"
         >
           <Timer className="w-[22px] h-[22px]" />
-          <span className="text-[11px]">心流</span>
+          <span>心流</span>
         </button>
 
         {/* 禪模式 — 手機直接入口 */}
-        <button
+        <Link
+          href="/"
           className="bottom-nav-item"
-          onClick={() => { haptic("selection"); window.location.href = "/"; }}
+          onClick={() => haptic("selection")}
           aria-label="禪模式"
         >
           <Sparkles className="w-[22px] h-[22px]" />
-          <span className="text-[11px]">禪</span>
-        </button>
+          <span>禪</span>
+        </Link>
 
         {/* More */}
         <button

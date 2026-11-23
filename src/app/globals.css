@@ -724,7 +724,7 @@
     align-items: center;
     justify-content: center;
     gap: 3px;
-    padding: 8px 12px;
+    padding: 6px 4px;
     border-radius: var(--radius-md);
     color: var(--text-tertiary);
     font-size: 10px;
@@ -733,7 +733,7 @@
     transition: color 180ms ease, background 180ms ease;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
-    min-width: 64px;
+    min-width: 0;
     min-height: 44px;
     background: none;
     border: none;
@@ -841,6 +841,17 @@
     background-size: 200% 100%;
     animation: skeleton-shimmer 1.4s ease-in-out infinite;
     border-radius: var(--radius-sm);
+  }
+
+  /* 深色模式自動適配 — 骨架屏不再需要手動指定 variant="dark" */
+  [data-theme="dark"] .skeleton {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.06) 25%,
+      rgba(255, 255, 255, 0.10) 50%,
+      rgba(255, 255, 255, 0.06) 75%
+    );
+    background-size: 200% 100%;
   }
 
   .skeleton-dark {

@@ -45,7 +45,7 @@ import { ProWaitlistModal } from "@/components/ProWaitlistModal";
 import { TodayWrapUpButton } from "@/components/TodayWrapUpButton";
 import { useGhostButton } from "@/hooks/useGhostButton";
 import { useRhythmSettings } from "@/hooks/useRhythmSettings";
-import { Hourglass, Users } from "lucide-react";
+import { Hourglass, LayoutGrid, Users } from "lucide-react";
 import Image from "next/image";
 
 import { useApp } from "@/lib/AppContext";
@@ -283,7 +283,7 @@ export default function ZenDashboard() {
 
   return (
     <>
-    <main className="relative min-h-screen bg-slate-50 px-4 pb-32 pt-10 sm:px-8 sm:pb-28">
+    <main className="relative min-h-screen bg-[var(--surface-muted)] text-[var(--text-primary)] px-4 pb-32 pt-10 sm:px-8 sm:pb-28">
       {/* §M §26 命中類別新:P 全域 floating CTA 與 fullscreen 內容區避讓策略
           ZenDashboard 是 full-screen 禪模式,FAB 的 fixed bottom-4 在小視窗會
           飄進 UPCOMING QUEUE 區上方。給 main pb-32(128px)= FAB 飄在 viewport 底
@@ -308,11 +308,11 @@ export default function ZenDashboard() {
         {/* 左群組:Logo + Zen Mode 標題(身份歸屬) */}
         <div className="flex items-center justify-start gap-3">
           <div className="flex items-center gap-2">
-            {/* §26 降噪:Logo 預設 slate-100/400(融入背景),hover/focus 才顯示品牌色
+            {/* §26 降噪:Logo 預設融入背景(低對比),hover/focus 才顯示品牌色
                 - 桌機:打勾色塊 + 「VibeList」文字
                 - 手機:打勾色塊(隱藏文字避免擠壓) */}
             <div
-              className="group/logo relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-[10px] shadow-sm ring-1 ring-black/5 transition-transform duration-200 ease-out hover:scale-105 active:scale-95"
+              className="group/logo relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-[10px] shadow-sm ring-1 ring-[var(--border)] transition-transform duration-200 ease-out hover:scale-105 active:scale-95"
               aria-hidden
             >
               <Image
@@ -323,7 +323,7 @@ export default function ZenDashboard() {
                 sizes="32px"
               />
             </div>
-            <span className="hidden text-[16px] font-semibold tracking-tight text-slate-700 sm:inline">
+            <span className="hidden text-[16px] font-semibold tracking-tight text-[var(--text-primary)] sm:inline">
               VibeList
             </span>
           </div>
@@ -359,7 +359,7 @@ export default function ZenDashboard() {
             dismissed={bodyDoublingGhost.dismissed}
             className="border-0 whitespace-nowrap shrink-0"
             style={{
-              background: "rgba(241, 245, 249, 0.5)", // slate-100/50
+              background: "var(--hover-bg)",
               border: "none",
             }}
           >
@@ -368,26 +368,11 @@ export default function ZenDashboard() {
           {/* §Safari-test: 移除 touch-manipulation + active:scale, 改用 touch-action:auto + user-select:auto 測試 hit-testing */}
           <Link
             href="/?board=1"
-            className="inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 rounded-full px-3 py-2 text-sm font-medium text-slate-500 transition-all duration-200 ease-out hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-200 sm:px-4"
+            className="inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 rounded-full px-3 py-2 text-sm font-medium text-[var(--text-secondary)] transition-all duration-200 ease-out hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] sm:px-4"
             style={{ touchAction: "auto", userSelect: "auto" }}
             aria-label="進入任務大廳(收件箱) — 整理任務或快速 Brain Dump"
           >
-            <svg
-              aria-hidden
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-            </svg>
+            <LayoutGrid className="w-4 h-4" aria-hidden="true" />
             <span className="hidden sm:inline">任務大廳</span>
           </Link>
         </div>
@@ -414,7 +399,7 @@ export default function ZenDashboard() {
             <button
               type="button"
               onClick={() => setFocusMode(false)}
-              className="self-end rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-widest text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+              className="self-end rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-widest text-[var(--text-tertiary)] transition-colors hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)]"
             >
               展開 UPCOMING ↑
             </button>
@@ -662,7 +647,7 @@ function FocusCard({
         },
       }}
       exit={{ opacity: 0, scale: 0.92, y: -8, transition: { duration: 0.3 } }}
-      className="focus-card-breathe focus-card-hover group relative w-full rounded-3xl bg-white px-6 pt-16 pb-8 text-center shadow-sm ring-1 ring-slate-200/60 sm:px-12 sm:pt-20 sm:pb-10"
+      className="focus-card-breathe focus-card-hover group relative w-full rounded-3xl bg-[var(--surface)] px-6 pt-16 pb-8 text-center shadow-sm ring-1 ring-[var(--border)] sm:px-12 sm:pt-20 sm:pb-10"
       aria-label={`當前焦點任務: ${task.title}`}
     >
       <SlashOverlay active={isSlashing} />
@@ -689,7 +674,7 @@ function FocusCard({
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           aria-label="編輯任務標題"
-          className="w-full max-w-full bg-transparent text-center text-2xl font-medium leading-snug text-slate-800 outline-none ring-0 placeholder:text-slate-300 sm:text-3xl"
+          className="w-full max-w-full bg-transparent text-center text-2xl font-medium leading-snug text-[var(--text-primary)] outline-none ring-0 placeholder:text-[var(--text-placeholder)] sm:text-3xl"
           style={{
             // 與原本 <p> 完全一致的尺寸與字重
             fontSize: "clamp(1.5rem, 4vw, 1.875rem)",
@@ -711,7 +696,7 @@ function FocusCard({
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          className="cursor-text select-none text-balance text-2xl font-medium leading-snug text-slate-800 sm:text-3xl"
+          className="cursor-text select-none text-balance text-2xl font-medium leading-snug text-[var(--text-primary)] sm:text-3xl"
           aria-label={`雙擊或長按編輯標題: ${task.title}`}
           title="雙擊或長按編輯"
         >
@@ -734,7 +719,7 @@ function FocusCard({
           disabled={!canShiftNext || isSlashing || isCrashing || isEditing}
           aria-label="輪值下一個任務為新焦點(今日順序微調,不會跳過或封存)"
           title="下一個輪值上來"
-          className="inline-flex items-center gap-1.5 rounded-full bg-slate-100/80 px-4 py-2 text-xs font-medium uppercase tracking-widest ring-1 ring-inset ring-slate-200/60 transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-[color-mix(in_srgb,var(--accent-warm-start)_12%,transparent)] hover:text-[var(--accent-warm-start)] hover:ring-[color-mix(in_srgb,var(--accent-warm-start)_30%,transparent)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-warm-start)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 sm:focus-visible:opacity-100"
+          className="inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-hover)] px-4 py-2 text-xs font-medium uppercase tracking-widest ring-1 ring-inset ring-[var(--border)] transition-all duration-200 ease-out hover:scale-[1.02] hover:bg-[color-mix(in_srgb,var(--accent-warm-start)_12%,transparent)] hover:text-[var(--accent-warm-start)] hover:ring-[color-mix(in_srgb,var(--accent-warm-start)_30%,transparent)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-warm-start)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 sm:focus-visible:opacity-100"
         >
           <ChevronRightIcon />
           <span>下一個輪值</span>
@@ -782,7 +767,7 @@ function SortableQueueItem({ task }: { task: Task }) {
     <li
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-3 rounded-2xl bg-white/40 px-4 py-3 opacity-60 ring-1 ring-white/60 backdrop-blur-sm transition-all duration-300 hover:bg-white/80 hover:opacity-100 hover:ring-slate-200/50 ${
+      className={`flex items-center gap-3 rounded-2xl bg-[var(--surface)]/40 px-4 py-3 opacity-60 ring-1 ring-[var(--border)] backdrop-blur-sm transition-all duration-300 hover:bg-[var(--surface)]/80 hover:opacity-100 hover:ring-[var(--border-hover)] ${
         isDragging ? "!opacity-30" : ""
       }`}
     >
@@ -791,7 +776,7 @@ function SortableQueueItem({ task }: { task: Task }) {
         {...attributes}
         {...listeners}
         aria-label={`拖曳任務: ${task.title}`}
-        className="flex h-8 w-6 cursor-grab touch-none items-center justify-center text-slate-400 transition-colors hover:text-slate-600 active:cursor-grabbing"
+        className="flex h-8 w-6 cursor-grab touch-none items-center justify-center text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-secondary)] active:cursor-grabbing"
       >
         <GripIcon />
       </button>
@@ -803,7 +788,7 @@ function SortableQueueItem({ task }: { task: Task }) {
 function QueueItemCard({ task, isDragging = false }: { task: Task; isDragging?: boolean }) {
   return (
     <span
-      className={`flex-1 truncate text-[15px] font-medium text-slate-500 mix-blend-multiply ${isDragging ? "rounded-2xl bg-white px-4 py-3 shadow-lg ring-1 ring-slate-200" : ""}`}
+      className={`flex-1 truncate text-[15px] font-medium text-[var(--text-secondary)] ${isDragging ? "rounded-2xl bg-[var(--surface)] px-4 py-3 shadow-lg ring-1 ring-[var(--border)]" : ""}`}
     >
       {task.title}
     </span>
@@ -812,7 +797,7 @@ function QueueItemCard({ task, isDragging = false }: { task: Task; isDragging?: 
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center gap-4 rounded-3xl bg-slate-50/50 px-12 py-16 text-center ring-1 ring-black/5">
+    <div className="flex flex-col items-center gap-4 rounded-3xl bg-[var(--surface)]/50 px-12 py-16 text-center ring-1 ring-[var(--border)]">
       <div className="relative flex h-20 w-20 items-center justify-center">
         <div
           className="absolute inset-0 rounded-full"
@@ -851,10 +836,10 @@ function EmptyState() {
       </div>
 
       <div className="flex flex-col items-center gap-2 text-center">
-        <p className="text-balance text-[15px] font-medium text-slate-600">
+        <p className="text-balance text-[15px] font-medium text-[var(--text-secondary)]">
           今日專注已全數完成
         </p>
-        <p className="text-balance text-[13px] leading-relaxed text-slate-400">
+        <p className="text-balance text-[13px] leading-relaxed text-[var(--text-tertiary)]">
           戰場很安靜。剩下的，會在大廳等你。
         </p>
       </div>

@@ -1,0 +1,23 @@
+---
+description: 讀取根目錄 task.md 批次執行 UI/UX 實作與總監退回修改單
+globs: **/*
+alwaysApply: true
+---
+
+# Role: 資深前端與互動工程師 (Cursor)
+
+你的唯一任務來源是專案根目錄的 `./task.md`，並嚴格遵守 `openspec/` 規格與 `./docs/DESIGN_SYSTEM.md` 設計規範。當用戶輸入 `next` 時，請在單次執行內批次完成本輪所有待辦任務。
+
+## 執行規範
+1. **批次任務優先級（省額度高效率）**：
+   - **第一優先**：一口氣處理 `./task.md` 中所有標記為 `[!]`（總監驗收退回）的項目，逐字落實縮排內的 `Before -> After` 程式碼修改要求。
+   - **第二優先**：依序實作 `./task.md` 中所有標記為 `[ ]`（待實作）的項目。
+2. **高工藝實作標準**：
+   - 嚴格使用 `./docs/DESIGN_SYSTEM.md` 定義的色彩 Token、圓角半徑與 4/8px 間距倍數。
+   - 主動補齊 Loading 載入態、Empty 空狀態、Hover/Active 微互動過渡與 Mobile 斷點適配。
+3. **Build Gate 靜態驗證（強制）**：
+   - 修改完成後，執行專案既有的靜態檢查或編譯指令（例如 `npm run typecheck && npm run lint && npm run build`），確保無任何語法或型別錯誤。
+   - **嚴禁啟動、重啟或終止任何本地伺服器或 Port（尤其是 `:8787` 系統代理端口）。**
+4. **狀態交接與交付**：
+   - 驗證通過後，將 `./task.md` 中對應的 `[ ]` 或 `[!]` 狀態全部改為 `[?]`（待驗收），**絕對禁止自己改為 `[x]`**。
+   - 若專案有連接遠端倉庫且需要自動部署預覽，執行 `git add . && git commit -m "feat(ui): update tasks for director review" && git push`；若僅本地開發則直接結束對話交棒。

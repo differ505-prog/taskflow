@@ -157,9 +157,9 @@ export function TaskListItem({
       style={sortableStyle}
       {...(sortable?.attributes ?? {})}
       className={`
-        flex items-start gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer
+        flex items-start gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer
         transition-all duration-150 group select-none
-        ${isSelected ? "bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-800/40" : "hover:bg-neutral-50 dark:hover:bg-neutral-900/50"}
+        ${isSelected ? "bg-[var(--brand-tint)] border border-[var(--brand)]/25" : "hover:bg-[var(--hover-bg)]"}
         ${batchSelected ? "ring-2 ring-[var(--brand)] bg-[var(--brand-tint)]/40" : ""}
         ${batchMode ? "active:scale-[0.98]" : ""}
         ${isDone ? "opacity-60" : ""}
@@ -211,7 +211,7 @@ export function TaskListItem({
       {/* Checkbox */}
       <button
         onClick={handleCheckboxClick}
-        className="flex-shrink-0 mt-1 transition-transform hover:scale-110 z-10"
+        className="touch-target -ml-2.5 -mt-2 flex-shrink-0 transition-transform hover:scale-110 active:scale-95 z-10"
         aria-label={isDone ? "標記未完成" : "標記完成"}
       >
         {isDone ? (
@@ -243,7 +243,7 @@ export function TaskListItem({
             {onDelete && (
               <button
                 onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
-                className="p-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-50 transition-all duration-150 active:scale-90"
+                className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-[var(--hover-danger)] hover:text-[var(--status-danger)] transition-all duration-150 active:scale-90"
                 style={{ color: "var(--text-tertiary)" }}
                 aria-label="刪除任務"
                 title="刪除"
@@ -268,7 +268,7 @@ export function TaskListItem({
         {deadlineStatus && (
           <div
             className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md"
-            style={{ background: `${deadlineStatus.colorVar}15`, color: deadlineStatus.colorVar }}
+            style={{ background: `color-mix(in srgb, ${deadlineStatus.colorVar} 12%, transparent)`, color: deadlineStatus.colorVar }}
             title={deadlineStatus.tooltip}
             aria-label={`截止警示:${deadlineStatus.text}`}
           >

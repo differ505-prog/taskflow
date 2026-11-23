@@ -41,12 +41,12 @@ export function AppShellSkeleton() {
   return (
     <div
       className="min-h-screen flex"
-      style={{ background: "var(--background)" }}
+      style={{ background: "var(--surface-muted)" }}
       role="status"
       aria-label="載入中"
     >
       {/* Sidebar */}
-      <aside className="w-[260px] border-r flex-shrink-0 p-4 space-y-3" style={{ borderColor: "var(--border)" }}>
+      <aside className="hidden md:block w-[260px] border-r flex-shrink-0 p-4 space-y-3" style={{ borderColor: "var(--border)" }}>
         <Skeleton className="h-8 w-3/4" />
         <div className="pt-2 space-y-2">
           {[...Array(5)].map((_, i) => (
@@ -82,7 +82,7 @@ export function AppShellSkeleton() {
       </main>
 
       {/* Detail panel placeholder */}
-      <aside className="w-[360px] border-l flex-shrink-0 p-4 space-y-3" style={{ borderColor: "var(--border)" }}>
+      <aside className="hidden lg:block w-[360px] border-l flex-shrink-0 p-4 space-y-3" style={{ borderColor: "var(--border)" }}>
         <Skeleton className="h-6 w-3/4" />
         <Skeleton className="h-4 w-full" />
         <Skeleton className="h-4 w-5/6" />
@@ -109,7 +109,7 @@ export function TagsPageSkeleton() {
       <Skeleton className="h-10 w-full" />
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="p-4 space-y-2 rounded-xl" style={{ background: "var(--surface-muted)" }}>
+          <div key={i} className="p-4 space-y-2 rounded-lg" style={{ background: "var(--surface)" }}>
             <Skeleton className="h-5 w-2/3" />
             <Skeleton className="h-4 w-1/2" />
           </div>
