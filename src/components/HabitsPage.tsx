@@ -20,6 +20,8 @@ import {
   Pause,
   Play,
   Clock,
+  NotebookPen,
+  Compass,
 } from "lucide-react";
 import { useConfirm } from "@/hooks/useConfirm";
 import { getLocalToday, toLocalDateString } from "@/lib/dateUtils";
@@ -32,6 +34,12 @@ import {
 } from "@/lib/habitBalance";
 import { useFlowTimerContext } from "@/lib/ZenFlowContext";
 import { playTaskDoneSound } from "@/lib/confetti";
+import { toast } from "sonner";
+import { CompoundExperimentPickerModal } from "@/components/CompoundExperimentPickerModal";
+import {
+  COMPOUND_PLAN,
+  type CompoundHabitTemplate,
+} from "@/lib/compoundHabitPlan";
 
 const HABIT_COLORS = [
   "#4F6AF5",
@@ -261,6 +269,7 @@ function HabitRow({
   onIncrementPomodoro,
   onDecrementPomodoro,
   onLogTime,
+  onSaveNote,
 }: {
   habit: Habit;
   date: string;
@@ -279,13 +288,18 @@ function HabitRow({
   onIncrementPomodoro: () => void;
   onDecrementPomodoro: () => void;
   onLogTime?: (minutes: number) => void;
+  /** 儲存當日復盤筆記（所有習慣可用） */
+  onSaveNote?: (note: string) => void;
 }) {
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [showTimeLogger, setShowTimeLogger] = useState(false);
   const [customMinutesInput, setCustomMinutesInput] = useState("");
+  const [showNoteEditor, setShowNoteEditor] = useState(false);
+  const [noteDraft, setNoteDraft] = useState("");
   const isArchived = !!habit.archivedAt;
   const currentCheckin = habit.checkins.find((c) => c.date === date);
   const isChecked = !!currentCheckin?.completed;
+  const savedNote = currentCheckin?.note?.trim() ?? "";
   const last30Days = getLast30Days();
   const completedDays = new Set(habit.checkins.filter((c) => c.completed).map((c) => c.date));
   const [desc, setDesc] = useState(habit.description || "");
@@ -342,6 +356,11 @@ function HabitRow({
   useEffect(() => {
     setDesc(habit.description || "");
   }, [habit.description]);
+
+  // 復盤筆記草稿：外部資料變動時（例如換日、切換習慣）同步回來
+  useEffect(() => {
+    setNoteDraft(savedNote);
+  }, [savedNote]);
 
   const heatmapColors = (date: string) => {
     // 有每日目標 → 用「當日投入 ÷ 目標」比例色階（能看出哪些天靠後面的天補回來）
@@ -648,6 +667,34 @@ function HabitRow({
               </>
             )}
 
+            {/* ── 復盤筆記入口（所有習慣可用）────────────────── */}
+            {!isArchived && onSaveNote && (
+              <>
+                <span style={{ opacity: 0.4 }}>·</span>
+                <button
+                  type="button"
+                  onClick={() => setShowNoteEditor((v) => !v)}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium transition-all hover:bg-[var(--brand-tint)] hover:text-[var(--brand)]"
+                  style={{
+                    color: showNoteEditor || savedNote ? "var(--brand)" : "var(--text-tertiary)",
+                    background: showNoteEditor ? "var(--brand-tint)" : "transparent",
+                  }}
+                  aria-label={savedNote ? "查看復盤筆記" : "寫下復盤筆記"}
+                  title="今天做了什麼決定 → 結果 → 下次怎麼改"
+                >
+                  <NotebookPen className="w-3 h-3" aria-hidden="true" />
+                  復盤筆記
+                  {savedNote && (
+                    <span
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ background: "var(--brand)" }}
+                      aria-hidden="true"
+                    />
+                  )}
+                </button>
+              </>
+            )}
+
             {/* ── 累積目標池結餘膠囊 ─────────────────────────────────── */}
             {balanceInfo && (
               <>
@@ -684,6 +731,90 @@ function HabitRow({
               </>
             )}
           </div>
+
+          {/* ── 已存復盤筆記單行預覽（面板收合時）────────────── */}
+          {savedNote && !showNoteEditor && (
+            <p
+              className="mt-1.5 flex items-center gap-1 text-[11px] min-w-0"
+              style={{ color: "var(--text-tertiary)" }}
+            >
+              <NotebookPen className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+              <span className="truncate" title={savedNote}>
+                {savedNote}
+              </span>
+            </p>
+          )}
+
+          {/* ── 復盤筆記編輯面板 ─────────────────────────────── */}
+          <AnimatePresence>
+            {showNoteEditor && !isArchived && onSaveNote && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="overflow-hidden mt-2 p-2.5 rounded-xl border"
+                style={{
+                  background: "var(--surface-hover)",
+                  borderColor: "var(--border)",
+                }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-medium" style={{ color: "var(--text-secondary)" }}>
+                    <NotebookPen className="w-3.5 h-3.5" style={{ color: "var(--brand)" }} aria-hidden="true" />
+                    復盤筆記
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowNoteEditor(false)}
+                    className="text-[11px] opacity-60 hover:opacity-100 transition-opacity"
+                    style={{ color: "var(--text-tertiary)" }}
+                  >
+                    關閉
+                  </button>
+                </div>
+
+                <textarea
+                  value={noteDraft}
+                  onChange={(e) => setNoteDraft(e.target.value)}
+                  placeholder="今天做了什麼決定 → 結果 → 下次怎麼改"
+                  rows={3}
+                  className="w-full resize-none rounded-lg border bg-[var(--surface)] px-2.5 py-2 text-[12px] outline-none focus:border-[var(--brand)]"
+                  style={{
+                    color: "var(--text-primary)",
+                    borderColor: "var(--border)",
+                  }}
+                  aria-label="復盤筆記內容"
+                />
+
+                <div className="flex items-center justify-end gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNoteDraft("");
+                      setShowNoteEditor(false);
+                    }}
+                    className="px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors hover:bg-[var(--hover-bg)]"
+                    style={{ color: "var(--text-tertiary)" }}
+                  >
+                    收合
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSaveNote(noteDraft.trim());
+                      setShowNoteEditor(false);
+                    }}
+                    disabled={!noteDraft.trim()}
+                    className="px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all disabled:opacity-40"
+                    style={{ background: "var(--brand)", color: "#fff" }}
+                  >
+                    存下復盤
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* ── 補登時長面板（快捷膠囊 + 自訂輸入）──────────────── */}
           <AnimatePresence>
@@ -941,6 +1072,7 @@ export function HabitsPage() {
     };
   }, []);
   const [showForm, setShowForm] = useState(false);
+  const [showCompoundPicker, setShowCompoundPicker] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
@@ -1015,6 +1147,24 @@ export function HabitsPage() {
     [logHabitTime, selectedDate]
   );
 
+  /**
+   * 儲存當日復盤筆記
+   * - 若當天已打卡 → count = 0（只補 note，不重複加次數，也不觸發 uncheck）
+   * - 若當天未打卡 → count = 1（順手完成打卡）
+   */
+  const handleSaveNote = useCallback(
+    (habitId: string, note: string) => {
+      const habit = habits.find((h) => h.id === habitId);
+      if (!habit) return;
+      const isDone = habit.checkins.some(
+        (c) => c.date === selectedDate && c.completed
+      );
+      checkinHabit(habitId, selectedDate, isDone ? 0 : 1, note.trim());
+      toast.success("復盤筆記已存下 ✓");
+    },
+    [habits, checkinHabit, selectedDate]
+  );
+
   const handleSubmit = () => {
     if (!form.title.trim()) return;
     // 編輯時保留原本的累計起算日（否則每次改目標都會把已累積的缺額抹掉）
@@ -1052,8 +1202,33 @@ export function HabitsPage() {
     setShowForm(false);
   };
 
-  const openEditForm = (habit: Habit) => {
-    setEditingHabitId(habit.id);
+  /**
+   * 開啟一個複利實驗
+   * - 掛上 sourcePlan → 可於「設定 → 日常節奏」整套退場
+   * - dailyTarget 以「本地今天」為累計起算日
+   */
+  const handleStartCompoundExperiment = useCallback(
+    (template: CompoundHabitTemplate) => {
+      addHabit({
+        title: template.title,
+        description: template.description,
+        frequency: template.frequency,
+        color: template.color,
+        targetCount: 1,
+        pomodoroMinutes: template.pomodoroMinutes,
+        dailyTarget:
+          template.dailyTargetMinutes > 0
+            ? { minutes: template.dailyTargetMinutes, minutesSetAt: getLocalToday() }
+            : undefined,
+        sourcePlan: COMPOUND_PLAN,
+      });
+      setShowCompoundPicker(false);
+      toast.success("已開啟單一實驗 ✓");
+    },
+    [addHabit]
+  );
+
+  const openEditForm = (habit: Habit) => {    setEditingHabitId(habit.id);
     setForm({
       title: habit.title,
       frequency: habit.frequency,
@@ -1138,7 +1313,7 @@ export function HabitsPage() {
     <div className="max-w-2xl mx-auto p-6 space-y-5 overflow-y-auto overscroll-contain pb-[calc(60px+env(safe-area-inset-bottom,0px)+12px)]"
       style={{ minHeight: 0 }}>
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-[18px] font-semibold" style={{ color: "var(--text-primary)" }}>習慣打卡</h1>
           {/* ── 投資量宣告 ─────────────────────────────────────── */}
@@ -1221,11 +1396,12 @@ export function HabitsPage() {
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        {/* 工具列：手機 375px 以 flex-wrap 換行 + 圖示化標籤避免橫向溢位 */}
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {archivedHabits.length > 0 && (
             <button
               onClick={() => setShowArchived((v) => !v)}
-              className="px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors hover:bg-[var(--hover-bg)]"
+              className="px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors hover:bg-[var(--hover-bg)] whitespace-nowrap"
               style={{ color: "var(--text-secondary)" }}
             >
               {showArchived ? "← 返回" : `查看封存 (${archivedHabits.length})`}
@@ -1234,14 +1410,31 @@ export function HabitsPage() {
           <Button
             onClick={() => setShowCalendar((v) => !v)}
             aria-label="月曆視圖"
-            className="flex items-center gap-1.5"
+            className="flex items-center gap-1.5 whitespace-nowrap"
             icon={<CalendarDays className="w-4 h-4" />}
           >
-            {showCalendar ? "列表" : "月曆"}
+            <span className="hidden sm:inline">{showCalendar ? "列表" : "月曆"}</span>
           </Button>
-          <Button onClick={() => setShowForm(true)} aria-label="新增習慣" className="flex items-center gap-1.5" icon={<Plus className="w-4 h-4" />}>新增習慣</Button>
+          <Button
+            onClick={() => setShowCompoundPicker(true)}
+            aria-label="挑選複利實驗"
+            className="flex items-center gap-1.5 whitespace-nowrap"
+            variant="ghost"
+            icon={<Compass className="w-4 h-4" />}
+          >
+            <span className="hidden sm:inline">複利實驗</span>
+          </Button>
+          <Button onClick={() => setShowForm(true)} aria-label="新增習慣" className="flex items-center gap-1.5 whitespace-nowrap" icon={<Plus className="w-4 h-4" />}>新增習慣</Button>
         </div>
       </div>
+
+      {/* 複利實驗挑選器 */}
+      <CompoundExperimentPickerModal
+        open={showCompoundPicker}
+        habits={habits}
+        onStart={handleStartCompoundExperiment}
+        onClose={() => setShowCompoundPicker(false)}
+      />
 
       {/* Habit form */}
       <AnimatePresence>
@@ -1520,6 +1713,7 @@ export function HabitsPage() {
                   onIncrementPomodoro={() => handleIncrementPomodoro(habit.id)}
                   onDecrementPomodoro={() => handleDecrementPomodoro(habit.id)}
                   onLogTime={(mins) => handleLogTime(habit.id, mins)}
+                  onSaveNote={(note) => handleSaveNote(habit.id, note)}
                 />
               </motion.div>
             ))}

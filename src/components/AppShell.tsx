@@ -40,6 +40,9 @@ import {
 import { SortableTaskItem } from "./SortableTaskItem";
 import LostAndFound from "@/components/LostAndFound";
 import { ListIcon } from "./ListIcon";
+import { buildDeclineUpdates, DECLINE_PP } from "@/hooks/useDeclineTask";
+import { useProgressStatus } from "@/hooks/useProgressStatus";
+import { toast } from "sonner";
 
 const VIEW_LABELS: Record<AppView, string> = {
   inbox: "收集箱",
@@ -103,6 +106,8 @@ export function AppShell({
   const confirm = useConfirm();
   // 「加入今日」共用動作（§Sonner 固定 id + updateTask 自動 markRecentlyWritten）
   const { addToToday, dismissAddToTodayToast } = useAddToToday();
+  // 🛡️ 勇敢說不 — 守住注意力的正向獎勵
+  const { addPp } = useProgressStatus();
   // 外部台灣節日(用於 today 視圖橫幅 — 對齊 CalendarView 內 desktop/mobile 同源)讀法)
   const { dateTitleMap: externalDateTitleMap } = useExternalCalendar();
 
@@ -322,6 +327,20 @@ export function AppShell({
       deleteTask(taskId);
     }
   }, [activeTasks, completedTasks, sharedLists, deleteSharedTask, deleteTask]);
+
+  const routeDeclineTask = useCallback((taskId: string) => {
+    const task = [...activeTasks, ...completedTasks].find(t => t.id === taskId);
+    if (!task) return;
+    const isShared = task.listId && sharedLists[task.listId];
+    const updates = buildDeclineUpdates(task);
+    if (isShared) {
+      updateSharedTask(task.listId!, taskId, updates);
+    } else {
+      updateTask(taskId, updates);
+    }
+    addPp(DECLINE_PP);
+    toast.success("已守住注意力，送進封存 ✓");
+  }, [activeTasks, completedTasks, sharedLists, updateSharedTask, updateTask, addPp]);
 
   const routeToggleSubTask = useCallback((taskId: string, subId: string) => {
     const task = [...activeTasks, ...completedTasks].find(t => t.id === taskId);
@@ -992,7 +1011,7 @@ const canDrag = !currentSharedListId && !isMobile;
                                     onUpdatePriority={(id, p) => routeUpdateTask(id, { priority: p })}
                                     onUpdateTags={(id, tags) => routeUpdateTask(id, { tags })}
                                     onTogglePin={(id) => routeUpdateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
-                                    onDelete={(id) => routeDeleteTask(id)}
+                                    onDelete={(id) => routeDeleteTask(id)} onDecline={routeDeclineTask}
                                     onAddToToday={showAddToToday ? addToToday : undefined}
                                     onHoverEnter={currentSharedListId ? undefined : setHoveredTaskId}
                                     onHoverLeave={currentSharedListId ? undefined : (id) => setHoveredTaskId((prev) => (prev === id ? null : prev))}
@@ -1044,7 +1063,7 @@ const canDrag = !currentSharedListId && !isMobile;
                                 onUpdatePriority={(id, p) => routeUpdateTask(id, { priority: p })}
                                 onUpdateTags={(id, tags) => routeUpdateTask(id, { tags })}
                                 onTogglePin={(id) => routeUpdateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
-                                onDelete={(id) => routeDeleteTask(id)}
+                                onDelete={(id) => routeDeleteTask(id)} onDecline={routeDeclineTask}
                                 onAddToToday={showAddToToday ? addToToday : undefined}
                                 onHoverEnter={currentSharedListId ? undefined : setHoveredTaskId}
                                 onHoverLeave={currentSharedListId ? undefined : (id) => setHoveredTaskId((prev) => (prev === id ? null : prev))}
@@ -1119,7 +1138,7 @@ const canDrag = !currentSharedListId && !isMobile;
                                     onUpdatePriority={(id, p) => routeUpdateTask(id, { priority: p })}
                                     onUpdateTags={(id, tags) => routeUpdateTask(id, { tags })}
                                     onTogglePin={(id) => routeUpdateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
-                                    onDelete={(id) => routeDeleteTask(id)}
+                                    onDelete={(id) => routeDeleteTask(id)} onDecline={routeDeclineTask}
                                     onAddToToday={currentSharedListId ? undefined : addToToday}
                                     addToTodayLabel="轉今日任務"
                                     onHoverEnter={currentSharedListId ? undefined : setHoveredTaskId}
@@ -1194,7 +1213,7 @@ const canDrag = !currentSharedListId && !isMobile;
                                     onUpdatePriority={(id, p) => routeUpdateTask(id, { priority: p })}
                                     onUpdateTags={(id, tags) => routeUpdateTask(id, { tags })}
                                     onTogglePin={(id) => routeUpdateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
-                                    onDelete={(id) => routeDeleteTask(id)}
+                                    onDelete={(id) => routeDeleteTask(id)} onDecline={routeDeclineTask}
                                     allTags={Object.keys(getTagCounts())}
                                     batchMode={batchMode}
                                     batchSelected={!!batchSelectedIds?.has(task.id)}

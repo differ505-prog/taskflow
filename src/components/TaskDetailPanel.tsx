@@ -15,6 +15,7 @@ import {
   Trash2, Check, CheckCircle2, Circle, Tag as TagIcon,
   AlignLeft, Clock, Timer, ListChecks, Paperclip,
   AlertCircle, Flag, ChevronDown, ChevronRight, Pin, ExternalLink, Pencil, Plus,
+  ShieldCheck,
 } from "lucide-react";
 import { sortSubTasks } from "@/utils/subtaskSort";
 import { useSubTaskCollapse } from "@/utils/useSubTaskCollapse";
@@ -44,6 +45,7 @@ import { useVoiceRecognition } from "@/lib/useVoiceRecognition";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 import { useSelectedTask } from "@/hooks/useSelectedTask";
+import { useDeclineTask } from "@/hooks/useDeclineTask";
 
 const DEBOUNCE_MS = 300; // 詳情面板欄位 debounce 寫入（TickTick 直覺：輸入即回饋、300ms 內不重複寫入）
 
@@ -109,6 +111,7 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
   const keyboard = useKeyboardOffset();
   const collapseScope = user?.uid ?? "anon";
   const { isCollapsed: isDoneCollapsed, toggle: toggleDoneCollapse } = useSubTaskCollapse(task.id, task.subTasks || [], collapseScope);
+  const { canDecline, decline } = useDeclineTask();
 
   // 持續輸入保護（§26 類別 A 子模式，詳情面板防護）：
   // - 面板開啟期間 → 標記 task 為「編輯中」,realtime echo 不會覆蓋本地版本
@@ -554,8 +557,13 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
     }
   };
 
-  const addTag = () => {
-    const t = tagInput.trim();
+  /** 🛡️ 勇敢說不 — 守住注意力（僅 Q3 可委派 / Q4 暫緩且未完成未封存） */
+  const handleDecline = () => {
+    decline(task, handleUpdateTask);
+    onClose?.();
+  };
+
+  const addTag = () => {    const t = tagInput.trim();
     if (t && !(tags || []).includes(t)) { setTags([...tags, t]); setTagInput(""); }
   };
 
@@ -971,6 +979,25 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
                   </div>
                 );
               })()}
+
+              {/* 🛡️ 勇敢說不 — 注意力防線（僅 Q3 / Q4 且未完成、未封存時出現） */}
+              {canDecline(task) && (
+                <button
+                  type="button"
+                  onClick={handleDecline}
+                  className="mt-3 inline-flex items-center justify-center gap-1.5 min-h-[44px] px-3.5 rounded-xl text-[12px] font-medium transition-all duration-150 hover:bg-[var(--hover-bg)] active:scale-[0.98]"
+                  style={{
+                    color: "var(--text-secondary)",
+                    border: "1px solid var(--border)",
+                    background: "var(--surface)",
+                  }}
+                  aria-label="勇敢說不 — 這件事不做，把注意力還給自己"
+                  title="這件事不做，把注意力還給自己"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
+                  勇敢說不
+                </button>
+              )}
             </div>
 
             {/* 標籤：圖示按鈕 + 計數（佔 12/5） */}

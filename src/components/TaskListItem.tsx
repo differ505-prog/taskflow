@@ -8,7 +8,7 @@ import { Clock } from "lucide-react";
 import { getDeadlineStatus } from "@/lib/deadlineEngine";
 import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, GripVertical, ListChecks,
-  Trash2,
+  Trash2, ShieldCheck,
 } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -29,6 +29,8 @@ interface TaskListItemProps {
   onLongPress?: () => void; // 長按 600ms 進入批次模式
   onBatchToggle?: () => void; // 在批次模式下點擊,切換勾選
   onDelete?: (id: string) => void;
+  /** 🛡️ 勇敢說不：把可委派/暫緩的任務封存並標記「已拒絕」 */
+  onDecline?: (id: string) => void;
   // O-007：拖曳 sortable hook 注入（AppShell 包 SortableContext 時傳入）
   // undefined 表示此 task 不在 sortable 範圍內（例如 viewer 共用清單）
   sortable?: ReturnType<typeof useSortable>;
@@ -48,6 +50,7 @@ import { fireTaskDoneConfetti, playTaskDoneSound } from "@/lib/confetti";
 import { useAuth } from "@/lib/AuthContext";
 import { ProGhostButton } from "./ProGhostButton";
 import { AddToTodayButton } from "./AddToTodayButton";
+import { canDeclineTask } from "@/hooks/useDeclineTask";
 
 export function TaskListItem({
   task,
@@ -64,6 +67,7 @@ export function TaskListItem({
   onLongPress,
   onBatchToggle,
   onDelete,
+  onDecline,
   sortable,
   onAddToToday,
   addToTodayLabel,
@@ -249,6 +253,17 @@ export function TaskListItem({
                 title="刪除"
               >
                 <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {onDecline && canDeclineTask(task) && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDecline(task.id); }}
+                className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-[var(--hover-bg)] transition-all duration-150 active:scale-90"
+                style={{ color: "var(--text-tertiary)" }}
+                aria-label="勇敢說不 — 這件事不做，把注意力還給自己"
+                title="勇敢說不 — 這件事不做，把注意力還給自己"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
               </button>
             )}
             {(onUpdatePriority || onUpdateTags || onTogglePin) && (
