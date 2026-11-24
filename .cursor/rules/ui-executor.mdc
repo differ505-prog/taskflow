@@ -20,4 +20,4 @@ alwaysApply: true
    - **嚴禁啟動、重啟或終止任何本地伺服器或 Port（尤其是 `:8787` 系統代理端口）。**
 4. **狀態交接與交付**：
    - 驗證通過後，將 `./task.md` 中對應的 `[ ]` 或 `[!]` 狀態全部改為 `[?]`（待驗收），**絕對禁止自己改為 `[x]`**。
-   - 若專案有連接遠端倉庫且需要自動部署預覽，執行 `git add . && git commit -m "feat(ui): update tasks for director review" && git push`；若僅本地開發則直接結束對話交棒。
+   - **嚴禁執行 `git commit` 或 `git push`**（由總監終驗達標後統一上版），完成驗證與 `task.md` 更新後直接結束對話交棒。

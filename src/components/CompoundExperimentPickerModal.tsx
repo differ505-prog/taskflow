@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { Compass, Lock, X } from "lucide-react";
+import { Clock, Compass, Lock, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Habit } from "@/lib/types";
 import {
@@ -95,7 +95,7 @@ export function CompoundExperimentPickerModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-shrink-0 p-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors"
+                className="flex-shrink-0 inline-flex items-center justify-center min-w-[44px] min-h-[44px] rounded-lg hover:bg-[var(--hover-bg)] transition-colors"
                 style={{ color: "var(--text-tertiary)" }}
                 aria-label="關閉"
               >
@@ -157,10 +157,11 @@ export function CompoundExperimentPickerModal({
                           </span>
                         )}
                         <span
-                          className="px-1.5 py-0.5 rounded-full text-[10px] font-medium"
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium"
                           style={{ background: "var(--surface-hover)", color: "var(--text-tertiary)" }}
                         >
-                          🍅 {tpl.pomodoroMinutes} 分
+                          <Clock className="w-3 h-3" aria-hidden="true" />
+                          {tpl.pomodoroMinutes} 分
                         </span>
                       </div>
                     </div>
@@ -179,7 +180,7 @@ export function CompoundExperimentPickerModal({
                       onClick={() => onStart(tpl)}
                       disabled={!allowed}
                       className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-4 rounded-lg text-[13px] font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                      style={{ background: "var(--brand)", color: "#fff" }}
+                      style={{ background: "var(--brand)", color: "var(--brand-foreground)" }}
                       aria-label={`開始實驗：${tpl.title}`}
                     >
                       開始實驗

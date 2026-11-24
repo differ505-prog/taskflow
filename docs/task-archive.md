@@ -11,3 +11,13 @@
 - [x] **1. 修復 ZenDashboard 未定義變數 `--accent-warm`、SPA `<Link>` 與統一 Lucide Icon / 44px 觸控**（`src/components/ZenDashboard.tsx`）
 - [x] **2. 統一 BottomNavigation `MorePopover` 深色模式 Token、Hover 回饋與 Lucide 圖示**（`src/components/BottomNavigation.tsx`）
 - [x] **3. 統一 ZenDashboard 卡片圓角尺度至設計系統 `--radius-lg` / `--radius-xl`**（`src/components/ZenDashboard.tsx`）
+
+## 高回報複利習慣系統 已驗收歸檔（2026-11-25｜Round 1: 7.6 -> Round 2 驗收通過 9.2 / 10.0）
+- [x] **T1. 建立 `compoundHabitPlan.ts` 1-Slot 實驗鎖與復盤筆記純函式**（`src/lib/compoundHabitPlan.ts`）
+- [x] **T2. 補齊 `compoundHabitPlan.test.ts` 11 項單元測試**（`src/__tests__/compoundHabitPlan.test.ts`）
+- [x] **T3. 開放 `HabitCheckin.note` 微型復盤筆記 UI 與保留草稿修正**（`src/components/HabitsPage.tsx`）
+- [x] **T4. 新增 `CompoundExperimentPickerModal` 單一實驗挑選器與 44px / Token 打磨**（`src/components/CompoundExperimentPickerModal.tsx`）
+- [x] **T5. 修復 `TodayWrapUpButton` 卸載競態並打通 `WrapUpReflectionSheet` 睡前復盤**（`src/components/TodayWrapUpButton.tsx`、`src/components/WrapUpReflectionSheet.tsx`）
+- [x] **T6. 新增 Q3/Q4「勇敢說不」注意力防線與手機 44px 熱區**（`src/hooks/useDeclineTask.ts`、`src/components/TaskDetailPanel.tsx`、`src/components/TaskListItem.tsx`、`src/components/AppShell.tsx`）
+- [x] **T7. Build Gate 驗收：`tsc` exit 0、`vitest` 20 files / 199 tests passed、`next build` exit 0**
+- [x] **A1–A4. 個人帳號 API 設定寫入 `supabase_cloud`（`plan-compound-12`：週日主題日 + 1 每日主實驗 + 3 低頻週期任務）**

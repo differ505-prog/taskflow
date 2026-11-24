@@ -258,7 +258,7 @@ export function TaskListItem({
             {onDecline && canDeclineTask(task) && (
               <button
                 onClick={(e) => { e.stopPropagation(); onDecline(task.id); }}
-                className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-[var(--hover-bg)] transition-all duration-150 active:scale-90"
+                className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:p-1.5 rounded-lg opacity-60 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-[var(--hover-bg)] transition-all duration-150 active:scale-90"
                 style={{ color: "var(--text-tertiary)" }}
                 aria-label="勇敢說不 — 這件事不做，把注意力還給自己"
                 title="勇敢說不 — 這件事不做，把注意力還給自己"

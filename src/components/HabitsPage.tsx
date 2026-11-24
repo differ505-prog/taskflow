@@ -674,7 +674,7 @@ function HabitRow({
                 <button
                   type="button"
                   onClick={() => setShowNoteEditor((v) => !v)}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium transition-all hover:bg-[var(--brand-tint)] hover:text-[var(--brand)]"
+                  className="inline-flex items-center gap-1 min-h-[44px] sm:min-h-[32px] px-1.5 py-0.5 rounded text-[10px] font-medium transition-all hover:bg-[var(--brand-tint)] hover:text-[var(--brand)]"
                   style={{
                     color: showNoteEditor || savedNote ? "var(--brand)" : "var(--text-tertiary)",
                     background: showNoteEditor ? "var(--brand-tint)" : "transparent",
@@ -767,7 +767,7 @@ function HabitRow({
                   <button
                     type="button"
                     onClick={() => setShowNoteEditor(false)}
-                    className="text-[11px] opacity-60 hover:opacity-100 transition-opacity"
+                    className="inline-flex items-center justify-center min-h-[44px] sm:min-h-[32px] px-2 text-[11px] opacity-60 hover:opacity-100 transition-opacity"
                     style={{ color: "var(--text-tertiary)" }}
                   >
                     關閉
@@ -791,10 +791,10 @@ function HabitRow({
                   <button
                     type="button"
                     onClick={() => {
-                      setNoteDraft("");
+                      setNoteDraft(savedNote);
                       setShowNoteEditor(false);
                     }}
-                    className="px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors hover:bg-[var(--hover-bg)]"
+                    className="inline-flex items-center justify-center min-h-[44px] sm:min-h-[32px] px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors hover:bg-[var(--hover-bg)]"
                     style={{ color: "var(--text-tertiary)" }}
                   >
                     收合
@@ -806,8 +806,8 @@ function HabitRow({
                       setShowNoteEditor(false);
                     }}
                     disabled={!noteDraft.trim()}
-                    className="px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all disabled:opacity-40"
-                    style={{ background: "var(--brand)", color: "#fff" }}
+                    className="inline-flex items-center justify-center min-h-[44px] sm:min-h-[32px] px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all disabled:opacity-40"
+                    style={{ background: "var(--brand)", color: "var(--brand-foreground)" }}
                   >
                     存下復盤
                   </button>
@@ -969,10 +969,10 @@ function HabitRow({
                           setShowTimeLogger(false);
                         }
                       }}
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-medium disabled:opacity-40 transition-colors"
+                      className="inline-flex items-center justify-center min-h-[44px] sm:min-h-[32px] px-2.5 py-1 rounded-lg text-[11px] font-medium disabled:opacity-40 transition-colors"
                       style={{
                         background: "var(--brand)",
-                        color: "#fff",
+                        color: "var(--brand-foreground)",
                       }}
                     >
                       登錄
