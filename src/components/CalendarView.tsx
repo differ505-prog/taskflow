@@ -22,42 +22,53 @@ import { TodayIllustration } from "@/illustrations/EmptyStateIllustrations";
 
 const HIDE_RECURRING_STORAGE_KEY = "calendar_hideRecurring";
 
-function isRecurringTask(task: Task): boolean {
-  return Boolean(task.recurrence);
+/**
+ * 判斷任務在指定日期是否屬於「彈性／低視覺權重」任務（方案 1）：
+ * - 重複任務（recurrence）：可暫時跳過
+ * - 跨日區間任務（startDate !== dueDate）的非截止日：進行中背景任務，僅截止日當天亮主色
+ */
+function isFlexibleOnDate(task: Task, dateStr: string): boolean {
+  if (task.recurrence) return true;
+  if (task.startDate && task.dueDate && task.startDate !== task.dueDate) {
+    return dateStr !== task.dueDate;
+  }
+  return false;
 }
 
 /**
- * 月視圖單格任務指示（方案 A 視覺權重分級 + 方案 B 隱藏重複相容）
- * - 有非重複任務：實心主色圓（顯示單次數；若未隱藏重複且另有重複任務，旁加極小淡灰圓點）
- * - 僅重複任務（未隱藏）：退居淡灰虛線空心圓，讓大腦 0.5 秒掃出真正空檔日
- * - 隱藏重複模式開啟時：僅重複日直接留白
+ * 月視圖單格任務指示（方案 1 視覺權重分級 + 一鍵只看硬排程）
+ * - 有硬排程（單日任務 / 跨日截止日）：實心主色圓（另有彈性任務時旁加極小淡灰圓點）
+ * - 僅彈性任務（重複 / 跨日中間日）且未隱藏：退居淡灰虛線空心圓
+ * - 「只看硬排程」開啟時：僅彈性日直接留白
  */
 function CalendarDayCountBadge({
+  dateStr,
   pendingTasks,
   hideRecurring,
   isSearchMatch,
 }: {
+  dateStr: string;
   pendingTasks: Task[];
   hideRecurring: boolean;
   isSearchMatch: boolean;
 }) {
-  const oneOffCount = pendingTasks.filter((t) => !isRecurringTask(t)).length;
-  const recurringCount = pendingTasks.length - oneOffCount;
+  const hardCount = pendingTasks.filter((t) => !isFlexibleOnDate(t, dateStr)).length;
+  const flexibleCount = pendingTasks.length - hardCount;
 
-  if (oneOffCount > 0) {
-    const hasExtraRecurring = !hideRecurring && recurringCount > 0;
-    const label = hasExtraRecurring
-      ? `${oneOffCount} 項單次未完成任務，另有 ${recurringCount} 項重複任務`
-      : `${oneOffCount} 項單次未完成任務`;
+  if (hardCount > 0) {
+    const hasExtraFlexible = !hideRecurring && flexibleCount > 0;
+    const label = hasExtraFlexible
+      ? `${hardCount} 項單日／截止任務，另有 ${flexibleCount} 項重複或跨日進行中`
+      : `${hardCount} 項單日／截止未完成任務`;
     return (
       <span className="inline-flex items-center gap-0.5" title={label} aria-label={label}>
         <span
           className="min-w-[17px] h-[17px] flex items-center justify-center rounded-full text-[9px] font-semibold px-1"
           style={{ background: "var(--brand)", color: "var(--brand-foreground)" }}
         >
-          {oneOffCount}
+          {hardCount}
         </span>
-        {hasExtraRecurring && (
+        {hasExtraFlexible && (
           <span
             className="w-1.5 h-1.5 rounded-full flex-shrink-0"
             style={{ background: "var(--text-tertiary)", opacity: 0.65 }}
@@ -68,8 +79,8 @@ function CalendarDayCountBadge({
     );
   }
 
-  if (!hideRecurring && recurringCount > 0) {
-    const label = `僅 ${recurringCount} 項重複任務（可暫時跳過）`;
+  if (!hideRecurring && flexibleCount > 0) {
+    const label = `僅 ${flexibleCount} 項重複或跨日進行中任務（可彈性安排）`;
     return (
       <span
         className="min-w-[17px] h-[17px] flex items-center justify-center rounded-full text-[9px] font-medium px-1"
@@ -81,7 +92,7 @@ function CalendarDayCountBadge({
         title={label}
         aria-label={label}
       >
-        {recurringCount}
+        {flexibleCount}
       </span>
     );
   }
@@ -98,7 +109,7 @@ function CalendarDayCountBadge({
 }
 
 /**
- * 月視圖輔助列：左側圖例（方案 A）+ 右側一鍵「隱藏重複 / 只看單次」切換（方案 B）
+ * 月視圖輔助列：左側圖例 + 右側一鍵「只看硬排程」切換
  */
 function CalendarRecurringToolbar({
   hideRecurring,
@@ -112,7 +123,7 @@ function CalendarRecurringToolbar({
       <div className="flex items-center gap-3 min-w-0 text-[11px]" style={{ color: "var(--text-tertiary)" }}>
         {hideRecurring ? (
           <span className="truncate font-medium" style={{ color: "var(--brand)" }}>
-            僅顯示非重複任務
+            僅顯示單日與截止日
           </span>
         ) : (
           <>
@@ -122,7 +133,7 @@ function CalendarRecurringToolbar({
                 style={{ background: "var(--brand)" }}
                 aria-hidden="true"
               />
-              單次
+              單日/截止
             </span>
             <span className="inline-flex items-center gap-1 whitespace-nowrap">
               <span
@@ -130,7 +141,7 @@ function CalendarRecurringToolbar({
                 style={{ border: "1px dashed var(--text-tertiary)" }}
                 aria-hidden="true"
               />
-              僅重複
+              重複/跨日
             </span>
           </>
         )}
@@ -154,10 +165,10 @@ function CalendarRecurringToolbar({
                 border: "1px solid var(--border)",
               }
         }
-        title={hideRecurring ? "目前僅顯示非重複任務，點擊恢復顯示全部" : "隱藏重複任務，快速找出空檔日"}
+        title={hideRecurring ? "目前僅顯示單日與截止日，點擊恢復顯示全部" : "隱藏重複與跨日中間日，快速找出空檔日"}
       >
         <Repeat className="w-3 h-3" aria-hidden="true" />
-        <span>{hideRecurring ? "只看單次" : "隱藏重複"}</span>
+        <span>只看硬排程</span>
       </button>
     </div>
   );
@@ -601,6 +612,7 @@ export function CalendarView({
                 {/* 中間：待辦數量或搜尋命中（方案 A+B） */}
                 <div className="flex-1 min-h-0 px-1 flex items-center justify-center">
                   <CalendarDayCountBadge
+                    dateStr={dateStr}
                     pendingTasks={pendingTasks}
                     hideRecurring={hideRecurring}
                     isSearchMatch={isSearchMatch}
@@ -736,13 +748,13 @@ function DesktopCalendarLayout({
   }, [selectedDate, getTasksForDay]);
 
   const hiddenRecurringCount = useMemo(
-    () => (hideRecurring ? rawSelectedDateTasks.filter(isRecurringTask).length : 0),
-    [hideRecurring, rawSelectedDateTasks]
+    () => (hideRecurring && selectedDate ? rawSelectedDateTasks.filter((t) => isFlexibleOnDate(t, selectedDate)).length : 0),
+    [hideRecurring, selectedDate, rawSelectedDateTasks]
   );
 
   const selectedDateTasks = useMemo(
-    () => (hideRecurring ? rawSelectedDateTasks.filter((t) => !isRecurringTask(t)) : rawSelectedDateTasks),
-    [hideRecurring, rawSelectedDateTasks]
+    () => (hideRecurring && selectedDate ? rawSelectedDateTasks.filter((t) => !isFlexibleOnDate(t, selectedDate)) : rawSelectedDateTasks),
+    [hideRecurring, selectedDate, rawSelectedDateTasks]
   );
 
   const todo = selectedDateTasks.filter((t) => t.status !== "done");
@@ -923,6 +935,7 @@ function DesktopCalendarLayout({
                 {/* 中間：待辦數量或搜尋命中（方案 A+B） */}
                 <div className="flex-1 min-h-0 px-1 flex items-center justify-center">
                   <CalendarDayCountBadge
+                    dateStr={dateStr}
                     pendingTasks={pendingTasks}
                     hideRecurring={hideRecurring}
                     isSearchMatch={isSearchMatch}
@@ -980,9 +993,9 @@ function DesktopCalendarLayout({
                     onClick={onToggleHideRecurring}
                     className="ml-2 px-1.5 py-0.5 rounded-md text-[10px] font-medium transition-colors"
                     style={{ background: "var(--surface-muted)", color: "var(--text-secondary)" }}
-                    title="點擊顯示全部重複任務"
+                    title="點擊顯示全部重複與跨日任務"
                   >
-                    已隱藏 {hiddenRecurringCount} 項重複
+                    已隱藏 {hiddenRecurringCount} 項彈性
                   </button>
                 )}
               </h2>
@@ -1208,13 +1221,13 @@ function CalendarTaskSheetMobile({
   }, [tasks, selectedDate]);
 
   const hiddenRecurringCount = useMemo(
-    () => (hideRecurring ? rawSelectedDateTasks.filter(isRecurringTask).length : 0),
-    [hideRecurring, rawSelectedDateTasks]
+    () => (hideRecurring && selectedDate ? rawSelectedDateTasks.filter((t) => isFlexibleOnDate(t, selectedDate)).length : 0),
+    [hideRecurring, selectedDate, rawSelectedDateTasks]
   );
 
   const selectedDateTasks = useMemo(
-    () => (hideRecurring ? rawSelectedDateTasks.filter((t) => !isRecurringTask(t)) : rawSelectedDateTasks),
-    [hideRecurring, rawSelectedDateTasks]
+    () => (hideRecurring && selectedDate ? rawSelectedDateTasks.filter((t) => !isFlexibleOnDate(t, selectedDate)) : rawSelectedDateTasks),
+    [hideRecurring, selectedDate, rawSelectedDateTasks]
   );
 
   useEffect(() => {
@@ -1292,9 +1305,9 @@ function CalendarTaskSheetMobile({
                   onClick={onToggleHideRecurring}
                   className="ml-2 px-1.5 py-0.5 rounded-md text-[10px] font-medium transition-colors"
                   style={{ background: "var(--surface-muted)", color: "var(--text-secondary)" }}
-                  title="點擊顯示全部重複任務"
+                  title="點擊顯示全部重複與跨日任務"
                 >
-                  已隱藏 {hiddenRecurringCount} 項重複
+                  已隱藏 {hiddenRecurringCount} 項彈性
                 </button>
               )}
             </h2>
