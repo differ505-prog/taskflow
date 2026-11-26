@@ -129,7 +129,7 @@ function CalendarRecurringToolbar({
                 style={{ border: "1px dashed var(--text-tertiary)" }}
                 aria-hidden="true"
               />
-              重複/跨日
+              重複/方案
             </span>
           </>
         )}

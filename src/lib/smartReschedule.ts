@@ -11,11 +11,12 @@ export const DEFAULT_LOOKAHEAD_DAYS = 14;
 /**
  * 判斷任務在指定日期是否屬於「彈性／低視覺權重」任務：
  * - 重複任務（recurrence）：可暫時跳過
- * - 跨日區間任務（startDate !== dueDate）的非截止日：進行中背景任務，僅截止日當天亮主色
+ * - 模板方案（sourcePlan）的跨日區間任務（startDate !== dueDate）非截止日：背景階段目標，僅截止日亮主色
+ * - 使用者手動建立的跨日任務（無 sourcePlan，例如出遊／出差）：每一天都視為硬排程，絕不隱藏
  */
 export function isFlexibleOnDate(task: Task, dateStr: string): boolean {
   if (task.recurrence) return true;
-  if (task.startDate && task.dueDate && task.startDate !== task.dueDate) {
+  if (task.sourcePlan && task.startDate && task.dueDate && task.startDate !== task.dueDate) {
     return dateStr !== task.dueDate;
   }
   return false;

@@ -226,7 +226,7 @@ export default function LostAndFound() {
                   建議分配預覽（每日硬排程上限 {DEFAULT_DAILY_HARD_CAP} 件）
                 </p>
                 <p className="text-[11px] text-zinc-400 mt-0.5">
-                  已扣除重複任務與跨日中間日，優先挑本週最空檔
+                  已扣除重複任務與方案跨日中間日，保留手動行程日
                 </p>
               </div>
             </div>
