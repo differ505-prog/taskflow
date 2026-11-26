@@ -1,13 +1,17 @@
 import { describe, it, expect } from "vitest";
 import { Habit, HabitCheckin } from "@/lib/types";
 import {
+  buildEarlyResumePeriods,
   computeHabitBalance,
+  countPausedDaysInRange,
   daysInclusive,
   formatBalanceChip,
+  getActivePauseUntil,
   getCheckinMinutes,
   getHeatmapFill,
   getLastRecordedInfo,
   getTargetStartDate,
+  isHabitPausedOnDate,
 } from "@/lib/habitBalance";
 
 const COLOR = "#4F6AF5";
@@ -302,5 +306,97 @@ describe("habitBalance — 累積目標池計算", () => {
       expect(info!.elapsedMinutes).toBe(30);
       expect(info!.relativeText).toBe("30 分鐘前");
     });
+  });
+});
+
+describe("habitBalance — 預約休眠與累積目標池凍結", () => {
+  it("休眠 36 天（2026-11-26 ~ 2027-01-01）在 2027-01-01 醒來時，休眠天數不計入 target", () => {
+    const habit = makeHabit({
+      dailyTarget: { minutes: 30, minutesSetAt: "2026-11-26" },
+      pausedPeriods: [{ from: "2026-11-26", to: "2027-01-01" }],
+    });
+    const b = computeHabitBalance(habit, "2027-01-01");
+    expect(b).not.toBeNull();
+    // [2026-11-26, 2027-01-01) 共 36 天休眠，全部凍結
+    expect(b!.days).toBe(1);
+    expect(b!.target).toBe(30);
+    expect(b!.balance).toBe(-30);
+    // 關鍵：不會出現 -5,400 分的巨額負數
+    expect(b!.balance).not.toBeLessThan(-100);
+  });
+
+  it("isHabitPausedOnDate：2026-12-31 為 true、2027-01-01 為 false（半開區間）", () => {
+    const habit = makeHabit({
+      pausedPeriods: [{ from: "2026-11-26", to: "2027-01-01" }],
+    });
+    expect(isHabitPausedOnDate(habit, "2026-12-31")).toBe(true);
+    expect(isHabitPausedOnDate(habit, "2027-01-01")).toBe(false);
+    expect(isHabitPausedOnDate(habit, "2026-11-25")).toBe(false);
+  });
+
+  it("重疊的兩個休眠區間不重複扣除天數", () => {
+    const periods = [
+      { from: "2026-11-26", to: "2026-12-06" },
+      { from: "2026-12-01", to: "2026-12-11" },
+    ];
+    // 聯集 = [2026-11-26, 2026-12-11) = 15 天
+    expect(countPausedDaysInRange(periods, "2026-11-26", "2026-12-11")).toBe(15);
+    // 參數 end 為含頭含尾，clip 到 12/10 時為 14 天
+    expect(countPausedDaysInRange(periods, "2026-11-26", "2026-12-10")).toBe(14);
+
+    const habit = makeHabit({
+      dailyTarget: { minutes: 30, minutesSetAt: "2026-11-26" },
+      pausedPeriods: periods,
+    });
+    const b = computeHabitBalance(habit, "2026-12-10");
+    expect(b!.days).toBe(1);
+    expect(b!.target).toBe(30);
+  });
+
+  it("buildEarlyResumePeriods 提前喚醒後，過去已休眠天數仍受凍結保護", () => {
+    const habit = makeHabit({
+      dailyTarget: { minutes: 30, minutesSetAt: "2026-11-26" },
+      pausedPeriods: [{ from: "2026-11-26", to: "2027-01-01" }],
+    });
+    // 12/15 提前喚醒 → [2026-11-26, 2026-12-15) 共 19 天
+    const next = buildEarlyResumePeriods(habit.pausedPeriods, "2026-12-15");
+    expect(next).toEqual([{ from: "2026-11-26", to: "2026-12-15" }]);
+
+    const resumed = { ...habit, pausedPeriods: next };
+    const b = computeHabitBalance(resumed, "2026-12-15");
+    // 11/26 ~ 12/14 = 19 天凍結，實際計帳天數 = 20 - 19 = 1
+    expect(b!.days).toBe(1);
+    expect(b!.target).toBe(30);
+    expect(isHabitPausedOnDate(resumed, "2026-12-14")).toBe(true);
+    expect(isHabitPausedOnDate(resumed, "2026-12-15")).toBe(false);
+  });
+
+  it("無 pausedPeriods 時與舊行為 100% 一致", () => {
+    const habit = makeHabit({
+      dailyTarget: { minutes: 30, minutesSetAt: "2026-10-26" },
+      checkins: [checkin("2026-10-26", 60)],
+    });
+    const b = computeHabitBalance(habit, "2026-10-30");
+    expect(b!.days).toBe(5);
+    expect(b!.target).toBe(150);
+    expect(b!.invested).toBe(60);
+    expect(b!.balance).toBe(-90);
+    expect(isHabitPausedOnDate(habit, "2026-10-28")).toBe(false);
+    expect(getActivePauseUntil(habit, "2026-10-28")).toBeNull();
+    expect(buildEarlyResumePeriods(undefined, "2026-10-28")).toEqual([]);
+  });
+
+  it("getActivePauseUntil 回傳生效中休眠區間最晚的 to", () => {
+    const habit = makeHabit({
+      pausedPeriods: [
+        { from: "2026-11-01", to: "2026-11-10" },
+        { from: "2026-11-05", to: "2026-12-01" },
+      ],
+    });
+    expect(getActivePauseUntil(habit, "2026-11-06")).toBe("2026-12-01");
+    // 第二段 [11-05, 12-01) 仍生效中
+    expect(getActivePauseUntil(habit, "2026-11-15")).toBe("2026-12-01");
+    // 12/01 當日已醒來（半開區間）
+    expect(getActivePauseUntil(habit, "2026-12-01")).toBeNull();
   });
 });

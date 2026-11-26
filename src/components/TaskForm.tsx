@@ -59,7 +59,9 @@ function describeRecurrence(
   type: string,
   interval: number,
   daysOfWeek: number[],
-  dayOfMonth: number | undefined
+  dayOfMonth: number | undefined,
+  weekOfMonth?: 1 | 2 | 3 | 4 | -1,
+  weekday?: number
 ): string {
   if (type === "none") return "";
   if (type === "daily") return interval === 1 ? "每天" : `每 ${interval} 天`;
@@ -69,7 +71,14 @@ function describeRecurrence(
     const days = daysOfWeek.slice().sort((a, b) => a - b).map((d) => WEEKDAY_LABELS[d]).join("、");
     return `${intervalText}(${days})`;
   }
-  if (type === "monthly") return dayOfMonth ? `每月 ${dayOfMonth} 號` : interval === 1 ? "每月" : `每 ${interval} 個月`;
+  if (type === "monthly") {
+    if (weekOfMonth !== undefined && weekday !== undefined) {
+      const dayLabel = WEEKDAY_LABELS[((weekday % 7) + 7) % 7];
+      const nthLabel = weekOfMonth === -1 ? "最後一個" : `第 ${weekOfMonth} 個`;
+      return `每月${nthLabel}週${dayLabel}`;
+    }
+    return dayOfMonth ? `每月 ${dayOfMonth} 號` : interval === 1 ? "每月" : `每 ${interval} 個月`;
+  }
   if (type === "yearly") return interval === 1 ? "每年" : `每 ${interval} 年`;
   if (type === "custom") return `每 ${interval} 天`;
   return "";
@@ -106,6 +115,8 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
   const [recurrenceDaysOfWeek, setRecurrenceDaysOfWeek] = useState<number[]>([]);
   const [recurrenceDayOfMonth, setRecurrenceDayOfMonth] = useState<number | undefined>(undefined);
+  const [recurrenceWeekOfMonth, setRecurrenceWeekOfMonth] = useState<1 | 2 | 3 | 4 | -1 | undefined>(undefined);
+  const [recurrenceWeekday, setRecurrenceWeekday] = useState<number | undefined>(undefined);
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
   const [subTaskInputs, setSubTaskInputs] = useState<string[]>([]);
   // AI Shred Preview Sheet
@@ -348,7 +359,12 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
         interval: recurrenceInterval,
         completedCount: initialData?.recurrence?.completedCount || 0,
         daysOfWeek: recurrenceType === "weekly" ? recurrenceDaysOfWeek : undefined,
-        dayOfMonth: recurrenceType === "monthly" ? recurrenceDayOfMonth : undefined,
+        dayOfMonth:
+          recurrenceType === "monthly" && recurrenceWeekOfMonth === undefined
+            ? recurrenceDayOfMonth
+            : undefined,
+        weekOfMonth: recurrenceType === "monthly" ? recurrenceWeekOfMonth : undefined,
+        weekday: recurrenceType === "monthly" ? recurrenceWeekday : undefined,
         endDate: recurrenceEndDate || undefined,
       };
     }
@@ -759,18 +775,95 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                   </div>
                 )}
                 {recurrenceType === "monthly" && (
-                  <div className="mt-3">
-                    <label className="block mb-1.5 text-[12px]" style={{ color: "var(--text-tertiary)" }}>每月幾號</label>
-                    <select
-                      value={recurrenceDayOfMonth ?? ""}
-                      onChange={(e) => setRecurrenceDayOfMonth(e.target.value ? Math.max(1, Math.min(31, parseInt(e.target.value))) : undefined)}
-                      className="input cursor-pointer"
-                    >
-                      <option value="">沿用截止日</option>
-                      {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                        <option key={d} value={d}>{d} 號</option>
-                      ))}
-                    </select>
+                  <div className="mt-3 space-y-3">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRecurrenceWeekOfMonth(undefined);
+                          setRecurrenceWeekday(undefined);
+                        }}
+                        className="flex-1 min-h-[44px] rounded-xl text-[13px] font-medium transition-colors"
+                        style={
+                          recurrenceWeekOfMonth === undefined
+                            ? { background: "var(--brand-tint)", color: "var(--brand)" }
+                            : { background: "var(--surface-hover)", color: "var(--text-secondary)" }
+                        }
+                      >
+                        每月幾號
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRecurrenceWeekOfMonth((v) => v ?? 1);
+                          setRecurrenceWeekday((v) => v ?? 6);
+                        }}
+                        className="flex-1 min-h-[44px] rounded-xl text-[13px] font-medium transition-colors"
+                        style={
+                          recurrenceWeekOfMonth !== undefined
+                            ? { background: "var(--brand-tint)", color: "var(--brand)" }
+                            : { background: "var(--surface-hover)", color: "var(--text-secondary)" }
+                        }
+                      >
+                        第 N 個星期 X
+                      </button>
+                    </div>
+
+                    {recurrenceWeekOfMonth === undefined ? (
+                      <div>
+                        <label className="block mb-1.5 text-[12px]" style={{ color: "var(--text-tertiary)" }}>每月幾號</label>
+                        <select
+                          value={recurrenceDayOfMonth ?? ""}
+                          onChange={(e) => setRecurrenceDayOfMonth(e.target.value ? Math.max(1, Math.min(31, parseInt(e.target.value))) : undefined)}
+                          className="input cursor-pointer"
+                        >
+                          <option value="">沿用截止日</option>
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                            <option key={d} value={d}>{d} 號</option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block mb-1.5 text-[12px]" style={{ color: "var(--text-tertiary)" }}>第幾個</label>
+                          <select
+                            value={recurrenceWeekOfMonth}
+                            onChange={(e) => setRecurrenceWeekOfMonth(parseInt(e.target.value, 10) as 1 | 2 | 3 | 4 | -1)}
+                            className="input min-h-[44px] cursor-pointer"
+                          >
+                            <option value={1}>第 1 個</option>
+                            <option value={2}>第 2 個</option>
+                            <option value={3}>第 3 個</option>
+                            <option value={4}>第 4 個</option>
+                            <option value={-1}>最後一個</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block mb-1.5 text-[12px]" style={{ color: "var(--text-tertiary)" }}>星期幾</label>
+                          <div className="flex gap-1.5 flex-wrap">
+                            {WEEKDAY_LABELS.map((label, i) => {
+                              const active = recurrenceWeekday === i;
+                              return (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  onClick={() => setRecurrenceWeekday(i)}
+                                  className="min-w-[44px] min-h-[44px] flex-1 rounded-xl text-[13px] font-medium transition-all"
+                                  style={active
+                                    ? { background: "var(--brand)", color: "var(--brand-foreground)" }
+                                    : { background: "var(--surface-hover)", color: "var(--text-secondary)" }}
+                                  aria-label={`星期${label}`}
+                                  aria-pressed={active}
+                                >
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
                 {recurrenceType !== "none" && (
@@ -783,7 +876,14 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                   <p className="mt-2 text-[12px] px-3 py-2 rounded-xl flex items-center gap-2" style={{ background: "var(--surface-muted)", color: "var(--text-secondary)" }}>
                     <Repeat className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--brand)" }} />
                     <span>
-                      {describeRecurrence(recurrenceType, recurrenceInterval, recurrenceDaysOfWeek, recurrenceDayOfMonth)}
+                      {describeRecurrence(
+                        recurrenceType,
+                        recurrenceInterval,
+                        recurrenceDaysOfWeek,
+                        recurrenceDayOfMonth,
+                        recurrenceWeekOfMonth,
+                        recurrenceWeekday
+                      )}
                       {dueDate && recurrenceType !== "none" && (
                         <span style={{ color: "var(--text-tertiary)" }}> · 下次 {(() => {
                           const d = new Date(dueDate + "T00:00:00");

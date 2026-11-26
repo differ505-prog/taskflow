@@ -4,6 +4,8 @@ import {
   archivePlanHabits,
   archivePlanTasks,
   collectInstalledPlans,
+  isItemPausedByPlan,
+  isPlanPaused,
   removePlanThemeDays,
 } from "@/lib/sourcePlan";
 
@@ -110,5 +112,38 @@ describe("sourcePlan safe uninstall helpers", () => {
     expect(removePlanThemeDays(themeDays, "plan-3.0")).toEqual([
       { id: "td2", label: "Custom", emoji: "📝", weekdays: [2] },
     ]);
+  });
+});
+
+describe("sourcePlan 方案休眠判斷", () => {
+  const pausedAt = "2026-11-26T10:00:00.000Z";
+
+  it("未休眠：沒有 pausedPlans 紀錄 → false", () => {
+    expect(isPlanPaused("plan-3.0", undefined, "2026-11-26")).toBe(false);
+    expect(isPlanPaused("plan-3.0", {}, "2026-11-26")).toBe(false);
+    expect(isPlanPaused("plan-3.0", { "plan-3.0": undefined as never }, "2026-11-26")).toBe(false);
+  });
+
+  it("無喚醒日：pausePlan 後持續休眠", () => {
+    const pausedPlans = { "plan-3.0": { pausedAt } };
+    expect(isPlanPaused("plan-3.0", pausedPlans, "2026-11-26")).toBe(true);
+    expect(isPlanPaused("plan-3.0", pausedPlans, "2027-06-01")).toBe(true);
+  });
+
+  it("todayStr < resumeDate 時仍為休眠中", () => {
+    const pausedPlans = { "plan-3.0": { pausedAt, resumeDate: "2027-01-01" } };
+    expect(isPlanPaused("plan-3.0", pausedPlans, "2026-12-31")).toBe(true);
+  });
+
+  it("todayStr === resumeDate 當日自動喚醒 → false", () => {
+    const pausedPlans = { "plan-3.0": { pausedAt, resumeDate: "2027-01-01" } };
+    expect(isPlanPaused("plan-3.0", pausedPlans, "2027-01-01")).toBe(false);
+  });
+
+  it("沒有 sourcePlan 的手動項目永遠 false", () => {
+    const pausedPlans = { "plan-3.0": { pausedAt } };
+    expect(isItemPausedByPlan({}, pausedPlans, "2026-11-26")).toBe(false);
+    expect(isItemPausedByPlan({ sourcePlan: { id: "plan-3.0", name: "一人公司 3.0" } }, pausedPlans, "2026-11-26")).toBe(true);
+    expect(isItemPausedByPlan({ sourcePlan: { id: "plan-other", name: "其他" } }, pausedPlans, "2026-11-26")).toBe(false);
   });
 });

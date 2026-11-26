@@ -1,4 +1,10 @@
-import type { Habit, Task, ThemeDay } from "@/lib/types";
+import type {
+  Habit,
+  PausedPlanEntry,
+  SourcePlan,
+  Task,
+  ThemeDay,
+} from "@/lib/types";
 
 export interface PlanSummary {
   id: string;
@@ -87,4 +93,36 @@ export function archivePlanHabits(
 /** Remove theme days belonging to `planId`. */
 export function removePlanThemeDays(themeDays: ThemeDay[], planId: string): ThemeDay[] {
   return themeDays.filter((td) => td.sourcePlan?.id !== planId);
+}
+
+/**
+ * 判斷某個方案目前是否處於「休眠」狀態
+ *
+ * 規則：
+ *   - 沒有 planId 或沒有暫停紀錄 → false（未休眠）
+ *   - 有 resumeDate 且 todayStr >= resumeDate → false（當日自動喚醒）
+ *   - 其餘 → true（休眠中）
+ */
+export function isPlanPaused(
+  planId: string | undefined,
+  pausedPlans: Record<string, PausedPlanEntry> | undefined,
+  todayStr: string
+): boolean {
+  if (!planId) return false;
+  const entry = pausedPlans?.[planId];
+  if (!entry) return false;
+  if (entry.resumeDate && todayStr >= entry.resumeDate) return false;
+  return true;
+}
+
+/**
+ * 判斷某個項目（任務 / 習慣 / 主題日）是否因「所屬方案休眠」而暫停。
+ * 沒有 sourcePlan 的手動項目永遠回 false。
+ */
+export function isItemPausedByPlan(
+  item: { sourcePlan?: SourcePlan },
+  pausedPlans: Record<string, PausedPlanEntry> | undefined,
+  todayStr: string
+): boolean {
+  return isPlanPaused(item?.sourcePlan?.id, pausedPlans, todayStr);
 }

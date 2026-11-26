@@ -21,6 +21,46 @@ export function computeHabitStreak(habit: Habit, checkins: Habit["checkins"]): n
   return streak;
 }
 
+/**
+ * 取得某月第 N 個星期 X 的日期
+ *
+ * - `weekOfMonth` = 1..4：找該月第 N 個該星期；超出該月則退 7 天（落到前一個月）
+ * - `weekOfMonth` = -1：找該月「最後一個」該星期
+ * - `weekday` = 0(Sun)..6(Sat)
+ *
+ * 回傳本地時間的 Date（`setHours(0,0,0,0)` 歸零，避免跨時區漂移）
+ */
+export function getNthWeekdayOfMonth(
+  year: number,
+  monthZeroBased: number,
+  weekOfMonth: 1 | 2 | 3 | 4 | -1,
+  weekday: number
+): Date {
+  const target = ((weekday % 7) + 7) % 7;
+
+  if (weekOfMonth === -1) {
+    // 該月最後一天往前找最近的該星期
+    const lastDay = new Date(year, monthZeroBased + 1, 0);
+    const delta = (lastDay.getDay() - target + 7) % 7;
+    const d = new Date(year, monthZeroBased + 1, 0 - delta);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  // 該月第一天，往後找最近的該星期
+  const first = new Date(year, monthZeroBased, 1);
+  const firstMatchOffset = (target - first.getDay() + 7) % 7;
+  const day = 1 + firstMatchOffset + (weekOfMonth - 1) * 7;
+
+  const daysInMonth = new Date(year, monthZeroBased + 1, 0).getDate();
+  // 超出該月 → 退 7 天（落到前一個月的同樣星期）
+  const clampedDay = day > daysInMonth ? day - 7 : day;
+
+  const d = new Date(year, monthZeroBased, clampedDay);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 export function getNextRecurrenceDate(
   from: string,
   recurrence: Recurrence,
@@ -44,12 +84,32 @@ export function getNextRecurrenceDate(
         d.setDate(d.getDate() + 7 * recurrence.interval);
       }
       break;
-    case "monthly":
+    case "monthly": {
+      // 先 setDate(1) 再 setMonth，防月底溢位（例如 1/31 + 1 month → 3/3）
+      const dayOfMonth = d.getDate();
+      d.setDate(1);
       d.setMonth(d.getMonth() + recurrence.interval);
-      if (recurrence.dayOfMonth) {
-        d.setDate(Math.min(recurrence.dayOfMonth, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()));
+
+      if (recurrence.weekOfMonth !== undefined && recurrence.weekday !== undefined) {
+        // 「每月第 N 個星期 X」模式
+        const nth = getNthWeekdayOfMonth(
+          d.getFullYear(),
+          d.getMonth(),
+          recurrence.weekOfMonth,
+          recurrence.weekday
+        );
+        d.setFullYear(nth.getFullYear(), nth.getMonth(), nth.getDate());
+        d.setHours(0, 0, 0, 0);
+      } else if (recurrence.dayOfMonth) {
+        const maxDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+        d.setDate(Math.min(recurrence.dayOfMonth, maxDay));
+      } else {
+        // 沒給 dayOfMonth 也沒給 weekOfMonth → 保留原本的日期（clamp）
+        const maxDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+        d.setDate(Math.min(dayOfMonth, maxDay));
       }
       break;
+    }
     case "yearly":
       d.setFullYear(d.getFullYear() + recurrence.interval);
       break;
@@ -57,14 +117,15 @@ export function getNextRecurrenceDate(
       d.setDate(d.getDate() + recurrence.interval);
       break;
   }
-  const nextDueDate = d.toISOString().split("T")[0];
+  // 使用本地日期格式（toISOString 會在 UTC+8 把本地午夜換算成前一天的 UTC 日期）
+  const nextDueDate = toLocalDateString(d);
   if (startFrom) {
     const s = new Date(startFrom);
     const fromDate = new Date(from);
     const daysDelta = Math.round((fromDate.getTime() - s.getTime()) / 86400000);
     const nextStartDate = new Date(d.getTime());
     nextStartDate.setDate(nextStartDate.getDate() - daysDelta);
-    return { dueDate: nextDueDate, startDate: nextStartDate.toISOString().split("T")[0] };
+    return { dueDate: nextDueDate, startDate: toLocalDateString(nextStartDate) };
   }
   return { dueDate: nextDueDate };
 }

@@ -22,16 +22,21 @@ import {
   Clock,
   NotebookPen,
   Compass,
+  Moon,
 } from "lucide-react";
 import { useConfirm } from "@/hooks/useConfirm";
+import { useRhythmSettings } from "@/hooks/useRhythmSettings";
 import { getLocalToday, toLocalDateString } from "@/lib/dateUtils";
 import {
+  buildEarlyResumePeriods,
   computeHabitBalance,
   formatBalanceChip,
+  getActivePauseUntil,
   getCheckinMinutes,
   getHeatmapFill,
   getLastRecordedInfo,
 } from "@/lib/habitBalance";
+import { isItemPausedByPlan } from "@/lib/sourcePlan";
 import { useFlowTimerContext } from "@/lib/ZenFlowContext";
 import { playTaskDoneSound } from "@/lib/confetti";
 import { toast } from "sonner";
@@ -270,6 +275,8 @@ function HabitRow({
   onDecrementPomodoro,
   onLogTime,
   onSaveNote,
+  onPause,
+  pauseMenuOpen,
 }: {
   habit: Habit;
   date: string;
@@ -290,6 +297,10 @@ function HabitRow({
   onLogTime?: (minutes: number) => void;
   /** 儲存當日復盤筆記（所有習慣可用） */
   onSaveNote?: (note: string) => void;
+  /** 開啟「休眠至…」選單 */
+  onPause?: () => void;
+  /** 休眠選單是否展開 */
+  pauseMenuOpen?: boolean;
 }) {
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [showTimeLogger, setShowTimeLogger] = useState(false);
@@ -468,9 +479,36 @@ function HabitRow({
                   >
                     <Edit3 className="w-4 h-4" />
                   </button>
+                  {onPause && (
+                    <button
+                      onClick={onPause}
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg transition-colors"
+                      style={
+                        pauseMenuOpen
+                          ? { background: "var(--brand-tint)", color: "var(--brand)" }
+                          : { color: "var(--text-tertiary)" }
+                      }
+                      onMouseEnter={(e) => {
+                        if (!pauseMenuOpen) {
+                          e.currentTarget.style.background = "var(--surface-hover)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!pauseMenuOpen) {
+                          e.currentTarget.style.background = "";
+                        }
+                      }}
+                      aria-label="休眠至…"
+                      title="休眠至…"
+                      aria-expanded={!!pauseMenuOpen}
+                      aria-haspopup="dialog"
+                    >
+                      <Moon className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
                     onClick={onDelete}
-                    className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-[var(--hover-bg)] transition-colors"
                     style={{ color: "var(--text-tertiary)" }}
                     aria-label="封存習慣"
                   >
@@ -1041,8 +1079,14 @@ function HabitRow({
 export function HabitsPage() {
   const { habits, addHabit, updateHabit, checkinHabit, uncheckHabit, archiveHabit, unarchiveHabit, incrementHabitPomodoro, decrementHabitPomodoro, logHabitTime } = useApp();
   const confirm = useConfirm();
+  const { settings: rhythmSettings } = useRhythmSettings();
   const [today, setToday] = useState<string>(getLocalToday);
   const [selectedDate, setSelectedDate] = useState<string>(getLocalToday);
+
+  // ── 單一習慣預約休眠 ────────────────────────────────────────
+  const [pauseMenuHabitId, setPauseMenuHabitId] = useState<string | null>(null);
+  const [customResumeDate, setCustomResumeDate] = useState("");
+  const [showPausedSection, setShowPausedSection] = useState(false);
 
   // ── 跨日自動換日監聽（分頁醒來、定時檢查、窗口焦點）──────────────
   useEffect(() => {
@@ -1247,10 +1291,79 @@ export function HabitsPage() {
     setShowForm(false);
   };
 
-  const activeHabits = habits.filter((h) => !h.archivedAt);
+  // ── 習慣分組：活躍 / 休眠中 / 已封存 ─────────────────────────
+  // 休眠中 = 未封存 且（所屬方案休眠中 或 單一習慣預約休眠中）
+  const notArchivedHabits = habits.filter((h) => !h.archivedAt);
   const archivedHabits = habits.filter((h) => !!h.archivedAt);
+
+  const { activeHabits, pausedHabits } = useMemo(() => {
+    const active: Habit[] = [];
+    const paused: Habit[] = [];
+    for (const h of notArchivedHabits) {
+      const planPaused = isItemPausedByPlan(h, rhythmSettings.pausedPlans, today);
+      const habitPaused = !!getActivePauseUntil(h, today);
+      if (planPaused || habitPaused) paused.push(h);
+      else active.push(h);
+    }
+    return { activeHabits: active, pausedHabits: paused };
+  }, [notArchivedHabits, rhythmSettings.pausedPlans, today]);
+
   const selectedDateDone = activeHabits.filter((h) => h.checkins.some((c) => c.date === selectedDate && c.completed)).length;
   const displayHabits = showArchived ? archivedHabits : activeHabits;
+
+  // ── 預約休眠：快捷日期 ──────────────────────────────────────
+  /** 明天（喚醒日最小值：選今天等同沒休眠，屬無效日期） */
+  const tomorrowStr = useMemo(() => {
+    const d = new Date(`${today}T00:00:00`);
+    d.setDate(d.getDate() + 1);
+    return toLocalDateString(d);
+  }, [today]);
+
+  /** 取得「n 週後」的日期字串（半開區間：from=today, to=目標日，目標日自動醒來） */
+  const getWeeksLater = (weeks: number): string => {
+    const d = new Date(`${today}T00:00:00`);
+    d.setDate(d.getDate() + weeks * 7);
+    return toLocalDateString(d);
+  };
+
+  /** 取得「月底」的日期字串（下個月最後一天後一天＝下月 1 號自動醒來） */
+  const getMonthEnd = (): string => {
+    const d = new Date(`${today}T00:00:00`);
+    d.setMonth(d.getMonth() + 1, 1);
+    return toLocalDateString(d);
+  };
+
+  const handlePauseHabit = (habit: Habit, resumeDate: string) => {
+    // 喚醒日必須晚於今天：選今天等同沒休眠（半開區間 [today, today) 為空）
+    if (!resumeDate || resumeDate < tomorrowStr) return;
+    const nextPeriods = [
+      ...(habit.pausedPeriods ?? []),
+      { from: today, to: resumeDate },
+    ];
+    updateHabit(habit.id, { pausedPeriods: nextPeriods });
+    setPauseMenuHabitId(null);
+    setCustomResumeDate("");
+    toast.success(`「${habit.title}」會安靜地休息到 ${resumeDate}，那天自動醒來`);
+  };
+
+  const handleEarlyResume = (habit: Habit) => {
+    const nextPeriods = buildEarlyResumePeriods(habit.pausedPeriods, today);
+    updateHabit(habit.id, { pausedPeriods: nextPeriods });
+    toast.success(`「${habit.title}」回來了`);
+  };
+
+  // Esc 關閉展開中的休眠選單（鍵盤無障礙）
+  useEffect(() => {
+    if (!pauseMenuHabitId) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setPauseMenuHabitId(null);
+        setCustomResumeDate("");
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [pauseMenuHabitId]);
 
   // ── 投資量格式化 ────────────────────────────────────────
   /**
@@ -1714,10 +1827,136 @@ export function HabitsPage() {
                   onDecrementPomodoro={() => handleDecrementPomodoro(habit.id)}
                   onLogTime={(mins) => handleLogTime(habit.id, mins)}
                   onSaveNote={(note) => handleSaveNote(habit.id, note)}
+                  onPause={() => {
+                    setPauseMenuHabitId((prev) => (prev === habit.id ? null : habit.id));
+                    setCustomResumeDate("");
+                  }}
+                  pauseMenuOpen={pauseMenuHabitId === habit.id}
                 />
+                {pauseMenuHabitId === habit.id && (
+                  <div
+                    className="mt-2 flex flex-wrap items-center gap-2 rounded-xl px-3 py-2.5"
+                    style={{ background: "var(--surface-muted)" }}
+                  >
+                    <span className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+                      休眠至
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handlePauseHabit(habit, getWeeksLater(1))}
+                      className="min-h-[44px] rounded-xl px-3 py-1.5 text-[12px] font-medium transition-opacity hover:opacity-80"
+                      style={{ background: "var(--surface-hover)", color: "var(--text-primary)" }}
+                    >
+                      1 週後
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePauseHabit(habit, getMonthEnd())}
+                      className="min-h-[44px] rounded-xl px-3 py-1.5 text-[12px] font-medium transition-opacity hover:opacity-80"
+                      style={{ background: "var(--surface-hover)", color: "var(--text-primary)" }}
+                    >
+                      月底
+                    </button>
+                    <input
+                      type="date"
+                      value={customResumeDate}
+                      min={tomorrowStr}
+                      onChange={(e) => setCustomResumeDate(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") {
+                          e.stopPropagation();
+                          setPauseMenuHabitId(null);
+                          setCustomResumeDate("");
+                        }
+                      }}
+                      className="input w-auto min-h-[44px] cursor-pointer"
+                      aria-label="自訂喚醒日"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handlePauseHabit(habit, customResumeDate)}
+                      disabled={!customResumeDate || customResumeDate < tomorrowStr}
+                      className="min-h-[44px] rounded-xl px-3 py-1.5 text-[12px] font-medium transition-opacity disabled:opacity-40 hover:opacity-80"
+                      style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+                    >
+                      確認休眠
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPauseMenuHabitId(null)}
+                      className="min-h-[44px] rounded-xl px-3 py-1.5 text-[12px] font-medium transition-opacity hover:opacity-80"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      取消
+                    </button>
+                  </div>
+                )}
               </motion.div>
             ))}
           </AnimatePresence>
+        </div>
+      )}
+
+      {/* 休眠中（溫柔折疊區） */}
+      {pausedHabits.length > 0 && !showArchived && (
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => setShowPausedSection((v) => !v)}
+            className="min-h-[44px] w-full flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-left transition-opacity hover:opacity-80"
+            style={{ background: "var(--surface-muted)" }}
+            aria-expanded={showPausedSection}
+          >
+            <span className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
+              休眠中（{pausedHabits.length}）
+            </span>
+            <span className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>
+              {showPausedSection ? "收起" : "展開"}
+            </span>
+          </button>
+
+          {showPausedSection && (
+            <div className="mt-2 space-y-2">
+              {pausedHabits.map((habit) => {
+                const pauseUntil = getActivePauseUntil(habit, today);
+                const planPaused = isItemPausedByPlan(
+                  habit,
+                  rhythmSettings.pausedPlans,
+                  today
+                );
+                return (
+                  <div
+                    key={habit.id}
+                    className="rounded-xl px-3 py-2.5 flex flex-wrap items-center justify-between gap-2"
+                    style={{ background: "var(--surface-muted)" }}
+                  >
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-medium truncate" style={{ color: "var(--text-primary)" }}>
+                        {habit.title}
+                      </p>
+                      <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+                        {planPaused
+                          ? "所屬方案休眠中"
+                          : pauseUntil
+                          ? `休眠至 ${pauseUntil} · 自動喚醒`
+                          : "休眠中"}
+                      </p>
+                    </div>
+                    {!planPaused && (
+                      <button
+                        type="button"
+                        onClick={() => handleEarlyResume(habit)}
+                        className="min-h-[44px] rounded-xl px-3 py-1.5 text-[12px] font-medium transition-opacity hover:opacity-80"
+                        style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+                      >
+                        提前喚醒
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>

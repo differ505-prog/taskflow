@@ -107,3 +107,67 @@ describe("rhythm pure helpers", () => {
     expect(themeCopy(theme).title).toContain("Vibe Coding");
   });
 });
+
+describe("rhythm — 第 4 顆自訂紅線與休眠主題日", () => {
+  const customSettings: RhythmSettings = {
+    ...DEFAULT_RHYTHM_SETTINGS,
+    customAnchor: { label: "Highball 停杯紅線", time: "20:00", enabled: true },
+  };
+
+  it("customAnchor 啟用且在 ±10 分鐘內 → 回傳 custom", () => {
+    const now = makeDateAt(2026, 11, 13, 19, 55);
+    expect(getActiveAnchor(now, customSettings)).toBe("custom");
+    const now2 = makeDateAt(2026, 11, 13, 20, 5);
+    expect(getActiveAnchor(now2, customSettings)).toBe("custom");
+  });
+
+  it("customAnchor 關閉 → 不回傳 custom", () => {
+    const off: RhythmSettings = {
+      ...customSettings,
+      customAnchor: { label: "Highball 停杯紅線", time: "20:00", enabled: false },
+    };
+    const now = makeDateAt(2026, 11, 13, 20, 0);
+    expect(getActiveAnchor(now, off)).toBeNull();
+  });
+
+  it("anchorCopy(\"custom\") 使用自訂名稱且無禁詞", () => {
+    const { title, body } = anchorCopy("custom", customSettings);
+    expect(title).toBe("Highball 停杯紅線");
+    const forbidden = ["!", "！", "過期", "逾期", "未完成", "失敗", "欠"];
+    for (const token of forbidden) {
+      expect(title).not.toContain(token);
+      expect(body).not.toContain(token);
+    }
+    // 沒有自訂錨點時回退到預設名稱
+    expect(anchorCopy("custom").title).toBe("個人節奏紅線");
+  });
+
+  it("getTodayTheme 略過已休眠方案的主題日", () => {
+    const theme: ThemeDay = {
+      id: "vibe-coding",
+      label: "Vibe Coding",
+      emoji: "💻",
+      weekdays: [3],
+      sourcePlan: { id: "plan-3.0", name: "一人公司 3.0" },
+    };
+    const wed = makeDateAt(2026, 11, 11, 10, 0);
+
+    const awake: RhythmSettings = { ...DEFAULT_RHYTHM_SETTINGS, themeDays: [theme] };
+    expect(getTodayTheme(awake, wed)).toEqual(theme);
+
+    const paused: RhythmSettings = {
+      ...awake,
+      pausedPlans: { "plan-3.0": { pausedAt: "2026-11-01T00:00:00.000Z" } },
+    };
+    expect(getTodayTheme(paused, wed)).toBeNull();
+
+    // 自動喚醒日當日恢復顯示
+    const autoResume: RhythmSettings = {
+      ...awake,
+      pausedPlans: {
+        "plan-3.0": { pausedAt: "2026-11-01T00:00:00.000Z", resumeDate: "2026-11-11" },
+      },
+    };
+    expect(getTodayTheme(autoResume, wed)).toEqual(theme);
+  });
+});

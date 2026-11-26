@@ -21,3 +21,14 @@
 - [x] **T6. 新增 Q3/Q4「勇敢說不」注意力防線與手機 44px 熱區**（`src/hooks/useDeclineTask.ts`、`src/components/TaskDetailPanel.tsx`、`src/components/TaskListItem.tsx`、`src/components/AppShell.tsx`）
 - [x] **T7. Build Gate 驗收：`tsc` exit 0、`vitest` 20 files / 199 tests passed、`next build` exit 0**
 - [x] **A1–A4. 個人帳號 API 設定寫入 `supabase_cloud`（`plan-compound-12`：週日主題日 + 1 每日主實驗 + 3 低頻週期任務）**
+
+## 計畫 3.1 框架升級 ＋ 習慣預約休眠 已驗收歸檔（2026-11-26｜Round 1: 8.2 -> Round 2 驗收通過 9.5 / 10.0）
+- [x] **Step 1. 擴充 `Recurrence`（`weekOfMonth`/`weekday`）、`HabitPausedPeriod`、`CustomRhythmAnchor`、`PausedPlanEntry` 型別**（`src/lib/types.ts`）
+- [x] **Step 2. 實作方案休眠純函式 `isPlanPaused`/`isItemPausedByPlan` 與單元測試**（`src/lib/sourcePlan.ts`、`src/__tests__/sourcePlan.test.ts`）
+- [x] **Step 3. 實作第 4 顆自訂紅線錨點與休眠主題日過濾**（`src/lib/rhythm.ts`、`src/__tests__/rhythm.test.ts`）
+- [x] **Step 4. 實作月度第 N 個星期 X 週期計算與顯示文案**（`src/lib/AppContextInternal/utils.ts`、`src/components/TaskDetailPanel.tsx`、`src/components/TaskForm.tsx`、`src/__tests__/recurrence.test.ts`）
+- [x] **Step 5. 實作單一習慣預約休眠與累積目標池自動凍結純函式與測試**（`src/lib/habitBalance.ts`、`src/__tests__/habitBalance.test.ts`）
+- [x] **Step 6. `useRhythmSettings` 串接 `customAnchor`/`pausedPlans` 與雲端 `enabled.custom` 同步修正**（`src/hooks/useRhythmSettings.ts`、`src/__tests__/useRhythmSettings.test.ts`）
+- [x] **Step 7. `RhythmSection`/`RhythmBar`/`HabitsPage`/`ZenDashboard` UI 落地與 375px/深色模式/Esc/tomorrowStr 打磨**
+- [x] **Step 8. 個人帳號 `supabase_cloud` 升級（`Highball 停杯紅線` 20:00、`學習、考試` 休眠至 `2027-01-01`、模考改每月第 1 個週六）**
+- [x] **Step 9. Build Gate 驗收：`tsc` exit 0、`vitest` 22 files / 240 tests passed、`next build` 36/36 pages compiled**

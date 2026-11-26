@@ -4,8 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { parseHHmm } from "@/lib/rhythm";
+import { normalizeSettings } from "@/lib/rhythmSettings";
 import {
   DEFAULT_RHYTHM_SETTINGS,
+  type PausedPlanEntry,
   type RhythmAnchorId,
   type RhythmProfile,
   type RhythmSettings,
@@ -21,36 +23,6 @@ const CLOUD_DEBOUNCE_MS = 2000;
 interface StoredRhythmPayload {
   settings: RhythmSettings;
   updatedAt: string; // "" means default / never edited locally
-}
-
-function normalizeSettings(raw: unknown): RhythmSettings {
-  if (!raw || typeof raw !== "object") return DEFAULT_RHYTHM_SETTINGS;
-  const obj = raw as Partial<RhythmSettings>;
-  return {
-    wakeTime:
-      typeof obj.wakeTime === "string" && parseHHmm(obj.wakeTime) !== null
-        ? obj.wakeTime
-        : DEFAULT_RHYTHM_SETTINGS.wakeTime,
-    offDutyTime:
-      typeof obj.offDutyTime === "string" && parseHHmm(obj.offDutyTime) !== null
-        ? obj.offDutyTime
-        : DEFAULT_RHYTHM_SETTINGS.offDutyTime,
-    screensOffTime:
-      typeof obj.screensOffTime === "string" && parseHHmm(obj.screensOffTime) !== null
-        ? obj.screensOffTime
-        : DEFAULT_RHYTHM_SETTINGS.screensOffTime,
-    enabled: {
-      wake: obj.enabled?.wake ?? DEFAULT_RHYTHM_SETTINGS.enabled.wake,
-      offduty: obj.enabled?.offduty ?? DEFAULT_RHYTHM_SETTINGS.enabled.offduty,
-      screensoff: obj.enabled?.screensoff ?? DEFAULT_RHYTHM_SETTINGS.enabled.screensoff,
-    },
-    mvdEnabled: typeof obj.mvdEnabled === "boolean" ? obj.mvdEnabled : false,
-    slotGridEnabled:
-      typeof obj.slotGridEnabled === "boolean"
-        ? obj.slotGridEnabled
-        : DEFAULT_RHYTHM_SETTINGS.slotGridEnabled,
-    themeDays: Array.isArray(obj.themeDays) ? obj.themeDays : [],
-  };
 }
 
 function readFromStorage(): StoredRhythmPayload {
@@ -142,6 +114,12 @@ export interface UseRhythmSettingsReturn {
   setThemeDays: (days: ThemeDay[]) => void;
   addThemeDay: (day: { label: string; emoji: string; weekdays: number[]; tag?: string }) => void;
   removeThemeDay: (id: ThemeDayId) => void;
+  /** 設定／更新第 4 顆自訂紅線（label 自動裁切 20 字、time 需為合法 HH:mm） */
+  setCustomAnchor: (anchor: { label: string; time: string; enabled: boolean }) => void;
+  /** 讓整套方案進入休眠；resumeDate 為選填的自動喚醒日（YYYY-MM-DD） */
+  pausePlan: (planId: string, resumeDate?: string) => void;
+  /** 立即喚醒整套方案 */
+  resumePlan: (planId: string) => void;
 }
 
 export function useRhythmSettings(): UseRhythmSettingsReturn {
@@ -272,6 +250,17 @@ export function useRhythmSettings(): UseRhythmSettingsReturn {
   const setAnchorTime = useCallback(
     (id: RhythmAnchorId, hhmm: string) => {
       if (parseHHmm(hhmm) === null) return;
+      if (id === "custom") {
+        commit((prev) => {
+          const base = prev.customAnchor ?? {
+            label: "個人節奏紅線",
+            time: prev.screensOffTime,
+            enabled: false,
+          };
+          return { ...prev, customAnchor: { ...base, time: hhmm } };
+        });
+        return;
+      }
       commit((prev) => {
         if (id === "wake") return { ...prev, wakeTime: hhmm };
         if (id === "offduty") return { ...prev, offDutyTime: hhmm };
@@ -283,6 +272,22 @@ export function useRhythmSettings(): UseRhythmSettingsReturn {
 
   const toggleAnchor = useCallback(
     (id: RhythmAnchorId) => {
+      if (id === "custom") {
+        commit((prev) => {
+          const base = prev.customAnchor ?? {
+            label: "個人節奏紅線",
+            time: prev.screensOffTime,
+            enabled: false,
+          };
+          const nextEnabled = !base.enabled;
+          return {
+            ...prev,
+            customAnchor: { ...base, enabled: nextEnabled },
+            enabled: { ...prev.enabled, custom: nextEnabled },
+          };
+        });
+        return;
+      }
       commit((prev) => ({
         ...prev,
         enabled: { ...prev.enabled, [id]: !prev.enabled[id] },
@@ -328,6 +333,52 @@ export function useRhythmSettings(): UseRhythmSettingsReturn {
     [commit]
   );
 
+  // ── 第 4 顆自訂紅線 ──────────────────────────────────────────
+  const setCustomAnchor = useCallback(
+    (anchor: { label: string; time: string; enabled: boolean }) => {
+      const label = anchor.label.trim().slice(0, 20);
+      if (!label) return;
+      if (parseHHmm(anchor.time) === null) return;
+      commit((prev) => ({
+        ...prev,
+        customAnchor: { label, time: anchor.time, enabled: anchor.enabled === true },
+        enabled: { ...prev.enabled, custom: anchor.enabled === true },
+      }));
+    },
+    [commit]
+  );
+
+  // ── 方案休眠／恢復 ──────────────────────────────────────────
+  const pausePlan = useCallback(
+    (planId: string, resumeDate?: string) => {
+      if (!planId) return;
+      const validResume =
+        resumeDate && /^\d{4}-\d{2}-\d{2}$/.test(resumeDate) ? resumeDate : undefined;
+      commit((prev) => {
+        const nextPaused: Record<string, PausedPlanEntry> = { ...(prev.pausedPlans ?? {}) };
+        nextPaused[planId] = {
+          pausedAt: new Date().toISOString(),
+          ...(validResume ? { resumeDate: validResume } : {}),
+        };
+        return { ...prev, pausedPlans: nextPaused };
+      });
+    },
+    [commit]
+  );
+
+  const resumePlan = useCallback(
+    (planId: string) => {
+      if (!planId) return;
+      commit((prev) => {
+        if (!prev.pausedPlans?.[planId]) return prev;
+        const nextPaused = { ...prev.pausedPlans };
+        delete nextPaused[planId];
+        return { ...prev, pausedPlans: nextPaused };
+      });
+    },
+    [commit]
+  );
+
   return {
     settings,
     isHydrated,
@@ -339,5 +390,8 @@ export function useRhythmSettings(): UseRhythmSettingsReturn {
     setThemeDays,
     addThemeDay,
     removeThemeDay,
+    setCustomAnchor,
+    pausePlan,
+    resumePlan,
   };
 }

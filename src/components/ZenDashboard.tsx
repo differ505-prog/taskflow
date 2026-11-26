@@ -49,6 +49,7 @@ import { ChevronRight, GripVertical, Hourglass, LayoutGrid, Sparkles, Users, Zap
 import Image from "next/image";
 
 import { useApp } from "@/lib/AppContext";
+import { isItemPausedByPlan } from "@/lib/sourcePlan";
 import type { Task } from "@/lib/types";
 import { WarmupFlow } from "@/components/WarmupFlow";
 import { OnboardingTask } from "@/components/OnboardingTask";
@@ -81,8 +82,10 @@ export default function ZenDashboard() {
   const { settings: rhythmSettings } = useRhythmSettings();
   const visibleTasks = useMemo(() => {
     const res = selectZenTasks(tasks, sharedLists);
-    return res;
-  }, [tasks, sharedLists]);
+    // 已休眠方案的任務先安靜下來，不佔用今天的焦點
+    const todayStr = getLocalToday();
+    return res.filter((t) => !isItemPausedByPlan(t, rhythmSettings.pausedPlans, todayStr));
+  }, [tasks, sharedLists, rhythmSettings.pausedPlans]);
 
   // Helper wrappers to route task actions correctly
   const handleToggleTaskStatus = useCallback((taskId: string) => {

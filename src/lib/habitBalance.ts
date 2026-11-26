@@ -10,8 +10,95 @@
  * - 不回溯起算日之前的紀錄（minutesSetAt 之前不計）
  * - 負值語氣中性，禁止「欠 / 逾期 / 失敗」字眼
  */
-import { Habit, HabitCheckin } from "./types";
+import { Habit, HabitCheckin, HabitPausedPeriod } from "./types";
 import { toLocalDateString } from "./dateUtils";
+
+/** 單一習慣的「預約休眠」判斷與累積目標池凍結（純函式）
+ *
+ * 語意：半開區間 `[from, to)`——`to` 當日自動醒來。
+ * 休眠期間不累積每日目標，避免長時間離線回來時出現巨大負數。
+ */
+
+/** 該日期是否落在任一休眠區間內（`p.from <= dateStr && dateStr < p.to`） */
+export function isHabitPausedOnDate(habit: Habit, dateStr: string): boolean {
+  const periods = habit.pausedPeriods;
+  if (!periods || periods.length === 0) return false;
+  return periods.some((p) => p.from <= dateStr && dateStr < p.to);
+}
+
+/** 目前生效中的休眠區間，最晚的 `to`（未休眠回 null） */
+export function getActivePauseUntil(habit: Habit, todayStr: string): string | null {
+  const periods = habit.pausedPeriods;
+  if (!periods || periods.length === 0) return null;
+  let latest: string | null = null;
+  for (const p of periods) {
+    if (p.from <= todayStr && todayStr < p.to) {
+      if (latest === null || p.to > latest) latest = p.to;
+    }
+  }
+  return latest;
+}
+
+/**
+ * 統計 `[start, end]`（含頭含尾）內落在任一休眠區間 `[from, to)` 的不重複天數。
+ * 用 Set 自動防區間重疊重複扣除。
+ */
+export function countPausedDaysInRange(
+  pausedPeriods: HabitPausedPeriod[] | undefined,
+  start: string,
+  end: string
+): number {
+  if (!pausedPeriods || pausedPeriods.length === 0) return 0;
+  if (end < start) return 0;
+
+  const pausedDates = new Set<string>();
+  for (const p of pausedPeriods) {
+    // 與 [start, end] 的交集
+    const from = p.from > start ? p.from : start;
+    const to = p.to < end ? p.to : end;
+    if (to <= from) continue;
+
+    const d = new Date(`${from}T00:00:00`);
+    let guard = 0;
+    while (guard < 36500) {
+      const cur = toLocalDateString(d);
+      if (cur >= to) break;
+      pausedDates.add(cur);
+      d.setDate(d.getDate() + 1);
+      guard++;
+    }
+  }
+  return pausedDates.size;
+}
+
+/**
+ * 提前喚醒：把目前生效中的休眠區間截斷到 `todayStr`。
+ * - `p.from <= todayStr < p.to` → `p.to` 改成 `todayStr`（保留過去已休眠天數的凍結紀錄）
+ * - `p.from >= todayStr` → 移除該段（尚未開始的休眠取消）
+ * - 過去已結束的區間原樣保留
+ */
+export function buildEarlyResumePeriods(
+  pausedPeriods: HabitPausedPeriod[] | undefined,
+  todayStr: string
+): HabitPausedPeriod[] {
+  if (!pausedPeriods || pausedPeriods.length === 0) return [];
+  const result: HabitPausedPeriod[] = [];
+
+  for (const p of pausedPeriods) {
+    if (p.from >= todayStr) {
+      // 尚未開始 → 取消
+      continue;
+    }
+    if (todayStr < p.to) {
+      // 生效中 → 截斷到今天（保留 [from, today) 的凍結紀錄）
+      result.push({ from: p.from, to: todayStr });
+      continue;
+    }
+    // 過去已結束 → 原樣保留
+    result.push({ ...p });
+  }
+  return result;
+}
 
 /** 單日實際投入分鐘：優先真實 minutes，否則用番茄數 × 單位時長 */
 export function getCheckinMinutes(
@@ -96,8 +183,13 @@ export function computeHabitBalance(
     invested += getCheckinMinutes(c, unitMinutes);
   }
 
-  const target = minutes * days;
-  return { minutes, invested, target, balance: invested - target, days };
+  // ── 休眠期間的每日目標凍結 ────────────────────────────────────
+  // 預約休眠期間不累積每日目標，避免長時間休眠回來時出現巨大負數。
+  const pausedDays = countPausedDaysInRange(habit.pausedPeriods, start, today);
+  const effectiveDays = Math.max(0, days - pausedDays);
+
+  const target = minutes * effectiveDays;
+  return { minutes, invested, target, balance: invested - target, days: effectiveDays };
 }
 
 /**

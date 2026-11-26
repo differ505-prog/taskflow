@@ -10,6 +10,7 @@ import {
   RhythmProfile,
   RhythmSettings,
 } from "@/lib/types";
+import { normalizeSettings } from "@/lib/rhythmSettings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -447,6 +448,56 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, action: "add_task", task: newTask });
   }
 
+  if (action === "update_task") {
+    const { id, updates } = payload || {};
+    if (!id) return NextResponse.json({ error: "Missing task id" }, { status: 400 });
+
+    let existing: Task | undefined;
+    if (supabaseAdmin) {
+      const { data } = await supabaseAdmin
+        .from("personal_tasks")
+        .select("data")
+        .eq("id", id)
+        .eq("owner_uid", targetUid)
+        .single();
+      existing = data?.data as Task;
+    }
+    if (!existing) {
+      existing = localState?.tasks?.find((t) => t.id === id);
+    }
+    if (!existing) {
+      return NextResponse.json({ error: `Task ${id} not found` }, { status: 404 });
+    }
+
+    const nowIso = new Date().toISOString();
+    // updates 整包覆蓋（recurrence 走 JSONB，含 weekOfMonth / weekday）
+    const updatedTask: Task = {
+      ...existing,
+      ...(updates as Partial<Task>),
+      id: existing.id,
+      updatedAt: nowIso,
+    };
+
+    if (supabaseAdmin) {
+      await supabaseAdmin.from("personal_tasks").upsert({
+        id: updatedTask.id,
+        owner_uid: targetUid,
+        data: updatedTask,
+        is_archived: updatedTask.isArchived ?? false,
+        updated_at: nowIso,
+      });
+    }
+
+    const currentTasks = localState?.tasks || [];
+    writeLocalState({
+      ...localState,
+      tasks: [...currentTasks.filter((t) => t.id !== id), updatedTask],
+      lastSyncedAt: nowIso,
+    });
+
+    return NextResponse.json({ ok: true, action: "update_task", task: updatedTask });
+  }
+
   if (action === "delete_task") {
     const taskId = payload?.id as string | undefined;
     if (!taskId) return NextResponse.json({ error: "Missing task id" }, { status: 400 });
@@ -473,17 +524,9 @@ export async function POST(req: NextRequest) {
   if (action === "set_rhythm_profile") {
     const rawSettings = (payload?.settings ?? payload ?? {}) as Partial<RhythmSettings>;
     const nowIso = new Date().toISOString();
-    const settings: RhythmSettings = {
-      ...DEFAULT_RHYTHM_SETTINGS,
-      ...rawSettings,
-      enabled: {
-        ...DEFAULT_RHYTHM_SETTINGS.enabled,
-        ...(rawSettings.enabled ?? {}),
-      },
-      themeDays: Array.isArray(rawSettings.themeDays)
-        ? rawSettings.themeDays
-        : DEFAULT_RHYTHM_SETTINGS.themeDays,
-    };
+    // 與前端 / localStorage 共用同一套正規化（§23 單一同步路徑）
+    // → 雲端寫入的 enabled.custom 一律與 customAnchor.enabled 對齊，不會失步
+    const settings: RhythmSettings = normalizeSettings(rawSettings);
     const profile: RhythmProfile = {
       id: "rhythm-profile",
       kind: "rhythm-profile",

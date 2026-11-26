@@ -147,8 +147,16 @@ export interface Recurrence {
   interval: number; // every N days/weeks/months
   daysOfWeek?: number[]; // 0=Sun..6=Sat, for weekly
   dayOfMonth?: number; // 1-31, for monthly
+  weekOfMonth?: 1 | 2 | 3 | 4 | -1; // 每月第 N 個星期（-1 = 最後一個），與 weekday 搭配
+  weekday?: number;                 // 0=Sun..6=Sat
   endDate?: string; // ISO date when recurrence stops
   completedCount: number;
+}
+
+/** 單一習慣的預約休眠區間（半開區間 [from, to)：to 當日自動喚醒） */
+export interface HabitPausedPeriod {
+  from: string; // YYYY-MM-DD（含，開始休眠日）
+  to: string;   // YYYY-MM-DD（不含，自動喚醒日；例如 to="2027-01-01" 代表休眠至 12/31、1/1 自動復工）
 }
 
 export interface SubTask {
@@ -251,6 +259,8 @@ export interface Habit {
   lastLoggedMinutes?: number;
   /** 來源方案標記（供整套方案安全退場，不影響手動建立的習慣） */
   sourcePlan?: SourcePlan;
+  /** 預約休眠區間清單（半開區間 [from, to)；累積目標池於休眠期間凍結） */
+  pausedPeriods?: HabitPausedPeriod[];
 }
 
 export interface HabitCheckin {
@@ -395,7 +405,7 @@ export const TAG_COLORS = [
 ];
 
 // ─── Rhythm & MVD Types ─────────────────────────────────────────
-export type RhythmAnchorId = "wake" | "offduty" | "screensoff";
+export type RhythmAnchorId = "wake" | "offduty" | "screensoff" | "custom";
 export type ThemeDayId = string; // 使用者自訂的主題日 key，如 "vibe-coding"
 
 export interface RhythmAnchorConfig {
@@ -419,6 +429,19 @@ export interface ThemeDay {
   sourcePlan?: SourcePlan;
 }
 
+/** 使用者自訂的第 4 顆節奏紅線 */
+export interface CustomRhythmAnchor {
+  label: string;   // 例：「Highball 停杯紅線」
+  time: string;    // "HH:mm"，例："20:00"
+  enabled: boolean;
+}
+
+/** 已休眠方案的紀錄（可設定自動喚醒日） */
+export interface PausedPlanEntry {
+  pausedAt: string;     // ISO datetime
+  resumeDate?: string;  // YYYY-MM-DD（到達當日自動喚醒；未填則手動恢復）
+}
+
 export interface RhythmSettings {
   wakeTime: string;       // "08:00"
   offDutyTime: string;    // "17:00"
@@ -427,11 +450,15 @@ export interface RhythmSettings {
   mvdEnabled: boolean;
   slotGridEnabled: boolean; // 是否在 Zen 顯示「一天的節奏」槽網格
   themeDays: ThemeDay[];  // 每日主題日清單（可空）
+  /** 第 4 顆自訂紅線 */
+  customAnchor?: CustomRhythmAnchor;
+  /** 已休眠方案（key = planId） */
+  pausedPlans?: Record<string, PausedPlanEntry>;
 }
 
 export const DEFAULT_RHYTHM_SETTINGS: RhythmSettings = {
   wakeTime: "08:00", offDutyTime: "17:00", screensOffTime: "22:15",
-  enabled: { wake: true, offduty: true, screensoff: true },
+  enabled: { wake: true, offduty: true, screensoff: true, custom: false },
   mvdEnabled: false,
   slotGridEnabled: true,
   themeDays: [],

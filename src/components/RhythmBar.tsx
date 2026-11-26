@@ -66,7 +66,7 @@ export function RhythmBar({ visibleTasks }: RhythmBarProps) {
                 style={{ backgroundColor: "var(--brand)" }}
                 aria-hidden
               />
-              <span>{anchorCopy(activeAnchor).title}</span>
+              <span>{anchorCopy(activeAnchor, settings).title}</span>
             </span>
           )}
         </div>
