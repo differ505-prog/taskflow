@@ -311,7 +311,10 @@ export function TasksProvider({
   // ── updateTask ───────────────────────────────────────────────
   const updateTask = useCallback(
     (id: string, updates: Partial<Task>) => {
-      const prevTask = tasks.find((t) => t.id === id);
+      // 使用 tasksRef.current 避免同一事件迴圈內連續多次呼叫 updateTask（如批次智慧排程 / 復原）
+      // 讀到過時 closure 而互相覆蓋先前修改
+      const currentTasks = tasksRef.current;
+      const prevTask = currentTasks.find((t) => t.id === id);
       const nextListId = updates.listId ?? prevTask?.listId;
       const targetList = lists.find((l) => l.id === nextListId);
       const targetSharedId = targetList?.sharedId;
@@ -343,14 +346,15 @@ export function TasksProvider({
         return;
       }
 
-      const updated = tasks.map((t) =>
+      const updated = currentTasks.map((t) =>
         t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
       );
+      tasksRef.current = updated;
       setTasks(updated);
       saveTasks(updated);
       markRecentlyWritten(id);
     },
-    [tasks, lists, sharedLists, markRecentlyWritten, onMoveTaskToShared]
+    [lists, sharedLists, saveTasks, setTasks, markRecentlyWritten, onMoveTaskToShared]
   );
 
   // ── addTask ──────────────────────────────────────────────────
