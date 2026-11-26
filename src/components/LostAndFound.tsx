@@ -3,7 +3,7 @@ import { getLocalToday } from "@/lib/dateUtils";
 
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Leaf, ArchiveRestore, CalendarClock, Check, X } from "lucide-react";
+import { Sparkles, Leaf, ArchiveRestore, CalendarClock, Check, X, RotateCcw } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { toast } from "sonner";
@@ -45,6 +45,7 @@ function formatShortDateLabel(dateStr: string, todayStr: string): string {
 export default function LostAndFound() {
   const { tasks, updateTask } = useApp();
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [rankedIds, setRankedIds] = useState<string[]>([]);
 
   const today = getLocalToday(); // YYYY-MM-DD（本地時區）
 
@@ -66,13 +67,27 @@ export default function LostAndFound() {
     );
   }, [tasks, today]);
 
-  /** 預先算好每一筆的智慧落點（與批次預覽共用同一份負載平衡計畫） */
+  /** 過濾掉已被處理／封存的殘留 ID */
+  const activeRankedIds = useMemo(() => {
+    const validIds = new Set(lostTasks.map((t) => t.id));
+    return rankedIds.filter((id) => validIds.has(id));
+  }, [rankedIds, lostTasks]);
+
+  const toggleRank = (taskId: string) => {
+    setRankedIds((prev) =>
+      prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]
+    );
+    haptic("selection");
+  };
+
+  /** 預先算好每一筆的智慧落點（與批次預覽共用同一份負載平衡計畫，支援 Tap-to-Rank 自訂順序） */
   const smartPlan = useMemo(
     () =>
       computeSmartReschedulePlan(lostTasks, tasks, today, {
         dailyCap: DEFAULT_DAILY_HARD_CAP,
+        customOrderIds: activeRankedIds,
       }),
-    [lostTasks, tasks, today],
+    [lostTasks, tasks, today, activeRankedIds],
   );
 
   const planByTaskId = useMemo(() => {
@@ -139,6 +154,7 @@ export default function LostAndFound() {
     }
 
     setPreviewOpen(false);
+    setRankedIds([]);
     haptic("success");
 
     toast.success(`已將 ${smartPlan.length} 項任務平均排入未來空檔`, {
@@ -226,31 +242,85 @@ export default function LostAndFound() {
                   建議分配預覽（每日硬排程上限 {DEFAULT_DAILY_HARD_CAP} 件）
                 </p>
                 <p className="text-[11px] text-zinc-400 mt-0.5">
-                  已扣除重複任務與方案跨日中間日，保留手動行程日
+                  依輕重緩急點選任務編號（1→2→3），日期會即時重算
                 </p>
               </div>
+              {activeRankedIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRankedIds([]);
+                    haptic("selection");
+                  }}
+                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium text-zinc-500 hover:bg-zinc-100 transition-colors flex-shrink-0"
+                  title="清除自訂編號，恢復預設排序"
+                >
+                  <RotateCcw className="h-3 w-3" aria-hidden />
+                  重置順序
+                </button>
+              )}
             </div>
 
-            <ul className="max-h-52 overflow-y-auto divide-y divide-zinc-100 px-3.5">
-              {smartPlan.map((item) => (
-                <li
-                  key={item.task.id}
-                  className="flex items-center justify-between gap-3 py-2 text-xs"
-                >
-                  <span className="truncate text-zinc-600">{item.task.title}</span>
-                  <span className="flex-shrink-0 inline-flex items-center gap-1.5 tabular-nums">
-                    <span
-                      className="rounded-full px-2 py-0.5 text-[11px] font-medium"
-                      style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+            <ul className="max-h-56 overflow-y-auto divide-y divide-zinc-100 px-2 py-1">
+              {smartPlan.map((item) => {
+                const rankIndex = activeRankedIds.indexOf(item.task.id);
+                const isRanked = rankIndex !== -1;
+                return (
+                  <li key={item.task.id}>
+                    <button
+                      type="button"
+                      onClick={() => toggleRank(item.task.id)}
+                      aria-pressed={isRanked}
+                      className="w-full flex items-center justify-between gap-3 px-2 py-2 rounded-lg text-left text-xs transition-colors hover:bg-zinc-50 active:scale-[0.99]"
+                      title={
+                        isRanked
+                          ? `目前第 ${rankIndex + 1} 優先，點擊取消編號`
+                          : "點擊標記為優先排程"
+                      }
                     >
-                      {formatShortDateLabel(item.targetDate, today)}
-                    </span>
-                    <span className="text-[11px] text-zinc-400">
-                      原 {item.existingLoadBefore} 件
-                    </span>
-                  </span>
-                </li>
-              ))}
+                      <span className="flex items-center gap-2 min-w-0">
+                        <span
+                          className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-semibold flex-shrink-0 transition-colors tabular-nums"
+                          style={
+                            isRanked
+                              ? {
+                                  background: "var(--brand)",
+                                  color: "var(--brand-foreground)",
+                                }
+                              : {
+                                  border: "1.5px dashed #d4d4d8",
+                                  color: "#a1a1aa",
+                                  background: "transparent",
+                                }
+                          }
+                        >
+                          {isRanked ? rankIndex + 1 : ""}
+                        </span>
+                        <span
+                          className={
+                            isRanked
+                              ? "truncate text-zinc-800 font-medium"
+                              : "truncate text-zinc-600"
+                          }
+                        >
+                          {item.task.title}
+                        </span>
+                      </span>
+                      <span className="flex-shrink-0 inline-flex items-center gap-1.5 tabular-nums">
+                        <span
+                          className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                          style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+                        >
+                          {formatShortDateLabel(item.targetDate, today)}
+                        </span>
+                        <span className="text-[11px] text-zinc-400">
+                          原 {item.existingLoadBefore} 件
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
 
             <div className="flex items-center justify-end gap-2 px-3.5 py-2.5 bg-zinc-50/80 border-t border-zinc-200/60">

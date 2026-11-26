@@ -134,6 +134,8 @@ export interface SmartRescheduleOptions {
   dailyCap?: number;
   lookaheadDays?: number;
   primaryWindowDays?: number;
+  /** 使用者手動點選的優先順序 ID 陣列（Tap-to-Rank）：排在陣列越前面越優先取得最早空檔 */
+  customOrderIds?: string[];
 }
 
 function pickBestDate(
@@ -213,7 +215,20 @@ export function computeSmartReschedulePlan(
   const initialLoad = countHardTasksByDate(allTasks, candidateDates);
   const workingLoad: Record<string, number> = { ...initialLoad };
 
+  const customRankMap = new Map<string, number>();
+  if (options.customOrderIds) {
+    options.customOrderIds.forEach((id, index) => {
+      if (!customRankMap.has(id)) customRankMap.set(id, index);
+    });
+  }
+
   const sorted = [...overdueTasks].sort((a, b) => {
+    const rankA = customRankMap.get(a.id);
+    const rankB = customRankMap.get(b.id);
+    if (rankA !== undefined && rankB !== undefined) return rankA - rankB;
+    if (rankA !== undefined) return -1;
+    if (rankB !== undefined) return 1;
+
     const rankDiff = (PRIORITY_RANK[a.priority] ?? 3) - (PRIORITY_RANK[b.priority] ?? 3);
     if (rankDiff !== 0) return rankDiff;
     return (a.dueDate ?? "").localeCompare(b.dueDate ?? "");

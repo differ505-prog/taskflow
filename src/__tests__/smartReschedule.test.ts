@@ -187,6 +187,26 @@ describe("computeSmartReschedulePlan", () => {
     expect(suggestion.existingLoadBefore).toBe(0);
   });
 
+  it("依 customOrderIds（Tap-to-Rank）優先分配最早空檔，未點選者接續在後", () => {
+    const today = "2026-11-26";
+    const overdue: Task[] = [
+      makeTask({ id: "t1", title: "一般任務 A", dueDate: "2026-11-20", priority: "do-now" }),
+      makeTask({ id: "t2", title: "一般任務 B", dueDate: "2026-11-21", priority: "delegate" }),
+      makeTask({ id: "t3", title: "一般任務 C", dueDate: "2026-11-22", priority: "none" }),
+    ];
+
+    // 使用者先點 t3，再點 t2，沒點 t1
+    const plan = computeSmartReschedulePlan(overdue, overdue, today, {
+      dailyCap: 3,
+      customOrderIds: ["t3", "t2"],
+    });
+
+    expect(plan.map((p) => p.task.id)).toEqual(["t3", "t2", "t1"]);
+    expect(plan[0].targetDate).toBe("2026-11-26");
+    expect(plan[1].targetDate).toBe("2026-11-27");
+    expect(plan[2].targetDate).toBe("2026-11-28");
+  });
+
   it("保留跨日過期任務的區間長度", () => {
     const today = "2026-11-26";
     const spanOverdue = makeTask({
