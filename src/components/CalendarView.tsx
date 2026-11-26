@@ -19,21 +19,9 @@ import { haptic } from "@/lib/haptics";
 import { useMonthGrid } from "@/hooks/useMonthGrid";
 import { useExternalCalendar } from "@/hooks/useExternalCalendar";
 import { TodayIllustration } from "@/illustrations/EmptyStateIllustrations";
+import { isFlexibleOnDate } from "@/lib/smartReschedule";
 
 const HIDE_RECURRING_STORAGE_KEY = "calendar_hideRecurring";
-
-/**
- * 判斷任務在指定日期是否屬於「彈性／低視覺權重」任務（方案 1）：
- * - 重複任務（recurrence）：可暫時跳過
- * - 跨日區間任務（startDate !== dueDate）的非截止日：進行中背景任務，僅截止日當天亮主色
- */
-function isFlexibleOnDate(task: Task, dateStr: string): boolean {
-  if (task.recurrence) return true;
-  if (task.startDate && task.dueDate && task.startDate !== task.dueDate) {
-    return dateStr !== task.dueDate;
-  }
-  return false;
-}
 
 /**
  * 月視圖單格任務指示（方案 1 視覺權重分級 + 一鍵只看硬排程）
