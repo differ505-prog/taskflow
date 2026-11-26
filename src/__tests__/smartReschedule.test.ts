@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import type { Task } from "@/lib/types";
 import {
   isFlexibleOnDate,
+  isManualMultiDayTask,
+  partitionAndSortDayTasks,
   countHardTasksByDate,
   computeSmartReschedulePlan,
   suggestBestDateForTask,
@@ -33,15 +35,16 @@ describe("isFlexibleOnDate", () => {
     expect(isFlexibleOnDate(recurring, "2026-11-26")).toBe(true);
   });
 
-  it("模板方案跨日任務僅在非截止日視為彈性，截止日當天視為硬排程", () => {
+  it("模板方案跨日任務全區間（含截止日）皆視為彈性背景", () => {
     const planSpan = makeTask({
       id: "s1",
-      startDate: "2026-11-20",
-      dueDate: "2026-11-28",
+      startDate: "2026-12-01",
+      dueDate: "2026-12-06",
       sourcePlan: { id: "plan-3.1-p0", name: "3.1 階段零" },
     });
-    expect(isFlexibleOnDate(planSpan, "2026-11-26")).toBe(true);
-    expect(isFlexibleOnDate(planSpan, "2026-11-28")).toBe(false);
+    expect(isFlexibleOnDate(planSpan, "2026-12-03")).toBe(true);
+    expect(isFlexibleOnDate(planSpan, "2026-12-06")).toBe(true);
+    expect(isManualMultiDayTask(planSpan)).toBe(false);
   });
 
   it("手動建立的跨日任務（無 sourcePlan）每一天皆視為硬排程", () => {
@@ -53,6 +56,7 @@ describe("isFlexibleOnDate", () => {
     });
     expect(isFlexibleOnDate(manualSpan, "2026-12-05")).toBe(false);
     expect(isFlexibleOnDate(manualSpan, "2026-12-06")).toBe(false);
+    expect(isManualMultiDayTask(manualSpan)).toBe(true);
   });
 
   it("單日非重複任務視為硬排程", () => {
@@ -61,8 +65,53 @@ describe("isFlexibleOnDate", () => {
   });
 });
 
+describe("partitionAndSortDayTasks", () => {
+  it("手動跨日永遠排最前，並將重複與模板跨日分到下段", () => {
+    const tasks: Task[] = [
+      makeTask({
+        id: "plan-span",
+        title: "【階段零】日常休眠交接",
+        startDate: "2026-12-01",
+        dueDate: "2026-12-06",
+        priority: "do-now",
+        sourcePlan: { id: "plan-3.1-p0", name: "3.1 階段零" },
+      }),
+      makeTask({
+        id: "plan-single",
+        title: "【階段零】網拍切換",
+        dueDate: "2026-12-06",
+        priority: "do-now",
+        sourcePlan: { id: "plan-3.1-p0", name: "3.1 階段零" },
+      }),
+      makeTask({
+        id: "manual-single",
+        title: "繳電費",
+        dueDate: "2026-12-06",
+        priority: "delegate",
+      }),
+      makeTask({
+        id: "manual-span",
+        title: "宜蘭露營",
+        startDate: "2026-12-05",
+        dueDate: "2026-12-06",
+        priority: "delegate",
+      }),
+      makeTask({
+        id: "recurring",
+        title: "週度財務盤點",
+        dueDate: "2026-12-06",
+        recurrence: { pattern: "weekly", interval: 1, completedCount: 0 },
+      }),
+    ];
+
+    const { hard, flexible } = partitionAndSortDayTasks(tasks, "2026-12-06");
+    expect(hard.map((t) => t.id)).toEqual(["manual-span", "manual-single", "plan-single"]);
+    expect(flexible.map((t) => t.id)).toEqual(["plan-span", "recurring"]);
+  });
+});
+
 describe("countHardTasksByDate", () => {
-  it("忽略重複任務、模板跨日中間日與已完成/封存任務，但保留手動跨日每一天", () => {
+  it("忽略重複任務、模板跨日任務與已完成/封存任務，但保留手動跨日每一天", () => {
     const dates = buildDateWindow("2026-11-26", 3);
     const tasks: Task[] = [
       makeTask({ id: "hard-1", dueDate: "2026-11-26" }),
@@ -89,7 +138,7 @@ describe("countHardTasksByDate", () => {
     const counts = countHardTasksByDate(tasks, dates);
     expect(counts["2026-11-26"]).toBe(1);
     expect(counts["2026-11-27"]).toBe(1); // manual-span-1 首日保留為硬排程
-    expect(counts["2026-11-28"]).toBe(2); // plan-span-1 截止日 + manual-span-1 末日
+    expect(counts["2026-11-28"]).toBe(1); // 僅 manual-span-1，plan-span-1 不再計入硬排程
   });
 });
 

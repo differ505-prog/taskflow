@@ -11,15 +11,70 @@ export const DEFAULT_LOOKAHEAD_DAYS = 14;
 /**
  * 判斷任務在指定日期是否屬於「彈性／低視覺權重」任務：
  * - 重複任務（recurrence）：可暫時跳過
- * - 模板方案（sourcePlan）的跨日區間任務（startDate !== dueDate）非截止日：背景階段目標，僅截止日亮主色
+ * - 模板方案（sourcePlan）的跨日區間任務（startDate !== dueDate）：全區間皆歸為方案背景，不搶佔手動行程的實心藍計數
  * - 使用者手動建立的跨日任務（無 sourcePlan，例如出遊／出差）：每一天都視為硬排程，絕不隱藏
  */
-export function isFlexibleOnDate(task: Task, dateStr: string): boolean {
+export function isFlexibleOnDate(task: Task, _dateStr: string): boolean {
   if (task.recurrence) return true;
   if (task.sourcePlan && task.startDate && task.dueDate && task.startDate !== task.dueDate) {
-    return dateStr !== task.dueDate;
+    return true;
   }
   return false;
+}
+
+/**
+ * 判斷任務是否為「使用者親自建立的跨日任務」（無 sourcePlan、非重複、startDate !== dueDate）
+ */
+export function isManualMultiDayTask(task: Task): boolean {
+  return (
+    !task.sourcePlan &&
+    !task.recurrence &&
+    Boolean(task.startDate && task.dueDate && task.startDate !== task.dueDate)
+  );
+}
+
+/**
+ * 將某天的未完成任務依 UI/UX 層級分成兩段並排序（方案 1）：
+ * - hard: 手動跨日永遠最前 → 置頂 → 手動單日 → 方案單日（同組依優先級與具體時間）
+ * - flexible: 重複任務 ＋ 模板跨日任務（依優先級與具體時間）
+ */
+export function partitionAndSortDayTasks(
+  todoTasks: Task[],
+  dateStr: string
+): { hard: Task[]; flexible: Task[] } {
+  const hard: Task[] = [];
+  const flexible: Task[] = [];
+
+  for (const task of todoTasks) {
+    if (isFlexibleOnDate(task, dateStr)) {
+      flexible.push(task);
+    } else {
+      hard.push(task);
+    }
+  }
+
+  const getHardTier = (t: Task): number => {
+    if (isManualMultiDayTask(t)) return 0;
+    if (t.isPinned) return 1;
+    if (!t.sourcePlan) return 2;
+    return 3;
+  };
+
+  const compareTieBreak = (a: Task, b: Task): number => {
+    const pDiff = (PRIORITY_RANK[a.priority] ?? 3) - (PRIORITY_RANK[b.priority] ?? 3);
+    if (pDiff !== 0) return pDiff;
+    return (a.dueTime ?? "99:99").localeCompare(b.dueTime ?? "99:99");
+  };
+
+  hard.sort((a, b) => {
+    const tierDiff = getHardTier(a) - getHardTier(b);
+    if (tierDiff !== 0) return tierDiff;
+    return compareTieBreak(a, b);
+  });
+
+  flexible.sort(compareTieBreak);
+
+  return { hard, flexible };
 }
 
 /** 判斷任務是否落在指定日期（與 useMonthGrid 規則一致） */

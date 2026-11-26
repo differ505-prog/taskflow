@@ -19,7 +19,7 @@ import { haptic } from "@/lib/haptics";
 import { useMonthGrid } from "@/hooks/useMonthGrid";
 import { useExternalCalendar } from "@/hooks/useExternalCalendar";
 import { TodayIllustration } from "@/illustrations/EmptyStateIllustrations";
-import { isFlexibleOnDate } from "@/lib/smartReschedule";
+import { isFlexibleOnDate, partitionAndSortDayTasks } from "@/lib/smartReschedule";
 
 const HIDE_RECURRING_STORAGE_KEY = "calendar_hideRecurring";
 
@@ -746,6 +746,10 @@ function DesktopCalendarLayout({
   );
 
   const todo = selectedDateTasks.filter((t) => t.status !== "done");
+  const { hard: hardTodo, flexible: flexibleTodo } = useMemo(
+    () => (selectedDate ? partitionAndSortDayTasks(todo, selectedDate) : { hard: [], flexible: [] }),
+    [todo, selectedDate]
+  );
   const done = selectedDateTasks.filter((t) => t.status === "done");
 
   const [doneExpanded, setDoneExpanded] = useState<Record<string, boolean>>({});
@@ -1081,7 +1085,7 @@ function DesktopCalendarLayout({
             </div>
           ) : (
             <div className="space-y-2">
-              {todo.map((task) => (
+              {hardTodo.map((task) => (
                 <SwipeableTaskCard key={task.id} taskId={task.id} hideComplete onDelete={onDelete}>
                   <CalendarTaskItem
                     task={task}
@@ -1092,6 +1096,29 @@ function DesktopCalendarLayout({
                   />
                 </SwipeableTaskCard>
               ))}
+              {flexibleTodo.length > 0 && (
+                <div
+                  className={hardTodo.length > 0 ? "pt-2.5 mt-1 border-t border-dashed space-y-2" : "space-y-2"}
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  {hardTodo.length > 0 && (
+                    <p className="text-[11px] font-medium px-0.5" style={{ color: "var(--text-tertiary)" }}>
+                      重複與方案進行中 ({flexibleTodo.length})
+                    </p>
+                  )}
+                  {flexibleTodo.map((task) => (
+                    <SwipeableTaskCard key={task.id} taskId={task.id} hideComplete onDelete={onDelete}>
+                      <CalendarTaskItem
+                        task={task}
+                        isSelected={selectedTask?.id === task.id}
+                        onClick={() => { onSelectTaskId(task.id); onSelectTask(task.id); }}
+                        onToggleStatus={() => onToggleStatus(task.id)}
+                        onDelete={() => onDelete(task.id)}
+                      />
+                    </SwipeableTaskCard>
+                  ))}
+                </div>
+              )}
               {done.length > 0 && (
                 <div className={todo.length > 0 ? "pt-2 border-t border-dashed" : ""} style={{ borderColor: "var(--border)" }}>
                   <button
@@ -1230,6 +1257,7 @@ function CalendarTaskSheetMobile({
   if (!selectedDate) return null;
 
   const todo = selectedDateTasks.filter((t) => t.status !== "done");
+  const { hard: hardTodo, flexible: flexibleTodo } = partitionAndSortDayTasks(todo, selectedDate);
   const done = selectedDateTasks.filter((t) => t.status === "done");
   const isDoneOpen = !!doneExpanded[selectedDate];
   const dateObj = parseISO(selectedDate);
@@ -1383,7 +1411,7 @@ function CalendarTaskSheetMobile({
             </div>
           ) : (
             <div className="space-y-2 pb-2">
-              {todo.map((task) => (
+              {hardTodo.map((task) => (
                 <SwipeableTaskCard key={task.id} taskId={task.id} hideComplete onDelete={(id) => deleteTask(id)}>
                   <CalendarTaskItem
                     task={task}
@@ -1394,6 +1422,29 @@ function CalendarTaskSheetMobile({
                   />
                 </SwipeableTaskCard>
               ))}
+              {flexibleTodo.length > 0 && (
+                <div
+                  className={hardTodo.length > 0 ? "pt-2.5 mt-1 border-t border-dashed space-y-2" : "space-y-2"}
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  {hardTodo.length > 0 && (
+                    <p className="text-[11px] font-medium px-0.5" style={{ color: "var(--text-tertiary)" }}>
+                      重複與方案進行中 ({flexibleTodo.length})
+                    </p>
+                  )}
+                  {flexibleTodo.map((task) => (
+                    <SwipeableTaskCard key={task.id} taskId={task.id} hideComplete onDelete={(id) => deleteTask(id)}>
+                      <CalendarTaskItem
+                        task={task}
+                        isSelected={selectedTask?.id === task.id}
+                        onClick={() => { onSelectTaskId(task.id); onClose(); }}
+                        onToggleStatus={() => completeTask(task.id)}
+                        onDelete={() => deleteTask(task.id)}
+                      />
+                    </SwipeableTaskCard>
+                  ))}
+                </div>
+              )}
               {done.length > 0 && (
                 <div className={todo.length > 0 ? "pt-2 border-t border-dashed" : ""} style={{ borderColor: "var(--border)" }}>
                   <button
