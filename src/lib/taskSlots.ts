@@ -11,10 +11,14 @@ const HHMM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const MINUTES_PER_DAY = 1440;
 
 /** 把分鐘數轉回 "HH:mm"（24 小時制、零填充）。 */
-function minutesToHHmm(min: number): string {
+export function formatMinutesToHHmm(min: number): string {
   const h = Math.floor(min / 60);
   const m = min % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function minutesToHHmm(min: number): string {
+  return formatMinutesToHHmm(min);
 }
 
 /** 解析 "HH:mm" → 分鐘數；非法回 null。 */

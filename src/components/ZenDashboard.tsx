@@ -390,6 +390,7 @@ export default function ZenDashboard() {
           <DaySlotGrid
             tasks={visibleTasks}
             onToggleStatus={(id) => handleToggleTaskStatus(id)}
+            onAssignTaskTime={(id, dueTime) => handleUpdateTask(id, { dueTime })}
           />
         </div>
       )}

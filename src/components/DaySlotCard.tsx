@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type DragEvent } from "react";
 import type { DaySlot } from "@/lib/types";
 import type { SlotAssignment } from "@/lib/taskSlots";
 import { formatTaskTimeRange } from "@/lib/taskSlots";
@@ -15,13 +15,27 @@ interface DaySlotCardProps {
   isCollapsed: boolean;
   onToggleCollapsed: () => void;
   onToggleStatus?: (taskId: string) => void;
+  /** 拖曳或 Tap-to-Place 進行中 */
+  isDropTargetActive?: boolean;
+  /** 是否正有任務拖曳懸停於本槽 */
+  isDragOver?: boolean;
+  /** 點擊本槽以放入已選取任務 */
+  onPlaceSelected?: () => void;
+  onDragOver?: (e: DragEvent<HTMLDivElement>) => void;
+  onDragLeave?: () => void;
+  onDrop?: (e: DragEvent<HTMLDivElement>) => void;
+  selectedTaskId?: string | null;
+  onSelectTaskForMove?: (taskId: string) => void;
+  onTaskDragStart?: (taskId: string, e: DragEvent<HTMLDivElement>) => void;
+  onTaskDragEnd?: () => void;
 }
 
 /**
  * 單一節奏槽的外框。
  *
  * 設計紀律：
- *  - 點標題列只做收合/展開（不改視圖、不改任務順序、不開 modal）
+ *  - 平時點標題列做收合/展開（不改視圖、不改任務順序、不開 modal）
+ *  - 當有任務處於 Tap-to-Place 選取態時，點本槽直接放入（不折疊）
  *  - 當下槽只加一個靜態小圓點（無 pulse、無動畫）
  *  - 空槽文案是邀請，不是指控（§5）
  */
@@ -32,6 +46,16 @@ export function DaySlotCard({
   isCollapsed,
   onToggleCollapsed,
   onToggleStatus,
+  isDropTargetActive = false,
+  isDragOver = false,
+  onPlaceSelected,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  selectedTaskId = null,
+  onSelectTaskForMove,
+  onTaskDragStart,
+  onTaskDragEnd,
 }: DaySlotCardProps) {
   const rows = useMemo(
     () =>
@@ -44,15 +68,43 @@ export function DaySlotCard({
     [tasks]
   );
 
+  const canPlaceOnClick = Boolean(selectedTaskId && onPlaceSelected);
+
   return (
     <div
-      className="rounded-xl px-3 py-2.5"
-      style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      onClick={canPlaceOnClick ? () => onPlaceSelected?.() : undefined}
+      className={`rounded-xl px-3 py-2.5 transition-colors ${
+        canPlaceOnClick ? "cursor-pointer" : ""
+      }`}
+      style={{
+        background: isDragOver ? "var(--brand-tint)" : "var(--surface)",
+        border: isDragOver
+          ? "1.5px dashed var(--brand)"
+          : isDropTargetActive
+          ? "1.5px dashed color-mix(in srgb, var(--brand) 45%, transparent)"
+          : "1px solid var(--border)",
+      }}
     >
       <button
         type="button"
-        onClick={onToggleCollapsed}
-        title={isCollapsed ? SLOT_FOLDED_HINT : SLOT_UNFOLDED_HINT}
+        onClick={(e) => {
+          if (canPlaceOnClick) {
+            e.stopPropagation();
+            onPlaceSelected?.();
+            return;
+          }
+          onToggleCollapsed();
+        }}
+        title={
+          canPlaceOnClick
+            ? `點擊將選取的任務放入${slot.label}`
+            : isCollapsed
+            ? SLOT_FOLDED_HINT
+            : SLOT_UNFOLDED_HINT
+        }
         aria-expanded={!isCollapsed}
         className="w-full flex items-center justify-between gap-2 text-left"
       >
@@ -78,14 +130,21 @@ export function DaySlotCard({
           </span>
         </span>
 
-        {rows.length > 0 && (
+        {canPlaceOnClick ? (
+          <span
+            className="flex-shrink-0 text-[11px] font-medium rounded-full px-2 py-0.5"
+            style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+          >
+            放入{slot.label}
+          </span>
+        ) : rows.length > 0 ? (
           <span
             className="flex-shrink-0 text-[10px] font-semibold tabular-nums rounded-full px-1.5"
             style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
           >
             {rows.length}
           </span>
-        )}
+        ) : null}
       </button>
 
       {!isCollapsed && (
@@ -100,11 +159,23 @@ export function DaySlotCard({
                 onToggleStatus={
                   onToggleStatus ? () => onToggleStatus(row.task.id) : undefined
                 }
+                isSelectedForMove={selectedTaskId === row.task.id}
+                onSelectForMove={
+                  onSelectTaskForMove ? () => onSelectTaskForMove(row.task.id) : undefined
+                }
+                draggable={Boolean(onTaskDragStart)}
+                onDragStart={
+                  onTaskDragStart ? (e) => onTaskDragStart(row.task.id, e) : undefined
+                }
+                onDragEnd={onTaskDragEnd}
               />
             ))
           ) : (
-            <p className="text-[12px] px-2" style={{ color: "var(--text-tertiary)" }}>
-              {SLOT_EMPTY_COPY}
+            <p
+              className="text-[12px] px-2"
+              style={{ color: isDragOver ? "var(--brand)" : "var(--text-tertiary)" }}
+            >
+              {isDragOver ? `放開即可排入${slot.label}` : SLOT_EMPTY_COPY}
             </p>
           )}
         </div>
