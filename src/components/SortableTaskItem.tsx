@@ -30,6 +30,18 @@ interface SortableTaskItemProps {
   smartScheduleTitle?: string;
   /** 點擊單筆智慧排程回呼（不跳頁、不開彈窗） */
   onSmartSchedule?: (taskId: string) => void;
+  /** 番茄鐘狀態：idle | running | paused | busy-other */
+  pomodoroState?: "idle" | "running" | "paused" | "busy-other";
+  /** 番茄鐘剩餘秒數 */
+  pomodoroSecondsLeft?: number;
+  /** 開始該任務的番茄鐘 */
+  onStartPomodoro?: (taskId: string, minutes: number) => void;
+  /** 暫停番茄鐘 */
+  onPausePomodoro?: () => void;
+  /** 繼續番茄鐘 */
+  onResumePomodoro?: () => void;
+  /** 收工（結束本次番茄鐘） */
+  onStopPomodoro?: () => void;
 }
 
 /**

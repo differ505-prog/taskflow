@@ -24,6 +24,8 @@ export type FlowTimerSnapshot = {
   completedSessions: number;
   boundTaskId: string | undefined;
   boundHabitId: string | undefined;
+  /** 暫停前被綁定的對象（任務或習慣），讓列內 UI 仍能辨識是哪一列被暫停 */
+  pausedTarget?: { kind: "task" | "habit"; id: string };
   customMinutes?: number; // 自訂時長（分鐘），存在時覆寫 config 的 focusMinutes
 };
 
@@ -85,6 +87,9 @@ export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTim
   const [completedSessions, setCompletedSessions] = useState(0);
   const [boundTaskId, setBoundTaskId] = useState<string | undefined>(undefined);
   const [boundHabitId, setBoundHabitId] = useState<string | undefined>(undefined);
+  const [pausedTarget, setPausedTarget] = useState<
+    { kind: "task" | "habit"; id: string } | undefined
+  >(undefined);
   const [, force] = useState(0);
 
   const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -102,6 +107,8 @@ export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTim
   const boundHabitIdRef = useRef<string | undefined>(undefined);
   /** pause() 暫存的習慣綁定；resume() 時還原，否則暫停後續跑會遺失入帳對象 */
   const pausedHabitIdRef = useRef<string | undefined>(undefined);
+  /** pause() 暫存的任務綁定；resume() 時還原 */
+  const pausedTaskIdRef = useRef<string | undefined>(undefined);
 
   const configRef = useRef<FlowTimerConfig>(config);
   configRef.current = config;
@@ -139,6 +146,12 @@ export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTim
     boundHabitIdRef.current = v;
     setBoundHabitId(v);
   }, []);
+  const syncPausedTarget = useCallback(
+    (v: { kind: "task" | "habit"; id: string } | undefined) => {
+      setPausedTarget(v);
+    },
+    []
+  );
 
   // Public snapshot for subscribers
   const snapshot: FlowTimerSnapshot = {
@@ -150,6 +163,7 @@ export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTim
     completedSessions,
     boundTaskId,
     boundHabitId,
+    pausedTarget,
     customMinutes: undefined,
   };
 
@@ -237,12 +251,28 @@ export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTim
       syncTotalMs(ms);
       syncEndAt(Date.now() + ms);
       syncRemainingMs(null);
-      if (opts?.taskId !== undefined) syncBoundTaskId(opts.taskId);
-      if (opts?.habitId !== undefined) syncBoundHabitId(opts.habitId);
-      pausedHabitIdRef.current = undefined;
+      if (opts?.taskId !== undefined) {
+        syncBoundTaskId(opts.taskId);
+        // 任務／習慣互斥：啟動任務番茄時必須清掉習慣綁定
+        syncBoundHabitId(undefined);
+        pausedHabitIdRef.current = undefined;
+        pausedTaskIdRef.current = undefined;
+        syncPausedTarget(undefined);
+      } else if (opts?.habitId !== undefined) {
+        syncBoundHabitId(opts.habitId);
+        // 任務／習慣互斥：啟動習慣番茄時必須清掉任務綁定
+        syncBoundTaskId(undefined);
+        pausedHabitIdRef.current = undefined;
+        pausedTaskIdRef.current = undefined;
+        syncPausedTarget(undefined);
+      } else {
+        pausedHabitIdRef.current = undefined;
+        pausedTaskIdRef.current = undefined;
+        syncPausedTarget(undefined);
+      }
       startTicker();
     },
-    [startTicker, syncBoundHabitId, syncBoundTaskId, syncEndAt, syncPhase, syncRemainingMs, syncTotalMs, syncType, totalMsForType],
+    [startTicker, syncBoundHabitId, syncBoundTaskId, syncEndAt, syncPausedTarget, syncPhase, syncRemainingMs, syncTotalMs, syncType, totalMsForType],
   );
 
   const pause = useCallback(() => {
@@ -252,11 +282,20 @@ export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTim
     syncPhase("paused");
     syncEndAt(null);
     syncRemainingMs(remaining);
-    // 暫存習慣綁定（resume 會還原），並清除目前綁定避免計時中切換被誤記
+    // 暫存綁定（resume 會還原），並清除目前綁定避免計時中切換被誤記
     pausedHabitIdRef.current = boundHabitIdRef.current;
+    pausedTaskIdRef.current = boundTaskIdRef.current;
+    if (pausedHabitIdRef.current) {
+      syncPausedTarget({ kind: "habit", id: pausedHabitIdRef.current });
+    } else if (pausedTaskIdRef.current) {
+      syncPausedTarget({ kind: "task", id: pausedTaskIdRef.current });
+    } else {
+      syncPausedTarget(undefined);
+    }
     syncBoundHabitId(undefined);
+    syncBoundTaskId(undefined);
     stopTicker();
-  }, [stopTicker, syncBoundHabitId, syncEndAt, syncPhase, syncRemainingMs]);
+  }, [stopTicker, syncBoundHabitId, syncBoundTaskId, syncEndAt, syncPausedTarget, syncPhase, syncRemainingMs]);
 
   const resume = useCallback(() => {
     if (phaseRef.current !== "paused" || remainingMsRef.current == null) return;
@@ -264,13 +303,18 @@ export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTim
     syncPhase("running");
     syncEndAt(Date.now() + remainingMsRef.current);
     syncRemainingMs(null);
-    // 還原 pause() 暫存的習慣綁定，確保續跑結束仍會入帳
+    // 還原 pause() 暫存的綁定，確保續跑結束仍會入帳
     if (pausedHabitIdRef.current) {
       syncBoundHabitId(pausedHabitIdRef.current);
       pausedHabitIdRef.current = undefined;
     }
+    if (pausedTaskIdRef.current) {
+      syncBoundTaskId(pausedTaskIdRef.current);
+      pausedTaskIdRef.current = undefined;
+    }
+    syncPausedTarget(undefined);
     startTicker();
-  }, [startTicker, syncBoundHabitId, syncEndAt, syncPhase, syncRemainingMs]);
+  }, [startTicker, syncBoundHabitId, syncBoundTaskId, syncEndAt, syncPausedTarget, syncPhase, syncRemainingMs]);
 
   const reset = useCallback(
     (opts?: { type?: FlowTimerType }) => {
@@ -283,10 +327,13 @@ export function useFlowTimer(configOverride?: Partial<FlowTimerConfig>): FlowTim
       syncRemainingMs(null);
       syncTotalMs(ms);
       syncBoundHabitId(undefined);
+      syncBoundTaskId(undefined);
       pausedHabitIdRef.current = undefined;
+      pausedTaskIdRef.current = undefined;
+      syncPausedTarget(undefined);
       stopTicker();
     },
-    [stopTicker, syncBoundHabitId, syncEndAt, syncPhase, syncRemainingMs, syncTotalMs, syncType, totalMsForType],
+    [stopTicker, syncBoundHabitId, syncBoundTaskId, syncEndAt, syncPausedTarget, syncPhase, syncRemainingMs, syncTotalMs, syncType, totalMsForType],
   );
 
   const cycleType = useCallback(

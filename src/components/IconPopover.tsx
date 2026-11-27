@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 interface IconPopoverProps {
@@ -9,6 +9,12 @@ interface IconPopoverProps {
   align?: "start" | "end";
   side?: "top" | "bottom";
   className?: string;
+  /** 受控模式：傳入後由外部決定開關狀態（未傳則沿用內部 state，向後相容） */
+  open?: boolean;
+  /** 開關狀態變更回呼（受控模式下必傳） */
+  onOpenChange?: (open: boolean) => void;
+  /** 為 true 時點擊 trigger 只阻斷冒泡、不開啟 Popover */
+  disabled?: boolean;
 }
 
 /**
@@ -22,9 +28,27 @@ export function IconPopover({
   align = "end",
   side = "bottom",
   className = "",
+  open: controlledOpen,
+  onOpenChange,
+  disabled = false,
 }: IconPopoverProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // 受控模式：外部傳入 open 時以外部為準；否則用內部 state
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+
+  /** 統一的開關寫入器：受控模式通知外部，未受控模式更新內部 state */
+  const setOpen = useCallback(
+    (next: boolean) => {
+      if (!isControlled) {
+        setInternalOpen(next);
+      }
+      onOpenChange?.(next);
+    },
+    [isControlled, onOpenChange]
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -44,14 +68,15 @@ export function IconPopover({
       document.removeEventListener("touchstart", handler);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, setOpen]);
 
   return (
     <div ref={wrapperRef} className={`relative inline-flex ${className}`}>
       <div
         onClick={(e) => {
           e.stopPropagation();
-          setOpen((o) => !o);
+          if (disabled) return;
+          setOpen(!open);
         }}
         className="inline-flex"
       >

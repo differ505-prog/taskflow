@@ -9,7 +9,9 @@ import { useZenFlow } from "./useZenFlow";
 import { useFlowTimer } from "./usePomodoro";
 import { notifyTimerComplete } from "./completionSound";
 import { useHabitsContext } from "@/lib/AppContextInternal/HabitsProvider";
+import { useTasksContext } from "@/lib/AppContextInternal/TasksProvider";
 import { getLocalToday } from "@/lib/dateUtils";
+import { buildTaskFocusUpdate } from "@/lib/pomodoroHelpers";
 
 /**
  * §計時器 ↔ 音樂 集中式橋接 (§6 DRY):
@@ -147,8 +149,83 @@ function HabitPomodoroBridgeWithContext({
   );
 }
 
-export function ZenFlowProvider({ children, omnisonicBaseUrl }: { children: React.ReactNode; omnisonicBaseUrl: string }) {
-  const controller = useZenFlow(omnisonicBaseUrl);
+/**
+ * 任務番茄橋接器
+ *
+ * 負責：focus session 完成時，自動把專注分鐘寫入對應任務的
+ * focusMinutes（歷史總量）與 focusLogByDate（當日日誌）。
+ *
+ * 設計邊界：
+ * - 只在 focus session 完成時寫入；break/long-break 不寫入
+ * - 用 tasksRef 持有最新 tasks，避免 onComplete 閉包讀到舊資料
+ * - 寫入後清除 boundTaskId，防止下一個無關 focus session 被誤記
+ * - 提示音由 TimerCompletionFeedbackBridge 統一播放，此處不再重複出聲
+ */
+function TaskPomodoroBridge({
+  flowTimer,
+  tasksRef,
+  onTaskFocusComplete,
+}: {
+  flowTimer: ReturnType<typeof useFlowTimer>;
+  tasksRef: React.MutableRefObject<import("@/lib/types").Task[]>;
+  onTaskFocusComplete: (taskId: string, update: { focusMinutes: number; focusLogByDate: Record<string, number> }) => void;
+}) {
+  useEffect(() => {
+    const unsubscribe = flowTimer.onComplete((snapshot) => {
+      // 只處理 focus session；break/long-break 不寫入任務
+      if (snapshot.type !== "focus") return;
+      const taskId = snapshot.boundTaskId;
+      if (!taskId) return;
+
+      const minutes = Math.max(1, Math.round(snapshot.totalMs / 60000));
+      const currentTasks = tasksRef.current;
+      const task = currentTasks.find((t) => t.id === taskId);
+      if (!task) return;
+
+      onTaskFocusComplete(
+        taskId,
+        buildTaskFocusUpdate(task, getLocalToday(), minutes)
+      );
+      // 清除 boundTaskId，防止下一個無關 session 被誤記
+      flowTimer.setBoundTask(undefined);
+    });
+    return unsubscribe;
+  }, [flowTimer, onTaskFocusComplete, tasksRef]);
+
+  return null;
+}
+
+function TaskPomodoroBridgeWithContext({
+  flowTimer,
+}: {
+  flowTimer: ReturnType<typeof useFlowTimer>;
+}) {
+  const { tasks, updateTask } = useTasksContext();
+
+  // tasksRef 持有最新 tasks，避免 onComplete 閉包讀到舊資料
+  const tasksRef = useRef(tasks);
+  tasksRef.current = tasks;
+
+  const onTaskFocusComplete = useCallback(
+    (
+      taskId: string,
+      update: { focusMinutes: number; focusLogByDate: Record<string, number> }
+    ) => {
+      updateTask(taskId, update);
+    },
+    [updateTask]
+  );
+
+  return (
+    <TaskPomodoroBridge
+      flowTimer={flowTimer}
+      tasksRef={tasksRef}
+      onTaskFocusComplete={onTaskFocusComplete}
+    />
+  );
+}
+
+export function ZenFlowProvider({ children, omnisonicBaseUrl }: { children: React.ReactNode; omnisonicBaseUrl: string }) {  const controller = useZenFlow(omnisonicBaseUrl);
   const flowTimer = useFlowTimer();
 
   return (
@@ -161,6 +238,7 @@ export function ZenFlowProvider({ children, omnisonicBaseUrl }: { children: Reac
         />
         <TimerCompletionFeedbackBridge flowTimer={flowTimer} />
         <HabitPomodoroBridgeWithContext flowTimer={flowTimer} />
+        <TaskPomodoroBridgeWithContext flowTimer={flowTimer} />
         {children}
       </FlowTimerContext.Provider>
     </ZenFlowContext.Provider>

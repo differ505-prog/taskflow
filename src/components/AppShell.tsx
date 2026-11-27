@@ -51,6 +51,11 @@ import {
   type SmartRescheduleAssignment,
 } from "@/lib/smartReschedule";
 import { haptic } from "@/lib/haptics";
+import { useFlowTimerContext } from "@/lib/ZenFlowContext";
+import {
+  formatFocusDuration,
+  getTasksViewFocusSummary,
+} from "@/lib/pomodoroHelpers";
 import { ListIcon } from "./ListIcon";
 import { buildDeclineUpdates, DECLINE_PP } from "@/hooks/useDeclineTask";
 import { useProgressStatus } from "@/hooks/useProgressStatus";
@@ -116,6 +121,8 @@ export function AppShell({
   } = useApp();
   const router = useRouter();
   const confirm = useConfirm();
+  // 單一計時真相源：全站同時僅允許 1 顆計時器運作
+  const flowTimer = useFlowTimerContext();
   // 「加入今日」共用動作（§Sonner 固定 id + updateTask 自動 markRecentlyWritten）
   const { addToToday, dismissAddToTodayToast } = useAddToToday();
   // 🛡️ 勇敢說不 — 守住注意力的正向獎勵
@@ -446,9 +453,59 @@ export function AppShell({
   // 紅線：不呼叫 router.push / setCurrentView / order = -1 / Modal
   // 復原安全：直接呼叫 updateTask(taskId, { dueDate: undefined })，不依賴 activeTasks 閉包
 
+  // ── 任務就地番茄鐘（單一計時真相源：useFlowTimerContext）────────────
+  /** 開始某任務的番茄鐘，並記住該任務使用的分鐘數 */
+  const handleStartTaskPomodoro = useCallback(
+    (taskId: string, minutes: number) => {
+      flowTimer.start({ type: "focus", taskId, customMinutes: minutes });
+      routeUpdateTask(taskId, { pomodoroMinutes: minutes });
+      haptic("selection");
+    },
+    [flowTimer, routeUpdateTask]
+  );
+
+  const handlePauseTaskPomodoro = useCallback(() => {
+    flowTimer.pause();
+  }, [flowTimer]);
+
+  const handleResumeTaskPomodoro = useCallback(() => {
+    flowTimer.resume();
+  }, [flowTimer]);
+
+  const handleStopTaskPomodoro = useCallback(() => {
+    flowTimer.reset({ type: "focus" });
+  }, [flowTimer]);
+
+  /** 依計時器快照推導某任務的番茄膠囊狀態 */
+  const getTaskPomodoroState = useCallback(
+    (taskId: string): "idle" | "running" | "paused" | "busy-other" => {
+      const { phase, boundTaskId, pausedTarget } = flowTimer.snapshot;
+      if (phase === "running" && boundTaskId === taskId) return "running";
+      if (
+        phase === "paused" &&
+        pausedTarget?.kind === "task" &&
+        pausedTarget.id === taskId
+      ) {
+        return "paused";
+      }
+      if (phase === "running" || phase === "paused") return "busy-other";
+      return "idle";
+    },
+    [flowTimer.snapshot]
+  );
+
+  /** 任務頁頭小計：今日專注 + 歷史累計 */
+  const focusSummary = useMemo(
+    () =>
+      getTasksViewFocusSummary(
+        currentSharedListId ? sharedFilteredTasks : filteredTasks,
+        getLocalToday()
+      ),
+    [currentSharedListId, sharedFilteredTasks, filteredTasks]
+  );
+
   /** 單筆智慧排入：排到下一個最佳空檔日，附 5 秒復原 */
-  const handleSmartScheduleOne = useCallback(
-    (taskId: string) => {
+  const handleSmartScheduleOne = useCallback(    (taskId: string) => {
       const task = tasks.find((t) => t.id === taskId);
       if (!task) return;
       if (task.dueDate || task.startDate) return;
@@ -653,7 +710,7 @@ const canDrag = !currentSharedListId && !isMobile;
               {currentListId && !currentSharedListId && lists.find((l) => l.id === currentListId) && (
                 <span className="flex-shrink-0"><ListIcon icon={lists.find((l) => l.id === currentListId)!.icon} className="w-7 h-7" /></span>
               )}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-[17px] md:text-[18px] font-semibold tracking-tight" style={{ color: "var(--text-primary)" }}>
                   {currentListName}
                 </h1>
@@ -675,6 +732,36 @@ const canDrag = !currentSharedListId && !isMobile;
                   <p className="text-[12px]" style={{ color: "var(--text-tertiary)" }}>
                     {stats.today} 項今天到期
                     {stats.overdue > 0 && <span style={{ color: "var(--status-danger)" }}> · {stats.overdue} 項逾期</span>}
+                  </p>
+                )}
+                {/* 任務頁頭小計：今日專注 + 歷史累計（皆為 0 時不佔空間） */}
+                {(focusSummary.todayMinutes > 0 || focusSummary.totalMinutes > 0) && (
+                  <p
+                    className="text-[12px] inline-flex items-center gap-1 tabular-nums whitespace-nowrap"
+                    style={{ color: "var(--text-secondary)" }}
+                    aria-label={
+                      focusSummary.todayMinutes > 0
+                        ? `今日專注 ${formatFocusDuration(focusSummary.todayMinutes)}${
+                            focusSummary.totalMinutes > focusSummary.todayMinutes
+                              ? `，累計 ${formatFocusDuration(focusSummary.totalMinutes)}`
+                              : ""
+                          }`
+                        : `累計專注 ${formatFocusDuration(focusSummary.totalMinutes)}`
+                    }
+                  >
+                    <Timer className="w-3 h-3 flex-shrink-0" style={{ color: "var(--brand)" }} aria-hidden="true" />
+                    {focusSummary.todayMinutes > 0 ? (
+                      <>
+                        <span style={{ color: "var(--brand)" }}>
+                          今日專注 {formatFocusDuration(focusSummary.todayMinutes)}
+                        </span>
+                        {focusSummary.totalMinutes > focusSummary.todayMinutes && (
+                          <span>· 累計 {formatFocusDuration(focusSummary.totalMinutes)}</span>
+                        )}
+                      </>
+                    ) : (
+                      <span>累計專注 {formatFocusDuration(focusSummary.totalMinutes)}</span>
+                    )}
                   </p>
                 )}
               </div>
@@ -1257,6 +1344,12 @@ const canDrag = !currentSharedListId && !isMobile;
                                             smartScheduleLabel={inboxSmartLabel}
                                             smartScheduleTitle={inboxSmartTitle}
                                             onSmartSchedule={handleSmartScheduleOne}
+                                            pomodoroState={getTaskPomodoroState(task.id)}
+                                            pomodoroSecondsLeft={flowTimer.secondsLeft}
+                                            onStartPomodoro={handleStartTaskPomodoro}
+                                            onPausePomodoro={handlePauseTaskPomodoro}
+                                            onResumePomodoro={handleResumeTaskPomodoro}
+                                            onStopPomodoro={handleStopTaskPomodoro}
                                           />
                                         </TaskSwipeWrapper>
                                       </motion.div>
@@ -1312,6 +1405,12 @@ const canDrag = !currentSharedListId && !isMobile;
                                         smartScheduleLabel={inboxSmartLabel}
                                         smartScheduleTitle={inboxSmartTitle}
                                         onSmartSchedule={handleSmartScheduleOne}
+                                        pomodoroState={getTaskPomodoroState(task.id)}
+                                        pomodoroSecondsLeft={flowTimer.secondsLeft}
+                                        onStartPomodoro={handleStartTaskPomodoro}
+                                        onPausePomodoro={handlePauseTaskPomodoro}
+                                        onResumePomodoro={handleResumeTaskPomodoro}
+                                        onStopPomodoro={handleStopTaskPomodoro}
                                       />
                                     </TaskSwipeWrapper>
                                   </motion.div>
@@ -1399,6 +1498,12 @@ const canDrag = !currentSharedListId && !isMobile;
                                         batchSelected={!!batchSelectedIds?.has(task.id)}
                                         onLongPress={() => onEnterBatchMode?.(task.id)}
                                         onBatchToggle={() => onToggleBatchSelect?.(task.id)}
+                                        pomodoroState={getTaskPomodoroState(task.id)}
+                                        pomodoroSecondsLeft={flowTimer.secondsLeft}
+                                        onStartPomodoro={handleStartTaskPomodoro}
+                                        onPausePomodoro={handlePauseTaskPomodoro}
+                                        onResumePomodoro={handleResumeTaskPomodoro}
+                                        onStopPomodoro={handleStopTaskPomodoro}
                                       />
                                     </TaskSwipeWrapper>
                                   </motion.div>
@@ -1450,6 +1555,12 @@ const canDrag = !currentSharedListId && !isMobile;
                                     smartScheduleLabel={isPersonalInbox ? inboxSmartLabel : undefined}
                                     smartScheduleTitle={isPersonalInbox ? inboxSmartTitle : undefined}
                                     onSmartSchedule={isPersonalInbox ? handleSmartScheduleOne : undefined}
+                                    pomodoroState={getTaskPomodoroState(task.id)}
+                                    pomodoroSecondsLeft={flowTimer.secondsLeft}
+                                    onStartPomodoro={handleStartTaskPomodoro}
+                                    onPausePomodoro={handlePauseTaskPomodoro}
+                                    onResumePomodoro={handleResumeTaskPomodoro}
+                                    onStopPomodoro={handleStopTaskPomodoro}
                                   />
                                 </TaskSwipeWrapper>
                               </motion.div>
@@ -1505,6 +1616,12 @@ const canDrag = !currentSharedListId && !isMobile;
                                 smartScheduleLabel={isPersonalInbox ? inboxSmartLabel : undefined}
                                 smartScheduleTitle={isPersonalInbox ? inboxSmartTitle : undefined}
                                 onSmartSchedule={isPersonalInbox ? handleSmartScheduleOne : undefined}
+                                pomodoroState={getTaskPomodoroState(task.id)}
+                                pomodoroSecondsLeft={flowTimer.secondsLeft}
+                                onStartPomodoro={handleStartTaskPomodoro}
+                                onPausePomodoro={handlePauseTaskPomodoro}
+                                onResumePomodoro={handleResumeTaskPomodoro}
+                                onStopPomodoro={handleStopTaskPomodoro}
                               />
                             </TaskSwipeWrapper>
                           </motion.div>
@@ -1581,6 +1698,12 @@ const canDrag = !currentSharedListId && !isMobile;
                                     batchSelected={!!batchSelectedIds?.has(task.id)}
                                     onLongPress={() => onEnterBatchMode?.(task.id)}
                                     onBatchToggle={() => onToggleBatchSelect?.(task.id)}
+                                    pomodoroState={getTaskPomodoroState(task.id)}
+                                    pomodoroSecondsLeft={flowTimer.secondsLeft}
+                                    onStartPomodoro={handleStartTaskPomodoro}
+                                    onPausePomodoro={handlePauseTaskPomodoro}
+                                    onResumePomodoro={handleResumeTaskPomodoro}
+                                    onStopPomodoro={handleStopTaskPomodoro}
                                   />
                                 </TaskSwipeWrapper>
                               </motion.div>

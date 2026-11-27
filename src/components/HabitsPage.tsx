@@ -17,13 +17,13 @@ import {
   ChevronLeft,
   ChevronRight,
   CalendarDays,
-  Pause,
   Play,
   Clock,
   NotebookPen,
   Compass,
   Moon,
 } from "lucide-react";
+import { PomodoroSplitPill } from "./PomodoroSplitPill";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useRhythmSettings } from "@/hooks/useRhythmSettings";
 import { getLocalToday, toLocalDateString } from "@/lib/dateUtils";
@@ -267,9 +267,12 @@ function HabitRow({
   onUpdate,
   onRestore,
   onEdit,
-  activePomodoro,
+  pomodoroState,
+  pomodoroSecondsLeft,
   onStartPomodoro,
+  onSelectPomodoroDuration,
   onPausePomodoro,
+  onResumePomodoro,
   onStopPomodoro,
   onIncrementPomodoro,
   onDecrementPomodoro,
@@ -287,10 +290,15 @@ function HabitRow({
   onUpdate: (updates: Partial<Habit>) => void;
   onRestore?: () => void;
   onEdit: () => void;
-  /** 若此 habit 正有計時器在跑，傳入 { secondsLeft, totalSeconds }；否則 null */
-  activePomodoro?: { secondsLeft: number; totalSeconds: number } | null;
+  /** 番茄膠囊狀態：idle | running | paused | busy-other */
+  pomodoroState?: "idle" | "running" | "paused" | "busy-other";
+  /** 番茄倒數剩餘秒數 */
+  pomodoroSecondsLeft?: number;
   onStartPomodoro: (minutes: number) => void;
+  /** 僅調整記憶時長（不立即開跑） */
+  onSelectPomodoroDuration?: (minutes: number) => void;
   onPausePomodoro: () => void;
+  onResumePomodoro: () => void;
   onStopPomodoro: () => void;
   onIncrementPomodoro: () => void;
   onDecrementPomodoro: () => void;
@@ -321,6 +329,10 @@ function HabitRow({
   // 番茄單位時長：手動「+」每按一顆代表的分鐘數
   // = 該習慣「上次使用」的時長（pomodoroMinutes），未設定時預設 25（標準番茄）
   const unitMinutes = habit.pomodoroMinutes ?? 25;
+
+  // 番茄進行中（含暫停）時鎖定手動增減，避免計時與手動記錄互相覆寫
+  const isPomodoroBusy = pomodoroState === "running" || pomodoroState === "paused";
+  const isManualCounterLocked = isPomodoroBusy || isArchived;
 
   // ── 雙維度時長：今日專注 + 歷史累計 ──────────────────────────────
   // 今日專注分鐘：優先使用真實 minutes，若無則依番茄數乘算
@@ -359,10 +371,6 @@ function HabitRow({
   // 選取的不是今天時，用日期前綴避免誤導
   const isToday = date === getLocalToday();
   const durationLabel = isToday ? "今日" : `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}`;
-
-  // 計時器格式化
-  const formatSeconds = (s: number) =>
-    `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   useEffect(() => {
     setDesc(habit.description || "");
@@ -521,69 +529,20 @@ function HabitRow({
 
           {/* 🍅 Pomodoro chip 排 */}
           <div className="flex items-center gap-2 mt-2 flex-wrap">
-            {/* 時長按鈕群組 */}
-            <div className="flex items-center gap-1" role="group" aria-label="選擇專注時長">
-              {([5, 10, 25] as const).map((mins) => (
-                <button
-                  key={mins}
-                  type="button"
-                  disabled={!!activePomodoro && activePomodoro.secondsLeft > 0}
-                  onClick={() => onStartPomodoro(mins)}
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-150 disabled:cursor-not-allowed"
-                  style={{
-                    background: activePomodoro && activePomodoro.secondsLeft > 0 ? "var(--surface-hover)" : "var(--brand-tint)",
-                    color: activePomodoro && activePomodoro.secondsLeft > 0 ? "var(--text-quaternary)" : "var(--brand)",
-                    opacity: activePomodoro && activePomodoro.secondsLeft > 0 ? 0.5 : 1,
-                    // 當前番茄單位長度（手動「+」每顆代表的分鐘數）用內圈標示，
-                    // 讓用戶看得出「按這個 🍅 就會改掉手動登錄的單位時長」
-                    boxShadow: unitMinutes === mins ? "inset 0 0 0 1.5px var(--brand)" : undefined,
-                  }}
-                  title={
-                    unitMinutes === mins
-                      ? `目前每顆番茄 = ${mins} 分（點此改單位）`
-                      : `開始 ${mins} 分鐘專注（會把手動登錄單位改為 ${mins} 分）`
-                  }
-                  aria-label={
-                    unitMinutes === mins
-                      ? `開始 ${mins} 分鐘專注（目前番茄單位）`
-                      : `開始 ${mins} 分鐘專注`
-                  }
-                >
-                  🍅 {mins}
-                </button>
-              ))}
-            </div>
-
-            {/* 就地倒數顯示（僅運行中該列顯示） */}
-            {activePomodoro && activePomodoro.secondsLeft > 0 && (
-              <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-left-1 duration-200">
-                <span
-                  className="font-mono text-[13px] tabular-nums font-medium"
-                  style={{ color: "var(--text-primary)" }}
-                  aria-live="polite"
-                >
-                  {formatSeconds(activePomodoro.secondsLeft)}
-                </span>
-                <button
-                  type="button"
-                  onClick={onPausePomodoro}
-                  className="p-1 rounded-md hover:bg-[var(--hover-bg)] transition-colors"
-                  style={{ color: "var(--text-tertiary)" }}
-                  aria-label="暫停"
-                >
-                  <Pause className="w-3 h-3" />
-                </button>
-                <button
-                  type="button"
-                  onClick={onStopPomodoro}
-                  className="px-1.5 py-0.5 rounded-md text-[10px] font-medium transition-colors hover:bg-[var(--hover-bg)]"
-                  style={{ color: "var(--text-tertiary)" }}
-                  aria-label="收工（結束本次專注）"
-                >
-                  收工
-                </button>
-              </div>
-            )}
+            {/* 分裂式番茄膠囊：左半部開始、右半部選時長（統一與任務列表共用元件） */}
+            <PomodoroSplitPill
+              minutes={unitMinutes}
+              state={pomodoroState ?? "idle"}
+              secondsLeft={pomodoroSecondsLeft}
+              revealOnGroupHover={false}
+              disabled={isArchived}
+              onStart={(mins) => onStartPomodoro(mins)}
+              onSelectDuration={(mins) => onSelectPomodoroDuration?.(mins)}
+              onPause={onPausePomodoro}
+              onResume={onResumePomodoro}
+              onStop={onStopPomodoro}
+              itemLabel={habit.title}
+            />
 
             {/* ── 手動登錄計數器 ──────────────────────────── */}
             <div
@@ -596,11 +555,11 @@ function HabitRow({
                 <button
                   type="button"
                   onClick={onDecrementPomodoro}
-                  disabled={!!activePomodoro && activePomodoro.secondsLeft > 0}
+                  disabled={isManualCounterLocked}
                   className="w-6 h-6 flex items-center justify-center rounded-md text-[13px] font-medium transition-all duration-150 disabled:cursor-not-allowed hover:bg-[var(--hover-bg)]"
                   style={{
                     color: "var(--text-tertiary)",
-                    opacity: activePomodoro && activePomodoro.secondsLeft > 0 ? 0.4 : 1,
+                    opacity: isManualCounterLocked ? 0.4 : 1,
                   }}
                   aria-label={`移除 1 個番茄（目前 ${todayPoms} 個，每顆 ${unitMinutes} 分）`}
                   title={`移除 1 個番茄（−${unitMinutes} 分）`}
@@ -624,12 +583,12 @@ function HabitRow({
               <button
                 type="button"
                 onClick={onIncrementPomodoro}
-                disabled={!!activePomodoro && activePomodoro.secondsLeft > 0}
+                disabled={isManualCounterLocked}
                 className="w-6 h-6 flex items-center justify-center rounded-md text-[14px] font-medium transition-all duration-150 disabled:cursor-not-allowed"
                 style={{
                   color: "var(--brand)",
                   background: "var(--brand-tint)",
-                  opacity: activePomodoro && activePomodoro.secondsLeft > 0 ? 0.4 : 1,
+                  opacity: isManualCounterLocked ? 0.4 : 1,
                 }}
                 aria-label={`記錄 1 個番茄（目前 ${todayPoms} 個，每顆 ${unitMinutes} 分）`}
                 title={`手動記錄 1 個番茄（+${unitMinutes} 分）`}
@@ -1120,11 +1079,6 @@ export function HabitsPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
-  const [activeHabitTimer, setActiveHabitTimer] = useState<{
-    habitId: string;
-    secondsLeft: number;
-    totalSeconds: number;
-  } | null>(null);
   const [form, setForm] = useState<HabitFormData>({
     title: "",
     frequency: "daily",
@@ -1138,19 +1092,28 @@ export function HabitsPage() {
   // ── Pomodoro ↔ Habit 同步 ────────────────────────────────────
   const flowTimer = useFlowTimerContext();
 
-  useEffect(() => {
-    const { boundHabitId, phase, totalMs } = flowTimer.snapshot;
-    const { secondsLeft } = flowTimer;
-    if (phase === "running" && boundHabitId) {
-      setActiveHabitTimer({
-        habitId: boundHabitId,
-        secondsLeft,
-        totalSeconds: Math.floor(totalMs / 1000),
-      });
-    } else if (phase !== "running") {
-      setActiveHabitTimer(null);
-    }
-  }, [flowTimer, flowTimer.snapshot, flowTimer.secondsLeft]);
+  /**
+   * 番茄膠囊狀態映射
+   * - running：本習慣正在計時
+   * - paused：本習慣被暫停（可續跑）
+   * - busy-other：其他項目正在計時（本列不可開跑）
+   */
+  const getHabitPomodoroState = useCallback(
+    (habitId: string): "idle" | "running" | "paused" | "busy-other" => {
+      const { phase, boundHabitId, pausedTarget } = flowTimer.snapshot;
+      if (phase === "running" && boundHabitId === habitId) return "running";
+      if (
+        phase === "paused" &&
+        pausedTarget?.kind === "habit" &&
+        pausedTarget.id === habitId
+      ) {
+        return "paused";
+      }
+      if (phase === "running" || phase === "paused") return "busy-other";
+      return "idle";
+    },
+    [flowTimer.snapshot]
+  );
 
   const handleStartPomodoro = useCallback(
     (habitId: string, minutes: number) => {
@@ -1161,13 +1124,22 @@ export function HabitsPage() {
     [flowTimer, updateHabit]
   );
 
+  /** 僅調整習慣記憶的番茄單位（不立即開跑） */
+  const handleSelectPomodoroDuration = useCallback(
+    (habitId: string, minutes: number) => updateHabit(habitId, { pomodoroMinutes: minutes }),
+    [updateHabit]
+  );
+
   const handlePausePomodoro = useCallback(() => {
     flowTimer.pause();
   }, [flowTimer]);
 
+  const handleResumePomodoro = useCallback(() => {
+    flowTimer.resume();
+  }, [flowTimer]);
+
   const handleStopPomodoro = useCallback(() => {
     flowTimer.reset({ type: "focus" });
-    setActiveHabitTimer(null);
   }, [flowTimer]);
 
   const handleIncrementPomodoro = useCallback(
@@ -1815,13 +1787,12 @@ export function HabitsPage() {
                   onUpdate={(updates) => updateHabit(habit.id, updates)}
                   onRestore={showArchived ? () => unarchiveHabit(habit.id) : undefined}
                   onEdit={() => openEditForm(habit)}
-                  activePomodoro={
-                    activeHabitTimer?.habitId === habit.id
-                      ? { secondsLeft: activeHabitTimer.secondsLeft, totalSeconds: activeHabitTimer.totalSeconds }
-                      : null
-                  }
+                  pomodoroState={getHabitPomodoroState(habit.id)}
+                  pomodoroSecondsLeft={flowTimer.secondsLeft}
                   onStartPomodoro={(mins) => handleStartPomodoro(habit.id, mins)}
+                  onSelectPomodoroDuration={(mins) => handleSelectPomodoroDuration(habit.id, mins)}
                   onPausePomodoro={handlePausePomodoro}
+                  onResumePomodoro={handleResumePomodoro}
                   onStopPomodoro={handleStopPomodoro}
                   onIncrementPomodoro={() => handleIncrementPomodoro(habit.id)}
                   onDecrementPomodoro={() => handleDecrementPomodoro(habit.id)}

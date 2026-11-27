@@ -173,3 +173,130 @@ describe("useFlowTimer — 習慣番茄綁定入帳", () => {
     unmount();
   });
 });
+
+describe("useFlowTimer — 任務番茄綁定與任務／習慣互斥", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("focus session 完成時，snapshot 帶有啟動時綁定的 taskId 與正確總長", () => {
+    const { harness, unmount } = mountTimer();
+
+    act(() => {
+      harness.controller.start({ type: "focus", taskId: "task-1", customMinutes: 15 });
+    });
+    act(() => {
+      vi.advanceTimersByTime(15 * 60 * 1000 + 500);
+    });
+
+    expect(harness.snapshots.length).toBe(1);
+    expect(harness.snapshots[0].boundTaskId).toBe("task-1");
+    expect(harness.snapshots[0].totalMs).toBe(15 * 60 * 1000);
+
+    unmount();
+  });
+
+  it("任務計時 pause() 後 snapshot.pausedTarget 為 task，resume() 後完成仍帶回 taskId", () => {
+    const { harness, unmount } = mountTimer();
+
+    act(() => {
+      harness.controller.start({ type: "focus", taskId: "task-1", customMinutes: 15 });
+    });
+    act(() => {
+      vi.advanceTimersByTime(2 * 60 * 1000);
+    });
+    act(() => {
+      harness.controller.pause();
+    });
+
+    expect(harness.controller.snapshot.phase).toBe("paused");
+    expect(harness.controller.snapshot.pausedTarget).toEqual({
+      kind: "task",
+      id: "task-1",
+    });
+
+    act(() => {
+      harness.controller.resume();
+    });
+    act(() => {
+      vi.advanceTimersByTime(13 * 60 * 1000 + 500);
+    });
+
+    expect(harness.snapshots.length).toBe(1);
+    expect(harness.snapshots[0].boundTaskId).toBe("task-1");
+
+    unmount();
+  });
+
+  it("任務與習慣互斥：先跑習慣再啟動任務，完成時不會帶到習慣綁定", () => {
+    const { harness, unmount } = mountTimer();
+
+    act(() => {
+      harness.controller.start({ type: "focus", habitId: "h-1", customMinutes: 5 });
+    });
+    act(() => {
+      harness.controller.start({ type: "focus", taskId: "t-1", customMinutes: 5 });
+    });
+    act(() => {
+      vi.advanceTimersByTime(5 * 60 * 1000 + 500);
+    });
+
+    expect(harness.snapshots.length).toBe(1);
+    expect(harness.snapshots[0].boundHabitId).toBeUndefined();
+    expect(harness.snapshots[0].boundTaskId).toBe("t-1");
+
+    unmount();
+  });
+
+  it("任務與習慣互斥：先跑任務再啟動習慣，完成時不會帶到任務綁定", () => {
+    const { harness, unmount } = mountTimer();
+
+    act(() => {
+      harness.controller.start({ type: "focus", taskId: "t-1", customMinutes: 5 });
+    });
+    act(() => {
+      harness.controller.start({ type: "focus", habitId: "h-1", customMinutes: 5 });
+    });
+    act(() => {
+      vi.advanceTimersByTime(5 * 60 * 1000 + 500);
+    });
+
+    expect(harness.snapshots.length).toBe(1);
+    expect(harness.snapshots[0].boundTaskId).toBeUndefined();
+    expect(harness.snapshots[0].boundHabitId).toBe("h-1");
+
+    unmount();
+  });
+
+  it("reset() 會清除 boundTaskId 與 pausedTarget", () => {
+    const { harness, unmount } = mountTimer();
+
+    act(() => {
+      harness.controller.start({ type: "focus", taskId: "task-1", customMinutes: 15 });
+    });
+    act(() => {
+      vi.advanceTimersByTime(60 * 1000);
+    });
+    act(() => {
+      harness.controller.pause();
+    });
+    expect(harness.controller.snapshot.pausedTarget).toEqual({
+      kind: "task",
+      id: "task-1",
+    });
+
+    act(() => {
+      harness.controller.reset({ type: "focus" });
+    });
+
+    expect(harness.controller.snapshot.boundTaskId).toBeUndefined();
+    expect(harness.controller.snapshot.pausedTarget).toBeUndefined();
+    expect(harness.controller.snapshot.phase).toBe("idle");
+
+    unmount();
+  });
+});

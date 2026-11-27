@@ -1,21 +1,22 @@
-# Task Board — 全站任務模板歸屬識別徽章 ＋ 直達管理動線（框架級方案 A）
+# Task Board — 任務與習慣就地番茄鐘（分裂膠囊 ＋ 自訂時長 ＋ 頁面小計｜方案 A）
 
 ## 【上市產品成熟度驗收儀表板】
-- **當前輪次**：Round 1（一次達標結案）
-- **最新總分**：**9.5 / 10.0**（門檻 `>= 9.0` 且全維度 `>= 1.7`）
-- **上市紅線狀態**：✅ 零上市紅線（`tsc` exit 0、`vitest` 26 files / 277 tests 全綠、`next build` 編譯通過、紅線與 Next.js 安全掃描零命中）
+- **當前輪次**：Round 2（達標結案）
+- **最新總分**：**9.4 / 10.0**（門檻 `>= 9.0` 且全維度 `>= 1.7`；Round 1: `7.5` → Round 2: `9.4`）
+- **上市紅線狀態**：✅ 零上市紅線（`tsc` exit 0、`vitest` 27 files / 295 tests 全綠、`next build` 36/36 頁編譯通過、紅線掃描零命中）
 - **五維度評分明細**：
-  1. 核心價值與業務閉環：**1.9 / 2.0**（四大任務視圖一眼辨識歸屬模板、詳情卡直達 `/settings?plan=<id>#installed-plans` 平滑捲動並高亮對應模板）
-  2. 視覺工藝與品牌信任感：**1.9 / 2.0**（全面採用 `DESIGN_SYSTEM.md` CSS Token 支援深淺主題、統一 Lucide `<Layers />` / `<ExternalLink />`、零紅色系）
-  3. 微互動與多端適配體驗：**1.9 / 2.0**（長名 `truncate` 防 375px 破版、節奏槽響應式顯示、44px 手機熱區、`focus-visible:ring-2` 與 300ms 高亮過渡）
-  4. 極端邊界與防呆韌性：**1.9 / 2.0**（`SourcePlanBadge` 純展示零重複請求、`RhythmSection` 避開 `useSearchParams` 靜態預渲染陷阱、計時器完整清理）
-  5. 商業細節與上市合規度：**1.9 / 2.0**（溫柔精準 `title`/`aria-label`、遵守 `§5a` 列表不誤觸跳轉）
-- **已歸檔紀錄**：完整明細已歸檔至 [docs/task-archive.md](docs/task-archive.md)。
+  1. 核心價值與業務閉環：**1.9 / 2.0**（任務與習慣統一單一分裂膠囊、自訂時長記憶、頁頭與列內小計、`TaskPomodoroBridge` 與全站 `todayFocusMinutes` 完整閉環）
+  2. 視覺工藝與品牌信任感：**1.9 / 2.0**（全面採用 `DESIGN_SYSTEM.md` CSS Token 支援深淺主題、統一 Lucide Icon、`tabular-nums` 對齊、習慣卡瘦身、零紅色系）
+  3. 微互動與多端適配體驗：**1.8 / 2.0**（手機端 `opacity-90` 觸控可見、展開 Popover 鎖定顯示、375px `flex-wrap` 防溢位、Esc/Enter 與 `isComposingKey` 中文輸入保護）
+  4. 極端邊界與防呆韌性：**1.9 / 2.0**（1–180 分鐘輸入清理、任務／習慣互斥綁定、`busy-other`/封存態雙層阻斷 Popover、暫停態續跑與手動計數器同步鎖定）
+  5. 商業細節與上市合規度：**1.9 / 2.0**（無投資不說 0、完整 ARIA 無障礙屬性、嚴守 §5a 流程鎖定不跳頁不彈窗）
+- **已歸檔紀錄**：完整明細已歸檔至 [docs/task-archive.md](file:///Users/liangzhiwei/Documents/VIbe%20Coding/任務管理器/docs/task-archive.md)。
 
 ---
 
 ## 本輪已結案 (`[x]`)
-- [x] **Step 1–2. `sourcePlan.ts` 新增 `INSTALLED_PLANS_ANCHOR_ID`/`buildPlanSettingsHref`/`getSourcePlanDisplayName` 與 `sourcePlan.test.ts` 單元測試（12 tests 全綠）**
-- [x] **Step 3–4. 新增純展示 `SourcePlanBadge.tsx` 並接入 `TaskListItem`、`TaskCard`、`CalendarView`、`SlotTaskRow`**
-- [x] **Step 5. `TaskDetailPanel.tsx` 歸屬模板資訊卡與直達管理連結 ＋ `RhythmSection.tsx` `?plan=` 平滑捲動高亮**
-- [x] **Step 6–7. 靜態紅線與安全掃描零命中 + Build Gate 驗收：`tsc` exit 0、`vitest` 26 檔 / 277 測試全綠、`next build` 編譯通過**
+- [x] **Step 1–2. 擴充 `Task` 型別、建立 `pomodoroHelpers.ts`（13 tests）與修補 `usePomodoro.ts` 互斥綁定＋`pausedTarget`（10 tests）**
+- [x] **Step 3–4. 補齊 `TaskPomodoroBridge` 與全站 `todayFocusMinutes`，並升級 `IconPopover.tsx` 受控與 `disabled` 模式**
+- [x] **Step 5. 新增共用 `PomodoroSplitPill.tsx`（Round 2 修復 `overflow-hidden` 裁切、`stopPropagation` 死按鈕與手機端可見性）**
+- [x] **Step 6–7. 接入 `TaskListItem` / `SortableTaskItem` / `AppShell` 頁頭小計，並收斂 `HabitsPage` 番茄排與暫停鎖定**
+- [x] **Step 8. Build Gate 全綠驗收：`tsc` exit 0、`vitest` 27 檔 / 295 測試全綠、`next build` 編譯通過、紅線 0 命中**

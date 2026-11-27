@@ -8,7 +8,7 @@ import { Clock } from "lucide-react";
 import { getDeadlineStatus } from "@/lib/deadlineEngine";
 import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, GripVertical, ListChecks,
-  Trash2, ShieldCheck, Sparkles, Calendar,
+  Trash2, ShieldCheck, Sparkles, Calendar, Timer,
 } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -51,6 +51,18 @@ interface TaskListItemProps {
   smartScheduleTitle?: string;
   /** 點擊單筆智慧排程回呼（不跳頁、不開彈窗） */
   onSmartSchedule?: (taskId: string) => void;
+  /** 番茄鐘狀態：idle=待機 | running=本列計時中 | paused=本列暫停中 | busy-other=其他項目計時中 */
+  pomodoroState?: "idle" | "running" | "paused" | "busy-other";
+  /** 番茄鐘剩餘秒數（running / paused 時顯示） */
+  pomodoroSecondsLeft?: number;
+  /** 開始該任務的番茄鐘 */
+  onStartPomodoro?: (taskId: string, minutes: number) => void;
+  /** 暫停番茄鐘 */
+  onPausePomodoro?: () => void;
+  /** 繼續番茄鐘 */
+  onResumePomodoro?: () => void;
+  /** 收工（結束本次番茄鐘） */
+  onStopPomodoro?: () => void;
 }
 
 import { sortSubTasks } from "@/utils/subtaskSort";
@@ -60,6 +72,8 @@ import { useAuth } from "@/lib/AuthContext";
 import { ProGhostButton } from "./ProGhostButton";
 import { AddToTodayButton } from "./AddToTodayButton";
 import { canDeclineTask } from "@/hooks/useDeclineTask";
+import { PomodoroSplitPill } from "./PomodoroSplitPill";
+import { DEFAULT_POMODORO_MINUTES, getTaskTodayFocusMinutes } from "@/lib/pomodoroHelpers";
 
 export function TaskListItem({
   task,
@@ -85,6 +99,12 @@ export function TaskListItem({
   smartScheduleLabel,
   smartScheduleTitle,
   onSmartSchedule,
+  pomodoroState,
+  pomodoroSecondsLeft,
+  onStartPomodoro,
+  onPausePomodoro,
+  onResumePomodoro,
+  onStopPomodoro,
 }: TaskListItemProps) {
   // O-007：sortable 拖曳狀態
   // sortable.attributes：aria-*、role、tabIndex（給 KeyboardSensor 用）
@@ -110,6 +130,12 @@ export function TaskListItem({
     if (isDone || deadlineStatus) return null;
     return formatTaskScheduleChip(task, getLocalToday());
   }, [isDone, deadlineStatus, task]);
+
+  // 累計／今日專注分鐘（低調膠囊顯示）
+  const todayFocusMinutesOfTask = useMemo(
+    () => getTaskTodayFocusMinutes(task, getLocalToday()),
+    [task]
+  );
   const { isAdmin, isPro, isBeta } = useAuth();
   const dominoUnlocked = isAdmin || isPro || isBeta;
 
@@ -282,6 +308,20 @@ export function TaskListItem({
             {onAddToToday && !isDone && (
               <AddToTodayButton onAddToToday={() => onAddToToday(task.id)} label={addToTodayLabel} />
             )}
+            {/* 任務就地番茄鐘：分裂膠囊（不跳頁、不搶焦點、不開彈窗） */}
+            {!isDone && !batchMode && onStartPomodoro && (
+              <PomodoroSplitPill
+                minutes={task.pomodoroMinutes ?? DEFAULT_POMODORO_MINUTES}
+                state={pomodoroState ?? "idle"}
+                secondsLeft={pomodoroSecondsLeft}
+                revealOnGroupHover
+                onStart={(mins) => onStartPomodoro(task.id, mins)}
+                onPause={() => onPausePomodoro?.()}
+                onResume={() => onResumePomodoro?.()}
+                onStop={() => onStopPomodoro?.()}
+                itemLabel={task.title}
+              />
+            )}
             {onDelete && (
               <button
                 onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
@@ -318,7 +358,7 @@ export function TaskListItem({
         </div>
 
         {/* Meta 列：截止警示 / 靜態日期標籤 / 歸屬模板徽章 */}
-        {(deadlineStatus || staticScheduleChip || task.sourcePlan) && (
+        {(deadlineStatus || staticScheduleChip || task.sourcePlan || task.focusMinutes > 0) && (
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             {deadlineStatus && (
               <div
@@ -346,6 +386,20 @@ export function TaskListItem({
               </div>
             )}
             <SourcePlanBadge sourcePlan={task.sourcePlan} />
+            {task.focusMinutes > 0 && (
+              <div
+                className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md tabular-nums"
+                style={{
+                  background: "var(--surface-muted)",
+                  color: "var(--text-tertiary)",
+                }}
+                title={`累計專注 ${task.focusMinutes} 分 · 今日專注 ${todayFocusMinutesOfTask} 分`}
+                aria-label={`累計專注 ${task.focusMinutes} 分，今日專注 ${todayFocusMinutesOfTask} 分`}
+              >
+                <Timer className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+                <span>{task.focusMinutes}m</span>
+              </div>
+            )}
           </div>
         )}
 

@@ -52,7 +52,6 @@ import {
   saveHabits,
   isHabitRecord,
   initDefaultLists,
-  getTodayFocusMinutes,
   SharedListData,
   getSharedLists,
   deduplicateSharedLists,
@@ -97,6 +96,9 @@ import { HabitsProvider, useHabitsContext } from "./HabitsProvider";
 import { SharedListsProvider, useSharedListsContext } from "./SharedListsProvider";
 import { useTasksContext } from "./TasksProvider";
 import { useListsContext } from "./ListsProvider";
+import { getCheckinMinutes } from "@/lib/habitBalance";
+import { getLocalToday } from "@/lib/dateUtils";
+import { getTaskTodayFocusMinutes } from "@/lib/pomodoroHelpers";
 
 const log = appContextLog("AppProvider");
 
@@ -113,7 +115,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [lists, setLists] = useState<TaskList[]>([]);
   const [habits, setHabits] = useState<Habit[]>([]);
-  const [todayFocusMinutes, setTodayFocusMinutes] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<TaskFilter>({});
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "default">("default");
@@ -241,7 +242,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTasks(localTasks);
     log.sync(`APP INIT localStorage tasks=${localTasks.length} user=${user?.uid ?? "null"}`);
     setHabits(getHabits());
-    setTodayFocusMinutes(getTodayFocusMinutes());
     const removed = deduplicateSharedLists();
     if (removed > 0) {
       void fetch("/api/push/test-self", { method: "POST" }).catch(() => {});
@@ -636,6 +636,26 @@ export function useApp(): AppContextValue {
   const { user } = useAuth();
   const { selectedTaskId, setSelectedTaskId } = useSelectedTaskIdContext();
 
+  // 今日累計專注分鐘數（任務端 + 習慣端）
+  // 任務端：所有未封存任務的 focusLogByDate[today] 總和
+  // 習慣端：所有未封存習慣今日 checkin 的實際分鐘（優先真實 minutes，否則番茄數 × 單位時長）總和
+  const todayFocusMinutes = useMemo(() => {
+    const today = getLocalToday();
+
+    const taskMinutes = tasksCtx.tasks
+      .filter((t) => !t.isArchived)
+      .reduce((sum, t) => sum + getTaskTodayFocusMinutes(t, today), 0);
+
+    const habitMinutes = habitsCtx.habits
+      .filter((h) => !h.archivedAt)
+      .reduce((sum, h) => {
+        const checkin = h.checkins?.find((c) => c.date === today);
+        return sum + getCheckinMinutes(checkin, h.pomodoroMinutes ?? 25);
+      }, 0);
+
+    return taskMinutes + habitMinutes;
+  }, [tasksCtx.tasks, habitsCtx.habits]);
+
   const quickAdd = useCallback(
     (input: string, opts?: { listId?: string; defaultDueDate?: string; currentView?: string }): string | null => {
       const parsed = parseNaturalLanguage(input);
@@ -684,7 +704,7 @@ export function useApp(): AppContextValue {
       tasks: tasksCtx.tasks,
       lists: listsCtx.lists,
       habits: habitsCtx.habits,
-      todayFocusMinutes: 0,
+      todayFocusMinutes,
       isAppReady: true,
       tasksInitialized: true,
       forceReload: () => {},

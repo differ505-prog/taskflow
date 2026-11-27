@@ -188,7 +188,9 @@ export interface Task {
   isArchived: boolean;
   isPinned?: boolean; // 置頂（全域排序加權）
   completedAt?: string; // ISO datetime，任務被標記為完成時的時間戳
-  focusMinutes: number; // total FlowTimer minutes logged
+  focusMinutes: number;
+  pomodoroMinutes?: number; // 記住該任務上次使用的番茄時長（分鐘）
+  focusLogByDate?: Record<string, number>; // YYYY-MM-DD -> 該日累計專注分鐘數 // total FlowTimer minutes logged
   outputTarget?: { count: number; unit: string }; // 產出目標，如 5 張圖；undefined = 未啟用
   outputCount?: number; // 已累積產出（預設 0）
   durationMinutes?: number; // 時段長度（分鐘）；與 dueTime 搭配形成「幾點到幾點」；undefined = 只知道開始時刻

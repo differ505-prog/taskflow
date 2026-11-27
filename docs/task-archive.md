@@ -56,3 +56,13 @@
 - [x] **Step 4. 四大任務視圖接入 `SourcePlanBadge`**：`TaskListItem.tsx`（合併單一 Meta 列）、`TaskCard.tsx`、`CalendarView.tsx`、`SlotTaskRow.tsx`
 - [x] **Step 5. `TaskDetailPanel.tsx` & `RhythmSection.tsx`**：詳情面板顯示「歸屬模板」資訊卡與 44px「管理 / 關閉」直達連結；設定頁 `#installed-plans` 支援 `?plan=` client-side 安全平滑捲動與 4 秒 `var(--brand)` 高亮
 - [x] **Step 6–7. 靜態紅線與 Next.js 安全掃描零違規 + Build Gate 驗收**：`tsc` exit 0、`vitest` 26 files / 277 tests 全綠、`next build` 編譯通過
+
+## 任務與習慣就地番茄鐘（分裂膠囊 ＋ 自訂時長 ＋ 頁面小計｜方案 A）已驗收歸檔（2026-11-27｜Round 1: 7.5 -> Round 2 驗收通過 9.4 / 10.0）
+- [x] **Step 1. 擴充 `Task`（`pomodoroMinutes`/`focusLogByDate`）與新建 `src/lib/pomodoroHelpers.ts` + `pomodoroHelpers.test.ts`（13 tests 全綠）**
+- [x] **Step 2. 修補 `src/lib/usePomodoro.ts` 任務／習慣互斥綁定與 `pausedTarget` 暫停續跑暴露 + `usePomodoro.test.ts`（10 tests 全綠）**
+- [x] **Step 3. 補齊 `TaskPomodoroBridge`（`src/lib/ZenFlowProvider.tsx`）與動態全站 `todayFocusMinutes`（`src/lib/AppContextInternal/provider.tsx`）**
+- [x] **Step 4. `src/components/IconPopover.tsx` 支援受控 `open`/`onOpenChange` 與 `disabled` 阻斷模式（向後相容）**
+- [x] **Step 5. 新增共用分裂膠囊 `src/components/PomodoroSplitPill.tsx`（4 快捷＋自訂輸入、IME 保護、零紅字、手機 `opacity-90` 可見、修復 `overflow-hidden` 與 `stopPropagation` 死按鈕）**
+- [x] **Step 6. 接入 `src/components/TaskListItem.tsx` / `SortableTaskItem.tsx` / `AppShell.tsx`（每列分裂膠囊、累計專注徽章、頁頭小計與 375px `flex-wrap`＋零「0 分」文案）**
+- [x] **Step 7. `src/components/HabitsPage.tsx` 收斂番茄排為 `PomodoroSplitPill` 並鎖定暫停態手動 `−/+` 計數器**
+- [x] **Step 8. Build Gate 驗收：紅線掃描 0 命中、`tsc` exit 0、`vitest` 27 files / 295 tests 全綠、`next build` 36/36 頁編譯通過**
