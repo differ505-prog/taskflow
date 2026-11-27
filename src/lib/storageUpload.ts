@@ -84,6 +84,15 @@ export function getFileType(mimeType: string): "image" | "file" {
   return IMAGE_MIME_TYPES.includes(mimeType) ? "image" : "file";
 }
 
+/** 判斷附件是否為圖片（相容舊版 mime-type 字串或新版 "image"） */
+export function isImageAttachment(attachment: Pick<Attachment, "type" | "mimeType">): boolean {
+  return (
+    attachment.type === "image" ||
+    Boolean(attachment.type && (attachment.type as string).startsWith("image/")) ||
+    Boolean(attachment.mimeType?.startsWith("image/"))
+  );
+}
+
 /**
  * 驗證檔案類型
  */

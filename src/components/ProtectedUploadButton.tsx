@@ -3,10 +3,11 @@
 import { useRef, useState, useCallback } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { Attachment } from "@/lib/types";
-import { Upload, Lock, AlertCircle, CheckCircle2, X, Image, FileText, Loader2 } from "lucide-react";
+import { Upload, Lock, AlertCircle, CheckCircle2, X, Image, FileText, Loader2, Maximize2 } from "lucide-react";
 import { toast } from "sonner";
-import { uploadFile, formatFileSize, getFileIcon, UploadProgress } from "@/lib/storageUpload";
+import { uploadFile, formatFileSize, getFileIcon, isImageAttachment, UploadProgress } from "@/lib/storageUpload";
 import { track } from "@/lib/analytics";
+import { ImageLightboxModal, type LightboxImageItem } from "@/components/ImageLightboxModal";
 
 interface UploadItem {
   id: string;
@@ -44,6 +45,7 @@ export function ProtectedUploadButton({
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Free 用戶：完全不顯示上傳按鈕
@@ -275,21 +277,41 @@ export function ProtectedUploadButton({
       )}
 
       {/* Completed Attachments */}
-      {allAttachments.length > 0 && (
-        <div className="space-y-2">
-          {allAttachments.map((attachment) => (
-            <AttachmentItem
-              key={attachment.id}
-              attachment={attachment}
-              onRemove={
-                onRemoveAttachment
-                  ? () => onRemoveAttachment(attachment)
-                  : undefined
-              }
+      {allAttachments.length > 0 && (() => {
+        const imageAttachments: LightboxImageItem[] = allAttachments
+          .filter((a) => isImageAttachment(a))
+          .map((a) => ({ id: a.id, name: a.name, url: a.url, size: a.size }));
+
+        return (
+          <>
+            <div className="space-y-2">
+              {allAttachments.map((attachment) => {
+                const imgIdx = imageAttachments.findIndex((img) => img.id === attachment.id);
+                return (
+                  <AttachmentItem
+                    key={attachment.id}
+                    attachment={attachment}
+                    onPreviewImage={
+                      imgIdx !== -1 ? () => setLightboxIndex(imgIdx) : undefined
+                    }
+                    onRemove={
+                      onRemoveAttachment
+                        ? () => onRemoveAttachment(attachment)
+                        : undefined
+                    }
+                  />
+                );
+              })}
+            </div>
+            <ImageLightboxModal
+              images={imageAttachments}
+              initialIndex={lightboxIndex ?? 0}
+              open={lightboxIndex !== null}
+              onClose={() => setLightboxIndex(null)}
             />
-          ))}
-        </div>
-      )}
+          </>
+        );
+      })()}
     </div>
   );
 }
@@ -300,11 +322,12 @@ export function ProtectedUploadButton({
 interface AttachmentItemProps {
   attachment: Attachment;
   onRemove?: () => void;
+  onPreviewImage?: () => void;
   compact?: boolean;
 }
 
-export function AttachmentItem({ attachment, onRemove, compact = false }: AttachmentItemProps) {
-  const isImage = attachment.type === "image";
+export function AttachmentItem({ attachment, onRemove, onPreviewImage, compact = false }: AttachmentItemProps) {
+  const isImage = isImageAttachment(attachment);
 
   if (compact) {
     // 緊湊模式：用於 TaskCard 預覽
@@ -332,69 +355,77 @@ export function AttachmentItem({ attachment, onRemove, compact = false }: Attach
     );
   }
 
-  // 完整模式：用於 TaskForm
+  const handleOpenPreview = () => {
+    if (isImage && onPreviewImage) {
+      onPreviewImage();
+    } else {
+      window.open(attachment.url, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  // 完整模式：點擊縮圖或列即可原地開燈箱看圖
   return (
     <div
-      className="flex items-center gap-3 p-3 rounded-xl transition-colors group"
-      style={{ background: "var(--surface-muted)" }}
+      className="flex items-center gap-3 p-2.5 rounded-xl transition-colors group border"
+      style={{ background: "var(--surface)", borderColor: "var(--border)" }}
     >
-      {/* 縮略圖或圖標 */}
-      <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0"
-        style={{ background: "var(--surface-elevated)" }}>
-        {isImage ? (
-          <img
-            src={attachment.url}
-            alt={attachment.name}
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect fill='%23e5e7eb' width='24' height='24'/%3E%3Ctext x='12' y='16' text-anchor='middle' font-size='8' fill='%239ca3af'%3E?%3C/text%3E%3C/svg%3E";
-            }}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="text-2xl">{getFileIcon(attachment.mimeType)}</span>
-          </div>
-        )}
-      </div>
-
-      {/* 文件資訊 */}
-      <div className="flex-1 min-w-0">
-        <p className="text-[13px] font-medium truncate" style={{ color: "var(--text-primary)" }}>
-          {attachment.name}
-        </p>
-        <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
-          {formatFileSize(attachment.size)}
-        </p>
-      </div>
-
-      {/* 操作按鈕 */}
-      <div className="flex items-center gap-1">
-        <a
-          href={attachment.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="p-2 rounded-lg sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-black/5"
-          style={{ color: "var(--text-tertiary)" }}
-          title="預覽"
+      <button
+        type="button"
+        onClick={handleOpenPreview}
+        className="flex items-center gap-3 flex-1 min-w-0 text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
+        title={isImage ? "點擊放大看圖" : "點擊開啟檔案"}
+      >
+        {/* 縮略圖或圖標 */}
+        <div
+          className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0"
+          style={{ background: "var(--surface-muted)" }}
         >
           {isImage ? (
-            <Image className="w-4 h-4" />
+            <>
+              <img
+                src={attachment.url}
+                alt={attachment.name}
+                className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect fill='%23e5e7eb' width='24' height='24'/%3E%3Ctext x='12' y='16' text-anchor='middle' font-size='8' fill='%239ca3af'%3E?%3C/text%3E%3C/svg%3E";
+                }}
+              />
+              <span className="absolute right-0.5 bottom-0.5 w-4 h-4 rounded bg-black/55 text-white flex items-center justify-center">
+                <Maximize2 className="w-2.5 h-2.5" aria-hidden="true" />
+              </span>
+            </>
           ) : (
-            <FileText className="w-4 h-4" />
+            <div className="w-full h-full flex items-center justify-center">
+              <span className="text-2xl">{getFileIcon(attachment.mimeType)}</span>
+            </div>
           )}
-        </a>
-        {onRemove && (
-          <button
-            onClick={onRemove}
-            className="p-2 rounded-lg sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-red-50"
-            style={{ color: "var(--status-danger)" }}
-            title="移除檔案"
-            aria-label="移除檔案"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
-      </div>
+        </div>
+
+        {/* 文件資訊 */}
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-medium truncate" style={{ color: "var(--text-primary)" }}>
+            {attachment.name}
+          </p>
+          <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+            {formatFileSize(attachment.size)}
+            {isImage ? " · 點擊放大" : ""}
+          </p>
+        </div>
+      </button>
+
+      {/* 移除按鈕（手機與桌面皆可見，避免 hover-only 找不到） */}
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="p-2 rounded-lg opacity-70 hover:opacity-100 transition-opacity hover:bg-red-50 flex-shrink-0"
+          style={{ color: "var(--status-danger)" }}
+          title="移除檔案"
+          aria-label="移除檔案"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
     </div>
   );
 }

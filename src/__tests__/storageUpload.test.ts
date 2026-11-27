@@ -3,6 +3,7 @@ import {
   resolveFileMimeType,
   isAllowedFileType,
   getFileType,
+  isImageAttachment,
   formatFileSize,
 } from "@/lib/storageUpload";
 
@@ -29,5 +30,11 @@ describe("storageUpload helpers", () => {
     expect(formatFileSize(0)).toBe("0 B");
     expect(formatFileSize(1024)).toBe("1 KB");
     expect(formatFileSize(1024 * 1024 * 2.5)).toBe("2.5 MB");
+  });
+
+  it("detects image attachments for both Attachment.type and legacy mime strings", () => {
+    expect(isImageAttachment({ type: "image", mimeType: "image/png" })).toBe(true);
+    expect(isImageAttachment({ type: "file", mimeType: "image/jpeg" })).toBe(true);
+    expect(isImageAttachment({ type: "file", mimeType: "application/pdf" })).toBe(false);
   });
 });

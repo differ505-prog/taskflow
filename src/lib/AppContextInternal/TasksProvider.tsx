@@ -15,6 +15,7 @@ import {
   AppView,
   TaskFilter,
   SharedListSnapshot,
+  DEFAULT_LIST_IDS,
   migratePriority,
   PRIORITY_RANK,
 } from "../types";
@@ -26,7 +27,14 @@ import {
   SharedListData,
 } from "../storage";
 import { toLocalDateString } from "../dateUtils";
-import { deleteTask as deleteTaskFirebase } from "../personalTaskSync";
+import {
+  saveTask as savePersonalTask,
+  batchSaveTasks as batchSavePersonalTasks,
+  deleteTask as deleteTaskFirebase,
+} from "../personalTaskSync";
+import { logger } from "../logger";
+
+const syncLog = logger.ns("TasksProvider");
 import { getNextRecurrenceDate } from "./utils";
 import { COMPLETED_TASK_RETENTION_MS, RECENT_DELETE_WINDOW_MS } from "@/lib/constants";
 
@@ -154,6 +162,27 @@ export function TasksProvider({
     markRecentDelete,
   } = writeGuard;
 
+  // ── Cloud persistence helpers（確保跨裝置即時寫入 Supabase）──
+  const persistPersonalTask = useCallback(
+    (task: Task) => {
+      if (!userUid) return;
+      savePersonalTask(userUid, task).catch((err) =>
+        syncLog.warn("savePersonalTask 失敗", { id: task.id, error: String(err) })
+      );
+    },
+    [userUid]
+  );
+
+  const persistPersonalTasks = useCallback(
+    (batch: Task[]) => {
+      if (!userUid || batch.length === 0) return;
+      batchSavePersonalTasks(userUid, batch).catch((err) =>
+        syncLog.warn("batchSavePersonalTasks 失敗", { count: batch.length, error: String(err) })
+      );
+    },
+    [userUid]
+  );
+
   // ── Local helper ─────────────────────────────────────────────
   const markListRecentlyWritten = useCallback(
     (listId: string) => recentlyWrittenListsRef.current.set(listId, Date.now()),
@@ -221,8 +250,10 @@ export function TasksProvider({
       } else if (currentView === "list" && currentListId) {
         result = result.filter((t) => t.listId === currentListId);
       } else if (currentView === "inbox") {
+        const inboxListId = DEFAULT_LIST_IDS["收集箱"];
         result = result.filter((t) =>
           !t.listId ||
+          t.listId === inboxListId ||
           (!lists.find((l) => l.id === t.listId) &&
             !sharedLists[lists.find((l) => l.id === t.listId)?.sharedId || ""])
         );
@@ -269,8 +300,9 @@ export function TasksProvider({
     const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const weekEndDate = new Date(now.getTime() + 7 * 86400000);
     const localWeekEnd = `${weekEndDate.getFullYear()}-${String(weekEndDate.getMonth() + 1).padStart(2, "0")}-${String(weekEndDate.getDate()).padStart(2, "0")}`;
+    const inboxListId = DEFAULT_LIST_IDS["收集箱"];
     return {
-      inbox: active.filter((t) => !t.listId && t.status !== "done").length,
+      inbox: active.filter((t) => (!t.listId || t.listId === inboxListId) && t.status !== "done").length,
       today: active.filter((t) => {
         if (!t.dueDate || t.status === "done") return false;
         return t.dueDate === localToday || t.dueDate < localToday;
@@ -353,13 +385,16 @@ export function TasksProvider({
       setTasks(updated);
       saveTasks(updated);
       markRecentlyWritten(id);
+      const changed = updated.find((t) => t.id === id);
+      if (changed) persistPersonalTask(changed);
     },
-    [lists, sharedLists, saveTasks, setTasks, markRecentlyWritten, onMoveTaskToShared]
+    [lists, sharedLists, setTasks, markRecentlyWritten, onMoveTaskToShared, persistPersonalTask]
   );
 
   // ── addTask ──────────────────────────────────────────────────
   const addTask = useCallback(
     (data: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order">): string => {
+      const currentTasks = tasksRef.current;
       const id = generateId();
       const task: Task = {
         ...data,
@@ -368,26 +403,29 @@ export function TasksProvider({
         updatedAt: new Date().toISOString(),
         focusMinutes: 0,
         isArchived: false,
-        order: tasks.filter((t) => !t.isArchived).length,
+        order: currentTasks.filter((t) => !t.isArchived).length,
         ownerUid: userUid,
       };
-      const updated = [task, ...tasks];
+      const updated = [task, ...currentTasks];
+      tasksRef.current = updated;
       setTasks(updated);
       saveTasks(updated);
       markRecentlyWritten(id);
+      persistPersonalTask(task);
       return id;
     },
-    [tasks, userUid, markRecentlyWritten]
+    [userUid, setTasks, markRecentlyWritten, persistPersonalTask]
   );
 
   // ── addTaskLocalOnly ─────────────────────────────────────────
   const addTaskLocalOnly = useCallback(
     (datas: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order" | "ownerUid">[]): string[] => {
       if (datas.length === 0) return [];
+      const currentTasks = tasksRef.current;
       const now = new Date().toISOString();
       const newTasks: Task[] = [];
       const ids: string[] = [];
-      let nextOrder = tasks.filter((t) => !t.isArchived).length;
+      let nextOrder = currentTasks.filter((t) => !t.isArchived).length;
       for (const data of datas) {
         const id = generateId();
         ids.push(id);
@@ -401,22 +439,24 @@ export function TasksProvider({
           order: nextOrder++,
         });
       }
-      const updated = [...newTasks, ...tasks];
+      const updated = [...newTasks, ...currentTasks];
+      tasksRef.current = updated;
       setTasks(updated);
       saveTasks(updated);
       return ids;
     },
-    [tasks]
+    [setTasks]
   );
 
   // ── batchAddTasks ────────────────────────────────────────────
   const batchAddTasks = useCallback(
     (datas: Omit<Task, "id" | "createdAt" | "updatedAt" | "focusMinutes" | "isArchived" | "order">[]): string[] => {
       if (datas.length === 0) return [];
+      const currentTasks = tasksRef.current;
       const now = new Date().toISOString();
       const newTasks: Task[] = [];
       const ids: string[] = [];
-      let nextOrder = tasks.filter((t) => !t.isArchived).length;
+      let nextOrder = currentTasks.filter((t) => !t.isArchived).length;
       for (const data of datas) {
         const id = generateId();
         ids.push(id);
@@ -431,13 +471,15 @@ export function TasksProvider({
           ownerUid: userUid,
         });
       }
-      const updated = [...newTasks, ...tasks];
+      const updated = [...newTasks, ...currentTasks];
+      tasksRef.current = updated;
       setTasks(updated);
       saveTasks(updated);
       ids.forEach((id) => markRecentlyWritten(id));
+      persistPersonalTasks(newTasks);
       return ids;
     },
-    [tasks, userUid, markRecentlyWritten]
+    [userUid, setTasks, markRecentlyWritten, persistPersonalTasks]
   );
 
   // ── moveTaskToShared ─────────────────────────────────────────
@@ -500,20 +542,25 @@ export function TasksProvider({
       const previous = previousTasksRef.current;
       const task = previous.find((t) => t.id === taskId);
       if (!task) return;
-      const updated = [task, ...tasks];
+      const currentTasks = tasksRef.current;
+      const updated = [task, ...currentTasks];
+      tasksRef.current = updated;
       setTasks(updated);
       saveTasks(updated);
+      markRecentlyWritten(taskId);
+      persistPersonalTask(task);
     },
-    [tasks]
+    [setTasks, markRecentlyWritten, persistPersonalTask]
   );
 
   // ── deleteTask ───────────────────────────────────────────────
   const deleteTask = useCallback(
     async (id: string) => {
-      const task = tasks.find((t) => t.id === id);
+      const currentTasks = tasksRef.current;
+      const task = currentTasks.find((t) => t.id === id);
       if (!task) return;
 
-      previousTasksRef.current = tasks;
+      previousTasksRef.current = currentTasks;
 
       // §FIX-J: deletedTaskIdsRef must survive until Realtime DELETE callback processes it.
       deletedTaskIdsRef.current.add(id);
@@ -526,15 +573,11 @@ export function TasksProvider({
       }, DELETE_GUARD_MS);
       deletedTaskIdsRef_deleteGuards.current.set(id, guard);
 
-      const updated = tasks.filter((t) => t.id !== id);
+      const updated = currentTasks.filter((t) => t.id !== id);
+      tasksRef.current = updated;
       setTasks(updated);
       saveTasks(updated);
 
-      // §FIX-REAPPEAR: 必須同步刪除雲端 row,否則下一次 realtime 推送(5s fallback /
-      // 3s periodic poll / visibilitychange / pageshow)會從 loadTasks() 撈回任務並 merge 回 state。
-      // 之前 only 標 deletedTaskIdsRef + 10s recentDeleteTimestamps 是治標不治本:
-      // 視窗一過就復活。deleteTaskFirebase 才是真正把雲端那筆 row 拿掉的手段。
-      // 無 userUid(離線/匿名)時跳過,交由下次登入後的 migrateLocalToSupabase 自然同步狀態。
       if (userUid) {
         deleteTaskFirebase(userUid, id).catch((err) =>
           console.warn(`[TasksProvider] deleteTaskFirebase 失敗 ${id}`, err)
@@ -545,16 +588,17 @@ export function TasksProvider({
       recentDeleteTimestamps.current.set(id, Date.now());
       setTimeout(() => recentDeleteTimestamps.current.delete(id), RECENT_DELETE_WINDOW_MS);
     },
-    [tasks, recentDeleteTimestamps, userUid]
+    [recentDeleteTimestamps, setTasks, userUid]
   );
 
   // ── toggleTaskStatus ─────────────────────────────────────────
   const toggleTaskStatus = useCallback(
     (id: string) => {
-      const task = tasks.find((t) => t.id === id);
+      const currentTasks = tasksRef.current;
+      const task = currentTasks.find((t) => t.id === id);
       if (!task) return;
       const newStatus: Task["status"] = task.status === "done" ? "todo" : "done";
-      const updated = tasks.map((t) =>
+      const updated = currentTasks.map((t) =>
         t.id === id
           ? {
               ...t,
@@ -564,20 +608,24 @@ export function TasksProvider({
             }
           : t
       );
+      tasksRef.current = updated;
       setTasks(updated);
       saveTasks(updated);
       markRecentlyWritten(id);
+      const changed = updated.find((t) => t.id === id);
+      if (changed) persistPersonalTask(changed);
     },
-    [tasks, markRecentlyWritten]
+    [setTasks, markRecentlyWritten, persistPersonalTask]
   );
 
   // Keep the ref up-to-date so completeRecurringAndClone can call it.
   const _toggleTaskStatus = useCallback(
     (id: string) => {
-      const task = tasks.find((t) => t.id === id);
+      const currentTasks = tasksRef.current;
+      const task = currentTasks.find((t) => t.id === id);
       if (!task) return;
       const newStatus: Task["status"] = task.status === "done" ? "todo" : "done";
-      const updated = tasks.map((t) =>
+      const updated = currentTasks.map((t) =>
         t.id === id
           ? {
               ...t,
@@ -587,11 +635,14 @@ export function TasksProvider({
             }
           : t
       );
+      tasksRef.current = updated;
       setTasks(updated);
       saveTasks(updated);
       markRecentlyWritten(id);
+      const changed = updated.find((t) => t.id === id);
+      if (changed) persistPersonalTask(changed);
     },
-    [tasks, markRecentlyWritten]
+    [setTasks, markRecentlyWritten, persistPersonalTask]
   );
   toggleTaskStatusRef.current = _toggleTaskStatus;
 
@@ -695,7 +746,8 @@ export function TasksProvider({
         return;
       }
       const updatedRecurrence = { ...task.recurrence, completedCount: task.recurrence.completedCount + 1 };
-      const updated = tasks.map((t) =>
+      const currentTasks = tasksRef.current;
+      const updated = currentTasks.map((t) =>
         t.id === taskId
           ? {
               ...t,
@@ -707,17 +759,20 @@ export function TasksProvider({
             }
           : t
       );
+      tasksRef.current = updated;
       setTasks(updated);
       saveTasks(updated);
       markRecentlyWritten(taskId);
+      const changed = updated.find((t) => t.id === taskId);
+      if (changed) persistPersonalTask(changed);
     },
-    [tasks, markRecentlyWritten]
+    [setTasks, markRecentlyWritten, persistPersonalTask]
   );
 
   // ── completeTask ──────────────────────────────────────────────
   const completeTask = useCallback(
     (id: string) => {
-      const task = tasks.find((t) => t.id === id);
+      const task = tasksRef.current.find((t) => t.id === id);
       if (!task) return;
       if (task.status === "done") {
         toggleTaskStatusRef.current(id);
@@ -729,7 +784,7 @@ export function TasksProvider({
       }
       toggleTaskStatusRef.current(id);
     },
-    [tasks, completeRecurringAndClone]
+    [completeRecurringAndClone]
   );
 
   // ── reorderTasks ─────────────────────────────────────────────
@@ -739,12 +794,14 @@ export function TasksProvider({
       const now = new Date().toISOString();
       const updated: Task[] = reorderedTasks.map((t, idx) => ({ ...t, order: idx, updatedAt: now }));
       const ids = new Set(updated.map((t) => t.id));
-      const merged = tasks.map((t) => (ids.has(t.id) ? updated.find((u) => u.id === t.id)! : t));
+      const merged = tasksRef.current.map((t) => (ids.has(t.id) ? updated.find((u) => u.id === t.id)! : t));
+      tasksRef.current = merged;
       setTasks(merged);
       saveTasks(merged);
       updated.forEach((t) => recentlyWrittenRef.current.set(t.id, Date.now()));
+      persistPersonalTasks(updated);
     },
-    [tasks, recentlyWrittenRef]
+    [setTasks, recentlyWrittenRef, persistPersonalTasks]
   );
 
   // ── saveTasksDirectly ─────────────────────────────────────────
@@ -752,12 +809,14 @@ export function TasksProvider({
     (updatedTasks: Task[]) => {
       if (updatedTasks.length === 0) return;
       const ids = new Set(updatedTasks.map((t) => t.id));
-      const merged = tasks.map((t) => (ids.has(t.id) ? updatedTasks.find((u) => u.id === t.id)! : t));
+      const merged = tasksRef.current.map((t) => (ids.has(t.id) ? updatedTasks.find((u) => u.id === t.id)! : t));
+      tasksRef.current = merged;
       setTasks(merged);
       saveTasks(merged);
       updatedTasks.forEach((t) => recentlyWrittenRef.current.set(t.id, Date.now()));
+      persistPersonalTasks(updatedTasks);
     },
-    [tasks, recentlyWrittenRef]
+    [setTasks, recentlyWrittenRef, persistPersonalTasks]
   );
 
   // ── Context Value ─────────────────────────────────────────────

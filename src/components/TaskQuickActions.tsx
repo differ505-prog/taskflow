@@ -7,9 +7,11 @@ import { getEisenhowerVisual } from "@/lib/eisenhower";
 import { IconPopover } from "./IconPopover";
 import { getTagColors } from "@/lib/storage";
 import { isComposingKey } from "@/utils/imeGuard";
+import { isImageAttachment } from "@/lib/storageUpload";
+import { ImageLightboxModal, type LightboxImageItem } from "@/components/ImageLightboxModal";
 import {
   Tag as TagIcon, Paperclip, ListChecks, Plus, X,
-  AlertCircle, Image as ImageIcon, FileText, Pin,
+  AlertCircle, FileText, Pin,
 } from "lucide-react";
 
 interface TaskQuickActionsProps {
@@ -66,7 +68,7 @@ export function TaskQuickActions({
   // 附件
   const attachments = task.attachments || [];
   const attachmentCount = attachments.length;
-  const hasImage = attachments.some((a) => a.type?.startsWith("image/"));
+  const hasImage = attachments.some((a) => isImageAttachment(a));
 
   const iconBtnBase = `inline-flex items-center justify-center rounded-lg transition-all duration-150 active:scale-90 hover:bg-black/5`;
   const iconBtnSize = compact ? "w-7 h-7" : "w-8 h-8";
@@ -410,38 +412,70 @@ function TagPopoverContent({
 function AttachmentPopoverContent({
   attachments,
 }: {
-  attachments: { id: string; name: string; url: string; type?: string }[];
+  attachments: { id: string; name: string; url: string; type?: string; mimeType?: string; size?: number }[];
 }) {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const imageItems: LightboxImageItem[] = attachments
+    .filter((a) => isImageAttachment({ type: (a.type ?? "file") as "image" | "file", mimeType: a.mimeType ?? "" }))
+    .map((a) => ({ id: a.id, name: a.name, url: a.url, size: a.size }));
+
   return (
-    <div className="p-3 space-y-2 w-[240px] max-h-[280px] overflow-y-auto">
-      <div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
-        附件 ({attachments.length})
-      </div>
-      <div className="space-y-1">
-        {attachments.map((a) => {
-          const isImage = a.type?.startsWith("image/");
-          return (
-            <a
-              key={a.id}
-              href={a.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-2 p-1.5 rounded-lg transition-colors hover:bg-black/5"
-            >
-              {isImage ? (
-                <ImageIcon className="w-4 h-4 flex-shrink-0" style={{ color: "var(--brand)" }} />
-              ) : (
+    <>
+      <div className="p-3 space-y-2 w-[240px] max-h-[280px] overflow-y-auto">
+        <div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+          附件 ({attachments.length})
+        </div>
+        <div className="space-y-1">
+          {attachments.map((a) => {
+            const isImage = isImageAttachment({ type: (a.type ?? "file") as "image" | "file", mimeType: a.mimeType ?? "" });
+            const imgIdx = imageItems.findIndex((img) => img.id === a.id);
+            if (isImage && imgIdx !== -1) {
+              return (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLightboxIndex(imgIdx);
+                  }}
+                  className="w-full flex items-center gap-2 p-1.5 rounded-lg transition-colors hover:bg-black/5 text-left"
+                >
+                  <img
+                    src={a.url}
+                    alt={a.name}
+                    className="w-7 h-7 rounded object-cover flex-shrink-0"
+                  />
+                  <span className="flex-1 text-[12px] truncate" style={{ color: "var(--text-primary)" }}>
+                    {a.name}
+                  </span>
+                </button>
+              );
+            }
+            return (
+              <a
+                key={a.id}
+                href={a.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-2 p-1.5 rounded-lg transition-colors hover:bg-black/5"
+              >
                 <FileText className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-tertiary)" }} />
-              )}
-              <span className="flex-1 text-[12px] truncate" style={{ color: "var(--text-primary)" }}>
-                {a.name}
-              </span>
-            </a>
-          );
-        })}
+                <span className="flex-1 text-[12px] truncate" style={{ color: "var(--text-primary)" }}>
+                  {a.name}
+                </span>
+              </a>
+            );
+          })}
+        </div>
       </div>
-    </div>
+      <ImageLightboxModal
+        images={imageItems}
+        initialIndex={lightboxIndex ?? 0}
+        open={lightboxIndex !== null}
+        onClose={() => setLightboxIndex(null)}
+      />
+    </>
   );
 }
 

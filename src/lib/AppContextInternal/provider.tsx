@@ -164,13 +164,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const listsUnsubRef = useRef<(() => void) | null>(null);
   const habitsUnsubRef = useRef<(() => void) | null>(null);
   const tasksRef = useRef<Task[]>([]);
+  const listsRef = useRef<TaskList[]>([]);
+  const reconciledLocalPushRef = useRef<Map<string, string>>(new Map());
   const lastActiveWriteAtRef = useRef<Record<string, number>>({});
 
   // ── Write Guard ────────────────────────────────────────
   const writeGuard = useWriteGuard();
 
-  // Sync tasksRef
+  // Sync refs
   useEffect(() => { tasksRef.current = tasks; }, [tasks]);
+  useEffect(() => { listsRef.current = lists; }, [lists]);
 
   // Log render
   useEffect(() => {
@@ -199,7 +202,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (rebuiltTasks.some((t, i) => t !== tasksRef.current[i])) {
       setTasks(rebuiltTasks);
       saveTasks(rebuiltTasks);
-      if (user?.uid) batchSaveListsFirebase(user.uid, rebuiltTasks as unknown as TaskList[]).catch((err) => log.warn("rebind tasks failed", err));
+      if (user?.uid) batchSaveTasksFirebase(user.uid, rebuiltTasks).catch((err) => log.warn("rebind tasks failed", err));
     }
     return result;
   }, [user]);
@@ -289,6 +292,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const prevWithoutDeleted = prev.filter((t) => !deleted.has(t.id));
           const localById = new Map(prevWithoutDeleted.map((t) => [t.id, t]));
           const fbIds = new Set<string>();
+          const newerLocalTasks: Task[] = [];
           const merged = fbTasks.map((fbT) => {
             fbIds.add(fbT.id);
             syncedTaskIdsRef.current.add(fbT.id);
@@ -296,26 +300,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             if (local) {
               if (writeGuard.isWithinRecentWriteWindow(fbT.id)) return local;
               if (writeGuard.isWithinEditingActivityWindow(fbT.id)) return local;
-              if (new Date(local.updatedAt).getTime() > new Date(fbT.updatedAt).getTime()) return local;
+              if (new Date(local.updatedAt).getTime() > new Date(fbT.updatedAt).getTime()) {
+                // 本地有較新修改尚未上雲（例如舊版僅寫入 localStorage）：自動補推癒合雲端與跨裝置分歧
+                if (reconciledLocalPushRef.current.get(local.id) !== local.updatedAt) {
+                  newerLocalTasks.push(local);
+                }
+                return local;
+              }
             }
             return fbT;
           });
+          const liveLists = listsRef.current;
           const localOnly = prevWithoutDeleted.filter((t) => {
             if (fbIds.has(t.id)) return false;
             if (!t.listId) return true;
-            const owningList = lists.find((l) => l.id === t.listId);
+            const owningList = liveLists.find((l) => l.id === t.listId);
             return !owningList?.sharedId;
           });
           const trueLocalOnly = localOnly.filter((t) => !syncedTaskIdsRef.current.has(t.id));
           const result = [...merged, ...trueLocalOnly];
-          log.sync(`SUP SYNC setTasks: merged=${merged.length} trueLocalOnly=${trueLocalOnly.length} result=${result.length}`);
+          log.sync(`SUP SYNC setTasks: merged=${merged.length} trueLocalOnly=${trueLocalOnly.length} newerLocal=${newerLocalTasks.length} result=${result.length}`);
           saveTasks(result);
-          if (trueLocalOnly.length > 0 && user) {
-            const orphans = trueLocalOnly.filter((t) => !writeGuard.isWithinRecentWriteWindow(t.id));
-            if (orphans.length > 0) {
-              log.sync(`自動補推 ${orphans.length} 個孤兒任務上雲`);
-              batchSaveTasksFirebase(user.uid, orphans).catch((err) => log.error("孤兒補推失敗", err));
-            }
+          const orphans = trueLocalOnly.filter((t) => !writeGuard.isWithinRecentWriteWindow(t.id));
+          const toPushUp = [...orphans, ...newerLocalTasks];
+          if (toPushUp.length > 0 && user) {
+            toPushUp.forEach((t) => reconciledLocalPushRef.current.set(t.id, t.updatedAt));
+            log.sync(`自動補推 ${toPushUp.length} 個本地較新／孤兒任務上雲`);
+            batchSaveTasksFirebase(user.uid, toPushUp).catch((err) => log.error("補推上雲失敗", err));
           }
           return result;
         });
