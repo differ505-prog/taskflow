@@ -521,8 +521,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [isLoaded, tasks, habits, lists, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Agent State Mirror (供 Antigravity AI 輔助與多端同步) ────────
+  // ── Agent State Mirror (僅本機開發環境使用；production 無 x-agent-key 且 Serverless 無持久化磁碟，避免每 3s 輪詢觸發無效 401 POST 浪費流量) ────────
   useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return;
     if (!isLoaded || !user?.uid) return;
     const timer = setTimeout(() => {
       fetch("/api/agent", {
