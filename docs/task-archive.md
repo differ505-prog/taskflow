@@ -32,3 +32,13 @@
 - [x] **Step 7. `RhythmSection`/`RhythmBar`/`HabitsPage`/`ZenDashboard` UI 落地與 375px/深色模式/Esc/tomorrowStr 打磨**
 - [x] **Step 8. 個人帳號 `supabase_cloud` 升級（`Highball 停杯紅線` 20:00、`學習、考試` 休眠至 `2027-01-01`、模考改每月第 1 個週六）**
 - [x] **Step 9. Build Gate 驗收：`tsc` exit 0、`vitest` 22 files / 240 tests passed、`next build` 36/36 pages compiled**
+
+## 收集箱未排期任務：雙層漸進「撈取排程」（方案 A）已驗收歸檔（2026-11-27｜Round 1: 8.1 -> Round 2 驗收通過 9.5 / 10.0）
+- [x] **Step 1. 擴充 `src/lib/smartReschedule.ts`**：共用 `DAILY_CAP_STORAGE_KEY`/`DAILY_CAP_OPTIONS`/`DAILY_CAP_CHANGE_EVENT`、`readSavedDailyCap`/`saveDailyCap`、`formatShortDateLabel`、`isUnscheduledTask`、`computeSelectedSmartSchedulePlan`
+- [x] **Step 2. 補齊單元測試 `src/__tests__/smartReschedule.test.ts`**：覆蓋 `isUnscheduledTask`、空選零排程、點選順序優先與既有硬排程負載避讓（16 tests 全綠）
+- [x] **Step 3. `src/components/LostAndFound.tsx` 改用共用常數與跨元件事件同步**
+- [x] **Step 4. 新增 `src/components/InboxSmartPicker.tsx`**：預設全不選 Pull-based 批量撈取面板、`DESIGN_SYSTEM.md` CSS Token 深淺主題支援、`lucide-react` `<Leaf />`、`AnimatePresence` + `<motion.li layout>`、44px 熱區、Esc 關閉、重開清空選取與 `aria-live="polite"`
+- [x] **Step 5. `src/components/TaskListItem.tsx` & `SortableTaskItem.tsx`**：單筆 `✨ 排 M/d` 微入口、手機 36px 熱區與 `focus-visible:ring-2`（移除重複 haptic）
+- [x] **Step 6. `src/components/AppShell.tsx`**：個人收集箱限定串接、Toolbar `flex-wrap` 防 375px 溢位、開啟中保留收起鈕、5 秒 Undo 直接呼叫 `updateTask` 還原 `dueDate: undefined`
+- [x] **Step 7. 靜態紅線掃描**：`InboxSmartPicker.tsx` 零 `red-*`、零責備語氣、零強制全排、零路由跳轉
+- [x] **Step 8. Build Gate 驗收**：`tsc` exit 0、`vitest` 26 files / 267 tests 全綠、`next build` 編譯通過

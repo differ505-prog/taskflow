@@ -24,6 +24,12 @@ interface SortableTaskItemProps {
   // §新增「T 鍵加入今日」:透傳 hover/focus 到 TaskListItem
   onHoverEnter?: (id: string) => void;
   onHoverLeave?: (id: string) => void;
+  /** 收集箱未排期任務單筆智慧排程標籤（如「排 11/29」） */
+  smartScheduleLabel?: string;
+  /** 單筆智慧排程 tooltip */
+  smartScheduleTitle?: string;
+  /** 點擊單筆智慧排程回呼（不跳頁、不開彈窗） */
+  onSmartSchedule?: (taskId: string) => void;
 }
 
 /**

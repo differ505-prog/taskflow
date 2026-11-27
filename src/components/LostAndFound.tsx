@@ -4,13 +4,16 @@ import { getLocalToday } from "@/lib/dateUtils";
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Leaf, ArchiveRestore, CalendarClock, RotateCcw } from "lucide-react";
-import { format, parseISO } from "date-fns";
-import { zhTW } from "date-fns/locale";
 import { toast } from "sonner";
 import { useApp } from "@/lib/AppContext";
 import type { Task } from "@/lib/types";
 import {
   DEFAULT_DAILY_HARD_CAP,
+  DAILY_CAP_OPTIONS,
+  DAILY_CAP_CHANGE_EVENT,
+  readSavedDailyCap,
+  saveDailyCap,
+  formatShortDateLabel,
   computeSmartReschedulePlan,
   type SmartRescheduleAssignment,
 } from "@/lib/smartReschedule";
@@ -37,38 +40,21 @@ import { haptic } from "@/lib/haptics";
  * - 零責備語氣:標題與按鈕都正念
  */
 
-function formatShortDateLabel(dateStr: string, todayStr: string): string {
-  if (dateStr === todayStr) return "今天";
-  const d = parseISO(dateStr);
-  return format(d, "M/d (EEEEE)", { locale: zhTW });
-}
-
-const DAILY_CAP_STORAGE_KEY = "lost_found_daily_cap";
-const DAILY_CAP_OPTIONS = [2, 3, 4] as const;
-
 export default function LostAndFound() {
   const { tasks, updateTask } = useApp();
   const [rankedIds, setRankedIds] = useState<string[]>([]);
   const [dailyCap, setDailyCap] = useState<number>(DEFAULT_DAILY_HARD_CAP);
 
   useEffect(() => {
-    try {
-      const saved = Number(localStorage.getItem(DAILY_CAP_STORAGE_KEY));
-      if (DAILY_CAP_OPTIONS.includes(saved as (typeof DAILY_CAP_OPTIONS)[number])) {
-        setDailyCap(saved);
-      }
-    } catch {
-      // ignore storage errors
-    }
+    setDailyCap(readSavedDailyCap());
+    const syncCap = () => setDailyCap(readSavedDailyCap());
+    window.addEventListener(DAILY_CAP_CHANGE_EVENT, syncCap);
+    return () => window.removeEventListener(DAILY_CAP_CHANGE_EVENT, syncCap);
   }, []);
 
   const handleChangeDailyCap = (nextCap: number) => {
     setDailyCap(nextCap);
-    try {
-      localStorage.setItem(DAILY_CAP_STORAGE_KEY, String(nextCap));
-    } catch {
-      // ignore storage errors
-    }
+    saveDailyCap(nextCap);
     haptic("selection");
   };
 

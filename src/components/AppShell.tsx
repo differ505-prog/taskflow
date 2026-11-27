@@ -39,6 +39,18 @@ import {
 } from "@dnd-kit/sortable";
 import { SortableTaskItem } from "./SortableTaskItem";
 import LostAndFound from "@/components/LostAndFound";
+import { InboxSmartPicker } from "@/components/InboxSmartPicker";
+import {
+  DAILY_CAP_CHANGE_EVENT,
+  DEFAULT_DAILY_HARD_CAP,
+  formatShortDateLabel,
+  isUnscheduledTask,
+  readSavedDailyCap,
+  saveDailyCap,
+  suggestBestDateForTask,
+  type SmartRescheduleAssignment,
+} from "@/lib/smartReschedule";
+import { haptic } from "@/lib/haptics";
 import { ListIcon } from "./ListIcon";
 import { buildDeclineUpdates, DECLINE_PP } from "@/hooks/useDeclineTask";
 import { useProgressStatus } from "@/hooks/useProgressStatus";
@@ -167,6 +179,31 @@ export function AppShell({
   // - shared list:addToToday 內部已處理(updateSharedTask)
   const showAddToToday = currentView !== "today" && currentView !== "archived";
 
+  // ── 收集箱「撈取排程」面板狀態（Pull-based：預設全不選）────────────
+  const [isInboxPickerOpen, setIsInboxPickerOpen] = useState(false);
+  const [smartDailyCap, setSmartDailyCap] = useState<number>(DEFAULT_DAILY_HARD_CAP);
+
+  // 每日上限設定與 LostAndFound / InboxSmartPicker 共用 SSOT（localStorage + 自訂事件）
+  useEffect(() => {
+    setSmartDailyCap(readSavedDailyCap());
+    const syncCap = () => setSmartDailyCap(readSavedDailyCap());
+    window.addEventListener(DAILY_CAP_CHANGE_EVENT, syncCap);
+    return () => window.removeEventListener(DAILY_CAP_CHANGE_EVENT, syncCap);
+  }, []);
+
+  // 離開收集箱（或進入共用清單）時自動收起面板
+  useEffect(() => {
+    if (currentView !== "inbox" || currentSharedListId) {
+      setIsInboxPickerOpen(false);
+    }
+  }, [currentView, currentSharedListId]);
+
+  const handleChangeSmartDailyCap = useCallback((cap: number) => {
+    setSmartDailyCap(cap);
+    saveDailyCap(cap);
+    haptic("selection");
+  }, []);
+
   // 觀看者模式：Viewer 在 shared list 是唯讀的
   const sharedRole = currentSharedListId ? getMyRole(currentSharedListId) : null;
   const isReadOnlyShared = !!currentSharedListId && sharedRole === "viewer";
@@ -269,6 +306,33 @@ export function AppShell({
   const activeTasks = explicitlyShowingDone
     ? displayTasks
     : displayTasks.filter((t) => t.status !== "done");
+
+  // ── 收集箱未排期任務（Pull-based 撈取排程的資料來源）────────────
+  // 視圖邊界：僅限個人收集箱（排除共用清單與「已完成」篩選）
+  const isPersonalInbox =
+    currentView === "inbox" && !currentSharedListId && !explicitlyShowingDone;
+
+  const inboxUnscheduledTasks = useMemo(
+    () => (isPersonalInbox ? activeTasks.filter(isUnscheduledTask) : []),
+    [isPersonalInbox, activeTasks]
+  );
+
+  const inboxTodayStr = getLocalToday();
+
+  // O(1) 共用計算：收集箱單筆無日期任務（非重複）的下一個最佳空檔落點
+  const nextInboxOpenSlot = useMemo(() => {
+    if (!isPersonalInbox || inboxUnscheduledTasks.length === 0) return null;
+    return suggestBestDateForTask(inboxUnscheduledTasks[0], tasks, inboxTodayStr, {
+      dailyCap: smartDailyCap,
+    });
+  }, [isPersonalInbox, inboxUnscheduledTasks, tasks, inboxTodayStr, smartDailyCap]);
+
+  const inboxSmartLabel = nextInboxOpenSlot
+    ? `排 ${formatShortDateLabel(nextInboxOpenSlot.targetDate, inboxTodayStr)}`
+    : undefined;
+  const inboxSmartTitle = nextInboxOpenSlot
+    ? `智慧排入 ${formatShortDateLabel(nextInboxOpenSlot.targetDate, inboxTodayStr)}（原 ${nextInboxOpenSlot.existingLoadBefore} 件硬排程）`
+    : undefined;
   const completedTasks = explicitlyShowingDone
     ? []
     : displayTasks.filter((t) => t.status === "done");
@@ -355,6 +419,84 @@ export function AppShell({
       toggleSubTask(taskId, subId);
     }
   }, [activeTasks, completedTasks, sharedLists, updateSharedTask, toggleSubTask]);
+
+  // ── 收集箱智慧排程（Pull-based）────────────────────────────────
+  // 紅線：不呼叫 router.push / setCurrentView / order = -1 / Modal
+  // 復原安全：直接呼叫 updateTask(taskId, { dueDate: undefined })，不依賴 activeTasks 閉包
+
+  /** 單筆智慧排入：排到下一個最佳空檔日，附 5 秒復原 */
+  const handleSmartScheduleOne = useCallback(
+    (taskId: string) => {
+      const task = tasks.find((t) => t.id === taskId);
+      if (!task) return;
+      if (task.dueDate || task.startDate) return;
+
+      const assignment = suggestBestDateForTask(task, tasks, inboxTodayStr, {
+        dailyCap: smartDailyCap,
+      });
+      if (!assignment) return;
+
+      updateTask(task.id, { dueDate: assignment.targetDate });
+      haptic("selection");
+
+      const label = formatShortDateLabel(assignment.targetDate, inboxTodayStr);
+      toast.success(`已排入 ${label}（原 ${assignment.existingLoadBefore} 件硬排程）`, {
+        duration: 5000,
+        action: {
+          label: "復原",
+          onClick: () => {
+            updateTask(task.id, { dueDate: undefined });
+          },
+        },
+      });
+    },
+    [tasks, inboxTodayStr, smartDailyCap, updateTask]
+  );
+
+  /** 批次智慧排入：只排使用者親手點選的任務，附 5 秒復原 */
+  const handleSmartScheduleBatch = useCallback(
+    (assignments: SmartRescheduleAssignment[]) => {
+      if (assignments.length === 0) return;
+
+      for (const item of assignments) {
+        updateTask(item.task.id, { dueDate: item.targetDate });
+      }
+      setIsInboxPickerOpen(false);
+      haptic("success");
+
+      toast.success(`已將 ${assignments.length} 項任務排入未來空檔`, {
+        duration: 5000,
+        action: {
+          label: "復原",
+          onClick: () => {
+            for (const item of assignments) {
+              updateTask(item.task.id, { dueDate: undefined });
+            }
+          },
+        },
+      });
+    },
+    [updateTask]
+  );
+
+  /** 無罪赦免：移到封存（非責備語氣包裝） */
+  const handleArchiveUnscheduledTask = useCallback(
+    (task: Task) => {
+      updateTask(task.id, { isArchived: true });
+      haptic("selection");
+
+      toast.success(`已放進封存：「${task.title}」`, {
+        duration: 5000,
+        action: {
+          label: "復原",
+          onClick: () => {
+            updateTask(task.id, { isArchived: false });
+          },
+        },
+      });
+    },
+    [updateTask]
+  );
 
   const stats = {
     total: tasks.filter((t) => !t.isArchived).length,
@@ -692,6 +834,20 @@ const canDrag = !currentSharedListId && !isMobile;
 
             {currentView === "inbox" && <LostAndFound />}
 
+            {/* 收集箱週整理「撈取排程」批量面板 — 僅個人收集箱 */}
+            {isPersonalInbox && (
+              <InboxSmartPicker
+                unscheduledTasks={inboxUnscheduledTasks}
+                allTasks={tasks}
+                isOpen={isInboxPickerOpen}
+                dailyCap={smartDailyCap}
+                onChangeDailyCap={handleChangeSmartDailyCap}
+                onClose={() => setIsInboxPickerOpen(false)}
+                onScheduleSelected={handleSmartScheduleBatch}
+                onArchiveTask={handleArchiveUnscheduledTask}
+              />
+            )}
+
             {/* Viewer 唯讀提示 */}
             {isReadOnlyShared && (
               <div
@@ -852,7 +1008,7 @@ const canDrag = !currentSharedListId && !isMobile;
             ) : (
               <>
                 {/* Toolbar — 永遠渲染（避免「點了進行中 → 該清單沒進行中任務 → 整個區塊走向 EmptyState → chip 消失」的陷阱。EmptyState 與 task list 改為 toolbar 下方的 sibling，而非 ternary 的對立分支。） */}
-                <div className="flex items-center justify-between gap-2 sm:gap-4 mb-4 min-w-0">
+                <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4 mb-4 min-w-0">
                     <StatusFilterChips
                       tasks={filteredTasks}
                       activeStatus={activeFilter.status}
@@ -860,6 +1016,26 @@ const canDrag = !currentSharedListId && !isMobile;
                       className="flex-1"
                     />
                     <div className="flex items-center gap-2 flex-shrink-0">
+                      {isPersonalInbox && (inboxUnscheduledTasks.length >= 3 || (isInboxPickerOpen && inboxUnscheduledTasks.length > 0)) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            haptic("selection");
+                            setIsInboxPickerOpen((prev) => !prev);
+                          }}
+                          aria-expanded={isInboxPickerOpen}
+                          className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] min-h-[36px] sm:min-h-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
+                          style={
+                            isInboxPickerOpen
+                              ? { background: "var(--brand)", color: "var(--brand-foreground)" }
+                              : { background: "var(--brand-tint)", color: "var(--brand)" }
+                          }
+                          title="從未排期任務中挑選幾件，智慧排入未來空檔"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
+                          <span>{isInboxPickerOpen ? "收起排程" : `撈幾件來排 (${inboxUnscheduledTasks.length})`}</span>
+                        </button>
+                      )}
                       {showWrapUpButton && (
                         <button
                           onClick={() => { void proactiveWrap(filteredTasks); }}
@@ -1020,6 +1196,9 @@ const canDrag = !currentSharedListId && !isMobile;
                                     batchSelected={!!batchSelectedIds?.has(task.id)}
                                     onLongPress={() => onEnterBatchMode?.(task.id)}
                                     onBatchToggle={() => onToggleBatchSelect?.(task.id)}
+                                    smartScheduleLabel={isPersonalInbox ? inboxSmartLabel : undefined}
+                                    smartScheduleTitle={isPersonalInbox ? inboxSmartTitle : undefined}
+                                    onSmartSchedule={isPersonalInbox ? handleSmartScheduleOne : undefined}
                                   />
                                 </TaskSwipeWrapper>
                               </motion.div>
@@ -1072,6 +1251,9 @@ const canDrag = !currentSharedListId && !isMobile;
                                 batchSelected={!!batchSelectedIds?.has(task.id)}
                                 onLongPress={() => onEnterBatchMode?.(task.id)}
                                 onBatchToggle={() => onToggleBatchSelect?.(task.id)}
+                                smartScheduleLabel={isPersonalInbox ? inboxSmartLabel : undefined}
+                                smartScheduleTitle={isPersonalInbox ? inboxSmartTitle : undefined}
+                                onSmartSchedule={isPersonalInbox ? handleSmartScheduleOne : undefined}
                               />
                             </TaskSwipeWrapper>
                           </motion.div>

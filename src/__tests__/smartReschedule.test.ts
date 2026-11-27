@@ -8,6 +8,9 @@ import {
   computeSmartReschedulePlan,
   suggestBestDateForTask,
   buildDateWindow,
+  isUnscheduledTask,
+  computeSelectedSmartSchedulePlan,
+  formatShortDateLabel,
 } from "@/lib/smartReschedule";
 
 function makeTask(overrides: Partial<Task> & { id: string }): Task {
@@ -220,5 +223,80 @@ describe("computeSmartReschedulePlan", () => {
     const suggestion = suggestBestDateForTask(spanOverdue, [spanOverdue], today);
     expect(suggestion.targetDate).toBe("2026-11-26");
     expect(suggestion.newStartDate).toBe("2026-11-24");
+  });
+});
+
+describe("isUnscheduledTask", () => {
+  it("未完成、未封存、頂層且無任何日期的任務視為未排期", () => {
+    const t = makeTask({ id: "u1" });
+    expect(isUnscheduledTask(t)).toBe(true);
+  });
+
+  it("有截止日、有起始日、已完成、已封存或有父任務皆視為已排期", () => {
+    expect(isUnscheduledTask(makeTask({ id: "u2", dueDate: "2026-11-29" }))).toBe(false);
+    expect(isUnscheduledTask(makeTask({ id: "u3", startDate: "2026-11-29" }))).toBe(false);
+    expect(isUnscheduledTask(makeTask({ id: "u4", status: "done" }))).toBe(false);
+    expect(isUnscheduledTask(makeTask({ id: "u5", isArchived: true }))).toBe(false);
+    expect(isUnscheduledTask(makeTask({ id: "u6", parentId: "p1" }))).toBe(false);
+  });
+});
+
+describe("computeSelectedSmartSchedulePlan", () => {
+  it("selectedIds 為空時零排程，即使候選清單有任務", () => {
+    const today = "2026-11-26";
+    const candidates = [
+      makeTask({ id: "c1", title: "未排期 A" }),
+      makeTask({ id: "c2", title: "未排期 B" }),
+      makeTask({ id: "c3", title: "未排期 C" }),
+    ];
+    expect(computeSelectedSmartSchedulePlan([], candidates, candidates, today)).toEqual([]);
+  });
+
+  it("只為點選的任務排程，並依點選順序填滿每日上限", () => {
+    const today = "2026-11-26";
+    const candidates = [
+      makeTask({ id: "c1", title: "未排期 A" }),
+      makeTask({ id: "c2", title: "未排期 B" }),
+      makeTask({ id: "c3", title: "未排期 C" }),
+    ];
+
+    const plan = computeSelectedSmartSchedulePlan(
+      ["c3", "c1"],
+      candidates,
+      candidates,
+      today,
+      { dailyCap: 2 }
+    );
+
+    expect(plan.map((p) => p.task.id)).toEqual(["c3", "c1"]);
+    expect(plan[0].targetDate).toBe("2026-11-26");
+    expect(plan[1].targetDate).toBe("2026-11-26");
+    // 未被點選的 c2 不出現在結果中
+    expect(plan.find((p) => p.task.id === "c2")).toBeUndefined();
+  });
+
+  it("會計入 allTasks 既有的硬排程負載，今天已滿時自動從隔日開始排入", () => {
+    const today = "2026-11-26";
+    const existing: Task[] = [
+      makeTask({ id: "e1", dueDate: "2026-11-26" }),
+      makeTask({ id: "e2", dueDate: "2026-11-26" }),
+      makeTask({ id: "e3", dueDate: "2026-11-26" }), // 今天已達上限 3 件
+    ];
+    const candidates = [makeTask({ id: "c1", title: "未排期 A" })];
+
+    const plan = computeSelectedSmartSchedulePlan(["c1"], candidates, [...existing, ...candidates], today, {
+      dailyCap: 3,
+    });
+
+    expect(plan).toHaveLength(1);
+    expect(plan[0].targetDate).toBe("2026-11-27");
+    expect(plan[0].existingLoadBefore).toBe(0);
+  });
+});
+
+describe("formatShortDateLabel", () => {
+  it("今天顯示「今天」，其他日期顯示 M/d 與星期", () => {
+    expect(formatShortDateLabel("2026-11-26", "2026-11-26")).toBe("今天");
+    expect(formatShortDateLabel("2026-11-29", "2026-11-26")).toContain("11/29");
   });
 });

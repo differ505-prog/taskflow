@@ -1,8 +1,18 @@
 import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
+import { zhTW } from "date-fns/locale";
 import { PRIORITY_RANK, type Task } from "@/lib/types";
 
 /** 每日硬排程建議上限（單日非重複任務＋跨日截止日） */
 export const DEFAULT_DAILY_HARD_CAP = 3;
+
+/** 每日上限可選值（2 / 3 / 4） */
+export const DAILY_CAP_OPTIONS = [2, 3, 4] as const;
+
+/** 每日上限的 localStorage key（與 LostAndFound / InboxSmartPicker 共用 SSOT） */
+export const DAILY_CAP_STORAGE_KEY = "lost_found_daily_cap";
+
+/** 每日上限變更的自訂事件（跨元件即時同步） */
+export const DAILY_CAP_CHANGE_EVENT = "vibelist:daily-cap-change";
 
 /** 優先排入本週（7 天），滿載時自動延展至 14 天 */
 export const PRIMARY_WINDOW_DAYS = 7;
@@ -237,4 +247,69 @@ export function suggestBestDateForTask(
   options: SmartRescheduleOptions = {}
 ): SmartRescheduleAssignment {
   return computeSmartReschedulePlan([task], allTasks, todayStr, options)[0];
+}
+
+/** 讀取儲存的每日上限；若無效或 SSR 環境則回退到預設值 */
+export function readSavedDailyCap(): number {
+  if (typeof window === "undefined") return DEFAULT_DAILY_HARD_CAP;
+  try {
+    const saved = Number(localStorage.getItem(DAILY_CAP_STORAGE_KEY));
+    if (DAILY_CAP_OPTIONS.includes(saved as (typeof DAILY_CAP_OPTIONS)[number])) {
+      return saved;
+    }
+    return DEFAULT_DAILY_HARD_CAP;
+  } catch {
+    return DEFAULT_DAILY_HARD_CAP;
+  }
+}
+
+/** 儲存每日上限並廣播變更事件（供其他元件即時同步） */
+export function saveDailyCap(cap: number): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(DAILY_CAP_STORAGE_KEY, String(cap));
+    window.dispatchEvent(new Event(DAILY_CAP_CHANGE_EVENT));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+/** 短日期標籤：今天顯示「今天」，其餘顯示「M/d (EEEEE)」 */
+export function formatShortDateLabel(dateStr: string, todayStr: string): string {
+  if (dateStr === todayStr) return "今天";
+  return format(parseISO(dateStr), "M/d (EEEEE)", { locale: zhTW });
+}
+
+/** 判斷任務是否為「尚未排期」的收集箱任務（無 dueDate / startDate） */
+export function isUnscheduledTask(task: Task): boolean {
+  return (
+    !task.isArchived &&
+    task.status !== "done" &&
+    !task.parentId &&
+    !task.dueDate &&
+    !task.startDate
+  );
+}
+
+/**
+ * 選取式智慧排程：只為使用者親手點選的任務排程，並嚴格依點選順序填滿每日上限。
+ * 全不選（selectedIds 為空）時回傳空陣列 —— 零自動排程。
+ */
+export function computeSelectedSmartSchedulePlan(
+  selectedIds: string[],
+  candidateTasks: Task[],
+  allTasks: Task[],
+  todayStr: string,
+  options: Omit<SmartRescheduleOptions, "customOrderIds"> = {}
+): SmartRescheduleAssignment[] {
+  if (selectedIds.length === 0) return [];
+
+  const selectedSet = new Set(selectedIds);
+  const picked = candidateTasks.filter((t) => selectedSet.has(t.id) && isUnscheduledTask(t));
+  if (picked.length === 0) return [];
+
+  return computeSmartReschedulePlan(picked, allTasks, todayStr, {
+    ...options,
+    customOrderIds: selectedIds,
+  });
 }

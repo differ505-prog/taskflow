@@ -8,7 +8,7 @@ import { Clock } from "lucide-react";
 import { getDeadlineStatus } from "@/lib/deadlineEngine";
 import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, GripVertical, ListChecks,
-  Trash2, ShieldCheck,
+  Trash2, ShieldCheck, Sparkles,
 } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -42,6 +42,12 @@ interface TaskListItemProps {
   // §新增「T 鍵加入今日」:hover/focus 任務時設到 AppShell 全域 state
   onHoverEnter?: (id: string) => void;
   onHoverLeave?: (id: string) => void;
+  /** 收集箱未排期任務單筆智慧排程標籤（如「排 11/29」） */
+  smartScheduleLabel?: string;
+  /** 單筆智慧排程 tooltip（如「排入 11/29 (六)（原 1 件硬排程）」） */
+  smartScheduleTitle?: string;
+  /** 點擊單筆智慧排程回呼（不跳頁、不開彈窗） */
+  onSmartSchedule?: (taskId: string) => void;
 }
 
 import { sortSubTasks } from "@/utils/subtaskSort";
@@ -73,6 +79,9 @@ export function TaskListItem({
   addToTodayLabel,
   onHoverEnter,
   onHoverLeave,
+  smartScheduleLabel,
+  smartScheduleTitle,
+  onSmartSchedule,
 }: TaskListItemProps) {
   // O-007：sortable 拖曳狀態
   // sortable.attributes：aria-*、role、tabIndex（給 KeyboardSensor 用）
@@ -240,6 +249,26 @@ export function TaskListItem({
 
           {/* 右上角：刪除 / 一鍵入禪 / 旗子 / 圖釘 / 標籤 / 附件 / 子任務 */}
           <div className="flex-shrink-0 flex items-center gap-0.5">
+            {/* 收集箱未排期任務：單筆「✨ 排 M/d」微入口（不跳頁、不搶焦點、不開彈窗） */}
+            {onSmartSchedule && smartScheduleLabel && !isDone && !task.dueDate && !task.startDate && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSmartSchedule(task.id);
+                }}
+                aria-label={`智慧排入「${task.title}」：${smartScheduleLabel}`}
+                title={smartScheduleTitle ?? smartScheduleLabel}
+                className="inline-flex items-center gap-1 rounded-full min-h-[36px] sm:min-h-0 px-2.5 py-1.5 sm:px-2 sm:py-1 text-[11px] font-medium transition-all duration-150 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] hover:brightness-95 active:scale-95"
+                style={{
+                  background: "var(--brand-tint)",
+                  color: "var(--brand)",
+                }}
+              >
+                <Sparkles className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+                <span className="whitespace-nowrap">{smartScheduleLabel}</span>
+              </button>
+            )}
             {/* §26 「一鍵入禪 (Focus NOW)」:極簡閃電按鈕,hover 才顯示 */}
             {onAddToToday && !isDone && (
               <AddToTodayButton onAddToToday={() => onAddToToday(task.id)} label={addToTodayLabel} />
