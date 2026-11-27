@@ -25,6 +25,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { ROLE_CONFIGS } from "@/lib/types";
+import { resolveServerUserRole } from "@/lib/serverRole";
 import { z } from "zod";
 
 // ─── 白名單 MIME 類型 ───
@@ -109,19 +111,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. 驗證 user role（提前擋 free 用戶，省一次 Storage RTT）
+    // 3. 驗證 user role（與 AuthContext 共用 SSOT：ADMIN_EMAILS / PRO_EMAILS / metadata / DB / beta_users）
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { auth: { persistSession: false } }
     );
-    const { data: profile } = await supabaseAdmin
-      .from("user_profiles")
-      .select("role")
-      .eq("uid", user.id)
-      .single();
-
-    const role = profile?.role ?? "free";
+    const role = await resolveServerUserRole(supabaseAdmin, user);
     if (role === "free") {
       return NextResponse.json(
         { error: "請升級到 Beta 以使用附件上傳功能" },
@@ -129,13 +125,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 依 role 動態調整 size 上限
-    const MAX_BYTES_BY_ROLE: Record<string, number> = {
-      admin: 50 * 1024 * 1024,  // 50MB
-      pro:   20 * 1024 * 1024,  // 20MB
-      beta:   5 * 1024 * 1024,  //  5MB
-    };
-    const effectiveMaxSize = MAX_BYTES_BY_ROLE[role] ?? 0;
+    // 依 role 動態調整 size 上限（與 ROLE_CONFIGS 對齊；admin 上限設 50MB 防誤傳超大檔）
+    const roleMaxMB = ROLE_CONFIGS[role].maxFileSizeMB;
+    const effectiveMaxSize =
+      roleMaxMB === Infinity ? 50 * 1024 * 1024 : roleMaxMB * 1024 * 1024;
 
     // 4. 解析並驗證 body（Zod schema，基礎欄位驗證）
     let body: Record<string, unknown>;

@@ -22,6 +22,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { notifyFeedback } from "@/lib/discordNotifier";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { resolveServerUserRole } from "@/lib/serverRole";
 import { z } from "zod";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -110,16 +111,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 4.5. 從 DB 取得真實 userRole（不再信任 client body）
+    // 4.5. 從 server-side SSOT 取得真實 userRole（與 AuthContext 一致）
     let userRole = "free";
     const dbClient = getServiceClient();
-    if (dbClient) {
-      const { data: profile } = await dbClient
-        .from("user_profiles")
-        .select("role")
-        .eq("uid", userId)
-        .single();
-      userRole = profile?.role ?? "free";
+    if (dbClient && user) {
+      userRole = await resolveServerUserRole(dbClient, user);
     }
 
     // 5. 寫入 Supabase（user_email 強制使用 server-side session email）

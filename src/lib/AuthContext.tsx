@@ -10,7 +10,8 @@ import {
 import { createBrowserClient } from "@supabase/ssr";
 import { subscribeBetaUsers } from "@/lib/betaListFS";
 import { upsertProfile, getRole } from "@/lib/userProfiles";
-import { UserRole, ADMIN_EMAILS, PRO_EMAILS, ROLE_CONFIGS } from "@/lib/types";
+import { UserRole, ROLE_CONFIGS } from "@/lib/types";
+import { resolveUserRole } from "@/lib/resolveRole";
 import { useNewUserDetection, getKnownUserCount } from "@/lib/useNewUserDetection";
 import { notifyNewUser } from "@/lib/useDiscordNotifier";
 
@@ -119,35 +120,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void getRole(user.uid).then((r) => setDbRole(r));
   }, [user?.uid]);
 
-  // ── 計算當前角色 ──────────────────────────────────────
-  // 優先級：admin（env）> admin（metadata）> admin（db）> pro（env）> pro（metadata）> pro（db）> beta（雲端名單）> beta（db）> free
-  // metadata (DB 端的 raw_user_meta_data) 與 DB role 都會反映到 DB RBAC (0011 migration)
-  // 即使 Supabase 失敗，ADMIN_EMAILS / PRO_EMAILS / betaUsers 也能完整判斷角色
-  const role = (() => {
-    if (!user?.email) return "free" as UserRole;
-    const email = user.email.toLowerCase();
-    const isAdminMeta = user.metadata?.is_admin === true || user.metadata?.is_admin === "true";
-    const isProMeta = user.metadata?.is_pro === true || user.metadata?.is_pro === "true";
-
-    if (ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email)) {
-      return "admin" as UserRole;
-    }
-    if (isAdminMeta) return "admin" as UserRole;
-    if (dbRole === "admin") return "admin" as UserRole;
-
-    if (PRO_EMAILS.map((e) => e.toLowerCase()).includes(email)) {
-      return "pro" as UserRole;
-    }
-    if (isProMeta) return "pro" as UserRole;
-    if (dbRole === "pro") return "pro" as UserRole;
-
-    if (betaUsers.map((e) => e.toLowerCase()).includes(email)) {
-      return "beta" as UserRole;
-    }
-    if (dbRole === "beta") return "beta" as UserRole;
-
-    return (dbRole ?? "free") as UserRole;
-  })();
+  // ── 計算當前角色（與 server API 共用 resolveUserRole SSOT）──
+  const role = resolveUserRole({
+    email: user?.email,
+    metadata: user?.metadata,
+    dbRole,
+    betaEmails: betaUsers,
+  });
 
   const roleConfig = ROLE_CONFIGS[role];
   const canUpload = roleConfig.canUpload;
