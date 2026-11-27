@@ -25,7 +25,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   X, LayoutGrid, List,
   Plus, Archive, Zap, ChevronRight, Timer,
-  Share2, Shield, RotateCcw, Trash2, CheckCheck, Sparkles,
+  Share2, Shield, RotateCcw, Trash2, CheckCheck, Sparkles, CalendarCheck2,
 } from "lucide-react";
 import { isComposingKey } from "@/utils/imeGuard";
 import {
@@ -44,7 +44,7 @@ import {
   DAILY_CAP_CHANGE_EVENT,
   DEFAULT_DAILY_HARD_CAP,
   formatShortDateLabel,
-  isUnscheduledTask,
+  partitionInboxActiveTasks,
   readSavedDailyCap,
   saveDailyCap,
   suggestBestDateForTask,
@@ -157,6 +157,22 @@ export function AppShell({
     setOverdueExpanded((prev) => {
       const next = !prev;
       try { localStorage.setItem("overdue-collapsed", String(!next)); } catch {}
+      return next;
+    });
+  }, []);
+  // 個人收集箱「已排好日期」折疊區偏好（預設展開，localStorage 持久化）
+  const [inboxScheduledExpanded, setInboxScheduledExpanded] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      return localStorage.getItem("inbox-scheduled-collapsed") !== "true";
+    } catch {
+      return true;
+    }
+  });
+  const toggleInboxScheduledExpanded = useCallback(() => {
+    setInboxScheduledExpanded((prev) => {
+      const next = !prev;
+      try { localStorage.setItem("inbox-scheduled-collapsed", String(!next)); } catch {}
       return next;
     });
   }, []);
@@ -312,27 +328,8 @@ export function AppShell({
   const isPersonalInbox =
     currentView === "inbox" && !currentSharedListId && !explicitlyShowingDone;
 
-  const inboxUnscheduledTasks = useMemo(
-    () => (isPersonalInbox ? activeTasks.filter(isUnscheduledTask) : []),
-    [isPersonalInbox, activeTasks]
-  );
-
   const inboxTodayStr = getLocalToday();
 
-  // O(1) 共用計算：收集箱單筆無日期任務（非重複）的下一個最佳空檔落點
-  const nextInboxOpenSlot = useMemo(() => {
-    if (!isPersonalInbox || inboxUnscheduledTasks.length === 0) return null;
-    return suggestBestDateForTask(inboxUnscheduledTasks[0], tasks, inboxTodayStr, {
-      dailyCap: smartDailyCap,
-    });
-  }, [isPersonalInbox, inboxUnscheduledTasks, tasks, inboxTodayStr, smartDailyCap]);
-
-  const inboxSmartLabel = nextInboxOpenSlot
-    ? `排 ${formatShortDateLabel(nextInboxOpenSlot.targetDate, inboxTodayStr)}`
-    : undefined;
-  const inboxSmartTitle = nextInboxOpenSlot
-    ? `智慧排入 ${formatShortDateLabel(nextInboxOpenSlot.targetDate, inboxTodayStr)}（原 ${nextInboxOpenSlot.existingLoadBefore} 件硬排程）`
-    : undefined;
   const completedTasks = explicitlyShowingDone
     ? []
     : displayTasks.filter((t) => t.status === "done");
@@ -352,6 +349,31 @@ export function AppShell({
         return t.dueDate >= getLocalToday();
       })
     : activeTasks;
+
+  // ── 個人收集箱雙區分組：尚未排期 / 已排好日期 ────────────────
+  // 守恆性：兩段長度總和 === todayActiveTasks.length（零遺漏、零重複）
+  const { unscheduled: inboxUnscheduledTasks, scheduled: inboxScheduledTasks } = useMemo(
+    () =>
+      isPersonalInbox
+        ? partitionInboxActiveTasks(todayActiveTasks)
+        : { unscheduled: [] as Task[], scheduled: [] as Task[] },
+    [isPersonalInbox, todayActiveTasks]
+  );
+
+  // O(1) 共用計算：收集箱單筆無日期任務（非重複）的下一個最佳空檔落點
+  const nextInboxOpenSlot = useMemo(() => {
+    if (!isPersonalInbox || inboxUnscheduledTasks.length === 0) return null;
+    return suggestBestDateForTask(inboxUnscheduledTasks[0], tasks, inboxTodayStr, {
+      dailyCap: smartDailyCap,
+    });
+  }, [isPersonalInbox, inboxUnscheduledTasks, tasks, inboxTodayStr, smartDailyCap]);
+
+  const inboxSmartLabel = nextInboxOpenSlot
+    ? `排 ${formatShortDateLabel(nextInboxOpenSlot.targetDate, inboxTodayStr)}`
+    : undefined;
+  const inboxSmartTitle = nextInboxOpenSlot
+    ? `智慧排入 ${formatShortDateLabel(nextInboxOpenSlot.targetDate, inboxTodayStr)}（原 ${nextInboxOpenSlot.existingLoadBefore} 件硬排程）`
+    : undefined;
 
   const routeUpdateTask = useCallback((taskId: string, updates: Partial<Task>) => {
     const task = [...activeTasks, ...completedTasks].find(t => t.id === taskId);
@@ -1016,26 +1038,6 @@ const canDrag = !currentSharedListId && !isMobile;
                       className="flex-1"
                     />
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {isPersonalInbox && (inboxUnscheduledTasks.length >= 3 || (isInboxPickerOpen && inboxUnscheduledTasks.length > 0)) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            haptic("selection");
-                            setIsInboxPickerOpen((prev) => !prev);
-                          }}
-                          aria-expanded={isInboxPickerOpen}
-                          className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] min-h-[36px] sm:min-h-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
-                          style={
-                            isInboxPickerOpen
-                              ? { background: "var(--brand)", color: "var(--brand-foreground)" }
-                              : { background: "var(--brand-tint)", color: "var(--brand)" }
-                          }
-                          title="從未排期任務中挑選幾件，智慧排入未來空檔"
-                        >
-                          <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
-                          <span>{isInboxPickerOpen ? "收起排程" : `撈幾件來排 (${inboxUnscheduledTasks.length})`}</span>
-                        </button>
-                      )}
                       {showWrapUpButton && (
                         <button
                           onClick={() => { void proactiveWrap(filteredTasks); }}
@@ -1157,7 +1159,256 @@ const canDrag = !currentSharedListId && !isMobile;
                   />
                 ) : (
                   <div className="flex flex-col gap-1">
-                    {canDrag ? (
+                    {isPersonalInbox ? (
+                      /* 個人收集箱雙區分組：尚未排期（上）＋ 已排好日期（下）
+                         守恆性由 partitionInboxActiveTasks 保證（零遺漏、零重複）
+                         其餘視圖（today / next7days / list / pinned / shared / explicitlyShowingDone）完全保留原單一清單渲染 */
+                      <>
+                        {/* ── 上段：尚未排期 ── */}
+                        {inboxUnscheduledTasks.length > 0 && (
+                          <section className="flex flex-col gap-1">
+                            <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-1 pb-2">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <Sparkles
+                                  className="w-3.5 h-3.5 flex-shrink-0"
+                                  style={{ color: "var(--text-tertiary)" }}
+                                  aria-hidden="true"
+                                />
+                                <span
+                                  className="text-[12px] font-medium"
+                                  style={{ color: "var(--text-secondary)" }}
+                                >
+                                  尚未排期
+                                </span>
+                                <span
+                                  className="text-[11px] px-1.5 py-0.5 rounded-full tabular-nums"
+                                  style={{
+                                    background: "var(--surface-muted)",
+                                    color: "var(--text-tertiary)",
+                                  }}
+                                >
+                                  {inboxUnscheduledTasks.length}
+                                </span>
+                              </div>
+                              {isPersonalInbox && (inboxUnscheduledTasks.length >= 3 || isInboxPickerOpen) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    haptic("selection");
+                                    setIsInboxPickerOpen((prev) => !prev);
+                                  }}
+                                  aria-expanded={isInboxPickerOpen}
+                                  className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] min-h-[36px] sm:min-h-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
+                                  style={
+                                    isInboxPickerOpen
+                                      ? { background: "var(--brand)", color: "var(--brand-foreground)" }
+                                      : { background: "var(--brand-tint)", color: "var(--brand)" }
+                                  }
+                                  title="從未排期任務中挑選幾件，智慧排入未來空檔"
+                                >
+                                  <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
+                                  <span>
+                                    {isInboxPickerOpen
+                                      ? "收起排程"
+                                      : `撈幾件來排 (${inboxUnscheduledTasks.length})`}
+                                  </span>
+                                </button>
+                              )}
+                            </div>
+                            {canDrag ? (
+                              <DndContext
+                                sensors={sensors}
+                                collisionDetection={closestCenter}
+                                onDragStart={handleDragStart}
+                                onDragEnd={handleDragEnd}
+                              >
+                                <SortableContext
+                                  items={inboxUnscheduledTasks.map((t) => t.id)}
+                                  strategy={verticalListSortingStrategy}
+                                >
+                                  <AnimatePresence mode="popLayout">
+                                    {inboxUnscheduledTasks.map((task) => (
+                                      <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
+                                        <TaskSwipeWrapper
+                                          taskId={task.id}
+                                          isDone={task.status === "done"}
+                                          onComplete={() => routeCompleteTask(task.id)}
+                                          onDelete={(id) => routeDeleteTask(id)}
+                                          onAddToToday={showAddToToday ? addToToday : undefined}
+                                        >
+                                          <SortableTaskItem
+                                            task={task}
+                                            isSelected={task.id === selectedTaskId}
+                                            onClick={() => handleSelectTask(task.id)}
+                                            onToggleStatus={routeCompleteTask}
+                                            onToggleSubTask={routeToggleSubTask}
+                                            onUpdatePriority={(id, p) => routeUpdateTask(id, { priority: p })}
+                                            onUpdateTags={(id, tags) => routeUpdateTask(id, { tags })}
+                                            onTogglePin={(id) => routeUpdateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
+                                            onDelete={(id) => routeDeleteTask(id)} onDecline={routeDeclineTask}
+                                            onAddToToday={showAddToToday ? addToToday : undefined}
+                                            onHoverEnter={currentSharedListId ? undefined : setHoveredTaskId}
+                                            onHoverLeave={currentSharedListId ? undefined : (id) => setHoveredTaskId((prev) => (prev === id ? null : prev))}
+                                            allTags={Object.keys(getTagCounts())}
+                                            batchMode={batchMode}
+                                            batchSelected={!!batchSelectedIds?.has(task.id)}
+                                            onLongPress={() => onEnterBatchMode?.(task.id)}
+                                            onBatchToggle={() => onToggleBatchSelect?.(task.id)}
+                                            smartScheduleLabel={inboxSmartLabel}
+                                            smartScheduleTitle={inboxSmartTitle}
+                                            onSmartSchedule={handleSmartScheduleOne}
+                                          />
+                                        </TaskSwipeWrapper>
+                                      </motion.div>
+                                    ))}
+                                  </AnimatePresence>
+                                </SortableContext>
+                                <DragOverlay>
+                                  {activeDragTask && (
+                                    <div className="border rounded-xl opacity-90 shadow-sm" style={{ borderColor: "var(--border)" }}>
+                                      <TaskListItem
+                                        task={activeDragTask}
+                                        isSelected={false}
+                                        onClick={() => {}}
+                                        onToggleStatus={() => {}}
+                                        onUpdatePriority={() => {}}
+                                        onUpdateTags={() => {}}
+                                        onDelete={() => {}}
+                                        allTags={Object.keys(getTagCounts())}
+                                      />
+                                    </div>
+                                  )}
+                                </DragOverlay>
+                              </DndContext>
+                            ) : (
+                              <AnimatePresence mode="popLayout">
+                                {inboxUnscheduledTasks.map((task) => (
+                                  <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
+                                    <TaskSwipeWrapper
+                                      taskId={task.id}
+                                      isDone={task.status === "done"}
+                                      onComplete={() => routeCompleteTask(task.id)}
+                                      onDelete={(id) => routeDeleteTask(id)}
+                                      onAddToToday={showAddToToday ? addToToday : undefined}
+                                    >
+                                      <TaskListItem
+                                        task={task}
+                                        isSelected={task.id === selectedTaskId}
+                                        onClick={() => handleSelectTask(task.id)}
+                                        onToggleStatus={routeCompleteTask}
+                                        onToggleSubTask={routeToggleSubTask}
+                                        onUpdatePriority={(id, p) => routeUpdateTask(id, { priority: p })}
+                                        onUpdateTags={(id, tags) => routeUpdateTask(id, { tags })}
+                                        onTogglePin={(id) => routeUpdateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
+                                        onDelete={(id) => routeDeleteTask(id)} onDecline={routeDeclineTask}
+                                        onAddToToday={showAddToToday ? addToToday : undefined}
+                                        onHoverEnter={currentSharedListId ? undefined : setHoveredTaskId}
+                                        onHoverLeave={currentSharedListId ? undefined : (id) => setHoveredTaskId((prev) => (prev === id ? null : prev))}
+                                        allTags={Object.keys(getTagCounts())}
+                                        batchMode={batchMode}
+                                        batchSelected={!!batchSelectedIds?.has(task.id)}
+                                        onLongPress={() => onEnterBatchMode?.(task.id)}
+                                        onBatchToggle={() => onToggleBatchSelect?.(task.id)}
+                                        smartScheduleLabel={inboxSmartLabel}
+                                        smartScheduleTitle={inboxSmartTitle}
+                                        onSmartSchedule={handleSmartScheduleOne}
+                                      />
+                                    </TaskSwipeWrapper>
+                                  </motion.div>
+                                ))}
+                              </AnimatePresence>
+                            )}
+                          </section>
+                        )}
+
+                        {/* ── 下段：已排好日期（折疊區）── */}
+                        {inboxScheduledTasks.length > 0 && (
+                          <details
+                            className={
+                              inboxUnscheduledTasks.length > 0
+                                ? "mt-3 group/scheduled"
+                                : "group/scheduled"
+                            }
+                            open={inboxScheduledExpanded}
+                            onToggle={(e) => {
+                              const isOpen = (e.currentTarget as HTMLDetailsElement).open;
+                              if (isOpen !== inboxScheduledExpanded) {
+                                setInboxScheduledExpanded(isOpen);
+                                try { localStorage.setItem("inbox-scheduled-collapsed", String(!isOpen)); } catch {}
+                              }
+                            }}
+                          >
+                            <summary
+                              className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl cursor-pointer select-none transition-colors duration-150 hover:bg-black/[0.03] active:scale-[0.99] list-none [&::-webkit-details-marker]:hidden"
+                              style={{ color: "var(--text-tertiary)" }}
+                            >
+                              <div className="flex items-center gap-1.5">
+                                <ChevronRight
+                                  className="w-3.5 h-3.5 transition-transform duration-200 group-open/scheduled:rotate-90"
+                                  style={{ color: "var(--text-tertiary)" }}
+                                />
+                                <CalendarCheck2
+                                  className="w-3.5 h-3.5"
+                                  style={{ color: "var(--text-tertiary)" }}
+                                  aria-hidden="true"
+                                />
+                                <span className="text-[12px] font-medium">
+                                  已排好日期 {inboxScheduledTasks.length} 項
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  toggleInboxScheduledExpanded();
+                                }}
+                                className="text-[11px] px-2 py-1 rounded-md transition-colors duration-150 hover:bg-[var(--hover-bg)] min-h-[36px] sm:min-h-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
+                                style={{ color: "var(--text-tertiary)" }}
+                                aria-label={inboxScheduledExpanded ? "全部收起" : "全部展開"}
+                              >
+                                {inboxScheduledExpanded ? "全部收起" : "全部展開"}
+                              </button>
+                            </summary>
+                            <div className="flex flex-col gap-1 mt-1.5 pl-1">
+                              <AnimatePresence mode="popLayout">
+                                {inboxScheduledTasks.map((task) => (
+                                  <motion.div key={task.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}>
+                                    <TaskSwipeWrapper
+                                      taskId={task.id}
+                                      isDone={task.status === "done"}
+                                      onComplete={() => routeCompleteTask(task.id)}
+                                      onDelete={(id) => routeDeleteTask(id)}
+                                      onAddToToday={showAddToToday ? addToToday : undefined}
+                                    >
+                                      <TaskListItem
+                                        task={task}
+                                        isSelected={task.id === selectedTaskId}
+                                        onClick={() => handleSelectTask(task.id)}
+                                        onToggleStatus={routeCompleteTask}
+                                        onToggleSubTask={routeToggleSubTask}
+                                        onUpdatePriority={(id, p) => routeUpdateTask(id, { priority: p })}
+                                        onUpdateTags={(id, tags) => routeUpdateTask(id, { tags })}
+                                        onTogglePin={(id) => routeUpdateTask(id, { isPinned: !tasks.find(t => t.id === id)?.isPinned })}
+                                        onDelete={(id) => routeDeleteTask(id)} onDecline={routeDeclineTask}
+                                        onAddToToday={showAddToToday ? addToToday : undefined}
+                                        onHoverEnter={currentSharedListId ? undefined : setHoveredTaskId}
+                                        onHoverLeave={currentSharedListId ? undefined : (id) => setHoveredTaskId((prev) => (prev === id ? null : prev))}
+                                        allTags={Object.keys(getTagCounts())}
+                                        batchMode={batchMode}
+                                        batchSelected={!!batchSelectedIds?.has(task.id)}
+                                        onLongPress={() => onEnterBatchMode?.(task.id)}
+                                        onBatchToggle={() => onToggleBatchSelect?.(task.id)}
+                                      />
+                                    </TaskSwipeWrapper>
+                                  </motion.div>
+                                ))}
+                              </AnimatePresence>
+                            </div>
+                          </details>
+                        )}
+                      </>
+                    ) : canDrag ? (
                       <DndContext
                         sensors={sensors}
                         collisionDetection={closestCenter}

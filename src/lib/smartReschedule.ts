@@ -292,6 +292,51 @@ export function isUnscheduledTask(task: Task): boolean {
 }
 
 /**
+ * 產生任務列的「靜態輕量日期標籤」：
+ * - 無任何日期 → null（不貼「無日期」警示貼紙，靠空間分區辨識）
+ * - 跨日區間 → 「起 – 迄」
+ * - 單日 → 「M/d (EEEEE)」或「M/d (EEEEE) HH:mm」（含 dueTime）
+ */
+export function formatTaskScheduleChip(
+  task: Pick<Task, "startDate" | "dueDate" | "dueTime">,
+  todayStr: string
+): string | null {
+  if (!task.startDate && !task.dueDate) return null;
+
+  if (task.startDate && task.dueDate && task.startDate !== task.dueDate) {
+    return `${formatShortDateLabel(task.startDate, todayStr)} – ${formatShortDateLabel(task.dueDate, todayStr)}`;
+  }
+
+  const d = task.dueDate ?? task.startDate!;
+  if (task.dueTime) {
+    return `${formatShortDateLabel(d, todayStr)} ${task.dueTime}`;
+  }
+  return formatShortDateLabel(d, todayStr);
+}
+
+/**
+ * 個人收集箱雙區分組：未排期 / 已排好日期
+ * 守恆性：unscheduled.length + scheduled.length === activeTasks.length（零遺漏、零重複）
+ */
+export function partitionInboxActiveTasks(activeTasks: Task[]): {
+  unscheduled: Task[];
+  scheduled: Task[];
+} {
+  const unscheduled: Task[] = [];
+  const scheduled: Task[] = [];
+
+  for (const t of activeTasks) {
+    if (isUnscheduledTask(t)) {
+      unscheduled.push(t);
+    } else {
+      scheduled.push(t);
+    }
+  }
+
+  return { unscheduled, scheduled };
+}
+
+/**
  * 選取式智慧排程：只為使用者親手點選的任務排程，並嚴格依點選順序填滿每日上限。
  * 全不選（selectedIds 為空）時回傳空陣列 —— 零自動排程。
  */

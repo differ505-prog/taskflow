@@ -11,6 +11,8 @@ import {
   isUnscheduledTask,
   computeSelectedSmartSchedulePlan,
   formatShortDateLabel,
+  formatTaskScheduleChip,
+  partitionInboxActiveTasks,
 } from "@/lib/smartReschedule";
 
 function makeTask(overrides: Partial<Task> & { id: string }): Task {
@@ -298,5 +300,71 @@ describe("formatShortDateLabel", () => {
   it("今天顯示「今天」，其他日期顯示 M/d 與星期", () => {
     expect(formatShortDateLabel("2026-11-26", "2026-11-26")).toBe("今天");
     expect(formatShortDateLabel("2026-11-29", "2026-11-26")).toContain("11/29");
+  });
+});
+
+describe("formatTaskScheduleChip", () => {
+  const today = "2026-11-26";
+
+  it("無任何日期時回傳 null", () => {
+    expect(formatTaskScheduleChip({}, today)).toBeNull();
+    expect(formatTaskScheduleChip({ dueTime: "14:00" }, today)).toBeNull();
+  });
+
+  it("單日不含 dueTime 時只顯示日期短標籤", () => {
+    expect(formatTaskScheduleChip({ dueDate: "2026-11-29" }, today)).toBe(
+      formatShortDateLabel("2026-11-29", today)
+    );
+    expect(formatTaskScheduleChip({ startDate: "2026-11-29" }, today)).toBe(
+      formatShortDateLabel("2026-11-29", today)
+    );
+  });
+
+  it("單日含 dueTime 時附加時間", () => {
+    const label = formatTaskScheduleChip({ dueDate: "2026-11-29", dueTime: "14:00" }, today);
+    expect(label).toBe(`${formatShortDateLabel("2026-11-29", today)} 14:00`);
+  });
+
+  it("今天顯示「今天」而非日期", () => {
+    expect(formatTaskScheduleChip({ dueDate: today }, today)).toBe("今天");
+    expect(formatTaskScheduleChip({ dueDate: today, dueTime: "09:30" }, today)).toBe("今天 09:30");
+  });
+
+  it("跨日區間回傳「起 – 迄」", () => {
+    const label = formatTaskScheduleChip(
+      { startDate: "2026-11-27", dueDate: "2026-11-30" },
+      today
+    );
+    expect(label).toBe(
+      `${formatShortDateLabel("2026-11-27", today)} – ${formatShortDateLabel("2026-11-30", today)}`
+    );
+  });
+});
+
+describe("partitionInboxActiveTasks", () => {
+  it("嚴格守恆：無日期進 unscheduled，有日期進 scheduled，原順序保留", () => {
+    const tasks: Task[] = [
+      makeTask({ id: "p1", title: "無日期 A" }),
+      makeTask({ id: "p2", title: "有截止日 B", dueDate: "2026-11-29" }),
+      makeTask({ id: "p3", title: "有起始日 C", startDate: "2026-11-28" }),
+      makeTask({ id: "p4", title: "無日期 D" }),
+      makeTask({ id: "p5", title: "跨日 E", startDate: "2026-11-27", dueDate: "2026-11-29" }),
+    ];
+
+    const { unscheduled, scheduled } = partitionInboxActiveTasks(tasks);
+
+    expect(unscheduled.map((t) => t.id)).toEqual(["p1", "p4"]);
+    expect(scheduled.map((t) => t.id)).toEqual(["p2", "p3", "p5"]);
+
+    // 零遺漏、零重複
+    expect(unscheduled.length + scheduled.length).toBe(tasks.length);
+    const ids = [...unscheduled, ...scheduled].map((t) => t.id);
+    expect(new Set(ids).size).toBe(tasks.length);
+  });
+
+  it("空陣列時兩段皆為空", () => {
+    const { unscheduled, scheduled } = partitionInboxActiveTasks([]);
+    expect(unscheduled).toEqual([]);
+    expect(scheduled).toEqual([]);
   });
 });

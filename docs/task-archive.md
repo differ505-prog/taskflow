@@ -42,3 +42,10 @@
 - [x] **Step 6. `src/components/AppShell.tsx`**：個人收集箱限定串接、Toolbar `flex-wrap` 防 375px 溢位、開啟中保留收起鈕、5 秒 Undo 直接呼叫 `updateTask` 還原 `dueDate: undefined`
 - [x] **Step 7. 靜態紅線掃描**：`InboxSmartPicker.tsx` 零 `red-*`、零責備語氣、零強制全排、零路由跳轉
 - [x] **Step 8. Build Gate 驗收**：`tsc` exit 0、`vitest` 26 files / 267 tests 全綠、`next build` 編譯通過
+
+## 收集箱一眼辨識未排期：輕量日期 Chip ＋ 雙區分組（方案 A）已驗收歸檔（2026-11-27｜Round 1 一次驗收通過 9.3 / 10.0）
+- [x] **Step 1. `src/lib/smartReschedule.ts`**：新增 `formatTaskScheduleChip`（單日／含時間／跨日區間）與 `partitionInboxActiveTasks`（無損守恆分區純函式）
+- [x] **Step 2. `src/__tests__/smartReschedule.test.ts`**：新增 7 項單元測試覆蓋日期標籤與守恆分區（23 tests 全綠）
+- [x] **Step 3. `src/components/TaskListItem.tsx`**：補齊 >72h 靜態輕量日期 Chip（Lucide `Calendar` + `var(--surface-muted)` / `var(--text-tertiary)`），無日期任務維持乾淨留白
+- [x] **Step 4. `src/components/AppShell.tsx`**：個人收集箱拆為 `尚未排期`（含桌面拖曳與右側 `撈幾件來排` 入口，移除 Toolbar 重複按鈕）＋ `已排好日期`（`<details>` 記憶折疊）；非個人收集箱零改動
+- [x] **Step 5–6. 靜態紅線掃描零違規 + Build Gate 驗收**：`tsc` exit 0、`vitest` 26 files / 274 tests 全綠、`next build` 編譯通過

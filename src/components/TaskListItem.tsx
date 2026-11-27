@@ -8,10 +8,12 @@ import { Clock } from "lucide-react";
 import { getDeadlineStatus } from "@/lib/deadlineEngine";
 import {
   CheckCircle2, Circle, ChevronDown, ChevronRight, GripVertical, ListChecks,
-  Trash2, ShieldCheck, Sparkles,
+  Trash2, ShieldCheck, Sparkles, Calendar,
 } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { getLocalToday } from "@/lib/dateUtils";
+import { formatTaskScheduleChip } from "@/lib/smartReschedule";
 
 interface TaskListItemProps {
   task: Task;
@@ -101,6 +103,12 @@ export function TaskListItem({
   const isDone = task.status === "done";
   const { isCollapsed: isDoneCollapsed, toggle: toggleDoneCollapse } = useSubTaskCollapse(task.id, subTasks);
   const deadlineStatus = getDeadlineStatus(task.dueDate, task.dueTime, isDone);
+  // 靜態輕量日期標籤：補齊 deadlineEngine.ts 的 >72h 空白缺口
+  // 尚未排程的任務保持乾淨留白，不貼任何警示貼紙
+  const staticScheduleChip = useMemo(() => {
+    if (isDone || deadlineStatus) return null;
+    return formatTaskScheduleChip(task, getLocalToday());
+  }, [isDone, deadlineStatus, task]);
   const { isAdmin, isPro, isBeta } = useAuth();
   const dominoUnlocked = isAdmin || isPro || isBeta;
 
@@ -318,6 +326,22 @@ export function TaskListItem({
           >
             <Clock className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
             <span>{deadlineStatus.text}</span>
+          </div>
+        )}
+
+        {/* 靜態輕量日期標籤：補齊 deadlineEngine.ts >72h 空白缺口 */}
+        {staticScheduleChip && (
+          <div
+            className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md"
+            style={{
+              background: "var(--surface-muted)",
+              color: "var(--text-tertiary)",
+            }}
+            title={`已排定日期：${staticScheduleChip}`}
+            aria-label={`已排定日期：${staticScheduleChip}`}
+          >
+            <Calendar className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+            <span>{staticScheduleChip}</span>
           </div>
         )}
 

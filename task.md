@@ -1,21 +1,21 @@
-# Task Board — 收集箱未排期任務：雙層漸進「撈取排程」（方案 A）
+# Task Board — 收集箱一眼辨識未排期：輕量日期 Chip ＋ 雙區分組（方案 A）
 
 ## 【上市產品成熟度驗收儀表板】
-- **當前輪次**：Round 2（已達標結案）
-- **最新總分**：**9.5 / 10.0**（門檻 `>= 9.0` 且全維度 `>= 1.7`）
-- **上市紅線狀態**：✅ 零上市紅線（`tsc` exit 0、`vitest` 26 files / 267 tests 全綠、`next build` 編譯通過、紅線 grep 零命中）
+- **當前輪次**：Round 1（一次達標結案）
+- **最新總分**：**9.3 / 10.0**（門檻 `>= 9.0` 且全維度 `>= 1.7`）
+- **上市紅線狀態**：✅ 零上市紅線（`tsc` exit 0、`vitest` 26 files / 274 tests 全綠、`next build` 編譯通過、紅線 grep 零命中）
 - **五維度評分明細**：
-  1. 核心價值與業務閉環：**1.9 / 2.0**（雙層 Pull-based 撈取排程閉環完整、收起重開重置選取、面板開啟保留收起鈕、跨元件每日上限即時同步）
-  2. 視覺工藝與品牌信任感：**1.9 / 2.0**（全面採用 `DESIGN_SYSTEM.md` CSS Token 支援 `<html data-theme="dark">`、統一 `lucide-react` `<Leaf />`、零紅色系）
-  3. 微互動與多端適配體驗：**1.9 / 2.0**（Toolbar `flex-wrap` 375px 零溢位、`AnimatePresence` + `<motion.li layout>` 滑順重排、44px 手機熱區、`focus-visible:ring-2` 與 `Esc` 關閉）
-  4. 極端邊界與防呆韌性：**1.9 / 2.0**（空選零排程、Undo 直接寫 `updateTask` 無閉包過時問題、移除重複 haptic、離開 inbox 自動收起）
-  5. 商業細節與上市合規度：**1.9 / 2.0**（溫柔零責備微文案、`aria-live="polite"` 動態回報已選件數）
+  1. 核心價值與業務閉環：**1.9 / 2.0**（輕量日期 Chip 補齊 >72h 盲點、收集箱雙區分組守恆、`撈幾件來排` 收斂至未排期標題列右側）
+  2. 視覺工藝與品牌信任感：**1.8 / 2.0**（全 CSS Token 雙主題與 Lucide 圖示統一、零無日期貼紙噪音；`<summary>` 沿用既有 `hover:bg-black/[0.03]`）
+  3. 微互動與多端適配體驗：**1.8 / 2.0**（桌面拖曳、36px 手機熱區、折疊旋轉與平滑進退場過渡；`<summary>` 內層按鈕具 `focus-visible:ring-2`）
+  4. 極端邊界與防呆韌性：**1.9 / 2.0**（`partitionInboxActiveTasks` 零遺漏零重複、單段為空安全隱藏、非收集箱視圖零回歸）
+  5. 商業細節與上市合規度：**1.9 / 2.0**（溫柔微文案 `尚未排期` / `已排好日期`、`aria-label` 與 `title` 完整）
 - **已歸檔紀錄**：完整明細已歸檔至 [docs/task-archive.md](docs/task-archive.md)。
 
 ---
 
 ## 本輪已結案 (`[x]`)
-- [x] **Step 1–3. `smartReschedule.ts` 共用 SSOT、選取式排程純函式、`smartReschedule.test.ts`（16 tests）與 `LostAndFound.tsx` 同步重構**
-- [x] **Step 4. 新增 `InboxSmartPicker.tsx`（Pull-based 批量撈取面板、CSS Token 深淺主題、Lucide Icon、44px 熱區與滑順重排）**
-- [x] **Step 5–6. `TaskListItem.tsx`、`SortableTaskItem.tsx` 單筆 `✨ 排 M/d` 微入口與 `AppShell.tsx` 個人收集箱串接（含 375px `flex-wrap` 與 5 秒復原）**
-- [x] **Step 7–8. 靜態紅線掃描零違規 + Build Gate 驗收：`tsc` exit 0、`vitest` 26 檔 / 267 測試全綠、`next build` 編譯通過**
+- [x] **Step 1–2. `smartReschedule.ts` 新增 `formatTaskScheduleChip` / `partitionInboxActiveTasks` 與 `smartReschedule.test.ts` 7 項新測試（23 tests 全綠）**
+- [x] **Step 3. `TaskListItem.tsx` 補齊 >72h 靜態輕量日期 Chip（Lucide `Calendar` + CSS Token），無日期任務保持乾淨留白**
+- [x] **Step 4. `AppShell.tsx` 個人收集箱雙區分組（`尚未排期` ＋ 可折疊 `已排好日期`），並將 `撈幾件來排` 收斂至未排期區段右側**
+- [x] **Step 5–6. 靜態紅線掃描零命中 + Build Gate 驗收：`tsc` exit 0、`vitest` 26 檔 / 274 測試全綠、`next build` 編譯通過**
