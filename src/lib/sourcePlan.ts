@@ -14,6 +14,26 @@ export interface PlanSummary {
   themeDaysCount: number;
 }
 
+/** 「已套用方案」區塊的錨點 id（供 /settings#installed-plans 直達） */
+export const INSTALLED_PLANS_ANCHOR_ID = "installed-plans";
+
+/** 產生「前往設定頁管理此模板」的連結（含 plan 參數與錨點） */
+export function buildPlanSettingsHref(planId: string): string {
+  const trimmed = planId.trim();
+  if (!trimmed) {
+    return `/settings#${INSTALLED_PLANS_ANCHOR_ID}`;
+  }
+  return `/settings?plan=${encodeURIComponent(trimmed)}#${INSTALLED_PLANS_ANCHOR_ID}`;
+}
+
+/** 取得模板的顯示名稱；空白名稱 fallback 到 id；無有效 id 回傳 null */
+export function getSourcePlanDisplayName(sourcePlan: SourcePlan | undefined): string | null {
+  if (!sourcePlan?.id) return null;
+  const name = sourcePlan.name?.trim();
+  if (name) return name;
+  return sourcePlan.id.trim() || null;
+}
+
 /** Collect installed sourcePlan groups that still have active tasks, active habits, or themeDays. */
 export function collectInstalledPlans(
   tasks: Task[],

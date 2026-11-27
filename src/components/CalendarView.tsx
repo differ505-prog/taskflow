@@ -20,6 +20,7 @@ import { useMonthGrid } from "@/hooks/useMonthGrid";
 import { useExternalCalendar } from "@/hooks/useExternalCalendar";
 import { TodayIllustration } from "@/illustrations/EmptyStateIllustrations";
 import { isFlexibleOnDate, partitionAndSortDayTasks } from "@/lib/smartReschedule";
+import { SourcePlanBadge } from "./SourcePlanBadge";
 
 const HIDE_RECURRING_STORAGE_KEY = "calendar_hideRecurring";
 
@@ -1538,13 +1539,14 @@ export function CalendarTaskItem({
         >
           {task.title}
         </p>
-        <div className="flex items-center gap-3 mt-1.5">
+        <div className="flex flex-wrap items-center gap-3 mt-1.5">
           <div className="flex items-center gap-1">
             <div className="w-1.5 h-1.5 rounded-full" style={{ background: priorityColor }} />
             <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
               {task.priority === "do-now" ? "速辦" : task.priority === "schedule" ? "排程" : task.priority === "delegate" ? "轉交" : "暫緩"}
             </span>
           </div>
+          <SourcePlanBadge sourcePlan={task.sourcePlan} compact />
           {task.dueTime && (
             <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
               {task.dueTime}

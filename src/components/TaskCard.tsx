@@ -12,6 +12,7 @@ import { fireTaskDoneConfetti, playTaskDoneSound } from "@/lib/confetti";
 import { useSubTaskCollapse } from "@/utils/useSubTaskCollapse";
 import { SubTaskItem } from "./SubTaskItem";
 import { DueDateChip } from "./DueDateChip";
+import { SourcePlanBadge } from "./SourcePlanBadge";
 import { TaskCardToolbar } from "./TaskCardToolbar";
 import { TextWithLinks } from "./TextWithLinks";
 import {
@@ -208,7 +209,7 @@ export function TaskCard({
           </div>
 
           {/* Meta row */}
-          {(task.dueDate || task.tags.length > 0) && (
+          {(task.dueDate || task.startDate || task.tags.length > 0 || task.sourcePlan) && (
             <div className="flex flex-wrap items-center gap-1.5 mt-2">
               <DueDateChip
                 dueDate={task.dueDate}
@@ -216,6 +217,7 @@ export function TaskCard({
                 dueTime={task.dueTime}
                 isDone={isDone}
               />
+              <SourcePlanBadge sourcePlan={task.sourcePlan} />
               {task.tags.slice(0, 2).map((tag) => {
                 const color = tagColors[tag] || "#3B82F6";
                 return (

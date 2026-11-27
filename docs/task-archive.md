@@ -49,3 +49,10 @@
 - [x] **Step 3. `src/components/TaskListItem.tsx`**：補齊 >72h 靜態輕量日期 Chip（Lucide `Calendar` + `var(--surface-muted)` / `var(--text-tertiary)`），無日期任務維持乾淨留白
 - [x] **Step 4. `src/components/AppShell.tsx`**：個人收集箱拆為 `尚未排期`（含桌面拖曳與右側 `撈幾件來排` 入口，移除 Toolbar 重複按鈕）＋ `已排好日期`（`<details>` 記憶折疊）；非個人收集箱零改動
 - [x] **Step 5–6. 靜態紅線掃描零違規 + Build Gate 驗收**：`tsc` exit 0、`vitest` 26 files / 274 tests 全綠、`next build` 編譯通過
+
+## 全站任務模板歸屬識別徽章 ＋ 直達管理動線（框架級方案 A）已驗收歸檔（2026-11-27｜Round 1 一次驗收通過 9.5 / 10.0）
+- [x] **Step 1–2. `src/lib/sourcePlan.ts` & `src/__tests__/sourcePlan.test.ts`**：新增 `INSTALLED_PLANS_ANCHOR_ID`、`buildPlanSettingsHref`、`getSourcePlanDisplayName` 與 3 項新測試（12 tests 全綠）
+- [x] **Step 3. 新增 `src/components/SourcePlanBadge.tsx`**：純展示識別徽章（零 context/請求、`DESIGN_SYSTEM.md` CSS Token、Lucide `<Layers />`、支援活躍／休眠雙態與 `truncate` 防溢位）
+- [x] **Step 4. 四大任務視圖接入 `SourcePlanBadge`**：`TaskListItem.tsx`（合併單一 Meta 列）、`TaskCard.tsx`、`CalendarView.tsx`、`SlotTaskRow.tsx`
+- [x] **Step 5. `TaskDetailPanel.tsx` & `RhythmSection.tsx`**：詳情面板顯示「歸屬模板」資訊卡與 44px「管理 / 關閉」直達連結；設定頁 `#installed-plans` 支援 `?plan=` client-side 安全平滑捲動與 4 秒 `var(--brand)` 高亮
+- [x] **Step 6–7. 靜態紅線與 Next.js 安全掃描零違規 + Build Gate 驗收**：`tsc` exit 0、`vitest` 26 files / 277 tests 全綠、`next build` 編譯通過

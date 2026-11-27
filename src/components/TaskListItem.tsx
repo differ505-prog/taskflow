@@ -14,6 +14,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { getLocalToday } from "@/lib/dateUtils";
 import { formatTaskScheduleChip } from "@/lib/smartReschedule";
+import { SourcePlanBadge } from "./SourcePlanBadge";
 
 interface TaskListItemProps {
   task: Task;
@@ -316,32 +317,35 @@ export function TaskListItem({
           </div>
         </div>
 
-        {/* 死線引擎：截止緊迫警示（帕金森定律視覺化） */}
-        {deadlineStatus && (
-          <div
-            className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md"
-            style={{ background: `color-mix(in srgb, ${deadlineStatus.colorVar} 12%, transparent)`, color: deadlineStatus.colorVar }}
-            title={deadlineStatus.tooltip}
-            aria-label={`截止警示:${deadlineStatus.text}`}
-          >
-            <Clock className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
-            <span>{deadlineStatus.text}</span>
-          </div>
-        )}
-
-        {/* 靜態輕量日期標籤：補齊 deadlineEngine.ts >72h 空白缺口 */}
-        {staticScheduleChip && (
-          <div
-            className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md"
-            style={{
-              background: "var(--surface-muted)",
-              color: "var(--text-tertiary)",
-            }}
-            title={`已排定日期：${staticScheduleChip}`}
-            aria-label={`已排定日期：${staticScheduleChip}`}
-          >
-            <Calendar className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
-            <span>{staticScheduleChip}</span>
+        {/* Meta 列：截止警示 / 靜態日期標籤 / 歸屬模板徽章 */}
+        {(deadlineStatus || staticScheduleChip || task.sourcePlan) && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            {deadlineStatus && (
+              <div
+                className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md"
+                style={{ background: `color-mix(in srgb, ${deadlineStatus.colorVar} 12%, transparent)`, color: deadlineStatus.colorVar }}
+                title={deadlineStatus.tooltip}
+                aria-label={`截止警示:${deadlineStatus.text}`}
+              >
+                <Clock className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+                <span>{deadlineStatus.text}</span>
+              </div>
+            )}
+            {staticScheduleChip && (
+              <div
+                className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md"
+                style={{
+                  background: "var(--surface-muted)",
+                  color: "var(--text-tertiary)",
+                }}
+                title={`已排定日期：${staticScheduleChip}`}
+                aria-label={`已排定日期：${staticScheduleChip}`}
+              >
+                <Calendar className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+                <span>{staticScheduleChip}</span>
+              </div>
+            )}
+            <SourcePlanBadge sourcePlan={task.sourcePlan} />
           </div>
         )}
 

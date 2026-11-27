@@ -3,6 +3,7 @@
 import type { DragEvent } from "react";
 import { FileText, Paperclip } from "lucide-react";
 import type { Task } from "@/lib/types";
+import { SourcePlanBadge } from "./SourcePlanBadge";
 
 interface SlotTaskRowProps {
   task: Task;
@@ -110,6 +111,14 @@ export function SlotTaskRow({
         >
           {task.title}
         </span>
+      )}
+
+      {!isSelectedForMove && task.sourcePlan && (
+        <SourcePlanBadge
+          sourcePlan={task.sourcePlan}
+          compact
+          className="flex-shrink-0 hidden sm:inline-flex"
+        />
       )}
 
       {isSelectedForMove ? (

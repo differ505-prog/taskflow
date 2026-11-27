@@ -47,6 +47,15 @@ import { useConfirm } from "@/hooks/useConfirm";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 import { useSelectedTask } from "@/hooks/useSelectedTask";
 import { useDeclineTask } from "@/hooks/useDeclineTask";
+import { useRhythmSettings } from "@/hooks/useRhythmSettings";
+import { getLocalToday } from "@/lib/dateUtils";
+import {
+  buildPlanSettingsHref,
+  getSourcePlanDisplayName,
+  isPlanPaused,
+} from "@/lib/sourcePlan";
+import Link from "next/link";
+import { Layers } from "lucide-react";
 
 const DEBOUNCE_MS = 300; // 詳情面板欄位 debounce 寫入（TickTick 直覺：輸入即回饋、300ms 內不重複寫入）
 
@@ -111,6 +120,8 @@ const SELECT_ARROW = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
 
 export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
   const task = useSelectedTask(taskId); // Bug 2 fix：永遠拿 store 裡的最新任務
+  // 效能防線：只有單一開啟的詳情面板讀取節奏設定（列表 N 筆任務不會各打一次 Supabase）
+  const { settings: rhythmSettings } = useRhythmSettings();
 
   // Guard：taskId 空或任務已刪除時不渲染
   if (!taskId || !task) return null;
@@ -164,6 +175,12 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
   const currentListIdForRoute = listId ?? task.listId;
   const currentListForRoute = lists.find(l => l.id === currentListIdForRoute);
   const currentSharedListId = currentListForRoute?.sharedId ?? null;
+
+  // 歸屬模板資訊卡資料（休眠狀態只在單一開啟的詳情面板判定，避免列表 N 筆重複請求）
+  const sourcePlanDisplayName = getSourcePlanDisplayName(task.sourcePlan);
+  const isSourcePlanPaused = sourcePlanDisplayName
+    ? isPlanPaused(task.sourcePlan?.id, rhythmSettings.pausedPlans, getLocalToday())
+    : false;
 
   const handleUpdateTask = useCallback((taskId: string, updates: Partial<Task>) => {
     const targetListId = updates.listId ?? currentListIdForRoute;
@@ -877,6 +894,56 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
               onChange={handleListIdChange}
             />
           </div>
+
+          {/* 歸屬模板資訊卡 — 直達模板管理動線（§5a：僅此處提供明確 CTA） */}
+          {sourcePlanDisplayName && (
+            <div
+              className="mt-3 rounded-xl p-3 flex items-center justify-between gap-3 flex-wrap"
+              style={{ background: "var(--surface-muted)", border: "1px solid var(--border)" }}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <Layers
+                  className="w-3.5 h-3.5 flex-shrink-0"
+                  style={{ color: "var(--brand)" }}
+                  aria-hidden="true"
+                />
+                <div className="min-w-0">
+                  <div className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+                    歸屬模板
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className="text-[13px] font-medium truncate max-w-[160px]"
+                      style={{ color: "var(--text-primary)" }}
+                      title={sourcePlanDisplayName}
+                    >
+                      {sourcePlanDisplayName}
+                    </span>
+                    {isSourcePlanPaused && (
+                      <span
+                        className="text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap"
+                        style={{
+                          background: "var(--surface-hover)",
+                          color: "var(--text-tertiary)",
+                        }}
+                      >
+                        休眠中
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <Link
+                href={buildPlanSettingsHref(task.sourcePlan!.id)}
+                onClick={() => onClose?.()}
+                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] min-h-[44px] sm:min-h-[36px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
+                style={{ background: "var(--brand-tint)", color: "var(--brand)" }}
+              >
+                管理 / 關閉
+                <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Status */}

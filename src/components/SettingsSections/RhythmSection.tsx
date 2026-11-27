@@ -16,6 +16,7 @@ import {
   type PlanSummary,
 } from "@/lib/sourcePlan";
 import type { RhythmAnchorId } from "@/lib/types";
+import { INSTALLED_PLANS_ANCHOR_ID } from "@/lib/sourcePlan";
 
 const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"] as const;
 
@@ -50,6 +51,29 @@ export function RhythmSection() {
     () => collectInstalledPlans(tasks, habits, settings.themeDays),
     [tasks, habits, settings.themeDays]
   );
+
+  // ── ?plan= 直達高亮（Next.js 靜態建置防線）────────────────────
+  // 嚴禁使用 Next.js 的 URL query hook：會導致 /settings 靜態預渲染失敗。
+  // 只在 client 端 useEffect 內讀取 window.location.search。
+  const [highlightedPlanId, setHighlightedPlanId] = useState<string | null>(null);
+  useEffect(() => {
+    const planParam = new URLSearchParams(window.location.search).get("plan");
+    if (!planParam) return;
+    if (!installedPlans.some((p) => p.id === planParam)) return;
+
+    setHighlightedPlanId(planParam);
+    const timer = window.setTimeout(() => {
+      document
+        .getElementById(`installed-plan-${planParam}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 120);
+    const clearTimer = window.setTimeout(() => setHighlightedPlanId(null), 4000);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.clearTimeout(clearTimer);
+    };
+  }, [installedPlans]);
 
   const handleUninstallPlan = async (plan: PlanSummary) => {
     const ok = await confirm({
@@ -411,7 +435,7 @@ export function RhythmSection() {
 
         {/* 5. 已套用方案安全退場 */}
         {installedPlans.length > 0 && (
-          <div className="card p-4 space-y-3">
+          <div id={INSTALLED_PLANS_ANCHOR_ID} className="card p-4 space-y-3">
             <div>
               <p className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
                 已套用方案
@@ -429,8 +453,16 @@ export function RhythmSection() {
                 return (
                   <div
                     key={plan.id}
+                    id={`installed-plan-${plan.id}`}
                     className="rounded-xl px-3 py-2.5"
-                    style={{ background: "var(--surface-hover)" }}
+                    style={{
+                      background: "var(--surface-hover)",
+                      boxShadow:
+                        highlightedPlanId === plan.id
+                          ? "0 0 0 2px var(--brand)"
+                          : undefined,
+                      transition: "box-shadow 300ms ease",
+                    }}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">

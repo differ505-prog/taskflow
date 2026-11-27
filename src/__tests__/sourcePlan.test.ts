@@ -7,6 +7,9 @@ import {
   isItemPausedByPlan,
   isPlanPaused,
   removePlanThemeDays,
+  INSTALLED_PLANS_ANCHOR_ID,
+  buildPlanSettingsHref,
+  getSourcePlanDisplayName,
 } from "@/lib/sourcePlan";
 
 const PLAN = { id: "plan-3.0", name: "一人公司 3.0" };
@@ -145,5 +148,33 @@ describe("sourcePlan 方案休眠判斷", () => {
     expect(isItemPausedByPlan({}, pausedPlans, "2026-11-26")).toBe(false);
     expect(isItemPausedByPlan({ sourcePlan: { id: "plan-3.0", name: "一人公司 3.0" } }, pausedPlans, "2026-11-26")).toBe(true);
     expect(isItemPausedByPlan({ sourcePlan: { id: "plan-other", name: "其他" } }, pausedPlans, "2026-11-26")).toBe(false);
+  });
+});
+
+describe("sourcePlan badge & settings link helpers", () => {
+  it("產生指向 /settings 的模板管理連結（含 plan 參數與錨點）", () => {
+    expect(INSTALLED_PLANS_ANCHOR_ID).toBe("installed-plans");
+    expect(buildPlanSettingsHref("plan-3.1-p0")).toBe(
+      "/settings?plan=plan-3.1-p0#installed-plans"
+    );
+  });
+
+  it("特殊字元正確做 encodeURIComponent；空字串回退為僅錨點", () => {
+    expect(buildPlanSettingsHref("plan/a b")).toBe(
+      "/settings?plan=plan%2Fa%20b#installed-plans"
+    );
+    expect(buildPlanSettingsHref("  plan-3.1-p0  ")).toBe(
+      "/settings?plan=plan-3.1-p0#installed-plans"
+    );
+    expect(buildPlanSettingsHref("")).toBe("/settings#installed-plans");
+    expect(buildPlanSettingsHref("   ")).toBe("/settings#installed-plans");
+  });
+
+  it("取得模板顯示名稱：一般名稱、空白名稱 fallback 到 id、undefined 回傳 null", () => {
+    expect(getSourcePlanDisplayName({ id: "plan-3.0", name: "一人公司 3.0" })).toBe("一人公司 3.0");
+    expect(getSourcePlanDisplayName({ id: "plan-3.0", name: "   " })).toBe("plan-3.0");
+    expect(getSourcePlanDisplayName({ id: "plan-3.0", name: "" })).toBe("plan-3.0");
+    expect(getSourcePlanDisplayName(undefined)).toBeNull();
+    expect(getSourcePlanDisplayName({ id: "", name: "無 id" })).toBeNull();
   });
 });
