@@ -15,6 +15,7 @@ interface DaySlotCardProps {
   isCollapsed: boolean;
   onToggleCollapsed: () => void;
   onToggleStatus?: (taskId: string) => void;
+  onOpenDetail?: (taskId: string) => void;
   /** 拖曳或 Tap-to-Place 進行中 */
   isDropTargetActive?: boolean;
   /** 是否正有任務拖曳懸停於本槽 */
@@ -46,6 +47,7 @@ export function DaySlotCard({
   isCollapsed,
   onToggleCollapsed,
   onToggleStatus,
+  onOpenDetail,
   isDropTargetActive = false,
   isDragOver = false,
   onPlaceSelected,
@@ -158,6 +160,9 @@ export function DaySlotCard({
                 isDone={row.isDone}
                 onToggleStatus={
                   onToggleStatus ? () => onToggleStatus(row.task.id) : undefined
+                }
+                onOpenDetail={
+                  onOpenDetail ? () => onOpenDetail(row.task.id) : undefined
                 }
                 isSelectedForMove={selectedTaskId === row.task.id}
                 onSelectForMove={

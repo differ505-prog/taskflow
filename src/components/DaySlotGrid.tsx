@@ -21,6 +21,8 @@ interface DaySlotGridProps {
   onToggleStatus?: (taskId: string) => void;
   /** 將任務放入時段槽（dueTime = HH:mm）或移回這段之外（dueTime = undefined） */
   onAssignTaskTime?: (taskId: string, dueTime: string | undefined) => void;
+  /** 按需開啟任務詳情與附件 */
+  onOpenDetail?: (taskId: string) => void;
 }
 
 const DRAG_DATA_KEY = "text/x-vibelist-slot-task-id";
@@ -34,7 +36,7 @@ const DRAG_DATA_KEY = "text/x-vibelist-slot-task-id";
  *  - 不開 modal、不改視圖、不改 order（§5a）
  *  - 不做「現在要做什麼」的自動跳轉，當下槽只加一個靜態小圓點
  */
-export function DaySlotGrid({ tasks, onToggleStatus, onAssignTaskTime }: DaySlotGridProps) {
+export function DaySlotGrid({ tasks, onToggleStatus, onAssignTaskTime, onOpenDetail }: DaySlotGridProps) {
   const { settings, isHydrated } = useRhythmSettings();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -178,6 +180,7 @@ export function DaySlotGrid({ tasks, onToggleStatus, onAssignTaskTime }: DaySlot
             setCollapsed((prev) => ({ ...prev, [slot.id]: !(prev[slot.id] ?? false) }))
           }
           onToggleStatus={onToggleStatus}
+          onOpenDetail={onOpenDetail}
           isDropTargetActive={isDropModeActive}
           isDragOver={dragOverTarget === slot.id}
           onPlaceSelected={
@@ -282,6 +285,9 @@ export function DaySlotGrid({ tasks, onToggleStatus, onAssignTaskTime }: DaySlot
               isDone={task.status === "done"}
               onToggleStatus={
                 onToggleStatus ? () => onToggleStatus(task.id) : undefined
+              }
+              onOpenDetail={
+                onOpenDetail ? () => onOpenDetail(task.id) : undefined
               }
               isSelectedForMove={activeSelectedId === task.id}
               onSelectForMove={

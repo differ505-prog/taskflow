@@ -11,7 +11,7 @@ import { getTagColors } from "@/lib/storage";
 import { getEisenhowerVisual } from "@/lib/eisenhower";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  X, Repeat, Calendar, Mic, MicOff, Hash,
+  X, Repeat, Mic, MicOff, Hash,
   Trash2, Check, CheckCircle2, Circle, Tag as TagIcon,
   AlignLeft, Clock, Timer, ListChecks, Paperclip,
   AlertCircle, Flag, ChevronDown, ChevronRight, Pin, ExternalLink, Pencil, Plus,
@@ -33,6 +33,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 import { ListChipPicker } from "./ListChipPicker";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
+import { TaskDateRangeField } from "./TaskDateRangeField";
 import { EisenhowerQuadrantGrid } from "./EisenhowerQuadrantGrid";
 import { formatOutputLabel, incrementOutputCount } from "@/lib/outputCount";
 import { SLOT_DURATION_LABEL } from "@/lib/slotCopy";
@@ -681,12 +682,6 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
     paddingRight: "36px",
   };
 
-  const formatDateLabel = (iso: string): string => {
-    if (!iso) return "";
-    const [y, m, d] = iso.split("-").map(Number);
-    return `${m}/${d}`;
-  };
-
   // Native swipe to close functionality
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -1252,58 +1247,18 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
           )}
         </div>
 
-        {/* Dates */}
+        {/* Dates（方案 2A：預設單日 1 格 + 按需展開跨日 + 跨日自動平移） */}
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Calendar className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
-                <label className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>開始日期</label>
-              </div>
-              <input type="date" value={startDate} onChange={(e) => {
-                const newStart = e.target.value;
-                setStartDate(newStart);
-                // Bug 1 fix：若新開始日 > 既有結束日，自動將結束日順移至開始日
-                if (dueDate && newStart > dueDate) {
-                  setDueDate(newStart);
-                }
-              }} className="input cursor-pointer" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Clock className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />
-                <label className="text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>截止日期</label>
-              </div>
-              <input type="date" value={dueDate} min={startDate || undefined} onChange={(e) => setDueDate(e.target.value)} className="input cursor-pointer" />
-            </div>
-          </div>
-          {(startDate || dueDate) && (
-            <div
-              className="group flex items-center gap-1.5"
-              style={{ color: "var(--text-tertiary)" }}
-            >
-              <Calendar className="w-3 h-3" />
-              <span className="text-[12px]">
-                {startDate && dueDate && startDate !== dueDate
-                  ? `${formatDateLabel(startDate)} ~ ${formatDateLabel(dueDate)}`
-                  : formatDateLabel(startDate || dueDate)}
-              </span>
-              {/* §A 9.1 方案:一鍵清除日期按鈕
-                  - 全時間可見(slate-300 輕淡),不靠 hover 觸發(先前設計過於隱晦、用戶看不到)
-                  - hover 該行時玫瑰色加深,提示「刪除」語意
-                  - 顏色:rose-500 與完成按鈕(綠/白)區分
-                  - 點擊區 24x24 符合 §6 觸控標準 */}
-              <button
-                type="button"
-                onClick={handleClearDate}
-                aria-label="清除任務日期"
-                title="清除日期"
-                className="ml-1 flex h-6 w-6 items-center justify-center rounded-full text-slate-300 transition-all duration-200 ease-out hover:bg-[var(--hover-danger)] hover:text-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
-              >
-                <X className="h-3 w-3" aria-hidden />
-              </button>
-            </div>
-          )}
+          <TaskDateRangeField
+            startDate={startDate}
+            dueDate={dueDate}
+            resetKey={task.id}
+            onChangeDates={(nextStart, nextDue) => {
+              setStartDate(nextStart);
+              setDueDate(nextDue);
+            }}
+            onClear={handleClearDate}
+          />
           <div>
             <div className="flex items-center gap-1.5 mb-2">
               <Timer className="w-3.5 h-3.5" style={{ color: "var(--text-tertiary)" }} />

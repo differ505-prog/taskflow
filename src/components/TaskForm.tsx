@@ -6,8 +6,9 @@ import { PRIORITY_CONFIG } from "@/lib/types";
 import { useApp } from "@/lib/AppContext";
 import { getTagColors, getOrphanTags } from "@/lib/storage";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Plus, Repeat, Calendar, Mic, MicOff, Hash, AlertCircle, Sparkles, Loader2 } from "lucide-react";
+import { X, Plus, Repeat, Mic, MicOff, Hash, AlertCircle, Sparkles, Loader2 } from "lucide-react";
 import { ProtectedUploadButton } from "./ProtectedUploadButton";
+import { TaskDateRangeField } from "./TaskDateRangeField";
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset";
 import { Button } from "@/components/ui/Button";
 import { useAIShredder } from "@/hooks/useAIShredder";
@@ -135,12 +136,6 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
     tags: false,
   });
   const previewTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  const formatDateLabel = (iso: string): string => {
-    if (!iso) return "";
-    const [y, m, d] = iso.split("-").map(Number);
-    return `${m}/${d}`;
-  };
   const [isRecording, setIsRecording] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -658,41 +653,21 @@ export function TaskForm({ isOpen, onClose, onSubmit, initialData, currentListId
                 </div>
               </div>
 
-              {/* 日期區間 + 時間 */}
+              {/* 日期區間 + 時間（方案 2A：預設單日 1 格 + 按需展開跨日） */}
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block mb-2 text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
-                      <Calendar className="w-3.5 h-3.5 inline mr-1" />開始日期
-                    </label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="input cursor-pointer"
-                    />
-                  </div>
-                  <div>
-                    <label className="block mb-2 text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>
-                      <Calendar className="w-3.5 h-3.5 inline mr-1" />截止日期
-                    </label>
-                    <input
-                      type="date"
-                      value={dueDate}
-                      min={startDate || undefined}
-                      onChange={(e) => setDueDate(e.target.value)}
-                      className="input cursor-pointer"
-                    />
-                  </div>
-                </div>
-                {(startDate || dueDate) && (
-                  <div className="text-[12px] flex items-center gap-1.5" style={{ color: "var(--text-tertiary)" }}>
-                    <Calendar className="w-3 h-3" />
-                    {startDate && dueDate && startDate !== dueDate
-                      ? `${formatDateLabel(startDate)} ~ ${formatDateLabel(dueDate)}`
-                      : formatDateLabel(startDate || dueDate)}
-                  </div>
-                )}
+                <TaskDateRangeField
+                  startDate={startDate}
+                  dueDate={dueDate}
+                  resetKey={initialData?.id ?? (isOpen ? "new-open" : "closed")}
+                  onChangeDates={(nextStart, nextDue) => {
+                    setStartDate(nextStart);
+                    setDueDate(nextDue);
+                  }}
+                  onClear={() => {
+                    setStartDate("");
+                    setDueDate("");
+                  }}
+                />
                 <div>
                   <label className="block mb-2 text-[13px] font-medium" style={{ color: "var(--text-secondary)" }}>具體時間</label>
                   <input type="time" value={dueTime} onChange={(e) => setDueTime(e.target.value)} className="input cursor-pointer" />

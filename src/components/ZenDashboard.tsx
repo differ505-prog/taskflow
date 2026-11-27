@@ -45,7 +45,7 @@ import { ProWaitlistModal } from "@/components/ProWaitlistModal";
 import { TodayWrapUpButton } from "@/components/TodayWrapUpButton";
 import { useGhostButton } from "@/hooks/useGhostButton";
 import { useRhythmSettings } from "@/hooks/useRhythmSettings";
-import { ChevronRight, GripVertical, Hourglass, LayoutGrid, Sparkles, Users, Zap } from "lucide-react";
+import { ChevronRight, FileText, GripVertical, Hourglass, LayoutGrid, Paperclip, Sparkles, Users, Zap } from "lucide-react";
 import Image from "next/image";
 
 import { useApp } from "@/lib/AppContext";
@@ -53,6 +53,7 @@ import { isItemPausedByPlan } from "@/lib/sourcePlan";
 import type { Task } from "@/lib/types";
 import { WarmupFlow } from "@/components/WarmupFlow";
 import { OnboardingTask } from "@/components/OnboardingTask";
+import { TaskDetailPanel } from "@/components/TaskDetailPanel";
 import { ZenFirstVisitGuide } from "@/components/ZenFirstVisitGuide";
 
 /** 禪模式看的任務樣態：嚴格「今日專注清單 (The Today Rule)」
@@ -80,6 +81,7 @@ function selectZenTasks(tasks: Task[], sharedLists: Record<string, import("@/lib
 export default function ZenDashboard() {
   const { tasks, toggleTaskStatus, completeTask, reorderTasks, saveTasksDirectly, updateTask, escapeTask, sharedLists, updateSharedTask } = useApp();
   const { settings: rhythmSettings } = useRhythmSettings();
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
   const visibleTasks = useMemo(() => {
     const res = selectZenTasks(tasks, sharedLists);
     // 已休眠方案的任務先安靜下來，不佔用今天的焦點
@@ -391,6 +393,7 @@ export default function ZenDashboard() {
             tasks={visibleTasks}
             onToggleStatus={(id) => handleToggleTaskStatus(id)}
             onAssignTaskTime={(id, dueTime) => handleUpdateTask(id, { dueTime })}
+            onOpenDetail={(id) => setDetailTaskId(id)}
           />
         </div>
       )}
@@ -425,6 +428,7 @@ export default function ZenDashboard() {
                 onShiftNext={shiftFocusWithNext}
                 canShiftNext={visibleTasks.length >= 2}
                 onUpdateTitle={(id, title) => handleUpdateTask(id, { title })}
+                onOpenDetail={() => setDetailTaskId(focus.id)}
                 ghostButton={
                   <GhostButton
                     onClick={timebarGhost.handleClick}
@@ -458,7 +462,11 @@ export default function ZenDashboard() {
               <SortableContext items={queue.map((t) => t.id)} strategy={verticalListSortingStrategy}>
                 <ul className="flex flex-col gap-2">
                   {queue.map((task) => (
-                    <SortableQueueItem key={task.id} task={task} />
+                    <SortableQueueItem
+                      key={task.id}
+                      task={task}
+                      onOpenDetail={() => setDetailTaskId(task.id)}
+                    />
                   ))}
                 </ul>
               </SortableContext>
@@ -524,6 +532,45 @@ export default function ZenDashboard() {
         onJoin={bodyDoublingGhost.handleJoin}
         featureId="body_doubling"
       />
+
+      {/* 方案 1A：禪模式原位滑出詳情與附件抽屜（不離禪模式、不打斷心流） */}
+      <AnimatePresence>
+        {detailTaskId && (
+          <>
+            <motion.div
+              key="zen-detail-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setDetailTaskId(null)}
+              className="fixed inset-0 z-50 bg-black/25 backdrop-blur-[1px]"
+              aria-hidden="true"
+            />
+            <motion.aside
+              key="zen-detail-drawer"
+              role="dialog"
+              aria-modal="true"
+              aria-label="任務詳情與附件"
+              initial={{ x: "100%", opacity: 0.6 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: "100%", opacity: 0.6 }}
+              transition={{ type: "spring", damping: 32, stiffness: 360 }}
+              className="fixed inset-x-0 bottom-0 top-[10dvh] sm:inset-x-auto sm:top-0 sm:right-0 sm:bottom-0 sm:w-[460px] sm:max-w-[92vw] z-50 rounded-t-2xl sm:rounded-none sm:border-l shadow-2xl overflow-hidden flex flex-col"
+              style={{
+                background: "var(--surface)",
+                borderColor: "var(--border)",
+                paddingBottom: "env(safe-area-inset-bottom, 0px)",
+              }}
+            >
+              <TaskDetailPanel
+                taskId={detailTaskId}
+                onClose={() => setDetailTaskId(null)}
+              />
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
     </main>
     </>
   );
@@ -541,6 +588,7 @@ function FocusCard({
   canShiftNext,
   ghostButton,
   onUpdateTitle,
+  onOpenDetail,
 }: {
   task: Task;
   isSlashing: boolean;
@@ -551,6 +599,7 @@ function FocusCard({
   canShiftNext: boolean;
   ghostButton?: React.ReactNode;
   onUpdateTitle: (id: string, title: string) => void;
+  onOpenDetail?: () => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(task.title);
@@ -660,6 +709,42 @@ function FocusCard({
       <div className="focus-complete-ripple" aria-hidden />
 
 
+      {/* 詳情與附件微淡入口 — 絕對定位於卡片左上（與右上幽靈按鈕對稱）；有附件時亮出計數 */}
+      {onOpenDetail && !isEditing && (() => {
+        const attachmentCount = task.attachments?.length ?? 0;
+        const hasContext = attachmentCount > 0 || Boolean(task.description?.trim()) || (task.subTasks?.length ?? 0) > 0;
+        return (
+          <button
+            type="button"
+            onClick={onOpenDetail}
+            aria-label="查看任務詳情與附件"
+            title={attachmentCount > 0 ? `${attachmentCount} 個附件 · 點擊查看詳情` : "查看任務詳情與附件"}
+            className={`absolute left-5 top-5 sm:left-6 sm:top-6 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-opacity hover:bg-[var(--surface-hover)] ${
+              hasContext
+                ? "opacity-80 hover:opacity-100"
+                : "opacity-60 sm:opacity-0 sm:group-hover:opacity-80 sm:focus-visible:opacity-100"
+            }`}
+            style={{
+              color: attachmentCount > 0 ? "var(--brand)" : "var(--text-tertiary)",
+              background: attachmentCount > 0 ? "var(--brand-tint)" : "transparent",
+            }}
+          >
+            {attachmentCount > 0 ? (
+              <>
+                <Paperclip className="w-3 h-3" aria-hidden="true" />
+                <span className="tabular-nums">{attachmentCount}</span>
+                <span>詳情</span>
+              </>
+            ) : (
+              <>
+                <FileText className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>詳情</span>
+              </>
+            )}
+          </button>
+        );
+      })()}
+
       {/* 幽靈按鈕 — 絕對定位於卡片右上,§假門測試用 */}
       {ghostButton && !isEditing && (
         <div className="absolute right-5 top-5 sm:right-6 sm:top-6">{ghostButton}</div>
@@ -757,7 +842,7 @@ function FocusCard({
   );
 }
 
-function SortableQueueItem({ task }: { task: Task }) {
+function SortableQueueItem({ task, onOpenDetail }: { task: Task; onOpenDetail?: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
   });
@@ -767,11 +852,13 @@ function SortableQueueItem({ task }: { task: Task }) {
     transition,
   };
 
+  const attachmentCount = task.attachments?.length ?? 0;
+
   return (
     <li
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-3 rounded-lg bg-[var(--surface)]/40 px-4 py-3 opacity-60 ring-1 ring-[var(--border)] backdrop-blur-sm transition-all duration-300 hover:bg-[var(--surface)]/80 hover:opacity-100 hover:ring-[var(--border-hover)] ${
+      className={`group/qitem flex items-center gap-3 rounded-lg bg-[var(--surface)]/40 px-4 py-3 opacity-60 ring-1 ring-[var(--border)] backdrop-blur-sm transition-all duration-300 hover:bg-[var(--surface)]/80 hover:opacity-100 hover:ring-[var(--border-hover)] ${
         isDragging ? "!opacity-30" : ""
       }`}
     >
@@ -785,6 +872,29 @@ function SortableQueueItem({ task }: { task: Task }) {
         <GripVertical className="w-4 h-4" aria-hidden="true" />
       </button>
       <QueueItemCard task={task} isDragging={isDragging} />
+      {onOpenDetail && (
+        <button
+          type="button"
+          onClick={onOpenDetail}
+          aria-label={`查看「${task.title}」詳情與附件`}
+          title={attachmentCount > 0 ? `${attachmentCount} 個附件 · 點擊查看詳情` : "查看詳情與附件"}
+          className={`flex-shrink-0 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] transition-opacity hover:bg-black/5 ${
+            attachmentCount > 0
+              ? "opacity-90"
+              : "opacity-60 sm:opacity-0 sm:group-hover/qitem:opacity-80 sm:focus-visible:opacity-100"
+          }`}
+          style={{ color: attachmentCount > 0 ? "var(--brand)" : "var(--text-tertiary)" }}
+        >
+          {attachmentCount > 0 ? (
+            <>
+              <Paperclip className="w-3 h-3" aria-hidden="true" />
+              <span className="tabular-nums font-medium">{attachmentCount}</span>
+            </>
+          ) : (
+            <FileText className="w-3.5 h-3.5" aria-hidden="true" />
+          )}
+        </button>
+      )}
     </li>
   );
 }
