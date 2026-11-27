@@ -4,6 +4,7 @@ import { useRef, useState, useCallback } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { Attachment } from "@/lib/types";
 import { Upload, Lock, AlertCircle, CheckCircle2, X, Image, FileText, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { uploadFile, formatFileSize, getFileIcon, UploadProgress } from "@/lib/storageUpload";
 import { track } from "@/lib/analytics";
 
@@ -83,9 +84,12 @@ export function ProtectedUploadButton({
     setError(null);
 
     // 檢查檔案大小
+    const effectiveLimitMB = maxSizeMB ?? maxFileSizeMB ?? 5;
     for (const file of files) {
       if (!isAdmin && file.size > effectiveMaxSize) {
-        setError(`「${file.name}」超過大小限制（最大 ${maxSizeMB ?? 5}MB）`);
+        const msg = `「${file.name}」超過大小限制（最大 ${effectiveLimitMB}MB）`;
+        setError(msg);
+        toast.error(msg);
         return;
       }
     }
@@ -103,6 +107,7 @@ export function ProtectedUploadButton({
 
     // 開始上傳
     const completedAttachments: Attachment[] = [];
+    const failedMessages: string[] = [];
 
     for (const item of newItems) {
       // 更新狀態為上傳中
@@ -118,18 +123,14 @@ export function ProtectedUploadButton({
 
       if (result.success && result.attachment) {
         completedAttachments.push(result.attachment);
-        setUploads((prev) =>
-          prev.map((u) =>
-            u.id === item.id
-              ? { ...u, status: "completed", attachment: result.attachment }
-              : u
-          )
-        );
+        setUploads((prev) => prev.filter((u) => u.id !== item.id));
       } else {
+        const errMsg = result.error || "上傳失敗";
+        failedMessages.push(`${item.file.name}：${errMsg}`);
         setUploads((prev) =>
           prev.map((u) =>
             u.id === item.id
-              ? { ...u, status: "error", error: result.error }
+              ? { ...u, status: "error", error: errMsg }
               : u
           )
         );
@@ -140,12 +141,16 @@ export function ProtectedUploadButton({
 
     if (completedAttachments.length > 0) {
       onFilesUploaded(completedAttachments);
+      toast.success(
+        completedAttachments.length === 1
+          ? `已上傳「${completedAttachments[0].name}」`
+          : `已上傳 ${completedAttachments.length} 個附件`
+      );
     }
 
-    // 清理已完成的上傳（延遲一下讓用戶看到結果）
-    setTimeout(() => {
-      setUploads((prev) => prev.filter((u) => u.status === "uploading" || u.status === "pending"));
-    }, 2000);
+    if (failedMessages.length > 0) {
+      toast.error(failedMessages[0]);
+    }
 
     // 重置 input
     if (inputRef.current) {
@@ -157,10 +162,11 @@ export function ProtectedUploadButton({
     setUploads((prev) => prev.filter((u) => u.id !== id));
   };
 
+  const existingIds = new Set(existingAttachments.map((a) => a.id));
   const allAttachments = [
     ...existingAttachments,
     ...uploads
-      .filter((u) => u.status === "completed" && u.attachment)
+      .filter((u) => u.status === "completed" && u.attachment && !existingIds.has(u.attachment.id))
       .map((u) => u.attachment!),
   ];
 
@@ -208,18 +214,22 @@ export function ProtectedUploadButton({
         </div>
       )}
 
-      {/* Upload Progress */}
-      {uploads.filter((u) => u.status === "uploading" || u.status === "pending").length > 0 && (
+      {/* Upload Progress & Errors */}
+      {uploads.filter((u) => u.status === "uploading" || u.status === "pending" || u.status === "error").length > 0 && (
         <div className="space-y-2">
           {uploads
-            .filter((u) => u.status === "uploading" || u.status === "pending")
+            .filter((u) => u.status === "uploading" || u.status === "pending" || u.status === "error")
             .map((item) => (
               <div
                 key={item.id}
                 className="flex items-center gap-3 p-2.5 rounded-xl"
-                style={{ background: "var(--surface-muted)" }}
+                style={{
+                  background: item.status === "error" ? "var(--status-danger-tint)" : "var(--surface-muted)",
+                }}
               >
-                {item.file.type.startsWith("image/") ? (
+                {item.status === "error" ? (
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" style={{ color: "var(--status-danger)" }} />
+                ) : item.file.type.startsWith("image/") ? (
                   <Image className="w-5 h-5 flex-shrink-0" style={{ color: "var(--text-tertiary)" }} />
                 ) : (
                   <FileText className="w-5 h-5 flex-shrink-0" style={{ color: "var(--text-tertiary)" }} />
@@ -228,19 +238,37 @@ export function ProtectedUploadButton({
                   <p className="text-[12px] truncate" style={{ color: "var(--text-primary)" }}>
                     {item.file.name}
                   </p>
-                  <div className="mt-1 h-1 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
-                    <div
-                      className="h-full rounded-full transition-all duration-300"
-                      style={{
-                        width: `${item.progress}%`,
-                        background: item.status === "error" ? "var(--status-danger)" : "var(--brand)",
-                      }}
-                    />
-                  </div>
+                  {item.status === "error" ? (
+                    <p className="text-[11px] mt-0.5 break-words" style={{ color: "var(--status-danger)" }}>
+                      {item.error || "上傳失敗"}
+                    </p>
+                  ) : (
+                    <div className="mt-1 h-1 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
+                      <div
+                        className="h-full rounded-full transition-all duration-300"
+                        style={{
+                          width: `${item.progress}%`,
+                          background: "var(--brand)",
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
-                <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
-                  {item.progress}%
-                </span>
+                {item.status === "error" ? (
+                  <button
+                    type="button"
+                    onClick={() => removeUpload(item.id)}
+                    className="p-1 rounded-lg hover:bg-black/5"
+                    style={{ color: "var(--status-danger)" }}
+                    aria-label="關閉錯誤提示"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                ) : (
+                  <span className="text-[11px] tabular-nums" style={{ color: "var(--text-tertiary)" }}>
+                    {item.progress}%
+                  </span>
+                )}
               </div>
             ))}
         </div>

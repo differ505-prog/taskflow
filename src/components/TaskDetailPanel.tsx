@@ -270,6 +270,8 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
     setTitle(text);
   });
   const [attachments, setAttachments] = useState<Attachment[]>(task.attachments || []);
+  const attachmentsRef = useRef<Attachment[]>(attachments);
+  attachmentsRef.current = attachments;
   const [hasChanges, setHasChanges] = useState(false);
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
   const [showTagPanel, setShowTagPanel] = useState(false);
@@ -302,7 +304,9 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
     setRecurrenceEndDate(task.recurrence?.endDate || "");
     setSubTasks(task.subTasks || []);
     setEditingSubId(null);
-    setAttachments(task.attachments || []);
+    const nextAtts = task.attachments || [];
+    attachmentsRef.current = nextAtts;
+    setAttachments(nextAtts);
     setHasChanges(false);
     setIsEditingDesc(false);
   }, [task.id]);
@@ -1095,32 +1099,43 @@ export function TaskDetailPanel({ taskId, onClose }: TaskDetailPanelProps) {
 
             {/* 附件：獨立一行,放在 EisenhowerGrid 下方 */}
             <div className="col-span-12">
-              <label className="block mb-1.5 text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>附件</label>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mb-1.5">
+                <label className="text-[12px] font-medium" style={{ color: "var(--text-secondary)" }}>附件</label>
                 {attachments.length > 0 && (
-                  <span className="text-[11px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>
+                  <span className="text-[11px] px-1.5 py-0.5 rounded-full tabular-nums" style={{ background: "var(--brand-tint)", color: "var(--brand)" }}>
                     {attachments.length}
                   </span>
                 )}
-                <ProtectedUploadButton
-                  existingAttachments={attachments}
-                  onRemoveAttachment={(attachment) => {
-                    if (attachment.storagePath) {
-                      deleteFile(attachment.storagePath).catch((err) => {
-                        logger.ns("TaskDetailPanel").warn("Failed to delete attachment from storage", { error: err });
-                      });
-                    }
-                    setAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
-                  }}
-                  onFilesUploaded={(newAttachments) => setAttachments((prev) => [...prev, ...newAttachments])}
-                  buttonIcon={<Paperclip className="w-4 h-4" />}
-                />
-                {attachments.length > 0 && (
-                  <span className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
-                    點按鈕查看/刪除已上傳附件
-                  </span>
-                )}
               </div>
+              <ProtectedUploadButton
+                existingAttachments={attachments}
+                onRemoveAttachment={(attachment) => {
+                  if (attachment.storagePath) {
+                    deleteFile(attachment.storagePath).catch((err) => {
+                      logger.ns("TaskDetailPanel").warn("Failed to delete attachment from storage", { error: err });
+                    });
+                  }
+                  const next = attachmentsRef.current.filter((a) => a.id !== attachment.id);
+                  attachmentsRef.current = next;
+                  setAttachments(next);
+                  markEditingActivity(task.id);
+                  handleUpdateTask(task.id, { attachments: next });
+                  setShowSaved(true);
+                  if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+                  savedTimerRef.current = setTimeout(() => setShowSaved(false), 1500);
+                }}
+                onFilesUploaded={(newAttachments) => {
+                  const next = [...attachmentsRef.current, ...newAttachments];
+                  attachmentsRef.current = next;
+                  setAttachments(next);
+                  markEditingActivity(task.id);
+                  handleUpdateTask(task.id, { attachments: next });
+                  setShowSaved(true);
+                  if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+                  savedTimerRef.current = setTimeout(() => setShowSaved(false), 1500);
+                }}
+                buttonIcon={<Paperclip className="w-4 h-4" />}
+              />
             </div>
           </div>
         </div>

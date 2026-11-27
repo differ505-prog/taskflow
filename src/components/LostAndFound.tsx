@@ -1,7 +1,7 @@
 "use client";
 import { getLocalToday } from "@/lib/dateUtils";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Leaf, ArchiveRestore, CalendarClock, RotateCcw } from "lucide-react";
 import { format, parseISO } from "date-fns";
@@ -43,9 +43,34 @@ function formatShortDateLabel(dateStr: string, todayStr: string): string {
   return format(d, "M/d (EEEEE)", { locale: zhTW });
 }
 
+const DAILY_CAP_STORAGE_KEY = "lost_found_daily_cap";
+const DAILY_CAP_OPTIONS = [2, 3, 4] as const;
+
 export default function LostAndFound() {
   const { tasks, updateTask } = useApp();
   const [rankedIds, setRankedIds] = useState<string[]>([]);
+  const [dailyCap, setDailyCap] = useState<number>(DEFAULT_DAILY_HARD_CAP);
+
+  useEffect(() => {
+    try {
+      const saved = Number(localStorage.getItem(DAILY_CAP_STORAGE_KEY));
+      if (DAILY_CAP_OPTIONS.includes(saved as (typeof DAILY_CAP_OPTIONS)[number])) {
+        setDailyCap(saved);
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
+  const handleChangeDailyCap = (nextCap: number) => {
+    setDailyCap(nextCap);
+    try {
+      localStorage.setItem(DAILY_CAP_STORAGE_KEY, String(nextCap));
+    } catch {
+      // ignore storage errors
+    }
+    haptic("selection");
+  };
 
   const today = getLocalToday(); // YYYY-MM-DD（本地時區）
 
@@ -80,14 +105,14 @@ export default function LostAndFound() {
     haptic("selection");
   };
 
-  /** 即時計算每筆的智慧落點（支援原地 Tap-to-Rank 自訂優先順序） */
+  /** 即時計算每筆的智慧落點（近端優先填滿 + 支援原地 Tap-to-Rank） */
   const smartPlan = useMemo(
     () =>
       computeSmartReschedulePlan(lostTasks, tasks, today, {
-        dailyCap: DEFAULT_DAILY_HARD_CAP,
+        dailyCap,
         customOrderIds: activeRankedIds,
       }),
-    [lostTasks, tasks, today, activeRankedIds],
+    [lostTasks, tasks, today, dailyCap, activeRankedIds],
   );
 
   // 篩選為空 → 不渲染任何東西(零視覺噪音)
@@ -198,7 +223,34 @@ export default function LostAndFound() {
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        <div className="flex flex-wrap items-center gap-1.5 flex-shrink-0">
+          <div
+            className="inline-flex items-center rounded-full bg-white/70 p-0.5 shadow-sm"
+            role="group"
+            aria-label="每日硬排程上限"
+            title="調整每天最多填滿幾件硬排程，滿了自動往後溢流"
+          >
+            <span className="px-1.5 text-[11px] text-zinc-400">每日</span>
+            {DAILY_CAP_OPTIONS.map((cap) => {
+              const active = dailyCap === cap;
+              return (
+                <button
+                  key={cap}
+                  type="button"
+                  onClick={() => handleChangeDailyCap(cap)}
+                  aria-pressed={active}
+                  className="min-w-[24px] h-[22px] rounded-full px-1.5 text-[11px] font-medium tabular-nums transition-colors"
+                  style={
+                    active
+                      ? { background: "var(--brand)", color: "var(--brand-foreground)" }
+                      : { color: "#71717a" }
+                  }
+                >
+                  {cap}
+                </button>
+              );
+            })}
+          </div>
           {activeRankedIds.length > 0 && (
             <button
               type="button"
@@ -218,7 +270,7 @@ export default function LostAndFound() {
             onClick={handleConfirmBatchSmartSchedule}
             className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium shadow-sm transition-all duration-200 ease-out active:scale-[0.97]"
             style={{ background: "var(--brand)", color: "var(--brand-foreground)" }}
-            title={`依目前順序與未來 14 天每日硬排程數（上限 ${DEFAULT_DAILY_HARD_CAP} 件）一次排入`}
+            title={`從今天起依序填滿每日 ${dailyCap} 件硬排程，滿額自動順延`}
           >
             <CalendarClock className="h-3.5 w-3.5" aria-hidden />
             <span>全部智慧排入 ({smartPlan.length})</span>

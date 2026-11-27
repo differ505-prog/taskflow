@@ -12,6 +12,7 @@ import { generateId } from "./storage";
 // 支援的圖片類型
 const IMAGE_MIME_TYPES = [
   "image/jpeg",
+  "image/jpg",
   "image/png",
   "image/gif",
   "image/webp",
@@ -34,6 +35,35 @@ const ALLOWED_MIME_TYPES = [
   "application/zip",
   "application/x-zip-compressed",
 ];
+
+const EXT_TO_MIME: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  gif: "image/gif",
+  webp: "image/webp",
+  heic: "image/heic",
+  heif: "image/heif",
+  pdf: "application/pdf",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xls: "application/vnd.ms-excel",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ppt: "application/vnd.ms-powerpoint",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  txt: "text/plain",
+  csv: "text/csv",
+  zip: "application/zip",
+};
+
+/** 推斷並正規化檔案 MIME（處理部分手機瀏覽器 file.type 為空或 image/jpg） */
+export function resolveFileMimeType(file: Pick<File, "name" | "type">): string {
+  const raw = (file.type || "").trim().toLowerCase();
+  if (raw === "image/jpg") return "image/jpeg";
+  if (raw) return raw;
+  const ext = getFileExtension(file.name);
+  return EXT_TO_MIME[ext] ?? "application/octet-stream";
+}
 
 export interface UploadProgress {
   progress: number; // 0-100
@@ -70,22 +100,6 @@ export function getFileExtension(filename: string): string {
 }
 
 /**
- * 生成 Supabase Storage 路徑
- */
-function generateStoragePath(uid: string, file: File): string {
-  const timestamp = Date.now();
-  const randomId = generateId();
-  const extension = getFileExtension(file.name);
-  const baseName = file.name
-    .replace(/\.[^.]+$/, "")
-    .replace(/[^a-zA-Z0-9]/g, "_");
-  const safeName = `${baseName}_${timestamp}_${randomId}${
-    extension ? "." + extension : ""
-  }`;
-  return `${uid}/${safeName}`;
-}
-
-/**
  * 上傳單個檔案到 Supabase Storage
  *
  * `userId` 從呼叫端的 Auth state 傳入（React Context），
@@ -101,20 +115,19 @@ export async function uploadFile(
       return { success: false, error: "請先登入" };
     }
 
-    if (!isAllowedFileType(file.type)) {
+    const mimeType = resolveFileMimeType(file);
+    if (!isAllowedFileType(mimeType)) {
       return { success: false, error: "不支援的檔案類型" };
     }
 
     const supabase = getSupabaseClient();
-    const storagePath = generateStoragePath(userId, file);
 
     // Supabase JS SDK 沒有 resumable upload 的原生進度事件
     // 用 XHR 才能拿到 progress event（fetch API 沒有上傳進度）
-    const publicUrl = await uploadWithProgress(
+    const { publicUrl, path: serverPath } = await uploadWithProgress(
       supabase,
-      ATTACHMENTS_BUCKET,
-      storagePath,
       file,
+      mimeType,
       onProgress
     );
 
@@ -122,11 +135,11 @@ export async function uploadFile(
       id: generateId(),
       name: file.name,
       url: publicUrl,
-      type: getFileType(file.type),
+      type: getFileType(mimeType),
       size: file.size,
-      mimeType: file.type,
+      mimeType,
       uploadedAt: new Date().toISOString(),
-      storagePath: `${ATTACHMENTS_BUCKET}/${storagePath}`,
+      storagePath: `${ATTACHMENTS_BUCKET}/${serverPath}`,
     };
     return { success: true, attachment };
   } catch (error: any) {
@@ -139,20 +152,15 @@ export async function uploadFile(
  *
  * 流程：
  * 1. fetch POST /api/storage/sign-upload，拿 { uploadUrl, token, path, publicUrl }
- * 2. XHR POST 到 uploadUrl（帶 Authorization header）
- * 3. 成功後回傳 publicUrl
- *
- * 為何不直接用 supabase.storage.from(bucket).upload()：
- *   - 該方法的 onUploadProgress 在瀏覽器端不支援進度回報
- *   - XHR 上傳到 signed URL 才能拿到真實進度，同時保持 server-side 驗證
+ * 2. XHR PUT（FormData，對齊 @supabase/storage-js uploadToSignedUrl 規格）到 uploadUrl
+ * 3. 成功後回傳 { publicUrl, path }
  */
 function uploadWithProgress(
   supabase: ReturnType<typeof getSupabaseClient>,
-  bucket: string,
-  path: string,
   file: File,
+  mimeType: string,
   onProgress?: (progress: UploadProgress) => void
-): Promise<string> {
+): Promise<{ publicUrl: string; path: string }> {
   return new Promise(async (resolve, reject) => {
     try {
       if (!supabase) {
@@ -175,7 +183,7 @@ function uploadWithProgress(
           },
           body: JSON.stringify({
             filename: file.name,
-            mimeType: file.type || "application/octet-stream",
+            mimeType,
             size: file.size,
           }),
         });
@@ -192,14 +200,13 @@ function uploadWithProgress(
         return;
       }
 
-      // Step 2: 用 XHR 向 signed URL 上傳（帶 Authorization）
+      // Step 2: 用 XHR PUT + FormData 向 signed URL 上傳（與 @supabase/storage-js uploadToSignedUrl 一致）
       const xhr = new XMLHttpRequest();
       const uploadUrl = signData!.uploadUrl;
 
-      xhr.open("POST", uploadUrl, true);
-      xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+      xhr.open("PUT", uploadUrl, true);
+      xhr.timeout = 60_000;
       xhr.setRequestHeader("x-upsert", "true");
-      // signed URL 已含 token 或 query param，不需要額外 Authorization header
 
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable && onProgress) {
@@ -213,7 +220,7 @@ function uploadWithProgress(
 
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(signData!.publicUrl);
+          resolve({ publicUrl: signData!.publicUrl, path: signData!.path });
         } else {
           let msg = `上傳失敗 (${xhr.status})`;
           try {
@@ -230,7 +237,10 @@ function uploadWithProgress(
       xhr.onerror = () => reject(new Error("網路錯誤，上傳失敗"));
       xhr.ontimeout = () => reject(new Error("上傳逾時"));
 
-      xhr.send(file);
+      const formData = new FormData();
+      formData.append("cacheControl", "3600");
+      formData.append("", file);
+      xhr.send(formData);
     } catch (err: any) {
       reject(err);
     }

@@ -30,14 +30,23 @@ import { z } from "zod";
 // ─── 白名單 MIME 類型 ───
 const ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
+  "image/jpg",
   "image/png",
   "image/gif",
   "image/webp",
   "image/heic",
   "image/heif",
   "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   "text/plain",
   "text/csv",
+  "application/zip",
+  "application/x-zip-compressed",
 ]);
 
 // ─── Zod Input Schema ───────────────────────────────────────────────────────
@@ -83,7 +92,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const bearerToken = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
+    const { data: { user } } = bearerToken
+      ? await supabase.auth.getUser(bearerToken)
+      : await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -162,32 +174,26 @@ export async function POST(req: NextRequest) {
     const storagePath = generateStoragePath(user.id, safeFilename);
     const bucket = "attachments";
 
-    // 6. 使用 service_role_key 直接呼叫 Supabase Storage REST API 建立 signed upload URL
-    const expiresAt = Math.floor(Date.now() / 1000) + 3600; // 1 hour
-    const signedUrl = `${supabaseUrl}/storage/v1/object/upload/sign/${bucket}/${storagePath}`;
+    // 6. 使用 Supabase Admin SDK 建立 signed upload URL（內部為 POST + 回傳完整 signedUrl）
+    const { data: signData, error: signError } = await supabaseAdmin.storage
+      .from(bucket)
+      .createSignedUploadUrl(storagePath, { upsert: true });
 
-    const signRes = await fetch(signedUrl, {
-      headers: {
-        Authorization: `Bearer ${serviceRoleKey}`,
-        apikey: serviceRoleKey,
-      },
-    });
-
-    if (!signRes.ok) {
-      console.error("[sign-upload] Failed to create signed URL:", await signRes.text());
+    if (signError || !signData?.signedUrl) {
+      console.error("[sign-upload] Failed to create signed URL:", signError);
       return NextResponse.json({ error: "Failed to create upload URL" }, { status: 500 });
     }
 
-    const signData = (await signRes.json()) as { url?: string; token?: string };
-    const uploadUrl = signData.url ?? `${signedUrl}?token=${signData.token ?? ""}`;
-    const publicUrl = `${supabaseUrl}/storage/v1/object/public/${bucket}/${storagePath}`;
+    const { data: publicData } = supabaseAdmin.storage
+      .from(bucket)
+      .getPublicUrl(storagePath);
 
     return NextResponse.json({
       success: true,
       token: signData.token ?? "",
       path: storagePath,
-      publicUrl,
-      uploadUrl,
+      publicUrl: publicData.publicUrl,
+      uploadUrl: signData.signedUrl,
     });
   } catch (err) {
     console.error("[sign-upload] Error:", err);

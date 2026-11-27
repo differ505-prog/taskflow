@@ -143,30 +143,33 @@ describe("countHardTasksByDate", () => {
 });
 
 describe("computeSmartReschedulePlan", () => {
-  it("避開已滿的今天，將過期任務平均攤平到本週最空日", () => {
+  it("避開已滿的今天，將過期任務近端優先填滿到每日上限後再往後排", () => {
     const today = "2026-11-26";
     const existing: Task[] = [
       makeTask({ id: "e1", dueDate: "2026-11-26" }),
       makeTask({ id: "e2", dueDate: "2026-11-26" }),
       makeTask({ id: "e3", dueDate: "2026-11-26" }), // 今天已達 3 件上限
-      makeTask({ id: "e4", dueDate: "2026-11-27" }), // 明天 1 件
+      makeTask({ id: "e4", dueDate: "2026-11-27" }), // 明天 1 件，還可排 2 件
     ];
     const overdue: Task[] = [
       makeTask({ id: "o1", dueDate: "2026-11-20", priority: "do-now" }),
       makeTask({ id: "o2", dueDate: "2026-11-21", priority: "schedule" }),
+      makeTask({ id: "o3", dueDate: "2026-11-22", priority: "delegate" }),
     ];
 
     const plan = computeSmartReschedulePlan(overdue, [...existing, ...overdue], today, {
       dailyCap: 3,
     });
 
-    expect(plan).toHaveLength(2);
-    // 優先挑最空的 11/28（0 件）與 11/29（0 件），不會塞進已滿的 11/26
+    expect(plan).toHaveLength(3);
+    // 11/26 已滿 3 件跳過；11/27 原 1 件先填滿到 3 件，第 3 筆溢流到 11/28
     expect(plan[0].task.id).toBe("o1");
-    expect(plan[0].targetDate).toBe("2026-11-28");
-    expect(plan[0].existingLoadBefore).toBe(0);
+    expect(plan[0].targetDate).toBe("2026-11-27");
+    expect(plan[0].existingLoadBefore).toBe(1);
     expect(plan[1].task.id).toBe("o2");
-    expect(plan[1].targetDate).toBe("2026-11-29");
+    expect(plan[1].targetDate).toBe("2026-11-27");
+    expect(plan[2].task.id).toBe("o3");
+    expect(plan[2].targetDate).toBe("2026-11-28");
   });
 
   it("前 7 天皆達上限時，自動延展至第 8–14 天", () => {
@@ -187,7 +190,7 @@ describe("computeSmartReschedulePlan", () => {
     expect(suggestion.existingLoadBefore).toBe(0);
   });
 
-  it("依 customOrderIds（Tap-to-Rank）優先分配最早空檔，未點選者接續在後", () => {
+  it("依 customOrderIds（Tap-to-Rank）優先填滿最早日，超過上限才順延", () => {
     const today = "2026-11-26";
     const overdue: Task[] = [
       makeTask({ id: "t1", title: "一般任務 A", dueDate: "2026-11-20", priority: "do-now" }),
@@ -195,16 +198,16 @@ describe("computeSmartReschedulePlan", () => {
       makeTask({ id: "t3", title: "一般任務 C", dueDate: "2026-11-22", priority: "none" }),
     ];
 
-    // 使用者先點 t3，再點 t2，沒點 t1
+    // 設每日上限 2 件：先點 t3、再點 t2 搶先填滿今天，未點的 t1 順延到明天
     const plan = computeSmartReschedulePlan(overdue, overdue, today, {
-      dailyCap: 3,
+      dailyCap: 2,
       customOrderIds: ["t3", "t2"],
     });
 
     expect(plan.map((p) => p.task.id)).toEqual(["t3", "t2", "t1"]);
     expect(plan[0].targetDate).toBe("2026-11-26");
-    expect(plan[1].targetDate).toBe("2026-11-27");
-    expect(plan[2].targetDate).toBe("2026-11-28");
+    expect(plan[1].targetDate).toBe("2026-11-26");
+    expect(plan[2].targetDate).toBe("2026-11-27");
   });
 
   it("保留跨日過期任務的區間長度", () => {

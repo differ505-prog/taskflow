@@ -141,34 +141,16 @@ export interface SmartRescheduleOptions {
 function pickBestDate(
   candidateDates: string[],
   loadMap: Record<string, number>,
-  dailyCap: number,
-  primaryWindowDays: number
+  dailyCap: number
 ): string {
-  const primary = candidateDates.slice(0, primaryWindowDays);
-  const secondary = candidateDates.slice(primaryWindowDays);
-
-  const pickLightestUnderCap = (dates: string[]): string | null => {
-    let best: string | null = null;
-    let bestLoad = Infinity;
-    for (const d of dates) {
-      const load = loadMap[d] ?? 0;
-      if (load < dailyCap && load < bestLoad) {
-        best = d;
-        bestLoad = load;
-      }
+  // Tier 1: 近端優先填滿 — 由今天起依序找第一個未達每日硬排程上限的日子
+  for (const d of candidateDates) {
+    if ((loadMap[d] ?? 0) < dailyCap) {
+      return d;
     }
-    return best;
-  };
+  }
 
-  // Tier 1: 本週（前 7 天）未滿 dailyCap 且負載最輕（同負載取最早日）
-  const tier1 = pickLightestUnderCap(primary);
-  if (tier1) return tier1;
-
-  // Tier 2: 次週（第 8–14 天）未滿 dailyCap 且負載最輕
-  const tier2 = pickLightestUnderCap(secondary);
-  if (tier2) return tier2;
-
-  // Tier 3: 全部已達上限時，取全視窗負載最輕那天（同負載取最早日）
+  // Tier 2: 視窗內全部已達上限時，取負載最輕那天（同負載取最早日）
   let fallback = candidateDates[0];
   let minLoad = loadMap[fallback] ?? 0;
   for (const d of candidateDates) {
@@ -206,10 +188,6 @@ export function computeSmartReschedulePlan(
 
   const dailyCap = options.dailyCap ?? DEFAULT_DAILY_HARD_CAP;
   const lookaheadDays = options.lookaheadDays ?? DEFAULT_LOOKAHEAD_DAYS;
-  const primaryWindowDays = Math.min(
-    options.primaryWindowDays ?? PRIMARY_WINDOW_DAYS,
-    lookaheadDays
-  );
 
   const candidateDates = buildDateWindow(todayStr, lookaheadDays);
   const initialLoad = countHardTasksByDate(allTasks, candidateDates);
@@ -235,7 +213,7 @@ export function computeSmartReschedulePlan(
   });
 
   return sorted.map((task) => {
-    const targetDate = pickBestDate(candidateDates, workingLoad, dailyCap, primaryWindowDays);
+    const targetDate = pickBestDate(candidateDates, workingLoad, dailyCap);
     const existingLoadBefore = initialLoad[targetDate] ?? 0;
     const incrementsHardLoad = !task.recurrence;
     if (incrementsHardLoad) {
